@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Button Test</title>
+    <style>
+        .picker-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            background: #3498db;
+            color: white;
+            margin: 10px;
+        }
+        .picker-btn:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <h1>File Picker Button Test</h1>
+    
+    <button id="file-picker-btn" class="picker-btn">Choose File</button>
+    <input type="file" id="file-input" hidden>
+    
+    <button id="image-picker-btn" class="picker-btn">Choose Image</button>
+    <input type="file" id="image-input" accept=".png" hidden>
+    
+    <div id="status"></div>
+    
+    <script>
+        console.log('Script loaded');
+        
+        // Test file picker button
+        const filePickerBtn = document.getElementById('file-picker-btn');
+        const fileInput = document.getElementById('file-input');
+        const imagePickerBtn = document.getElementById('image-picker-btn');
+        const imageInput = document.getElementById('image-input');
+        const status = document.getElementById('status');
+        
+        console.log('Elements found:', {
+            filePickerBtn: !!filePickerBtn,
+            fileInput: !!fileInput,
+            imagePickerBtn: !!imagePickerBtn,
+            imageInput: !!imageInput
+        });
+        
+        filePickerBtn.addEventListener('click', () => {
+            console.log('File picker button clicked');
+            status.innerHTML += '<p>File picker button clicked!</p>';
+            fileInput.click();
+        });
+        
+        imagePickerBtn.addEventListener('click', () => {
+            console.log('Image picker button clicked');
+            status.innerHTML += '<p>Image picker button clicked!</p>';
+            imageInput.click();
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            console.log('File selected:', e.target.files[0]);
+            status.innerHTML += '<p>File selected: ' + (e.target.files[0]?.name || 'none') + '</p>';
+        });
+        
+        imageInput.addEventListener('change', (e) => {
+            console.log('Image selected:', e.target.files[0]);
+            status.innerHTML += '<p>Image selected: ' + (e.target.files[0]?.name || 'none') + '</p>';
+        });
+    </script>
+</body>
+</html>

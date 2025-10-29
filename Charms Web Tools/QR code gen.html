@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generator</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #000000; /* Black background */
+            color: #ffffff; /* White text */
+            transition: background-color 0.3s ease;
+        }
+
+        .container {
+            padding: 2rem;
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        p {
+            margin-bottom: 2rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            margin: 0.5rem 0 1.5rem;
+            border: none; /* No border */
+            border-bottom: 1px solid #ffffff; /* White bottom border for visual separation */
+            border-radius: 0; /* No border-radius */
+            font-size: 1rem;
+            box-sizing: border-box;
+            background-color: transparent;
+            color: #ffffff; /* White text color for input */
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-bottom: 1px solid #ffffff; /* Keep border on focus */
+            box-shadow: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 0;
+            background-color: transparent; /* Transparent button background */
+            color: #ffffff; /* White text */
+            border: none; /* No border */
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        button:hover {
+            color: #cccccc;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        #qrcode {
+            margin: 2rem auto;
+            width: 250px;
+            height: 250px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+            background-color: transparent;
+        }
+        
+        #qrcode canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        #download-button {
+            margin-top: 1rem;
+            display: none; /* Initially hidden */
+        }
+
+        /* Message box styling */
+        .message-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #000000;
+            color: #ffffff;
+            padding: 20px;
+            border: 1px solid #ffffff;
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .message-modal p {
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .container {
+                margin: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Generator</h1>
+        <input type="text" id="text-input" placeholder="e.g., https://www.google.com">
+        <div id="qrcode"></div>
+        <button id="download-button">Download</button>
+    </div>
+
+    <!-- The QR code library is loaded from a CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <script>
+        // Get the HTML elements
+        const textInput = document.getElementById('text-input');
+        const qrCodeDiv = document.getElementById('qrcode');
+        const downloadButton = document.getElementById('download-button');
+
+        // Function to create and show a simple alert modal instead of alert()
+        function showMessage(message) {
+            const modal = document.createElement('div');
+            modal.className = 'message-modal';
+            modal.innerHTML = `
+                <p>${message}</p>
+                <button onclick="this.parentElement.remove()">OK</button>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Create a new QRCode instance for on-screen display
+        let qrcode = null;
+
+        // Function to generate the QR code for real-time display
+        function generateQRCode() {
+            const text = textInput.value.trim();
+            
+            // Clear the QR code div and destroy the old instance if it exists
+            qrCodeDiv.innerHTML = '';
+            if (qrcode) {
+                qrcode = null;
+            }
+
+            if (text) {
+                // Create a new QRCode instance for the current text with a fixed, display-friendly size
+                qrcode = new QRCode(qrCodeDiv, {
+                    text: text,
+                    width: 250,
+                    height: 250,
+                    colorDark: "#ffffff",
+                    colorLight: "#000000",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                downloadButton.style.display = 'block';
+            } else {
+                downloadButton.style.display = 'none';
+            }
+        }
+
+        // Function to download the QR code image
+        function downloadQRCode() {
+            const text = textInput.value.trim();
+            if (!text) {
+                showMessage("No QR code to download. Please generate one first.");
+                return;
+            }
+
+            // Temporarily create a hidden div for the high-res QR code
+            const hiddenDiv = document.createElement('div');
+            hiddenDiv.style.display = 'none';
+            document.body.appendChild(hiddenDiv);
+
+            // Create a new QRCode instance at the desired high resolution
+            const highResQRCode = new QRCode(hiddenDiv, {
+                text: text,
+                width: 4096,
+                height: 4096,
+                colorDark: "#ffffff",
+                colorLight: "#000000",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            
+            // The library needs a moment to render the canvas
+            setTimeout(() => {
+                const highResCanvas = hiddenDiv.querySelector('canvas');
+                if (highResCanvas) {
+                    const imageUrl = highResCanvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.href = imageUrl;
+                    link.download = 'qrcode.png';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+                
+                // Clean up the temporary div
+                document.body.removeChild(hiddenDiv);
+            }, 100);
+        }
+
+        // Add an event listener to the input field for real-time updates
+        textInput.addEventListener('input', generateQRCode);
+
+        // Add event listener to the download button
+        downloadButton.addEventListener('click', downloadQRCode);
+
+    </script>
+</body>
+</html>

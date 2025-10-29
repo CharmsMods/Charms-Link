@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Image to JSON Converter</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      background: #f5f5f5;
+      text-align: center;
+    }
+    input, button {
+      margin: 1rem;
+      padding: 0.5rem 1rem;
+    }
+    #output {
+      word-break: break-all;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 1rem;
+      max-height: 300px;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>📷 Image to JSON Converter</h1>
+  <input type="file" id="imageInput" accept="image/*">
+  <button onclick="convertToJSON()">Convert & Download JSON</button>
+  <pre id="output"></pre>
+
+  <script>
+    let base64Data = '';
+
+    function convertToJSON() {
+      const fileInput = document.getElementById('imageInput');
+      const file = fileInput.files[0];
+      if (!file) return alert('Please upload an image first!');
+
+      const reader = new FileReader();
+      reader.onload = function () {
+        base64Data = reader.result;
+        const json = JSON.stringify({ filename: file.name, image: base64Data }, null, 2);
+
+        // Show preview
+        document.getElementById('output').textContent = json;
+
+        // Trigger download
+        const blob = new Blob([json], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = file.name.replace(/\.[^.]+$/, '') + '.json';
+        a.click();
+      };
+      reader.readAsDataURL(file);
+    }
+  </script>
+</body>
+</html>

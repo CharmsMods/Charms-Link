@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Color Picker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+    
+    :root {
+      --text-color: #ffffff;
+      --border-color: #ffffff;
+      --hover-bg: rgba(255, 255, 255, 0.05);
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      transition: all 0.2s ease;
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0a0a0a; /* Slightly darker than pure black */
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    
+    .container {
+      width: 100%;
+      max-width: 800px;
+      text-align: center;
+    }
+    
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+      font-weight: 600;
+    }
+    
+    .upload-area {
+      margin: 2rem 0;
+      padding: 2rem;
+      border: 2px dashed #4b5563; /* Tailwind gray-600 */
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    
+    .upload-area:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    
+    #upload {
+      display: none;
+    }
+    
+    .upload-label {
+      display: block;
+      background-color: #374151; /* Tailwind gray-700 */
+      color: white;
+      padding: 0.75rem 2rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+    
+    .upload-label:hover {
+      background-color: #4b5563; /* Tailwind gray-600 */
+    }
+
+    /* Modal for custom messages */
+    .message-box {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #1f2937;
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+        display: none;
+    }
+    
+    #canvas {
+      width: 100%; /* Will be overridden by JS for aspect ratio */
+      height: auto; /* Will be overridden by JS for aspect ratio */
+      border: 1px solid var(--border-color);
+      cursor: crosshair;
+      margin: 0 auto;
+      display: block;
+      /* Max constraint to ensure it doesn't take up the whole screen */
+      max-height: 60vh;
+      max-width: 100%;
+    }
+    
+    .color-info {
+      margin: 2rem 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    
+    .color-values {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    #hexValue, #rgbValue {
+      font-size: 1.2rem;
+      font-weight: 500;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 1px;
+    }
+    
+    #preview {
+      width: 80px;
+      height: 80px;
+      border: 3px solid #6b7280; /* Tailwind gray-500 */
+      border-radius: 12px;
+      margin: 1rem auto;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+    }
+    
+    #copyBtn {
+      background: #10b981; /* Tailwind emerald-500 */
+      color: black;
+      border: none;
+      padding: 0.75rem 2rem;
+      font-size: 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 1rem;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    #copyBtn:hover {
+      background: #059669; /* Tailwind emerald-600 */
+      color: white;
+    }
+    
+    .instructions {
+      margin: 1rem 0;
+      color: #9ca3af; /* Tailwind gray-400 */
+      font-size: 0.9rem;
+      line-height: 1.6;
+      height: 1.5rem; /* Reserve space to prevent CLS */
+      display: none;
+    }
+    
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 1.5rem;
+      }
+      
+      .upload-area {
+        padding: 1.5rem;
+      }
+      
+      #hexValue, #rgbValue {
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Image Color Picker</h1>
+    
+    <div class="upload-area">
+      <label class="upload-label" for="upload">
+        Upload Image
+        <input type="file" id="upload" accept="image/*">
+      </label>
+    </div>
+    
+    <div class="instructions" id="instructions">
+      Click anywhere on the image to pick a color
+    </div>
+    
+    <canvas id="canvas"></canvas>
+    
+    <div class="color-info">
+      <div id="preview"></div>
+      <div class="color-values">
+        <div id="hexValue">#------</div>
+        <div id="rgbValue">RGB(---, ---, ---)</div>
+      </div>
+      <button id="copyBtn">Copy Color</button>
+    </div>
+  </div>
+
+  <div class="message-box" id="messageBox"></div>
+
+  <script>
+    // --- UTILITIES ---
+    function showMessage(text, duration = 3000) {
+        const box = document.getElementById('messageBox');
+        box.textContent = text;
+        box.style.display = 'block';
+        setTimeout(() => {
+            box.style.display = 'none';
+        }, duration);
+    }
+
+    // --- MAIN LOGIC ---
+    const upload = document.getElementById('upload');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const hexValue = document.getElementById('hexValue');
+    const rgbValue = document.getElementById('rgbValue');
+    const preview = document.getElementById('preview');
+    const copyBtn = document.getElementById('copyBtn');
+    const instructions = document.getElementById('instructions');
+
+    let currentHex = "";
+    let currentRgb = "";
+    let isImageLoaded = false;
+    let originalImage = null; // Store the original Image object for reference
+
+    function resizeCanvas() {
+        if (!originalImage) return;
+
+        const img = originalImage;
+        
+        // 1. Define bounds
+        const containerWidth = Math.min(window.innerWidth - 40, 800);
+        const containerHeight = Math.min(window.innerHeight * 0.6, 600);
+        
+        // 2. Calculate aspect ratios
+        const imgAspectRatio = img.width / img.height;
+        const containerAspectRatio = containerWidth / containerHeight;
+        
+        let displayWidth, displayHeight;
+        
+        // 3. Determine dimensions to maintain aspect ratio for DISPLAY (CSS)
+        if (imgAspectRatio > containerAspectRatio) {
+            // Image is wider than container relative to height
+            displayWidth = containerWidth;
+            displayHeight = containerWidth / imgAspectRatio;
+        } else {
+            // Image is taller than container relative to width
+            displayHeight = containerHeight;
+            displayWidth = containerHeight * imgAspectRatio;
+        }
+        
+        // Set CSS dimensions (How it looks)
+        canvas.style.width = `${displayWidth}px`;
+        canvas.style.height = `${displayHeight}px`;
+
+        // The drawing buffer size (canvas.width/height) remains the original image size for accurate pixel reading
+        // It is set when the image is first loaded in the upload handler.
+    }
+
+
+    // Handle file upload
+    upload.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const img = new Image();
+      img.onload = function() {
+        originalImage = img; // Cache the loaded image object
+
+        // --- THE CRITICAL FIX: Set Drawing Buffer and Draw Image ---
+        canvas.width = img.width;   // Set canvas drawing width to actual image width
+        canvas.height = img.height; // Set canvas drawing height to actual image height
+        ctx.drawImage(img, 0, 0);   // Draw the image onto the canvas buffer
+        // -----------------------------------------------------------
+        
+        isImageLoaded = true;
+        
+        // Calculate and set the responsive CSS display size
+        resizeCanvas();
+
+        // Show instructions
+        instructions.style.display = 'block';
+        showMessage('Image loaded! Click to pick a color.', 1500);
+      };
+      
+      img.onerror = function() {
+        showMessage("Error loading image. Please try another file.");
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+
+    // Handle color picking
+    canvas.addEventListener('click', function(e) {
+      if (!isImageLoaded) return;
+      
+      const rect = canvas.getBoundingClientRect();
+      
+      // Calculate click position relative to the element (0-100% of visible area)
+      const clickXInDisplay = e.clientX - rect.left;
+      const clickYInDisplay = e.clientY - rect.top;
+
+      // Scale the click position to the actual canvas drawing buffer size
+      // This is the core scaling logic for accurate reading
+      const x = Math.floor(clickXInDisplay * (canvas.width / rect.width));
+      const y = Math.floor(clickYInDisplay * (canvas.height / rect.height));
+      
+      const pixel = ctx.getImageData(x, y, 1, 1).data;
+      const r = pixel[0];
+      const g = pixel[1];
+      const b = pixel[2];
+      
+      // Convert to hex and RGB
+      // The hex conversion is correct but simplified slightly for clarity
+      const toHex = (c) => c.toString(16).padStart(2, '0');
+      const hex = '#' + toHex(r) + toHex(g) + toHex(b).toUpperCase();
+      const rgb = `RGB(${r}, ${g}, ${b})`;
+      
+      currentHex = hex;
+      currentRgb = rgb;
+      
+      // Update display
+      hexValue.textContent = hex;
+      rgbValue.textContent = rgb;
+      preview.style.backgroundColor = hex;
+      
+      // Show feedback
+      copyBtn.textContent = 'Copy Color';
+    });
+
+    // Handle copy to clipboard
+    copyBtn.addEventListener('click', function() {
+      if (!currentHex) {
+        showMessage("Please pick a color first!");
+        return;
+      }
+      
+      const textToCopy = `${currentHex}\n${currentRgb}`;
+      
+      // Use document.execCommand('copy') for cross-browser compatibility in iframes
+      const tempInput = document.createElement('textarea');
+      tempInput.value = currentHex; // Copying just HEX is generally preferred
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+            }, 1500);
+        } else {
+            console.error('Failed to copy using execCommand');
+        }
+      } catch (err) {
+        console.error('Failed to copy: ', err);
+      } finally {
+        document.body.removeChild(tempInput);
+      }
+    });
+
+    // Handle window resize to maintain aspect ratio
+    window.addEventListener('resize', resizeCanvas);
+
+    // Add drag and drop support (Your original logic was fine here)
+    const dropArea = document.querySelector('.upload-area');
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropArea.addEventListener(eventName, preventDefaults, false);
+      dropArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropArea.addEventListener(eventName, unhighlight, false);
+    });
+
+    // Prevent default drop behavior on the whole document
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      document.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    function highlight() {
+      dropArea.style.background = 'rgba(255, 255, 255, 0.1)';
+      dropArea.style.borderColor = '#9ca3af';
+    }
+    
+    function unhighlight() {
+      dropArea.style.background = '';
+      dropArea.style.borderColor = '#4b5563';
+    }
+    
+    dropArea.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      if (files.length > 0) {
+        upload.files = files;
+        // Trigger the 'change' event programmatically
+        const event = new Event('change');
+        upload.dispatchEvent(event);
+      }
+    }
+  </script>
+</body>
+</html>

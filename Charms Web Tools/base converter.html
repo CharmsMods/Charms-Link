@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Number Base Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #000000;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #000000;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: visible;
+            border: none;
+        }
+
+        .header {
+            background: #000000;
+            color: white;
+            padding: 60px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 4rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-shadow: none;
+        }
+
+        .header p {
+            font-size: 1.5rem;
+            opacity: 0.8;
+        }
+
+        .converter-grid {
+            padding: 60px 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 40px;
+            background: #000000;
+        }
+
+        .base-group {
+            background: transparent;
+            border-radius: 0;
+            padding: 30px 0;
+            box-shadow: none;
+            border: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: visible;
+        }
+
+        .base-group::before {
+            display: none;
+        }
+
+        .base-group:focus-within {
+            border: none;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .base-label {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .base-indicator {
+            display: inline-block;
+            background: transparent;
+            color: #ffffff;
+            padding: 6px 0;
+            border-radius: 0;
+            font-size: 1rem;
+            font-weight: 400;
+            opacity: 0.7;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .base-input {
+            width: 100%;
+            padding: 20px 0;
+            font-size: 2rem;
+            border: none;
+            border-bottom: 2px solid #ffffff;
+            border-radius: 0;
+            background: transparent;
+            transition: all 0.3s ease;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            letter-spacing: 1px;
+            color: #ffffff;
+        }
+
+        .base-input:focus {
+            outline: none;
+            border-bottom: 2px solid #ffffff;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .base-input::placeholder {
+            color: #ffffff;
+            opacity: 0.4;
+            font-style: normal;
+        }
+
+        .clear-btn {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            color: #ffffff;
+            border: none;
+            border-radius: 0;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.5rem;
+        }
+
+        .clear-btn:hover {
+            background: transparent;
+            color: #ffffff;
+            opacity: 0.7;
+            border: none;
+        }
+
+        .base-input:not(:placeholder-shown) + .clear-btn {
+            display: flex;
+        }
+
+        .error-message {
+            color: #ffffff;
+            font-size: 1.1rem;
+            margin-top: 10px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            font-weight: 400;
+        }
+
+        .error-message.show {
+            opacity: 0.7;
+        }
+
+        .base-group.error .base-input {
+            border-bottom: 2px solid #ffffff;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .info-section {
+            background: #000000;
+            color: white;
+            padding: 60px 30px;
+            text-align: center;
+        }
+
+        .info-section h2 {
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .info-item {
+            background: transparent;
+            color: #ffffff;
+            padding: 20px 0;
+            border-radius: 0;
+            border: none;
+            border-bottom: 1px solid #ffffff;
+        }
+
+        .info-item strong {
+            display: block;
+            font-size: 1.3rem;
+            margin-bottom: 8px;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                padding: 40px 20px;
+            }
+
+            .header h1 {
+                font-size: 2.5rem;
+            }
+
+            .header p {
+                font-size: 1.2rem;
+            }
+
+            .converter-grid {
+                padding: 40px 20px;
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+
+            .base-group {
+                padding: 20px 0;
+            }
+
+            .base-input {
+                font-size: 1.5rem;
+                padding: 15px 0;
+            }
+
+            .base-label {
+                font-size: 1.2rem;
+            }
+
+            .info-section {
+                padding: 40px 20px;
+            }
+
+            .info-section h2 {
+                font-size: 2rem;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .header p {
+                font-size: 1rem;
+            }
+
+            .converter-grid {
+                padding: 30px 15px;
+            }
+
+            .base-input {
+                font-size: 1.2rem;
+            }
+
+            .base-label {
+                font-size: 1rem;
+            }
+
+            .info-section h2 {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* Animation for value updates */
+        .base-input.updated {
+            animation: pulse 0.3s ease;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Number Base Converter</h1>
+            <p>Convert between different number systems instantly</p>
+        </div>
+
+        <div class="converter-grid">
+            <div class="base-group">
+                <div class="base-label">
+                    Decimal <span class="base-indicator">Base 10</span>
+                </div>
+                <div class="input-wrapper">
+                    <input type="text" class="base-input" id="decimal" placeholder="Enter decimal number (e.g., 255)" data-base="10">
+                    <button class="clear-btn" onclick="clearInput('decimal')">×</button>
+                </div>
+                <div class="error-message" id="decimal-error">Invalid decimal number</div>
+            </div>
+
+            <div class="base-group">
+                <div class="base-label">
+                    Binary <span class="base-indicator">Base 2</span>
+                </div>
+                <div class="input-wrapper">
+                    <input type="text" class="base-input" id="binary" placeholder="Enter binary number (e.g., 11111111)" data-base="2">
+                    <button class="clear-btn" onclick="clearInput('binary')">×</button>
+                </div>
+                <div class="error-message" id="binary-error">Invalid binary number (use only 0 and 1)</div>
+            </div>
+
+            <div class="base-group">
+                <div class="base-label">
+                    Hexadecimal <span class="base-indicator">Base 16</span>
+                </div>
+                <div class="input-wrapper">
+                    <input type="text" class="base-input" id="hexadecimal" placeholder="Enter hex number (e.g., FF)" data-base="16">
+                    <button class="clear-btn" onclick="clearInput('hexadecimal')">×</button>
+                </div>
+                <div class="error-message" id="hexadecimal-error">Invalid hexadecimal number (use 0-9, A-F)</div>
+            </div>
+
+            <div class="base-group">
+                <div class="base-label">
+                    Octal <span class="base-indicator">Base 8</span>
+                </div>
+                <div class="input-wrapper">
+                    <input type="text" class="base-input" id="octal" placeholder="Enter octal number (e.g., 377)" data-base="8">
+                    <button class="clear-btn" onclick="clearInput('octal')">×</button>
+                </div>
+                <div class="error-message" id="octal-error">Invalid octal number (use only 0-7)</div>
+            </div>
+
+            <div class="base-group">
+                <div class="base-label">
+                    Base 3 <span class="base-indicator">Ternary</span>
+                </div>
+                <div class="input-wrapper">
+                    <input type="text" class="base-input" id="base3" placeholder="Enter base 3 number (e.g., 100111)" data-base="3">
+                    <button class="clear-btn" onclick="clearInput('base3')">×</button>
+                </div>
+                <div class="error-message" id="base3-error">Invalid base 3 number (use only 0, 1, 2)</div>
+            </div>
+
+            <div class="base-group">
+                <div class="base-label">
+                    Base 5 <span class="base-indicator">Quinary</span>
+                </div>
+                <div class="input-wrapper">
+                    <input type="text" class="base-input" id="base5" placeholder="Enter base 5 number (e.g., 2010)" data-base="5">
+                    <button class="clear-btn" onclick="clearInput('base5')">×</button>
+                </div>
+                <div class="error-message" id="base5-error">Invalid base 5 number (use only 0-4)</div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <h2>Number Systems Guide</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <strong>Binary (Base 2)</strong>
+                    Uses digits: 0, 1
+                </div>
+                <div class="info-item">
+                    <strong>Octal (Base 8)</strong>
+                    Uses digits: 0-7
+                </div>
+                <div class="info-item">
+                    <strong>Decimal (Base 10)</strong>
+                    Uses digits: 0-9
+                </div>
+                <div class="info-item">
+                    <strong>Hexadecimal (Base 16)</strong>
+                    Uses: 0-9, A-F
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const inputs = {
+            decimal: document.getElementById('decimal'),
+            binary: document.getElementById('binary'),
+            hexadecimal: document.getElementById('hexadecimal'),
+            octal: document.getElementById('octal'),
+            base3: document.getElementById('base3'),
+            base5: document.getElementById('base5')
+        };
+
+        let isUpdating = false;
+
+        function validateInput(value, base) {
+            if (!value || value.trim() === '') return true;
+            
+            const cleanValue = value.trim().toUpperCase();
+            
+            switch (base) {
+                case 2:
+                    return /^[01]+$/.test(cleanValue);
+                case 3:
+                    return /^[012]+$/.test(cleanValue);
+                case 5:
+                    return /^[01234]+$/.test(cleanValue);
+                case 8:
+                    return /^[0-7]+$/.test(cleanValue);
+                case 10:
+                    return /^[0-9]+$/.test(cleanValue);
+                case 16:
+                    return /^[0-9A-F]+$/.test(cleanValue);
+                default:
+                    return false;
+            }
+        }
+
+        function showError(inputId, show = true) {
+            const errorElement = document.getElementById(inputId + '-error');
+            const groupElement = document.getElementById(inputId).closest('.base-group');
+            
+            if (show) {
+                errorElement.classList.add('show');
+                groupElement.classList.add('error');
+            } else {
+                errorElement.classList.remove('show');
+                groupElement.classList.remove('error');
+            }
+        }
+
+        function convertFromDecimal(decimal, targetBase) {
+            if (decimal === 0) return '0';
+            
+            let result = '';
+            let num = decimal;
+            
+            while (num > 0) {
+                const remainder = num % targetBase;
+                if (remainder < 10) {
+                    result = remainder + result;
+                } else {
+                    result = String.fromCharCode(55 + remainder) + result; // A=10, B=11, etc.
+                }
+                num = Math.floor(num / targetBase);
+            }
+            
+            return result;
+        }
+
+        function convertToDecimal(value, fromBase) {
+            if (!value || value.trim() === '') return 0;
+            
+            const cleanValue = value.trim().toUpperCase();
+            let decimal = 0;
+            let power = 0;
+            
+            for (let i = cleanValue.length - 1; i >= 0; i--) {
+                const digit = cleanValue[i];
+                let digitValue;
+                
+                if (digit >= '0' && digit <= '9') {
+                    digitValue = parseInt(digit);
+                } else if (digit >= 'A' && digit <= 'F') {
+                    digitValue = digit.charCodeAt(0) - 55; // A=10, B=11, etc.
+                } else {
+                    return NaN;
+                }
+                
+                if (digitValue >= fromBase) return NaN;
+                
+                decimal += digitValue * Math.pow(fromBase, power);
+                power++;
+            }
+            
+            return decimal;
+        }
+
+        function updateOtherInputs(sourceInputId, sourceValue) {
+            if (isUpdating) return;
+            isUpdating = true;
+
+            const sourceBase = parseInt(inputs[sourceInputId].dataset.base);
+            
+            // Clear all errors first
+            Object.keys(inputs).forEach(id => showError(id, false));
+            
+            if (!sourceValue || sourceValue.trim() === '') {
+                // Clear all other inputs
+                Object.keys(inputs).forEach(id => {
+                    if (id !== sourceInputId) {
+                        inputs[id].value = '';
+                    }
+                });
+                isUpdating = false;
+                return;
+            }
+
+            // Validate source input
+            if (!validateInput(sourceValue, sourceBase)) {
+                showError(sourceInputId, true);
+                isUpdating = false;
+                return;
+            }
+
+            // Convert to decimal first
+            const decimalValue = convertToDecimal(sourceValue, sourceBase);
+            
+            if (isNaN(decimalValue) || decimalValue < 0) {
+                showError(sourceInputId, true);
+                isUpdating = false;
+                return;
+            }
+
+            // Update all other inputs
+            Object.keys(inputs).forEach(id => {
+                if (id !== sourceInputId) {
+                    const targetBase = parseInt(inputs[id].dataset.base);
+                    const convertedValue = targetBase === 10 ? 
+                        decimalValue.toString() : 
+                        convertFromDecimal(decimalValue, targetBase);
+                    
+                    inputs[id].value = convertedValue;
+                    
+                    // Add animation
+                    inputs[id].classList.add('updated');
+                    setTimeout(() => {
+                        inputs[id].classList.remove('updated');
+                    }, 300);
+                }
+            });
+
+            isUpdating = false;
+        }
+
+        function clearInput(inputId) {
+            inputs[inputId].value = '';
+            inputs[inputId].focus();
+            showError(inputId, false);
+            updateOtherInputs(inputId, '');
+        }
+
+        // Add event listeners
+        Object.keys(inputs).forEach(id => {
+            inputs[id].addEventListener('input', (e) => {
+                updateOtherInputs(id, e.target.value);
+            });
+            
+            inputs[id].addEventListener('paste', (e) => {
+                setTimeout(() => {
+                    updateOtherInputs(id, e.target.value);
+                }, 10);
+            });
+        });
+
+        // Initialize with a sample conversion
+        setTimeout(() => {
+            inputs.decimal.value = '255';
+            updateOtherInputs('decimal', '255');
+        }, 500);
+    </script>
+</body>
+</html>

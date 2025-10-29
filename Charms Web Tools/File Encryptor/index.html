@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure File Image Converter</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Secure File Image Converter</h1>
+            <p>Encrypt files into images for secure transmission</p>
+        </header>
+
+        <main>
+            <!-- Mode Selection -->
+            <div class="mode-selector">
+                <button id="encrypt-mode-btn" class="mode-btn active">Encrypt</button>
+                <button id="decrypt-mode-btn" class="mode-btn">Decrypt</button>
+            </div>
+
+            <!-- Encryption Section -->
+            <section id="encrypt-section" class="section active">
+                <h2>Encrypt File</h2>
+                
+                <!-- Input Mode Tabs -->
+                <div class="input-tabs">
+                    <button id="file-input-tab" class="tab-btn active">File</button>
+                    <button id="text-input-tab" class="tab-btn">Text</button>
+                </div>
+
+                <!-- File Input -->
+                <div id="file-input-area" class="input-area active">
+                    <div class="drag-drop-area" id="file-drop-area">
+                        <div class="drag-drop-content">
+                            <div class="upload-icon">📁</div>
+                            <p>Drag and drop files here</p>
+                            <p class="or-text">or</p>
+                            <button id="file-picker-btn" class="picker-btn">Choose Files</button>
+                            <input type="file" id="file-input" multiple hidden>
+                        </div>
+                    </div>
+                    <div class="file-info" id="file-info" style="display: none;">
+                        <span id="file-name"></span>
+                        <span id="file-size"></span>
+                    </div>
+                    <div class="multi-file-list" id="multi-file-list" style="display: none;">
+                        <div class="multi-file-header">
+                            <h4>Selected Files (<span id="file-count">0</span>)</h4>
+                            <button id="clear-files-btn" class="clear-btn">Clear All</button>
+                        </div>
+                        <div class="file-items" id="file-items"></div>
+                        <div class="total-size">
+                            Total Size: <span id="total-size">0 Bytes</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Text Input -->
+                <div id="text-input-area" class="input-area">
+                    <textarea id="text-input" placeholder="Enter your text message here..." rows="6"></textarea>
+                </div>
+
+                <!-- Password Input -->
+                <div class="password-section">
+                    <label for="encrypt-password">Password:</label>
+                    <input type="password" id="encrypt-password" placeholder="Enter encryption password">
+                </div>
+
+                <!-- Output Options -->
+                <div class="output-options">
+                    <h3>Output Format:</h3>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="output-format" value="image" checked>
+                            PNG Image Download
+                        </label>
+                        <label>
+                            <input type="radio" name="output-format" value="base64">
+                            Base64 Text
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Encrypt Button -->
+                <button id="encrypt-btn" class="action-btn" disabled>Encrypt</button>
+
+                <!-- Progress Indicator -->
+                <div class="progress-container" id="encrypt-progress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="encrypt-progress-fill"></div>
+                    </div>
+                    <div class="progress-text" id="encrypt-progress-text">Processing...</div>
+                </div>
+
+                <!-- Output Area -->
+                <div class="output-area" id="encrypt-output" style="display: none;">
+                    <div id="image-output" class="output-section">
+                        <h3>Encrypted Image</h3>
+                        <button id="download-image-btn" class="download-btn">Download PNG</button>
+                    </div>
+                    <div id="base64-output" class="output-section">
+                        <h3>Encrypted Base64</h3>
+                        <textarea id="base64-text" readonly rows="4"></textarea>
+                        <button id="copy-base64-btn" class="copy-btn">Copy to Clipboard</button>
+                    </div>
+                </div>
+
+                <!-- Error Display -->
+                <div class="error-display" id="encrypt-error" style="display: none;"></div>
+            </section>
+
+            <!-- Decryption Section -->
+            <section id="decrypt-section" class="section">
+                <h2>Decrypt File</h2>
+
+                <!-- Input Mode Tabs -->
+                <div class="input-tabs">
+                    <button id="image-input-tab" class="tab-btn active">Image Upload</button>
+                    <button id="base64-input-tab" class="tab-btn">Base64 Text</button>
+                </div>
+
+                <!-- Image Input -->
+                <div id="image-input-area" class="input-area active">
+                    <div class="drag-drop-area" id="image-drop-area">
+                        <div class="drag-drop-content">
+                            <div class="upload-icon">🖼️</div>
+                            <p>Drag and drop encrypted PNG image here</p>
+                            <p class="or-text">or</p>
+                            <button id="image-picker-btn" class="picker-btn">Choose Image</button>
+                            <input type="file" id="image-input" accept=".png" hidden>
+                        </div>
+                    </div>
+                    <div class="file-info" id="image-info" style="display: none;">
+                        <span id="image-name"></span>
+                        <span id="image-size"></span>
+                    </div>
+                </div>
+
+                <!-- Base64 Input -->
+                <div id="base64-input-area" class="input-area">
+                    <textarea id="base64-input" placeholder="Paste encrypted Base64 text here..." rows="6"></textarea>
+                    <button id="paste-base64-btn" class="paste-btn">Paste from Clipboard</button>
+                </div>
+
+                <!-- Password Input -->
+                <div class="password-section">
+                    <label for="decrypt-password">Password:</label>
+                    <input type="password" id="decrypt-password" placeholder="Enter decryption password">
+                </div>
+
+                <!-- Decrypt Button -->
+                <button id="decrypt-btn" class="action-btn" disabled>Decrypt</button>
+
+                <!-- Progress Indicator -->
+                <div class="progress-container" id="decrypt-progress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="decrypt-progress-fill"></div>
+                    </div>
+                    <div class="progress-text" id="decrypt-progress-text">Processing...</div>
+                </div>
+
+                <!-- Output Area -->
+                <div class="output-area" id="decrypt-output" style="display: none;">
+                    <div id="text-output" class="output-section">
+                        <h3>Decrypted Text</h3>
+                        <textarea id="decrypted-text" readonly rows="6"></textarea>
+                        <button id="copy-text-btn" class="copy-btn">Copy to Clipboard</button>
+                    </div>
+                    <div id="file-output" class="output-section">
+                        <h3>Decrypted File</h3>
+                        <div class="file-info">
+                            <span id="restored-file-name"></span>
+                            <span id="restored-file-size"></span>
+                        </div>
+                        <button id="download-file-btn" class="download-btn">Download File</button>
+                    </div>
+                </div>
+
+                <!-- Error Display -->
+                <div class="error-display" id="decrypt-error" style="display: none;"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Load scripts in correct order -->
+    <script src="interfaces.js"></script>
+    <script src="validation-engine.js"></script>
+    <script src="error-handler.js"></script>
+    <script src="security-manager.js"></script>
+    <script src="file-archiver.js"></script>
+    
+    <!-- Load ES6 modules -->
+    <script type="module">
+        // Import and expose components globally
+        import CryptoEngine from './crypto-engine.js';
+        import { ImageConverterImpl } from './image-converter.js';
+        import { FileProcessorImpl } from './file-processor.js';
+        
+        // Make components available globally
+        window.CryptoEngine = CryptoEngine;
+        window.ImageConverterImpl = ImageConverterImpl;
+        window.FileProcessorImpl = FileProcessorImpl;
+        
+        console.log('Components loaded:', {
+            CryptoEngine: !!window.CryptoEngine,
+            ImageConverterImpl: !!window.ImageConverterImpl,
+            FileProcessorImpl: !!window.FileProcessorImpl,
+            ValidationEngineImpl: !!window.ValidationEngineImpl,
+            ErrorHandler: !!window.ErrorHandler,
+            SecurityManager: !!window.SecurityManager,
+            CONSTANTS: !!window.CONSTANTS
+        });
+    </script>
+    
+    <script src="app.js"></script>
+    
+    <script>
+        // Initialize app after components are loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                window.app = new SecureFileImageConverter();
+                console.log('✅ App initialized successfully');
+            } catch (error) {
+                console.error('❌ Failed to initialize app:', error);
+            }
+        });
+    </script>
+</body>
+</html>

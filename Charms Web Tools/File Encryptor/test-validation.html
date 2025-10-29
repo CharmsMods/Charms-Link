@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error Handling Validation Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .error-display {
+            margin: 15px 0;
+            padding: 15px;
+            background: #fdf2f2;
+            border: 1px solid #f5c6cb;
+            border-radius: 6px;
+            color: #721c24;
+            border-left: 4px solid #e74c3c;
+        }
+        .error-recovery {
+            background: rgba(231, 76, 60, 0.05);
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid rgba(231, 76, 60, 0.1);
+            margin-top: 10px;
+        }
+        .error-recovery h4 {
+            color: #c0392b;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .error-recovery ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .error-recovery li {
+            margin-bottom: 8px;
+            color: #721c24;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <h1>Error Handling System Validation</h1>
+    <p>This page tests the comprehensive error handling system implementation.</p>
+
+    <div class="test-section">
+        <h2>Component Loading Test</h2>
+        <div id="loading-results"></div>
+        <button onclick="testComponentLoading()">Test Component Loading</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Error Categorization Test</h2>
+        <div id="categorization-results"></div>
+        <button onclick="testErrorCategorization()">Test Error Categorization</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Error Recovery Test</h2>
+        <div id="recovery-results"></div>
+        <button onclick="testErrorRecovery()">Test Error Recovery</button>
+    </div>
+
+    <div class="test-section">
+        <h2>User Interface Error Display Test</h2>
+        <div id="ui-results"></div>
+        <button onclick="testUIErrorDisplay()">Test UI Error Display</button>
+        <div id="error-display-demo"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Progress Reporting Test</h2>
+        <div id="progress-results"></div>
+        <button onclick="testProgressReporting()">Test Progress Reporting</button>
+        <div id="progress-demo"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Error Statistics Test</h2>
+        <div id="stats-results"></div>
+        <button onclick="testErrorStatistics()">Test Error Statistics</button>
+        <button onclick="exportErrorLog()">Export Error Log</button>
+    </div>
+
+    <script src="interfaces.js"></script>
+    <script src="validation-engine.js"></script>
+    <script type="module">
+        // Import and expose components globally
+        import { ErrorHandler } from './error-handler.js';
+        import CryptoEngine from './crypto-engine.js';
+        import { ImageConverterImpl } from './image-converter.js';
+        import { FileProcessorImpl } from './file-processor.js';
+        
+        // Make components available globally
+        window.ErrorHandler = ErrorHandler;
+        window.CryptoEngine = CryptoEngine;
+        window.ImageConverterImpl = ImageConverterImpl;
+        window.FileProcessorImpl = FileProcessorImpl;
+        
+        // Initialize error handler for testing
+        window.testErrorHandler = new ErrorHandler();
+        window.testErrorHandler.setDebugMode(true);
+        
+        console.log('Test components loaded successfully');
+    </script>
+
+    <script>
+        function showResult(containerId, message, isSuccess = true) {
+            const container = document.getElementById(containerId);
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${isSuccess ? 'success' : 'error'}`;
+            resultDiv.textContent = message;
+            container.appendChild(resultDiv);
+        }
+
+        function testComponentLoading() {
+            const container = document.getElementById('loading-results');
+            container.innerHTML = '';
+
+            try {
+                // Test if all components are loaded
+                const components = [
+                    { name: 'ErrorHandler', obj: window.ErrorHandler },
+                    { name: 'CryptoEngine', obj: window.CryptoEngine },
+                    { name: 'ImageConverterImpl', obj: window.ImageConverterImpl },
+                    { name: 'FileProcessorImpl', obj: window.FileProcessorImpl },
+                    { name: 'ValidationEngineImpl', obj: window.ValidationEngineImpl },
+                    { name: 'CONSTANTS', obj: window.CONSTANTS }
+                ];
+
+                components.forEach(({ name, obj }) => {
+                    if (obj) {
+                        showResult('loading-results', `✓ ${name} loaded successfully`);
+                    } else {
+                        showResult('loading-results', `✗ ${name} failed to load`, false);
+                    }
+                });
+
+                // Test ErrorHandler instantiation
+                if (window.testErrorHandler) {
+                    showResult('loading-results', '✓ ErrorHandler instance created successfully');
+                } else {
+                    showResult('loading-results', '✗ ErrorHandler instance creation failed', false);
+                }
+
+            } catch (error) {
+                showResult('loading-results', `✗ Component loading test failed: ${error.message}`, false);
+            }
+        }
+
+        function testErrorCategorization() {
+            const container = document.getElementById('categorization-results');
+            container.innerHTML = '';
+
+            try {
+                const testCases = [
+                    { error: 'Invalid password', expectedCode: 'INVALID_PASSWORD' },
+                    { error: 'File too large', expectedCode: 'FILE_TOO_LARGE' },
+                    { error: 'Memory limit exceeded', expectedCode: 'MEMORY_LIMIT' },
+                    { error: 'Corrupted image data', expectedCode: 'CORRUPTED_IMAGE' },
+                    { error: 'Unrecognized format', expectedCode: 'UNRECOGNIZED_FORMAT' },
+                    { error: 'Unknown error', expectedCode: 'PROCESSING_ERROR' }
+                ];
+
+                testCases.forEach(({ error, expectedCode }) => {
+                    const processedError = window.testErrorHandler.handleError(error, 'test');
+                    if (processedError.errorCode === expectedCode) {
+                        showResult('categorization-results', `✓ "${error}" correctly categorized as ${expectedCode}`);
+                    } else {
+                        showResult('categorization-results', `✗ "${error}" incorrectly categorized as ${processedError.errorCode}, expected ${expectedCode}`, false);
+                    }
+                });
+
+            } catch (error) {
+                showResult('categorization-results', `✗ Error categorization test failed: ${error.message}`, false);
+            }
+        }
+
+        function testErrorRecovery() {
+            const container = document.getElementById('recovery-results');
+            container.innerHTML = '';
+
+            try {
+                const recoverableErrors = [
+                    'Invalid password',
+                    'File too large',
+                    'Memory limit exceeded',
+                    'Corrupted image data'
+                ];
+
+                recoverableErrors.forEach(errorMessage => {
+                    const processedError = window.testErrorHandler.handleError(errorMessage, 'test');
+                    if (processedError.recovery && processedError.recovery.canRecover) {
+                        showResult('recovery-results', `✓ "${errorMessage}" has recovery options: ${processedError.recovery.suggestions.length} suggestions`);
+                    } else {
+                        showResult('recovery-results', `✗ "${errorMessage}" missing recovery options`, false);
+                    }
+                });
+
+                // Test non-recoverable error
+                const nonRecoverableError = window.testErrorHandler.handleError('System crash', 'test');
+                if (!nonRecoverableError.recovery.canRecover) {
+                    showResult('recovery-results', '✓ Non-recoverable error correctly identified');
+                } else {
+                    showResult('recovery-results', '✗ Non-recoverable error incorrectly marked as recoverable', false);
+                }
+
+            } catch (error) {
+                showResult('recovery-results', `✗ Error recovery test failed: ${error.message}`, false);
+            }
+        }
+
+        function testUIErrorDisplay() {
+            const container = document.getElementById('ui-results');
+            const demoContainer = document.getElementById('error-display-demo');
+            container.innerHTML = '';
+            demoContainer.innerHTML = '';
+
+            try {
+                // Test error display creation
+                const processedError = window.testErrorHandler.handleError('Invalid password', 'test');
+                
+                // Create enhanced error display
+                const errorHtml = `
+                    <div class="error-display">
+                        <div class="error-message">${processedError.userMessage}</div>
+                        <div class="error-recovery">
+                            <h4>What you can try:</h4>
+                            <ul>
+                                ${processedError.recovery.suggestions.map(s => `<li>${s}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div style="font-size: 11px; color: #95a5a6; margin-top: 10px;">
+                            Error ID: ${processedError.id}
+                        </div>
+                    </div>
+                `;
+                
+                demoContainer.innerHTML = errorHtml;
+                showResult('ui-results', '✓ Error display UI created successfully');
+                showResult('ui-results', `✓ Error ID generated: ${processedError.id}`);
+                showResult('ui-results', `✓ Recovery suggestions: ${processedError.recovery.suggestions.length}`);
+
+            } catch (error) {
+                showResult('ui-results', `✗ UI error display test failed: ${error.message}`, false);
+            }
+        }
+
+        function testProgressReporting() {
+            const container = document.getElementById('progress-results');
+            const demoContainer = document.getElementById('progress-demo');
+            container.innerHTML = '';
+            demoContainer.innerHTML = '';
+
+            try {
+                // Create progress demo
+                const progressHtml = `
+                    <div style="margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 6px;">
+                        <div style="width: 100%; height: 8px; background: #ecf0f1; border-radius: 4px; overflow: hidden; margin-bottom: 10px;">
+                            <div id="demo-progress-fill" style="height: 100%; background: linear-gradient(90deg, #3498db, #2980b9); border-radius: 4px; width: 0%; transition: width 0.3s ease;"></div>
+                        </div>
+                        <div id="demo-progress-text" style="text-align: center; font-size: 14px; color: #7f8c8d; font-weight: 500;">Ready to start...</div>
+                    </div>
+                `;
+                
+                demoContainer.innerHTML = progressHtml;
+                
+                // Simulate progress
+                let progress = 0;
+                const phases = ['Encrypting', 'Base64Encoding', 'Rendering'];
+                let phaseIndex = 0;
+                
+                const progressInterval = setInterval(() => {
+                    progress += 10;
+                    const currentPhase = phases[Math.floor(phaseIndex)];
+                    
+                    document.getElementById('demo-progress-fill').style.width = `${progress}%`;
+                    document.getElementById('demo-progress-text').textContent = `${currentPhase} (${progress}%)`;
+                    
+                    if (progress >= 100) {
+                        clearInterval(progressInterval);
+                        document.getElementById('demo-progress-text').textContent = 'Complete!';
+                        showResult('progress-results', '✓ Progress reporting simulation completed');
+                    }
+                    
+                    phaseIndex += 0.3;
+                }, 200);
+                
+                showResult('progress-results', '✓ Progress reporting UI created successfully');
+                showResult('progress-results', '✓ Progress simulation started');
+
+            } catch (error) {
+                showResult('progress-results', `✗ Progress reporting test failed: ${error.message}`, false);
+            }
+        }
+
+        function testErrorStatistics() {
+            const container = document.getElementById('stats-results');
+            container.innerHTML = '';
+
+            try {
+                // Generate some test errors
+                window.testErrorHandler.handleError('Invalid password', 'encryption');
+                window.testErrorHandler.handleError('Invalid password', 'encryption');
+                window.testErrorHandler.handleError('File too large', 'validation');
+                window.testErrorHandler.handleError('Memory limit exceeded', 'processing');
+
+                const stats = window.testErrorHandler.getErrorStatistics();
+                
+                showResult('stats-results', `✓ Total errors logged: ${stats.totalErrors}`);
+                showResult('stats-results', `✓ Error patterns tracked: ${stats.patterns.length}`);
+                showResult('stats-results', `✓ Error codes tracked: ${Object.keys(stats.errorsByCode).length}`);
+                showResult('stats-results', `✓ Contexts tracked: ${Object.keys(stats.errorsByContext).length}`);
+                showResult('stats-results', `✓ Severity levels tracked: ${Object.keys(stats.errorsBySeverity).length}`);
+
+                // Test pattern tracking
+                const passwordErrorPattern = stats.patterns.find(p => p.pattern.includes('INVALID_PASSWORD'));
+                if (passwordErrorPattern && passwordErrorPattern.count === 2) {
+                    showResult('stats-results', '✓ Error pattern tracking working correctly');
+                } else {
+                    showResult('stats-results', '✗ Error pattern tracking not working correctly', false);
+                }
+
+            } catch (error) {
+                showResult('stats-results', `✗ Error statistics test failed: ${error.message}`, false);
+            }
+        }
+
+        function exportErrorLog() {
+            try {
+                const errorLog = window.testErrorHandler.exportErrorLog();
+                const blob = new Blob([errorLog], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `error-log-test-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showResult('stats-results', '✓ Error log exported successfully');
+            } catch (error) {
+                showResult('stats-results', `✗ Error log export failed: ${error.message}`, false);
+            }
+        }
+
+        // Auto-run component loading test on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(testComponentLoading, 500);
+        });
+    </script>
+</body>
+</html>

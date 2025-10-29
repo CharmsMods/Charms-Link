@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Test - Secure File Image Converter</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Secure File Image Converter - Test</h1>
+            <p>Testing basic functionality</p>
+        </header>
+
+        <main>
+            <!-- Mode Selection -->
+            <div class="mode-selector">
+                <button id="encrypt-mode-btn" class="mode-btn active">Encrypt</button>
+                <button id="decrypt-mode-btn" class="mode-btn">Decrypt</button>
+            </div>
+
+            <!-- Simple test area -->
+            <div id="test-area">
+                <button id="test-btn">Test Button</button>
+                <div id="test-output"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Load scripts in correct order -->
+    <script src="interfaces.js"></script>
+    <script src="validation-engine.js"></script>
+    <script src="error-handler.js"></script>
+    <script src="security-manager.js"></script>
+    
+    <!-- Load ES6 modules -->
+    <script type="module">
+        // Import and expose components globally
+        import CryptoEngine from './crypto-engine.js';
+        import { ImageConverterImpl } from './image-converter.js';
+        import { FileProcessorImpl } from './file-processor.js';
+        
+        // Make components available globally
+        window.CryptoEngine = CryptoEngine;
+        window.ImageConverterImpl = ImageConverterImpl;
+        window.FileProcessorImpl = FileProcessorImpl;
+        
+        console.log('Components loaded:', {
+            CryptoEngine: !!window.CryptoEngine,
+            ImageConverterImpl: !!window.ImageConverterImpl,
+            FileProcessorImpl: !!window.FileProcessorImpl,
+            ValidationEngineImpl: !!window.ValidationEngineImpl,
+            ErrorHandler: !!window.ErrorHandler,
+            SecurityManager: !!window.SecurityManager,
+            CONSTANTS: !!window.CONSTANTS
+        });
+        
+        // Test basic functionality
+        window.testComponents = function() {
+            try {
+                const validation = new ValidationEngineImpl();
+                const crypto = new CryptoEngine();
+                const imageConverter = new ImageConverterImpl();
+                const fileProcessor = new FileProcessorImpl();
+                const errorHandler = new ErrorHandler();
+                
+                document.getElementById('test-output').innerHTML = `
+                    <h3>Component Test Results:</h3>
+                    <ul>
+                        <li>ValidationEngine: ✅ Created successfully</li>
+                        <li>CryptoEngine: ✅ Created successfully</li>
+                        <li>ImageConverter: ✅ Created successfully</li>
+                        <li>FileProcessor: ✅ Created successfully</li>
+                        <li>ErrorHandler: ✅ Created successfully</li>
+                    </ul>
+                `;
+                
+                return true;
+            } catch (error) {
+                document.getElementById('test-output').innerHTML = `
+                    <h3>Component Test Failed:</h3>
+                    <p style="color: red;">${error.message}</p>
+                `;
+                console.error('Component test failed:', error);
+                return false;
+            }
+        };
+    </script>
+    
+    <script src="app.js"></script>
+    
+    <script>
+        // Initialize after everything is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, testing components...');
+            
+            // Test components first
+            if (window.testComponents && window.testComponents()) {
+                console.log('Components test passed, initializing app...');
+                
+                try {
+                    window.app = new SecureFileImageConverter();
+                    console.log('✅ App initialized successfully');
+                    
+                    // Test basic button functionality
+                    document.getElementById('test-btn').addEventListener('click', () => {
+                        document.getElementById('test-output').innerHTML += '<p>✅ Button click works!</p>';
+                    });
+                    
+                } catch (error) {
+                    console.error('❌ Failed to initialize app:', error);
+                    document.getElementById('test-output').innerHTML += `<p style="color: red;">App initialization failed: ${error.message}</p>`;
+                }
+            } else {
+                console.error('❌ Component test failed, cannot initialize app');
+            }
+        });
+    </script>
+</body>
+</html>

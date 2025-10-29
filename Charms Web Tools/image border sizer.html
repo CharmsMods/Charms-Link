@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Border Sizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        
+        :root {
+            --text-color: #ffffff;
+            --box-bg-color: rgba(0, 0, 0, 0.3);
+            --border-color: #ffffff;
+            --highlight-color: #10b981;
+            --button-color: #10b981;
+            --copy-button: #4b5563;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            transition: all 0.3s ease;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background-color: #0a0a0a;
+            color: var(--text-color);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            text-align: center;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .description {
+            color: #9ca3af;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        /* Message Box styling */
+        #message-box {
+            color: var(--highlight-color);
+            margin-top: 1rem;
+            height: 1.5rem; /* Reserve space for CLS prevention */
+            font-weight: 500;
+            font-size: 1rem;
+        }
+
+        .canvas-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 60vh;
+            border: 1px solid var(--border-color);
+            cursor: crosshair;
+            margin: 0 auto;
+            display: block;
+            background-color: #1a1a1a;
+            border-radius: 8px;
+            width: 300px; 
+            height: 150px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            max-width: 700px;
+            margin: 0 auto 2rem;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .control-group {
+            text-align: left;
+        }
+
+        .control-group h3 {
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            color: var(--text-color);
+            font-weight: 500;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        input[type="range"] {
+            flex-grow: 1;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: #4b5563;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+        }
+
+        .color-info-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .color-display-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .color-value-box {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.5rem;
+            border-radius: 4px;
+            justify-content: space-between;
+        }
+        
+        .color-value-text {
+            font-family: 'Courier New', monospace;
+            font-weight: 500;
+            color: white;
+            padding-right: 1rem;
+        }
+
+        .copy-button {
+            background: var(--copy-button);
+            color: white;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .copy-button:hover {
+            background: #6b7280;
+        }
+        
+        .color-picker-input {
+            width: 40px; 
+            height: 40px; 
+            border: 2px solid var(--border-color); 
+            border-radius: 8px; 
+            cursor: pointer;
+            padding: 0; 
+            background: none; 
+            overflow: hidden;
+        }
+        
+        .export-controls {
+            margin-top: 1rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #374151;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .export-buttons button {
+            background: #374151;
+            color: white;
+            flex-grow: 1;
+            max-width: 150px;
+        }
+
+        .export-buttons button:hover {
+            background: #4b5563;
+        }
+
+        #export-jpeg {
+            background: var(--button-color);
+            color: black;
+        }
+        #export-jpeg:hover {
+            background: #059669;
+            color: white;
+        }
+
+        .upload-area {
+            margin: 1rem 0 2rem;
+            padding: 1.5rem;
+            border: 2px dashed #4b5563;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .upload-area:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: #9ca3af;
+        }
+
+        .upload-label {
+            display: block;
+            background-color: #374151;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .upload-label:hover {
+            background-color: #4b5563;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Image Border Sizer</h1>
+        <p class="description">Add customizable borders to your images and export in various formats.</p>
+
+        <div class="upload-area" id="upload-area">
+            <label class="upload-label" for="image-upload">
+                📁 Upload Image
+                <input type="file" id="image-upload" accept="image/*" style="display: none;">
+            </label>
+            <p>or drag and drop an image here</p>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="image-canvas"></canvas>
+        </div>
+
+        <div class="controls">
+            <!-- Border Thickness -->
+            <div class="control-group">
+                <h3>Border Thickness</h3>
+                <div class="slider-container">
+                    <input type="range" id="border-slider" min="0" max="200" value="50">
+                    <span id="thickness-value">50px</span>
+                </div>
+            </div>
+
+            <!-- Border Color & Values -->
+            <div class="control-group">
+                <h3>Border Color</h3>
+                <div class="color-info-group">
+                    <div class="color-display-row">
+                        <input type="color" id="color-picker" value="#000000" class="color-picker-input">
+                        <div class="color-value-box">
+                            <span id="selected-color-hex" class="color-value-text">#000000</span>
+                            <button class="copy-button" data-copy-target="selected-color-hex">Copy</button>
+                        </div>
+                    </div>
+                    <div class="color-display-row justify-end">
+                         <div class="color-value-box">
+                            <span id="selected-color-rgb" class="color-value-text">RGB(0, 0, 0)</span>
+                            <button class="copy-button" data-copy-target="selected-color-rgb">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export Controls -->
+            <div class="export-controls">
+                <h3>Export Settings</h3>
+                <div class="control-group">
+                    <div class="slider-container">
+                        <label for="quality-slider" class="text-sm">JPEG Quality (100% is best)</label>
+                        <input type="range" id="quality-slider" min="10" max="100" value="95">
+                        <span id="quality-value">95%</span>
+                    </div>
+                </div>
+                
+                <div class="export-buttons">
+                    <button id="export-png" disabled>Export PNG (Lossless)</button>
+                    <button id="export-jpeg" disabled>Export JPEG</button>
+                </div>
+            </div>
+        </div>
+
+        <p id="message-box" class="description">Upload an image to start editing.</p>
+    </div>
+
+    <script>
+        // --- Global State and Elements ---
+        const canvas = document.getElementById('image-canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const uploadInput = document.getElementById('image-upload');
+        const borderSlider = document.getElementById('border-slider');
+        const thicknessValue = document.getElementById('thickness-value');
+        const colorPicker = document.getElementById('color-picker');
+        const colorHex = document.getElementById('selected-color-hex');
+        const colorRgb = document.getElementById('selected-color-rgb');
+        const exportPngButton = document.getElementById('export-png');
+        const exportJpegButton = document.getElementById('export-jpeg');
+        const qualitySlider = document.getElementById('quality-slider');
+        const qualityValue = document.getElementById('quality-value');
+        const messageBox = document.getElementById('message-box');
+        const uploadArea = document.getElementById('upload-area');
+        
+        let originalImage = null;
+        let borderThickness = parseInt(borderSlider.value, 10);
+        let borderColor = colorPicker.value;
+        let currentRgb = { r: 0, g: 0, b: 0 };
+        let jpegQuality = parseInt(qualitySlider.value, 10) / 100;
+
+        // --- Utility Functions ---
+
+        /**
+         * Converts an RGBA color array (0-255) to a hexadecimal string.
+         * @param {number} r, g, b - Color values (0-255).
+         * @returns {string} Hex color string (#RRGGBB).
+         */
+        function rgbToHex(r, g, b) {
+            return '#' + [r, g, b].map(x => {
+                const hex = x.toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            }).join('').toUpperCase();
+        }
+
+        /**
+         * Converts an RGB object to an RGB string.
+         * @param {{r: number, g: number, b: number}} rgbObj - RGB color object.
+         * @returns {string} RGB string (e.g., "RGB(255, 0, 0)").
+         */
+        function rgbToString(rgbObj) {
+            return `RGB(${rgbObj.r}, ${rgbObj.g}, ${rgbObj.b})`;
+        }
+
+        /**
+         * Converts a hex string to an RGB object.
+         * @param {string} hex - Hex color string (#RRGGBB).
+         * @returns {{r: number, g: number, b: number}} RGB object.
+         */
+        function hexToRgb(hex) {
+            const bigint = parseInt(hex.slice(1), 16);
+            return {
+                r: (bigint >> 16) & 255,
+                g: (bigint >> 8) & 255,
+                b: bigint & 255
+            };
+        }
+        
+        /**
+         * Handles copying text to the clipboard using execCommand (reliable in iframes).
+         * @param {string} text - The text content to copy.
+         */
+        function copyText(text, buttonElement) {
+            const tempInput = document.createElement('textarea');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            
+            try {
+                document.execCommand('copy');
+                const originalText = buttonElement.textContent;
+                buttonElement.textContent = 'Copied!';
+                setTimeout(() => {
+                    buttonElement.textContent = originalText;
+                }, 1500);
+            } catch (err) {
+                messageBox.textContent = 'Copy failed. Try manually selecting the text.';
+            } finally {
+                document.body.removeChild(tempInput);
+            }
+        }
+
+
+        // --- Core Drawing & Update Functions ---
+
+        /**
+         * Core drawing function: draws the image and the border.
+         * This function is called whenever the color or thickness changes.
+         */
+        function drawWithBorder() {
+            if (!originalImage) return;
+
+            const w = originalImage.width;
+            const h = originalImage.height;
+            const t = borderThickness;
+
+            // Calculate new canvas size to accommodate the border externally
+            const newWidth = w + 2 * t;
+            const newHeight = h + 2 * t;
+
+            // Update canvas dimensions (internal pixels)
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+
+            // Draw the border (fills the entire new canvas)
+            ctx.fillStyle = borderColor;
+            ctx.fillRect(0, 0, newWidth, newHeight);
+
+            // Draw the original image, offset by the border thickness
+            ctx.drawImage(originalImage, t, t, w, h);
+        }
+
+        /**
+         * Updates the border color and related UI elements (HEX and RGB).
+         * @param {string} color - The new color in hex format (#RRGGBB).
+         */
+        function updateBorderColor(color) {
+            borderColor = color;
+            currentRgb = hexToRgb(color);
+            
+            // Update UI elements
+            colorHex.textContent = color.toUpperCase();
+            colorRgb.textContent = rgbToString(currentRgb);
+            colorPicker.value = color; // Ensure the native picker reflects the new color
+            
+            drawWithBorder();
+        }
+
+
+        // --- Event Handlers ---
+
+        function setupImageUpload() {
+            uploadInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = () => {
+                        originalImage = img;
+                        exportPngButton.disabled = false;
+                        exportJpegButton.disabled = false;
+                        
+                        // Set the canvas CSS display size for responsive view
+                        const aspectRatio = img.width / img.height;
+                        canvas.style.height = `${canvas.offsetWidth / aspectRatio}px`;
+
+                        drawWithBorder(); // Initial draw
+                        messageBox.textContent = 'Image loaded! Click on it to sample a color.';
+                    };
+                    img.onerror = () => {
+                        messageBox.textContent = 'Error loading image.';
+                    }
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function setupControls() {
+            // Border Slider
+            borderSlider.addEventListener('input', (e) => {
+                borderThickness = parseInt(e.target.value, 10);
+                thicknessValue.textContent = `${borderThickness}px`;
+                drawWithBorder(); // Real-time update
+            });
+
+            // Color Picker Input
+            colorPicker.addEventListener('input', (e) => {
+                updateBorderColor(e.target.value);
+                messageBox.textContent = `Border color set to ${e.target.value.toUpperCase()}`;
+            });
+
+            // Quality Slider
+            qualitySlider.addEventListener('input', (e) => {
+                jpegQuality = parseInt(e.target.value, 10) / 100;
+                qualityValue.textContent = `${e.target.value}%`;
+                messageBox.textContent = `JPEG Quality set to ${e.target.value}%`;
+            });
+            
+            // Copy Buttons
+            document.querySelectorAll('.copy-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const targetId = e.target.getAttribute('data-copy-target');
+                    const targetElement = document.getElementById(targetId);
+                    if (targetElement) {
+                        copyText(targetElement.textContent, e.target);
+                    }
+                });
+            });
+        }
+
+        function setupCanvasInteraction() {
+            // Mouse click to pick color
+            canvas.addEventListener('click', handleColorPick);
+            // Touch tap to pick color
+            canvas.addEventListener('touchend', handleColorPick);
+
+            // Prevent unwanted drag/context menu
+            canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+
+        function handleColorPick(e) {
+            if (!originalImage) return;
+            
+            // Get correct coordinates from touch or mouse event
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+            if (clientX === undefined || clientY === undefined) return;
+
+            const rect = canvas.getBoundingClientRect();
+            
+            // Scaling logic: Map CSS display coordinates to Canvas internal drawing buffer coordinates
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const x = Math.floor((clientX - rect.left) * scaleX);
+            const y = Math.floor((clientY - rect.top) * scaleY);
+            
+            // Get the pixel data at the clicked position
+            // Use Math.max/min to ensure we don't sample outside the image, though technically 
+            // the border is also drawn on the canvas now.
+            const pixel = ctx.getImageData(x, y, 1, 1).data;
+            
+            // Convert to hex and update the UI
+            const hex = rgbToHex(pixel[0], pixel[1], pixel[2]);
+            updateBorderColor(hex);
+            
+            messageBox.textContent = `Color sampled: ${hex.toUpperCase()}`;
+        }
+        
+        function setupExportButtons() {
+            // PNG Export (Lossless)
+            exportPngButton.addEventListener('click', () => {
+                if (!originalImage) return;
+                exportImage('image/png', 1.0, 'png');
+            });
+
+            // JPEG Export (Compressed, Quality Controlled)
+            exportJpegButton.addEventListener('click', () => {
+                if (!originalImage) return;
+                exportImage('image/jpeg', jpegQuality, 'jpg');
+            });
+        }
+        
+        /**
+         * Handles the actual image export.
+         * @param {string} mimeType - 'image/png' or 'image/jpeg'.
+         * @param {number} quality - Quality level (0.0 to 1.0) for JPEG. Ignored for PNG.
+         * @param {string} extension - File extension ('png' or 'jpg').
+         */
+        function exportImage(mimeType, quality, extension) {
+            try {
+                const link = document.createElement('a');
+                link.download = `bordered-image-${Date.now()}.${extension}`;
+                
+                // canvas.toDataURL requires the MIME type and quality (for JPEG)
+                link.href = canvas.toDataURL(mimeType, quality);
+
+                // Simulate a click on the link to trigger the download
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                messageBox.textContent = `Image exported successfully as ${extension.toUpperCase()}!`;
+            } catch (error) {
+                messageBox.textContent = 'Export failed. Check console for details.';
+                console.error('Export Error:', error);
+            }
+        }
+
+        function setupDragAndDrop() {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, preventDefaults, false);
+            });
+            ['dragenter', 'dragover'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, highlight, false);
+            });
+            ['dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, unhighlight, false);
+            });
+            uploadArea.addEventListener('drop', handleDrop, false);
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            function highlight() {
+                uploadArea.style.background = 'rgba(255, 255, 255, 0.1)';
+                uploadArea.style.borderColor = '#9ca3af';
+            }
+            function unhighlight() {
+                uploadArea.style.background = '';
+                uploadArea.style.borderColor = '#4b5563';
+            }
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length > 0) {
+                    uploadInput.files = files;
+                    const event = new Event('change');
+                    uploadInput.dispatchEvent(event);
+                }
+            }
+        }
+        
+        function drawInitialPlaceholder() {
+            // Initial appearance reset
+            canvas.width = 300;
+            canvas.height = 150;
+            ctx.fillStyle = '#1a1a1a'; 
+            ctx.fillRect(0, 0, 300, 150);
+            ctx.font = '16px Inter';
+            ctx.fillStyle = '#9ca3af';
+            ctx.textAlign = 'center';
+            ctx.fillText('Upload an image to start editing.', 150, 75);
+        }
+
+        // --- Initialization ---
+        function init() {
+            drawInitialPlaceholder();
+            setupImageUpload();
+            setupControls();
+            setupCanvasInteraction();
+            setupExportButtons();
+            setupDragAndDrop();
+        }
+
+        // Start everything when the window is ready
+        window.onload = init;
+
+    </script>
+</body>
+</html>

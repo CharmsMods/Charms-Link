@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raster to SVG Converter</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <aside class="controls">
+            <h1>Raster to SVG</h1>
+            <div class="upload" role="region" aria-label="Image upload section">
+                <label for="file-input">Upload Image (PNG/JPG/WebP)</label>
+                <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp" aria-describedby="upload-instructions">
+                <div id="drag-area" aria-label="Drag and drop area for image upload">Drag & Drop Here</div>
+                <p id="upload-instructions" class="sr-only">Select a file or drag and drop an image here.</p>
+            </div>
+            <div class="options" role="region" aria-label="Conversion options">
+                <label for="mode">Mode:</label>
+                <select id="mode" aria-label="Select conversion mode">
+                    <option value="outline">Monochrome Outline</option>
+                    <option value="filled">Filled Shapes</option>
+                </select>
+                <label for="threshold">Threshold (0–255):</label>
+                <input type="range" id="threshold" min="0" max="255" value="128" aria-valuemin="0" aria-valuemax="255" aria-valuenow="128" aria-label="Threshold slider">
+                <span id="threshold-value">128</span>
+                <label for="tolerance">Smoothing Tolerance (0.1–10):</label>
+                <input type="range" id="tolerance" min="0.1" max="10" step="0.1" value="1" aria-valuemin="0.1" aria-valuemax="10" aria-valuenow="1" aria-label="Smoothing tolerance slider">
+                <span id="tolerance-value">1</span>
+                <label for="invert">Invert Colors:</label>
+                <input type="checkbox" id="invert" aria-label="Toggle invert colors">
+            </div>
+            <div class="buttons">
+                <button id="process">Process</button>
+                <button id="download">Download SVG</button>
+                <button id="copy">Copy SVG Code</button>
+                <button id="reset">Reset</button>
+                <button id="undo">Undo</button>
+            </div>
+        </aside>
+        <main class="preview" role="region" aria-label="Preview area">
+            <h2>Preview</h2>
+            <div id="preview-container" aria-live="polite">
+                <img id="original" alt="Original uploaded image" src="">
+                <svg id="svg-preview" aria-label="Generated SVG preview"></svg>
+            </div>
+            <p id="status" aria-live="assertive">Ready</p>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "secure-file-image-converter",
+  "version": "1.0.0",
+  "description": "A client-side secure file transfer system that converts password-encrypted files into images",
+  "main": "app.js",
+  "scripts": {
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^1.0.0",
+    "jsdom": "^23.0.0"
+  },
+  "type": "module"
+}

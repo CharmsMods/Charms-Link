@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Zalgo Text Generator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        /* * ⚠️ MODIFICATION: Updated color variables for a stark Black & White feel.
+         * Using the darkest black and brightest white for pure contrast.
+         */
+        :root {
+            --bg-color: #000000; /* Pure Black Background */
+            --text-color: #ffffff; /* Pure White Text */
+            --container-bg: rgba(10, 10, 10, 0.8); /* Very Dark, slightly transparent container */
+            --border-color: #404040; /* Dark Gray border */
+            --accent-color: #ffffff; /* Pure White for primary action highlights (stark contrast) */
+            --button-bg: #1a1a1a; /* Very Dark Gray button background */
+            --input-bg: #0d0d0d; /* Slightly lighter than background for input area */
+            --hover-light: #f0f0f0; /* Near White on hover */
+            --hover-dark: #000000; /* Pure Black on hover for dark buttons */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            /* Kept transition for smooth hover effects */
+            transition: all 0.2s ease;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        
+        /* Input and Output Styling */
+        input[type="text"], input[type="number"], #output {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 0.75rem;
+            border-radius: 8px;
+            /* Reduced shadow intensity for B&W feel */
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.9);
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        
+        /* Primary button uses the new pure white accent color */
+        .primary-btn {
+            background: var(--accent-color);
+            color: var(--button-bg); /* Dark text on bright button */
+            font-weight: 700; /* Bolder for emphasis */
+            border: 1px solid var(--accent-color);
+        }
+        .primary-btn:hover {
+            background: var(--hover-light); /* Slightly less bright white on hover */
+            color: var(--hover-dark); /* Pure Black text on hover */
+        }
+
+        .secondary-btn {
+            background: var(--button-bg);
+            color: var(--text-color);
+            font-weight: 500;
+            border: 1px solid var(--border-color); /* Added explicit border for definition */
+        }
+        .secondary-btn:hover {
+            background: var(--border-color); /* Starker contrast on hover */
+            color: var(--text-color);
+        }
+        
+        /* Styling for the range slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: var(--input-bg);
+            border-radius: 4px;
+            outline: none;
+        }
+        /* Slider thumb uses the pure white accent color */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            /* Starker shadow for definition */
+            box-shadow: 0 0 4px rgba(255, 255, 255, 0.7); 
+        }
+        
+        /* Container and utility classes updated for B&W */
+        .container {
+            /* Kept max-width from original */
+            max-width: 2xl;
+        }
+        .bg-gray-800 {
+            /* Mapping to B&W container color */
+            background-color: var(--container-bg) !important;
+        }
+        .border-gray-700 {
+            /* Mapping to B&W border color */
+            border-color: var(--border-color) !important;
+        }
+        .text-gray-400 {
+            /* Mapping subtle text to a mid-dark gray for low contrast message */
+            color: #888888 !important;
+        }
+    </style>
+</head>
+<body class="flex justify-center">
+    <div class="container max-w-2xl">
+        <h1 class="text-3xl font-bold mb-6 text-center">Zalgo Text Generator</h1>
+        
+        <div class="p-6 bg-gray-800 rounded-xl shadow-lg border border-gray-700">
+            <label for="inputText" class="block text-lg font-medium mb-2">Enter your text:</label>
+            <input type="text" id="inputText" oninput="generateZalgo()" placeholder="Start typing to corrupt text..." class="mb-6">
+
+            <div class="controls mb-6 space-y-4">
+                <div class="flex items-center space-x-4">
+                    <label for="intensity" class="flex-shrink-0 w-32">Intensity (1–10):</label>
+                    <input type="range" id="intensity" oninput="generateZalgo()" min="1" max="10" value="5">
+                    <span id="intensityValue" class="text-xl font-mono w-8 text-right">5</span>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <label for="override" class="flex-shrink-0 w-32">Override Amount:</label>
+                    <input type="number" id="override" oninput="generateZalgo()" placeholder="e.g. 50 (optional)" class="flex-grow">
+                </div>
+            </div>
+            
+            <div id="output" class="min-h-[5rem] font-mono text-lg break-words mb-4" placeholder="Generated Zalgo text will appear here."></div>
+
+            <div id="buttonContainer" class="flex flex-wrap justify-center gap-4 mt-6">
+                <button onclick="copyZalgo()" class="primary-btn flex-1 min-w-[120px] py-3 rounded-lg">Copy Zalgo</button>
+                <button onclick="clearOutput()" class="secondary-btn flex-1 min-w-[120px] py-3 rounded-lg">Clear All</button>
+            </div>
+            
+            <p id="message-box" class="text-gray-400 mt-4 text-center text-sm">Start typing above, and the text will be corrupted instantly.</p>
+        </div>
+    </div>
+  
+    <script>
+        const zalgoUp = ["̍","̎","̄","̅","̿","̑","̆","̐","͒","͗","͑","̋","̈","̊","͂","̓","̈́","͌","̃","̂","̌","͐"];
+        const zalgoMid = ["̕","̛","̀","́","͘","̡","̢","̧","̨","̴","̵","̶","͏","̷","̸","͜","͝","͞","͟","͠","͢","͍"];
+        const zalgoDown = ["̞","̟","̠","̤","̥","̦","̩","̪","̫","̬","̭","̯","̰","̱","̲","̳","̹","̺","̻","̼","ͅ","͇","͈","͉","͍","͎","͓","͔","͕","͖","͙","͚"];
+        
+        // --- Core Functions ---
+        
+        function randomChar(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        function zalgoChar(char, intensity) {
+            let result = char;
+            for (let i = 0; i < intensity; i++) {
+                let choice = Math.floor(Math.random() * 3);
+                if (choice === 0) result += randomChar(zalgoUp);
+                else if (choice === 1) result += randomChar(zalgoMid);
+                else result += randomChar(zalgoDown);
+            }
+            return result;
+        }
+
+        function generateZalgo() {
+            const inputElement = document.getElementById("inputText");
+            const sliderIntensity = parseInt(document.getElementById("intensity").value);
+            const overrideValue = parseInt(document.getElementById("override").value);
+            
+            // Determine the final intensity value
+            const intensity = (overrideValue > 0 && !isNaN(overrideValue)) ? overrideValue : sliderIntensity;
+            
+            // Display the current slider value
+            document.getElementById("intensityValue").textContent = sliderIntensity;
+
+            // If input is empty, clear output and stop
+            if (!inputElement.value.trim()) {
+                document.getElementById("output").textContent = "";
+                document.getElementById("message-box").textContent = 'Start typing above, and the text will be corrupted instantly.';
+                // ⚠️ B&W Update: Set subtle message color
+                document.getElementById("message-box").style.color = '#888888'; 
+                return;
+            }
+
+            let output = "";
+            for (let char of inputElement.value) {
+                // Check if the character is a whitespace before applying Zalgo
+                if (char.match(/\s/)) {
+                    output += char;
+                } else {
+                    output += zalgoChar(char, intensity);
+                }
+            }
+            // IMPORTANT: Replace the entire content for real-time updating
+            document.getElementById("output").textContent = output;
+            
+            // Update message box
+            const messageBox = document.getElementById("message-box");
+            messageBox.textContent = `Real-time Zalgo level: ${intensity}.`;
+            // ⚠️ B&W Update: Set subtle message color
+            messageBox.style.color = '#888888'; 
+        }
+
+        function copyZalgo() {
+            const text = document.getElementById("output").textContent;
+            const messageBox = document.getElementById("message-box");
+            
+            if (text.length === 0) {
+                 messageBox.textContent = 'Nothing to copy! Enter some text first.';
+                 messageBox.style.color = '#ffffff'; // Pure white for key alerts
+                 setTimeout(() => {
+                    messageBox.textContent = 'Start typing above, and the text will be corrupted instantly.';
+                    messageBox.style.color = '#888888';
+                }, 3000);
+                return;
+            }
+
+            // Using document.execCommand('copy') for better compatibility in iframes
+            const tempInput = document.createElement('textarea');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            
+            try {
+                document.execCommand('copy');
+                messageBox.textContent = 'Copied Zalgo text to clipboard!';
+                messageBox.style.color = '#ffffff'; // Pure white for success message
+                setTimeout(() => {
+                    messageBox.textContent = 'Start typing above, and the text will be corrupted instantly.';
+                    messageBox.style.color = '#888888'; 
+                }, 2000);
+            } catch (err) {
+                messageBox.textContent = 'Copy failed. Try manually selecting the text.';
+                messageBox.style.color = '#ff0000'; // Kept a harsh red for visibility of the *failure*
+            } finally {
+                document.body.removeChild(tempInput);
+            }
+        }
+
+        function clearOutput() {
+            document.getElementById("inputText").value = ""; // Clear input
+            document.getElementById("output").textContent = ""; // Clear output
+            document.getElementById("intensity").value = 5; // Reset slider
+            document.getElementById("intensityValue").textContent = 5; // Reset slider value display
+            document.getElementById("override").value = ""; // Clear override
+            
+            const messageBox = document.getElementById("message-box");
+            messageBox.textContent = 'All cleared. Start fresh!';
+            messageBox.style.color = '#ffffff'; // Pure white for key alerts
+            setTimeout(() => {
+                messageBox.textContent = 'Start typing above, and the text will be corrupted instantly.';
+                messageBox.style.color = '#888888';
+            }, 2000);
+        }
+
+        // --- Initialization ---
+
+        function init() {
+            // Attach event listeners to all inputs to trigger real-time updates
+            document.getElementById("inputText").addEventListener("input", generateZalgo);
+            document.getElementById("intensity").addEventListener("input", generateZalgo);
+            document.getElementById("override").addEventListener("input", generateZalgo);
+            
+            // Initial call to set the intensity display
+            document.getElementById("intensityValue").textContent = document.getElementById("intensity").value;
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

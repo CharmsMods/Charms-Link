@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Tools</title>
+    <style>
+        /*
+         * Global styles to remove borders and lines, and set up the background.
+         * Using Tailwind-like color variables for consistency.
+         */
+        :root {
+            --text-color: #ffffff;
+            --box-bg-color: rgba(0, 0, 0, 0.3);
+            --border-color: #ffffff;
+            --hover-shadow: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Basic reset for borderless design */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            transition: all 0.3s ease;
+        }
+
+        body, html {
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* ------------------------------------------------ */
+        /* ✨ FIXED BACKGROUND STYLES (FINAL CORRECTION) ✨ */
+        /* ------------------------------------------------ */
+
+        /* 1. Body is now responsible only for the initial black color */
+        body {
+            /* 💡 CRUCIAL FIX: Body is now ONLY black initially */
+            background-color: #000000; 
+            
+            /* REMOVED: background-image, background-size, etc. */
+            /* REMOVED: background-attachment: fixed; (Moved to overlay) */
+        }
+
+        /* 2. The overlay element now holds the image, the darkness, and the fade-in */
+        #background-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1; 
+            
+            /* Initial state: Fully transparent (hidden) */
+            opacity: 0;
+            transition: opacity 4s ease-in-out; 
+            
+            /* 💡 CRUCIAL FIX: Combining the image and the 50% darkness here! */
+            background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('background.svg');
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-attachment: fixed; /* Parallax effect is back! */
+
+            /* REMOVED: background-color: rgba(0, 0, 0, 0.5); */
+        }
+        
+        /* The class added by JavaScript to trigger the fade-in */
+        #background-overlay.loaded {
+            opacity: 1;
+        }
+
+        /* ------------------------------------------------ */
+        /* CONTENT WRAPPER STYLES */
+        /* ------------------------------------------------ */
+        .content-wrapper {
+            padding: 2rem;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative; 
+        }
+
+
+        /* Container for the search bar and status text */
+        .header-container {
+            width: 100%;
+            max-width: 800px;
+            margin-bottom: 1rem;
+            text-align: center;
+            
+            padding: 1rem 2rem; 
+            border-radius: 12px;
+            background-color: rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header-container p {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 0.5rem;
+        }
+
+        /* Search bar styling */
+        .search-bar {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-color);
+            outline: none;
+            margin-bottom: 0.5rem;
+        }
+
+        .search-bar::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Container for all the tool boxes */
+        .tools-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            max-width: 1200px;
+            
+            /* STYLES FOR THE TRANSLUCENT PANEL */
+            padding: 2rem; 
+            border-radius: 12px; 
+            background-color: rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); 
+            backdrop-filter: blur(8px); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+        }
+
+        /* Styling for each tool box */
+        .tool-box {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 300px;
+            height: 200px;
+            background-color: var(--box-bg-color);
+            text-align: center;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            margin: 0.5rem;
+            backdrop-filter: blur(5px);
+            border-radius: 4px;
+        }
+
+        .tool-box:hover {
+            transform: translateY(-5px);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .tool-box:active {
+            transform: scale(0.98) translateY(0);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .tool-box h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            pointer-events: none;
+        }
+        
+        /* New rule: Hide the title completely when the popup is active */
+        .tool-box.is-hovering h2 {
+            opacity: 0;
+            transform: translateY(-20px);
+            visibility: hidden;
+        }
+
+        /* Pop-up for tool information */
+        .info-popup {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.9);
+            padding: 1rem;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(100%);
+            transition: all 0.3s ease;
+            pointer-events: none;
+            border-radius: 4px;
+        }
+        
+        /* Show pop-up on hover */
+        .tool-box.is-hovering .info-popup {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .info-popup h2 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-popup p {
+            font-size: 0.9rem;
+            font-weight: 300;
+            line-height: 1.4;
+            text-align: center;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            body {
+                /* No padding here, padding is on .content-wrapper */
+            }
+            .content-wrapper {
+                padding: 0.5rem;
+            }
+            .tools-container {
+                flex-direction: column;
+                padding: 1rem;
+                gap: 0.5rem;
+                width: 95%;
+            }
+            .tool-box {
+                width: 100%;
+                max-width: 100%;
+                height: 150px;
+                margin: 0.25rem 0;
+            }
+            .search-bar {
+                margin: 1rem 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="background-overlay"></div>
+
+    <div class="content-wrapper">
+        <div class="header-container">
+            <input type="text" id="searchInput" class="search-bar" placeholder="Search for a tool...">
+            <p>all computation is done locally for all tools</p>
+        </div>
+
+        <div class="tools-container">
+            <a href="./Background%20Remover/index.html" class="tool-box" data-id="background-remover">
+                <h2>Background Remover</h2>
+                <div class="info-popup">
+                    <h2>Background Remover</h2>
+                    <p>Remove backgrounds from images with this easy-to-use tool. Perfect for product photos or creating transparent PNGs.</p>
+                </div>
+            </a>
+
+            <a href="./File%20Encryptor/index.html" class="tool-box" data-id="file-encryptor">
+                <h2>File Encryptor</h2>
+                <div class="info-popup">
+                    <h2>File Encryptor/Decryptor</h2>
+                    <p>Securely encrypt and decrypt files using strong encryption algorithms. All processing happens in your browser.</p>
+                </div>
+            </a>
+
+            <a href="./base%20converter.html" class="tool-box" data-id="base-converter">
+                <h2>Base Converter</h2>
+                <div class="info-popup">
+                    <h2>Base Converter</h2>
+                    <p>Convert numbers between different bases (binary, decimal, hexadecimal, etc.) with this easy-to-use tool.</p>
+                </div>
+            </a>
+
+            <a href="./QR%20code%20gen.html" class="tool-box" data-id="qr-generator">
+                <h2>QR Code Generator</h2>
+                <div class="info-popup">
+                    <h2>QR Code Generator</h2>
+                    <p>Create custom QR codes for URLs, text, contact information, and more. Download or share your QR codes easily.</p>
+                </div>
+            </a>
+
+            <a href="./image%20to%20ascii%20art.html" class="tool-box" data-id="ascii-art">
+                <h2>Image to ASCII Art</h2>
+                <div class="info-popup">
+                    <h2>Image to ASCII Art</h2>
+                    <p>Convert your images into ASCII art. Customize the output with different characters and color options.</p>
+                </div>
+            </a>
+
+            <a href="./image-converter.html" class="tool-box" data-id="image-converter">
+                <h2>Image Converter</h2>
+                <div class="info-popup">
+                    <h2>Multi-File Image Converter</h2>
+                    <p>Batch convert multiple images with options for format conversion, scaling, color adjustments, and folder structure preservation.</p>
+                </div>
+            </a>
+
+            <a href="./image%20border%20sizer.html" class="tool-box" data-id="border-sizer">
+                <h2>Image Border Sizer</h2>
+                <div class="info-popup">
+                    <h2>Image Border Sizer</h2>
+                    <p>Add customizable borders to your images with various styles, colors, and sizes to fit your design needs.</p>
+                </div>
+            </a>
+
+            <a href="./image%20hex%20code.html" class="tool-box" data-id="hex-picker">
+                <h2>Image Color Picker</h2>
+                <div class="info-popup">
+                    <h2>Image Color Picker</h2>
+                    <p>Extract and identify color hex codes from any image. Click on any part of your image to get the exact color code.</p>
+                </div>
+            </a>
+
+            <a href="./zalgo%20gen.html" class="tool-box" data-id="zalgo-gen">
+                <h2>Zalgo Text Generator</h2>
+                <div class="info-popup">
+                    <h2>Zalgo Text Generator</h2>
+                    <p>Create glitchy, corrupted-looking text with various intensity levels. Perfect for creating surreal or horror-themed text effects.</p>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('searchInput');
+            const toolBoxes = document.querySelectorAll('.tool-box');
+            const backgroundOverlay = document.getElementById('background-overlay');
+            let hoverTimeout;
+
+            // --- BACKGROUND LOADING LOGIC ---
+            const bgImage = new Image();
+            bgImage.src = 'background.svg';
+
+            // Once the image is fully loaded, we trigger the opacity transition
+            bgImage.onload = () => {
+                // Wait 1 second (1000ms) before starting the 4-second fade
+                setTimeout(() => {
+                    backgroundOverlay.classList.add('loaded');
+                }, 1000);
+            };
+
+            // Handle search bar functionality
+            searchInput.addEventListener('keyup', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                toolBoxes.forEach(box => {
+                    const title = box.querySelector('h2').textContent.toLowerCase();
+                    if (searchTerm === '' || title.includes(searchTerm)) {
+                        box.style.display = 'flex';
+                    } else {
+                        box.style.display = 'none';
+                    }
+                });
+            });
+
+            // Handle hover pop-up for each tool box
+            toolBoxes.forEach(box => {
+                box.addEventListener('mouseenter', () => {
+                    clearTimeout(hoverTimeout);
+                    hoverTimeout = setTimeout(() => {
+                        box.classList.add('is-hovering');
+                    }, 1500);
+                });
+
+                box.addEventListener('mouseleave', () => {
+                    clearTimeout(hoverTimeout);
+                    box.classList.remove('is-hovering');
+                });
+            });
+        });
+    </script>
+
+</body>
+</html>

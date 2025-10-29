@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Validation Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 3px; }
+        .pass { background: #d4edda; color: #155724; }
+        .fail { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { margin: 5px; padding: 8px 16px; }
+        .summary { font-weight: bold; font-size: 18px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>UI Functionality Validation Test</h1>
+    <div id="test-results"></div>
+    
+    <script>
+        // UI Validation Test Script
+        class UIValidator {
+            constructor() {
+                this.results = [];
+                this.testContainer = document.getElementById('test-results');
+            }
+            
+            addResult(test, status, message) {
+                this.results.push({ test, status, message });
+                const div = document.createElement('div');
+                div.className = `test-result ${status}`;
+                div.innerHTML = `<strong>${test}:</strong> ${message}`;
+                this.testContainer.appendChild(div);
+            }
+            
+            testButtonExists(buttonId, description) {
+                const button = document.getElementById(buttonId);
+                if (button) {
+                    this.addResult(description, 'pass', `✅ Button found: ${buttonId}`);
+                    return true;
+                } else {
+                    this.addResult(description, 'fail', `❌ Button missing: ${buttonId}`);
+                    return false;
+                }
+            }
+            
+            testElementExists(elementId, description) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    this.addResult(description, 'pass', `✅ Element found: ${elementId}`);
+                    return true;
+                } else {
+                    this.addResult(description, 'fail', `❌ Element missing: ${elementId}`);
+                    return false;
+                }
+            }
+            
+            testFunctionExists(obj, funcName, description) {
+                if (obj && typeof obj[funcName] === 'function') {
+                    this.addResult(description, 'pass', `✅ Function exists: ${funcName}`);
+                    return true;
+                } else {
+                    this.addResult(description, 'fail', `❌ Function missing: ${funcName}`);
+                    return false;
+                }
+            }
+            
+            async runAllTests() {
+                this.addResult('Starting Tests', 'info', 'Running comprehensive UI validation...');
+                
+                // Test 1: Check if main HTML elements exist
+                const section1 = document.createElement('div');
+                section1.className = 'test-section';
+                section1.innerHTML = '<h3>1. HTML Elements Test</h3>';
+                this.testContainer.appendChild(section1);
+                
+                const requiredButtons = [
+                    ['encrypt-mode-btn', 'Encrypt Mode Button'],
+                    ['decrypt-mode-btn', 'Decrypt Mode Button'],
+                    ['file-input-tab', 'File Input Tab'],
+                    ['text-input-tab', 'Text Input Tab'],
+                    ['image-input-tab', 'Image Input Tab'],
+                    ['base64-input-tab', 'Base64 Input Tab'],
+                    ['file-picker-btn', 'File Picker Button'],
+                    ['image-picker-btn', 'Image Picker Button'],
+                    ['encrypt-btn', 'Encrypt Button'],
+                    ['decrypt-btn', 'Decrypt Button'],
+                    ['copy-base64-btn', 'Copy Base64 Button'],
+                    ['paste-base64-btn', 'Paste Base64 Button'],
+                    ['copy-text-btn', 'Copy Text Button'],
+                    ['download-image-btn', 'Download Image Button'],
+                    ['download-file-btn', 'Download File Button']
+                ];
+                
+                let buttonsPassed = 0;
+                requiredButtons.forEach(([id, desc]) => {
+                    if (this.testButtonExists(id, desc)) buttonsPassed++;
+                });
+                
+                // Test 2: Check input elements
+                const section2 = document.createElement('div');
+                section2.className = 'test-section';
+                section2.innerHTML = '<h3>2. Input Elements Test</h3>';
+                this.testContainer.appendChild(section2);
+                
+                const requiredInputs = [
+                    ['file-input', 'File Input'],
+                    ['image-input', 'Image Input'],
+                    ['text-input', 'Text Input'],
+                    ['base64-input', 'Base64 Input'],
+                    ['encrypt-password', 'Encrypt Password Input'],
+                    ['decrypt-password', 'Decrypt Password Input']
+                ];
+                
+                let inputsPassed = 0;
+                requiredInputs.forEach(([id, desc]) => {
+                    if (this.testElementExists(id, desc)) inputsPassed++;
+                });
+                
+                // Test 3: Check display elements
+                const section3 = document.createElement('div');
+                section3.className = 'test-section';
+                section3.innerHTML = '<h3>3. Display Elements Test</h3>';
+                this.testContainer.appendChild(section3);
+                
+                const requiredElements = [
+                    ['file-info', 'File Info Display'],
+                    ['image-info', 'Image Info Display'],
+                    ['encrypt-progress', 'Encrypt Progress'],
+                    ['decrypt-progress', 'Decrypt Progress'],
+                    ['encrypt-output', 'Encrypt Output'],
+                    ['decrypt-output', 'Decrypt Output'],
+                    ['encrypt-error', 'Encrypt Error Display'],
+                    ['decrypt-error', 'Decrypt Error Display']
+                ];
+                
+                let elementsPassed = 0;
+                requiredElements.forEach(([id, desc]) => {
+                    if (this.testElementExists(id, desc)) elementsPassed++;
+                });
+                
+                // Test 4: Check if app is initialized
+                const section4 = document.createElement('div');
+                section4.className = 'test-section';
+                section4.innerHTML = '<h3>4. Application Initialization Test</h3>';
+                this.testContainer.appendChild(section4);
+                
+                let appPassed = 0;
+                if (window.app) {
+                    this.addResult('App Instance', 'pass', '✅ Application instance found');
+                    appPassed++;
+                    
+                    // Test app methods
+                    const requiredMethods = [
+                        'switchMode',
+                        'handleEncrypt',
+                        'handleDecrypt',
+                        'copyToClipboard',
+                        'pasteFromClipboard',
+                        'formatFileSize'
+                    ];
+                    
+                    requiredMethods.forEach(method => {
+                        if (this.testFunctionExists(window.app, method, `App Method: ${method}`)) {
+                            appPassed++;
+                        }
+                    });
+                } else {
+                    this.addResult('App Instance', 'fail', '❌ Application instance not found');
+                }
+                
+                // Test 5: Check component loading
+                const section5 = document.createElement('div');
+                section5.className = 'test-section';
+                section5.innerHTML = '<h3>5. Component Loading Test</h3>';
+                this.testContainer.appendChild(section5);
+                
+                let componentsPassed = 0;
+                const requiredComponents = [
+                    ['CryptoEngine', 'Crypto Engine'],
+                    ['ImageConverterImpl', 'Image Converter'],
+                    ['FileProcessorImpl', 'File Processor'],
+                    ['ValidationEngineImpl', 'Validation Engine'],
+                    ['ErrorHandler', 'Error Handler']
+                ];
+                
+                requiredComponents.forEach(([component, desc]) => {
+                    if (window[component]) {
+                        this.addResult(desc, 'pass', `✅ Component loaded: ${component}`);
+                        componentsPassed++;
+                    } else {
+                        this.addResult(desc, 'fail', `❌ Component missing: ${component}`);
+                    }
+                });
+                
+                // Summary
+                const summary = document.createElement('div');
+                summary.className = 'test-section summary';
+                const totalTests = requiredButtons.length + requiredInputs.length + requiredElements.length + 7 + requiredComponents.length;
+                const totalPassed = buttonsPassed + inputsPassed + elementsPassed + appPassed + componentsPassed;
+                const passRate = Math.round((totalPassed / totalTests) * 100);
+                
+                summary.innerHTML = `
+                    <h3>Test Summary</h3>
+                    <div class="${passRate >= 80 ? 'pass' : 'fail'}">
+                        <strong>Overall Result: ${totalPassed}/${totalTests} tests passed (${passRate}%)</strong>
+                    </div>
+                    <div class="info">
+                        • Buttons: ${buttonsPassed}/${requiredButtons.length}<br>
+                        • Inputs: ${inputsPassed}/${requiredInputs.length}<br>
+                        • Elements: ${elementsPassed}/${requiredElements.length}<br>
+                        • App Functions: ${appPassed}/7<br>
+                        • Components: ${componentsPassed}/${requiredComponents.length}
+                    </div>
+                `;
+                
+                this.testContainer.appendChild(summary);
+                
+                return { totalPassed, totalTests, passRate };
+            }
+        }
+        
+        // Wait for page to load, then run tests
+        window.addEventListener('load', async () => {
+            // Wait a bit more for components to load
+            setTimeout(async () => {
+                const validator = new UIValidator();
+                const results = await validator.runAllTests();
+                console.log('UI Validation Results:', results);
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
