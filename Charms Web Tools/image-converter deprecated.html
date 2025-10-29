@@ -9,39 +9,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         /* Custom styles to enforce BORDERLESS, MINIMAL, and B&W */
-        /* REMOVED: * { transition: all 1.0s ease-in-out; } */
-        
-        /* --- EXPLICIT TRANSITIONS FOR SMOOTH MODE SWITCH (1.0s) --- */
-        body, .container,
-        input[type="checkbox"], 
-        .drop-zone, 
-        .message-box.info, .message-box.success, .message-box.error,
-        .file-list-item, 
-        .file-format-select,
-        .global-controls-border, #folder-export-controls,
-        .btn-primary, .btn-secondary {
-            /* Applied the slow transition specifically to the color/border properties */
-            transition: background-color 1.0s ease-in-out, color 1.0s ease-in-out, border-color 1.0s ease-in-out, outline-color 1.0s ease-in-out;
+        * {
+            transition: all 0.4s ease-in-out; 
         }
-
-        /* Speed up interactions like hover/dragover to keep the site responsive */
-        .drop-zone {
-            /* Override transition for hover/dragover effects to be quick (0.1s) */
-            transition: background-color 0.1s, color 0.1s, border-color 1.0s, outline-color 1.0s; 
-        }
-
-        .drop-zone:hover, .btn-primary:hover, .btn-secondary:hover {
-            /* Keep hover transition fast */
-            transition: transform 0.15s, background-color 0.1s, color 0.1s, outline 0.1s;
-        }
-        /* ----------------------------------------------------------- */
-
-
-        /* --- START DARK MODE DEFAULT STYLES (Default Background: Black, Text: White) --- */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #000000; 
-            color: #ffffff; 
+            background-color: #ffffff; /* Must be white */
+            color: #000000; /* Must be black */
             display: flex;
             justify-content: center;
             align-items: flex-start;
@@ -54,27 +28,17 @@
         .container {
             max-width: 95%; 
             width: 1200px; 
-            background-color: #000000; 
+            background-color: #ffffff;
             padding: 1rem; 
         }
         
-        /* Checkbox styling relies on CSS for strict B&W outlines */
-        input[type="checkbox"] {
-            outline: 1px solid #ffffff; /* Dark Mode Outline: ffffff */
-            border: none;
-        }
-        
-        /* BORDERS and LINES - Strict #FFFFFF in Dark Mode */
-        .drop-zone, .file-list-item, .global-controls-border, #folder-export-controls {
-            border-color: #ffffff !important;
-        }
-        
         .drop-zone {
-            border: 1px solid #ffffff; 
-            background-color: #000000; 
+            border: 1px solid #000000; 
+            background-color: #ffffff;
             cursor: pointer;
             padding: 2rem 0; 
             text-align: center;
+            transition: background-color 0.1s, color 0.1s; 
         }
 
         /* Drop Zone interaction effects */
@@ -83,13 +47,13 @@
         }
 
         .drop-zone.dragover {
-            background-color: #ffffff !important; 
-            color: #000000 !important;
+            background-color: #000000 !important;
+            color: #ffffff !important;
         }
 
         .message-box.info, .message-box.success, .message-box.error {
-            background-color: #000000 !important; 
-            color: #ffffff !important; 
+            background-color: #ffffff !important;
+            color: #000000 !important;
             font-weight: bold;
             margin-bottom: 0.5rem;
             padding: 0.5rem 0;
@@ -98,151 +62,113 @@
         
         /* Minimal file list item styling */
         .file-list-item {
-            border-bottom: 1px solid #ffffff; 
+            border-bottom: 1px solid #000000; 
+            padding: 0.5rem 0;
             opacity: 1; 
             transform: translateX(0);
         }
 
-        /* Button hover styles for B&W - INVERTED for Dark Mode */
+        /* Animation class for new file list item entrance (used in JS) */
+        .file-list-enter {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+
+        /* Button hover styles for B&W */
         .btn-primary:hover {
-            background-color: #000000 !important; 
-            color: #ffffff !important;
-            outline: 1px solid #ffffff;
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            outline: 1px solid #000000;
             transform: scale(1.05);
         }
-        
+
         .btn-secondary {
-            background-color: #000000; 
-            color: #ffffff;
-            outline: 1px solid #ffffff;
+            background-color: #ffffff;
+            color: #000000;
+            outline: 1px solid #000000;
         }
         
         .btn-secondary:hover {
-            background-color: #ffffff !important; 
-            color: #000000 !important;
+            background-color: #000000 !important;
+            color: #ffffff !important;
             outline: none;
             transform: scale(1.05);
         }
         
         /* Dropdown/Select styling */
         .file-format-select {
-            color: #ffffff; 
-            background-color: #000000; 
+            /* Ensures B&W minimal styling for the dropdown */
+            color: #000000; 
+            background-color: #ffffff;
             border: none;
-            outline: 1px solid #ffffff; 
-            padding: 0.25rem 0.5rem; 
-            font-size: 0.75rem; 
+            outline: 1px solid #000000; 
+            padding: 0.25rem 0.5rem; /* Tighter padding for select */
+            font-size: 0.75rem; /* text-xs */
         }
         
-        /* Global controls border */
-        .global-controls-border {
-            border-bottom: 1px solid #ffffff; 
-            padding-bottom: 0.5rem;
-            padding-top: 0.5rem;
-        }
-
-        /* Style for the folder export control block */
-        #folder-export-controls {
-            border-bottom: 1px solid #ffffff; 
-            padding-bottom: 0.5rem;
-            padding-top: 0.5rem;
-        }
-        
-        /* --- END DARK MODE DEFAULT STYLES --- */
-
-
-        /* --- START LIGHT MODE (OLD DEFAULT) OVERRIDES (Background: White, Text: Black) --- */
-        body.light-mode {
-            background-color: #ffffff;
-            color: #000000;
-        }
-        body.light-mode .container {
-            background-color: #ffffff;
-        }
-        
-        /* Checkbox styling for strict B&W outlines */
-        body.light-mode input[type="checkbox"] {
-            outline: 1px solid #000000; /* Light Mode Outline: 000000 */
-        }
-
-        /* BORDERS and LINES - Strict #000000 in Light Mode */
-        body.light-mode .drop-zone, body.light-mode .file-list-item, body.light-mode .global-controls-border, body.light-mode #folder-export-controls {
-             border-color: #000000 !important;
-        }
-        
-        body.light-mode .drop-zone {
+        /* Style for the select all checkbox to support indeterminate state */
+        #select-all-checkbox {
+            appearance: none;
+            width: 1rem;
+            height: 1rem;
             border: 1px solid #000000;
-            background-color: #ffffff;
+            vertical-align: middle;
+            position: relative;
         }
-        body.light-mode .drop-zone.dragover {
-            background-color: #000000 !important;
-            color: #ffffff !important;
-        }
-        body.light-mode .message-box.info, body.light-mode .message-box.success, body.light-mode .message-box.error {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-        }
-        body.light-mode .file-list-item {
-            border-bottom: 1px solid #000000;
-        }
-        body.light-mode .btn-primary:hover {
-            background-color: #ffffff !important; 
-            color: #000000 !important;
-            outline: 1px solid #000000;
-        }
-        body.light-mode .btn-secondary {
-            background-color: #ffffff; 
+        /* Checkmark */
+        #select-all-checkbox:checked::before {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.75rem;
             color: #000000;
-            outline: 1px solid #000000;
         }
-        body.light-mode .btn-secondary:hover {
-            background-color: #000000 !important; 
-            color: #ffffff !important;
-            outline: none;
-        }
-        body.light-mode .file-format-select {
+        /* Indeterminate state (e.g., a dash) */
+        #select-all-checkbox:indeterminate::before {
+            content: '-';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1rem;
             color: #000000;
-            background-color: #ffffff;
-            outline: 1px solid #000000;
+            line-height: 0;
         }
-        body.light-mode .global-controls-border {
+        
+        /* Style for the new control block */
+        #folder-export-controls {
             border-bottom: 1px solid #000000; 
+            padding-bottom: 0.5rem;
+            padding-top: 0.5rem;
         }
-        body.light-mode #folder-export-controls {
-            border-bottom: 1px solid #000000; 
-        }
-        /* --- END LIGHT MODE OVERRIDES --- */
 
     </style>
 </head>
-<body class="bg-black m-0 p-0 text-white"> 
+<body class="bg-white m-0 p-0 text-black">
     <div id="main-content" class="container space-y-4 opacity-0 transition-opacity duration-500 ease-in">
         <header class="text-center">
-            <h1 class="text-3xl font-bold mb-0">Multi-File Converter</h1> 
-            <p class="text-sm mt-1 mb-2">Drag & drop **files or folders** or **click to select files** to convert.</p>
+            <h1 class="text-3xl font-bold text-black mb-0">Multi-File Converter</h1>
+            <p class="text-black text-sm mt-1 mb-2">Drag & drop **files or folders** or **click to select files** to convert.</p>
         </header>
-
-        <div class="flex items-center justify-end space-x-2 pb-2">
-            <input type="checkbox" id="mode-toggle-checkbox"> 
-            <label for="mode-toggle-checkbox" class="text-sm font-semibold">Light Mode</label>
-        </div>
         
         <input type="file" id="hidden-file-input" multiple class="hidden"> 
         <div id="drop-zone" class="drop-zone p-4 text-center cursor-pointer">
-            <p class="font-semibold">Click or Drag & Drop Files/Folders Here</p>
+            <p class="text-black font-semibold">Click or Drag & Drop Files/Folders Here</p>
             <p class="text-xs">(.jpg, .png, .gif, and any other file types will be preserved)</p>
         </div>
 
         <div class="flex items-center justify-end space-x-2 pt-2">
-            <button id="convert-btn" class="btn-secondary font-semibold p-2 transition duration-150" disabled>
+            <button id="convert-btn" class="btn-secondary font-semibold text-black p-2 transition duration-150" disabled>
                 Convert All Selected
             </button>
-            <button id="export-zip-btn" class="btn-primary bg-white text-black font-semibold p-2 transition duration-150" disabled>
+            <button id="export-zip-btn" class="btn-primary bg-black text-white font-semibold p-2 transition duration-150" disabled>
                 Export ZIP Archive
             </button>
         </div>
         
-        <div id="global-controls" class="global-controls-border flex items-center justify-between pt-4 pb-2"> 
+        <div id="global-controls" class="flex items-center justify-between pt-4 pb-2 border-b border-black">
             <div class="flex items-center space-x-2 text-sm font-semibold">
                 <input type="checkbox" id="select-all-checkbox" disabled>
                 <label for="select-all-checkbox">Select/Deselect All Images for Conversion</label>
@@ -256,20 +182,20 @@
         </div>
         
         <div id="folder-export-controls" class="space-y-2 hidden">
-            <h3 class="text-sm font-bold pt-1">Folder Export Options:</h3> 
+            <h3 class="text-sm font-bold text-black pt-1">Folder Export Options:</h3>
             <div class="flex flex-col space-y-1 text-xs">
                 <div class="flex items-center space-x-2">
-                    <input type="checkbox" id="include-non-image-files" checked> 
+                    <input type="checkbox" id="include-non-image-files" checked class="outline outline-1 outline-black">
                     <label for="include-non-image-files">Include non-image files (PDFs, TXT, etc.) in the final ZIP?</label>
                 </div>
                 
-                <div id="preserve-structure-option" class="flex items-center space-x-2 pl-4 hidden"> 
-                    <input type="checkbox" id="preserve-non-image-structure"> 
+                <div id="preserve-structure-option" class="flex items-center space-x-2 pl-4 text-gray-700 hidden">
+                    <input type="checkbox" id="preserve-non-image-structure" class="outline outline-1 outline-black">
                     <label for="preserve-non-image-structure">Preserve the folder structure for excluded non-image files?</label>
                 </div>
             </div>
         </div>
-        <h2 class="text-xl font-bold pt-4 mb-2">Files Added (<span id="file-count">0</span>)</h2> 
+        <h2 class="text-xl font-bold text-black pt-4 mb-2">Files Added (<span id="file-count">0</span>)</h2>
         <div id="message-container" class="space-y-1">
             </div>
         <ul id="file-list" class="space-y-1">
@@ -287,6 +213,7 @@
         const filesToProcess = []; 
         let conversionRunning = false;
         let isFolderUpload = false;
+        // --- NEW STATE VARIABLES ---
         let includeNonImageFiles = true; 
         let preserveEmptyNonImageStructure = false;
         
@@ -303,10 +230,7 @@
         const selectAllCheckbox = document.getElementById('select-all-checkbox');
         const globalFormatSelect = document.getElementById('global-format-select');
         
-        // NEW ELEMENT REFERENCES (Dark Mode Toggle) 
-        const modeToggleCheckbox = document.getElementById('mode-toggle-checkbox');
-        
-        // NEW ELEMENT REFERENCES (Folder Controls)
+        // --- NEW ELEMENT REFERENCES ---
         const folderExportControls = document.getElementById('folder-export-controls');
         const includeNonImageFilesCheckbox = document.getElementById('include-non-image-files');
         const preserveStructureOptionDiv = document.getElementById('preserve-structure-option');
@@ -344,6 +268,8 @@
 
         // --- Global Control Functions ---
         
+        // (Unchanged: selectAllConversions, setAllTargetFormats, populateGlobalFormatSelector, updateSelectAllCheckbox)
+
         function selectAllConversions(checked) {
             filesToProcess.forEach(item => {
                 if (item.isImage) {
@@ -422,8 +348,7 @@
 
         function showGeneralMessage(message, type = 'info') {
             const messageBox = document.createElement('div');
-            // Message box style updated to match the Dark Mode default
-            messageBox.className = `message-box ${type} text-sm bg-black p-1 mb-1`; 
+            messageBox.className = `message-box ${type} text-sm text-black bg-white p-1 mb-1`;
             messageBox.setAttribute('data-message-type', type);
             messageBox.textContent = message;
             
@@ -436,11 +361,6 @@
         function updateControls() {
             const hasFiles = filesToProcess.length > 0;
             const hasImages = filesToProcess.some(f => f.isImage);
-            
-            // Get the current mode for styling buttons dynamically
-            const isLightMode = document.body.classList.contains('light-mode');
-            const primaryBtnBase = isLightMode ? 'bg-black text-white' : 'bg-white text-black';
-            const secondaryBtnBase = isLightMode ? 'bg-white text-black' : 'bg-black text-white';
 
             fileCountSpan.textContent = filesToProcess.length;
             
@@ -457,7 +377,7 @@
             document.getElementById('global-controls').classList.toggle('opacity-50', !hasImages);
             updateSelectAllCheckbox(); 
             
-            // --- Folder Control Visibility Logic ---
+            // --- NEW: Folder Control Visibility Logic ---
             if (isFolderUpload) {
                 folderExportControls.classList.remove('hidden');
             } else {
@@ -473,9 +393,9 @@
             // ------------------------------------------
 
             // Update button styling (B&W minimal)
-            convertBtn.className = `btn-secondary font-semibold p-2 transition duration-150 ${convertBtn.disabled ? 'opacity-50 cursor-not-allowed' : secondaryBtnBase}`;
-            exportZipBtn.className = `btn-primary font-semibold p-2 transition duration-150 ${exportZipBtn.disabled ? 'opacity-50 cursor-not-allowed' : primaryBtnBase}`;
-            clearAllBtn.className = `btn-secondary font-semibold p-2 transition duration-150 text-sm ${clearAllBtn.disabled ? 'opacity-50 cursor-not-allowed' : secondaryBtnBase}`;
+            convertBtn.className = `btn-secondary font-semibold p-2 transition duration-150 ${convertBtn.disabled ? 'opacity-50 cursor-not-allowed' : ''}`;
+            exportZipBtn.className = `btn-primary bg-black text-white font-semibold p-2 transition duration-150 ${exportZipBtn.disabled ? 'opacity-50 cursor-not-allowed' : ''}`;
+            clearAllBtn.className = `btn-secondary font-semibold p-2 transition duration-150 text-sm ${clearAllBtn.disabled ? 'opacity-50 cursor-not-allowed' : ''}`;
         }
 
         function addFileEntry(file, relativePath) {
@@ -590,19 +510,13 @@
             const existingFilePaths = Array.from(fileList.children).map(li => li.getAttribute('data-relative-path'));
             
             fileList.innerHTML = '';
-            
-            // Get the current mode for styling status text dynamically
-            const isLightMode = document.body.classList.contains('light-mode');
-            const primaryBtnBase = isLightMode ? 'bg-black text-white' : 'bg-white text-black';
-            const secondaryBtnBase = isLightMode ? 'bg-white text-black' : 'bg-black text-white';
 
             filesToProcess.forEach((item, index) => {
                 const listItem = document.createElement('li');
                 listItem.id = `file-item-${index}`;
                 listItem.setAttribute('data-relative-path', item.relativePath);
 
-                // listItem inherits color and background from body/container
-                listItem.className = 'file-list-item grid grid-cols-12 gap-2 items-center text-sm transition duration-150'; 
+                listItem.className = 'file-list-item grid grid-cols-12 gap-2 items-center text-black text-sm transition duration-150';
 
                 const isNew = !existingFilePaths.includes(item.relativePath);
                 if (isNew) {
@@ -619,6 +533,7 @@
                 formatControl.className = 'col-span-3 flex items-center justify-end space-x-2';
                 
                 if (item.isImage) {
+                    // (Rendering logic for image conversion controls is unchanged)
                     const select = document.createElement('select');
                     select.id = `select-${index}`;
                     select.className = 'file-format-select';
@@ -649,6 +564,7 @@
                     checkbox.type = 'checkbox';
                     checkbox.checked = item.shouldConvert;
                     checkbox.id = `checkbox-${index}`;
+                    checkbox.className = 'outline outline-1 outline-black';
                     checkbox.addEventListener('change', (e) => {
                         item.shouldConvert = e.target.checked;
                         select.disabled = !item.shouldConvert;
@@ -682,22 +598,17 @@
                 // Status Text
                 const statusText = document.createElement('span');
                 statusText.id = `status-text-${index}`;
-                statusText.className = 'text-xs'; // Let color inherit
+                let statusClass = 'text-black';
+                if (item.conversionStatus === 'Success') statusClass = 'text-black font-bold';
+                if (item.conversionStatus === 'Error') statusClass = 'text-black underline';
+                statusText.className = `${statusClass} text-xs`;
                 statusText.textContent = `(${item.conversionStatus})`;
-                
-                // Add conditional status style
-                if (item.conversionStatus === 'Success' || item.conversionStatus === 'Error') {
-                    statusText.classList.add('font-bold');
-                }
-                if (item.conversionStatus === 'Error') {
-                    statusText.classList.add('underline');
-                }
 
                 // Download Button (Only visible if NOT a folder upload AND successful conversion)
                 if (!isFolderUpload && item.conversionStatus === 'Success' && item.isImage) {
                     const downloadBtn = document.createElement('button');
                     downloadBtn.textContent = 'Download';
-                    downloadBtn.className = `btn-primary ${primaryBtnBase} text-xs p-1`; 
+                    downloadBtn.className = 'btn-primary bg-black text-white text-xs p-1';
                     downloadBtn.onclick = () => downloadSingleFile(index);
                     statusAndRemove.appendChild(downloadBtn);
                 }
@@ -705,7 +616,7 @@
                 // Remove button
                 const removeBtn = document.createElement('button');
                 removeBtn.textContent = 'Remove';
-                removeBtn.className = `btn-secondary ${secondaryBtnBase} text-xs p-1 ml-4`; 
+                removeBtn.className = 'btn-secondary text-xs p-1 ml-4';
                 removeBtn.onclick = () => removeFile(index);
 
                 statusAndRemove.appendChild(statusText);
@@ -783,25 +694,7 @@
             });
         }
 
-        // --- Event Handlers for NEW Controls (Folder/Mode) ---
-        
-        // ADDED DARK/LIGHT MODE TOGGLE HANDLER
-        modeToggleCheckbox.addEventListener('change', (e) => {
-            const isLightMode = e.target.checked;
-            if (isLightMode) {
-                document.body.classList.add('light-mode');
-            } else {
-                document.body.classList.remove('light-mode');
-            }
-            // Re-render controls to apply new button/list item styles
-            renderFileList(); 
-            updateControls(); 
-            
-            // FIXED: Removed class-updating logic, now handled by CSS
-            document.querySelector('label[for="mode-toggle-checkbox"]').classList.toggle('text-black', isLightMode);
-            document.querySelector('label[for="mode-toggle-checkbox"]').classList.toggle('text-white', !isLightMode);
-        });
-
+        // --- Event Handlers for NEW Controls ---
 
         includeNonImageFilesCheckbox.addEventListener('change', (e) => {
             includeNonImageFiles = e.target.checked;
@@ -853,6 +746,7 @@
                 
                 item.conversionStatus = 'Converting...';
                 statusElement.textContent = '(Converting...)';
+                statusElement.className = 'text-black ml-2';
                 
                 const targetExtension = IMAGE_MIME_MAP[item.targetMimeType];
                 
@@ -873,6 +767,8 @@
                     item.convertedBlob = null;
                     errorCount++;
                     
+                    statusElement.textContent = '(Error)';
+                    statusElement.className = 'text-black underline text-xs';
                     showGeneralMessage(`Conversion failed for ${item.relativePath}: ${error.message}`, 'error');
                 }
             }
@@ -983,6 +879,8 @@
                     showGeneralMessage(`An error occurred during file processing for ZIP: ${error.message}`, 'error');
                 });
         });
+
+        // (Remaining handlers unchanged)
 
         clearAllBtn.addEventListener('click', () => {
             if (conversionRunning) {
