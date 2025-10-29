@@ -21,8 +21,7 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            /* Only apply transition to specific elements to improve mobile performance */
-            transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
+            transition: all 0.3s ease;
         }
 
         body, html {
@@ -35,8 +34,6 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            /* Ensure the body doesn't cause horizontal overflow */
-            overflow-x: hidden; 
         }
         
         /* ------------------------------------------------ */
@@ -47,6 +44,9 @@
         body {
             /* 💡 CRUCIAL FIX: Body is now ONLY black initially */
             background-color: #000000; 
+            
+            /* REMOVED: background-image, background-size, etc. */
+            /* REMOVED: background-attachment: fixed; (Moved to overlay) */
         }
 
         /* 2. The overlay element now holds the image, the darkness, and the fade-in */
@@ -68,6 +68,8 @@
             background-position: center center;
             background-repeat: no-repeat;
             background-attachment: fixed; /* Parallax effect is back! */
+
+            /* REMOVED: background-color: rgba(0, 0, 0, 0.5); */
         }
         
         /* The class added by JavaScript to trigger the fade-in */
@@ -87,8 +89,6 @@
             align-items: center;
             justify-content: center;
             position: relative; 
-            /* Ensure content fits on mobile and uses available height */
-            min-height: 100vh;
         }
 
 
@@ -105,8 +105,6 @@
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(8px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            /* Fluid width on small screens */
-            max-width: 90%; 
         }
 
         .header-container p {
@@ -122,7 +120,7 @@
             font-size: 1rem;
             background-color: transparent;
             border: 1px solid var(--border-color);
-            border-radius: 8px; /* Slightly more rounded for touch targets */
+            border-radius: 4px;
             color: var(--text-color);
             outline: none;
             margin-bottom: 0.5rem;
@@ -148,7 +146,6 @@
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); 
             backdrop-filter: blur(8px); 
             border: 1px solid rgba(255, 255, 255, 0.1); 
-            width: 100%; /* Important for mobile */
         }
 
         /* Styling for each tool box */
@@ -169,10 +166,7 @@
             color: inherit;
             margin: 0.5rem;
             backdrop-filter: blur(5px);
-            border-radius: 8px; /* More rounded corners */
-            
-            /* Improved active state feedback for touch */
-            -webkit-tap-highlight-color: transparent;
+            border-radius: 4px;
         }
 
         .tool-box:hover {
@@ -189,7 +183,6 @@
             font-size: 1.5rem;
             font-weight: 600;
             pointer-events: none;
-            transition: opacity 0.3s ease, transform 0.3s ease;
         }
         
         /* New rule: Hide the title completely when the popup is active */
@@ -210,24 +203,23 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background-color: rgba(0, 0, 0, 0.95); /* Slightly darker overlay for clarity */
+            background-color: rgba(0, 0, 0, 0.9);
             padding: 1rem;
             opacity: 0;
             visibility: hidden;
-            transform: scale(0.8); /* Scale in effect for better feel */
+            transform: translateY(100%);
             transition: all 0.3s ease;
             pointer-events: none;
-            border-radius: 8px;
+            border-radius: 4px;
         }
         
-        /* Show pop-up on hover/tap */
+        /* Show pop-up on hover */
         .tool-box.is-hovering .info-popup {
             opacity: 1;
             visibility: visible;
-            transform: scale(1);
-            pointer-events: auto; /* Allow interaction with content if needed */
+            transform: translateY(0);
         }
-        
+
         .info-popup h2 {
             font-size: 1.25rem;
             margin-bottom: 0.5rem;
@@ -240,53 +232,28 @@
             text-align: center;
         }
 
-        /* ------------------------------------------------ */
-        /* MOBILE-SPECIFIC ADJUSTMENTS */
-        /* ------------------------------------------------ */
+        /* Responsive adjustments */
         @media (max-width: 768px) {
+            body {
+                /* No padding here, padding is on .content-wrapper */
+            }
             .content-wrapper {
-                padding: 1rem 0.5rem; /* Less vertical padding, more horizontal space */
+                padding: 0.5rem;
             }
-            
-            .header-container {
-                /* Use full width on mobile devices */
-                max-width: 100%;
-                padding: 1rem;
-                margin-bottom: 0.5rem;
-            }
-
             .tools-container {
                 flex-direction: column;
-                padding: 1rem 0; /* Padding handled by wrapper */
-                gap: 0.75rem; /* Slightly tighter gap */
+                padding: 1rem;
+                gap: 0.5rem;
+                width: 95%;
+            }
+            .tool-box {
                 width: 100%;
                 max-width: 100%;
-                background-color: transparent; /* Remove container background */
-                box-shadow: none;
-                backdrop-filter: none;
-                border: none;
+                height: 150px;
+                margin: 0.25rem 0;
             }
-            
-            /* Force tool boxes to full width (minus padding) on small screens */
-            .tool-box {
-                width: 95%; /* Adjust width to fit container padding */
-                max-width: 100%;
-                height: 120px; /* Reduced height for better density */
-                margin: 0.25rem auto;
-                
-                /* Reset hover effects, as they interfere with touch */
-                transform: none !important;
-                background-color: var(--box-bg-color) !important;
-            }
-            
-            /* Use the dedicated active state for touch feedback */
-            .tool-box:active {
-                transform: scale(0.98);
-                background-color: rgba(255, 255, 255, 0.1);
-            }
-
-            .tool-box h2 {
-                font-size: 1.3rem; /* Slightly smaller font */
+            .search-bar {
+                margin: 1rem 0.5rem;
             }
         }
     </style>
@@ -297,8 +264,7 @@
 
     <div class="content-wrapper">
         <div class="header-container">
-            <!-- Added autocomplete="off" for better mobile keyboard experience -->
-            <input type="text" id="searchInput" class="search-bar" placeholder="Search for a tool..." autocomplete="off">
+            <input type="text" id="searchInput" class="search-bar" placeholder="Search for a tool...">
             <p>all computation is done locally for all tools</p>
         </div>
 
@@ -378,21 +344,15 @@
     </div>
 
     <script>
-        // Check if the user is on a touch device
-        const isTouchDevice = () => ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
-
         document.addEventListener('DOMContentLoaded', () => {
             const searchInput = document.getElementById('searchInput');
             const toolBoxes = document.querySelectorAll('.tool-box');
             const backgroundOverlay = document.getElementById('background-overlay');
             let hoverTimeout;
-            let currentActiveBox = null; // Track the currently tapped box for touch devices
 
             // --- BACKGROUND LOADING LOGIC ---
             const bgImage = new Image();
-            // Note: 'background.svg' is an external file dependency. 
-            // In this single-file context, we rely on it being available in the target environment.
-            bgImage.src = 'background.svg'; 
+            bgImage.src = 'background.svg';
 
             // Once the image is fully loaded, we trigger the opacity transition
             bgImage.onload = () => {
@@ -406,8 +366,7 @@
             searchInput.addEventListener('keyup', (e) => {
                 const searchTerm = e.target.value.toLowerCase();
                 toolBoxes.forEach(box => {
-                    // Check text content of both <h2> in the box and <h2> in the popup
-                    const title = box.textContent.toLowerCase(); 
+                    const title = box.querySelector('h2').textContent.toLowerCase();
                     if (searchTerm === '' || title.includes(searchTerm)) {
                         box.style.display = 'flex';
                     } else {
@@ -416,85 +375,19 @@
                 });
             });
 
-            // ---------------------------------------------
-            // DUAL-MODE INTERACTION (Hover for Desktop, Tap for Mobile)
-            // ---------------------------------------------
-
+            // Handle hover pop-up for each tool box
             toolBoxes.forEach(box => {
-                const popup = box.querySelector('.info-popup');
-
-                // --- DESKTOP HOVER LOGIC (with delay) ---
                 box.addEventListener('mouseenter', () => {
-                    if (!isTouchDevice()) {
-                        clearTimeout(hoverTimeout);
-                        hoverTimeout = setTimeout(() => {
-                            box.classList.add('is-hovering');
-                        }, 500); // Reduced delay for better feel
-                    }
+                    clearTimeout(hoverTimeout);
+                    hoverTimeout = setTimeout(() => {
+                        box.classList.add('is-hovering');
+                    }, 1500);
                 });
 
                 box.addEventListener('mouseleave', () => {
-                    if (!isTouchDevice()) {
-                        clearTimeout(hoverTimeout);
-                        box.classList.remove('is-hovering');
-                    }
+                    clearTimeout(hoverTimeout);
+                    box.classList.remove('is-hovering');
                 });
-                
-                // --- MOBILE/TOUCH LOGIC (Immediate Tap/Click for Info) ---
-                
-                // We use 'touchstart' to immediately show the description.
-                // We use 'click' (or touch-to-click) to follow the link.
-                box.addEventListener('touchstart', (e) => {
-                    // Prevent the default touch-and-hold context menu
-                    e.preventDefault(); 
-                    
-                    // If we tapped the already active box, let the click event fire to follow the link
-                    if (currentActiveBox === box) {
-                        return; 
-                    }
-
-                    // On a touch device, tapping once shows the description (bypassing the link)
-                    if (isTouchDevice()) {
-                        // 1. Hide the previously active description (if any)
-                        if (currentActiveBox && currentActiveBox !== box) {
-                            currentActiveBox.classList.remove('is-hovering');
-                        }
-                        
-                        // 2. Show the current box description
-                        box.classList.add('is-hovering');
-                        currentActiveBox = box;
-                    }
-                }, { passive: true }); // Use passive listener for performance
-
-                // Prevent immediate link follow after the first touch/tap reveals the info
-                box.addEventListener('click', (e) => {
-                    if (isTouchDevice() && box.classList.contains('is-hovering')) {
-                        // If the box is currently showing its description, we want to allow the link 
-                        // to be followed only on the SECOND tap.
-                        
-                        // If this is the first tap, prevent navigation and just show description
-                        if (currentActiveBox === box) {
-                            // If user taps the active box again, allow link navigation (default behavior)
-                            return true; 
-                        } else {
-                            // First tap: prevent navigation and show description (handled in touchstart)
-                            e.preventDefault();
-                            e.stopPropagation();
-                        }
-                    }
-                });
-                
-            });
-            
-            // Global click listener to hide the active popup when clicking anywhere else
-            document.addEventListener('click', (e) => {
-                if (isTouchDevice() && currentActiveBox) {
-                    // Check if the click target is outside the current active box
-                    if (!e.target.closest('.tool-box')) {
-                        currentActiveBox.classList.remove('is-hovering');
-                        currentActiveBox = null;
-                    }
-                }
             });
         });
     </script>
