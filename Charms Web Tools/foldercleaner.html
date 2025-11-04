@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Empty Folder Cleaner & Downloader</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load JSZip for ZIP creation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom Black/White Styling */
+        body {
+            background-color: #000000; /* Pure Black */
+            color: #FFFFFF; /* Pure White */
+            font-family: 'Inter', sans-serif;
+        }
+        .container-card {
+            background-color: #000000; /* Pure Black */
+            border: 1px solid #FFFFFF; /* Minimal White Boundary */
+        }
+        .log-container {
+            min-height: 50vh; /* EXPANDED: Changed from fixed 300px to min 50% viewport height */
+            overflow-y: auto;
+            background-color: #000000; /* Pure Black */
+            border: 1px solid #FFFFFF; /* Minimal White Boundary */
+        }
+        /* Style for the log table rows */
+        .log-row {
+            display: flex;
+            padding: 4px 8px;
+            border-bottom: 1px solid #222; /* Subtle divider */
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .path-col {
+            flex: 3;
+            min-width: 0; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .contents-col {
+            flex: 1;
+            text-align: center;
+        }
+        .status-col {
+            flex: 1;
+            text-align: right;
+            font-weight: bold; /* All statuses are bold in this theme */
+        }
+        /* New Black/White Status Indicators */
+        .status-kept { color: #FFFFFF; } /* White for kept files */
+        .status-empty { color: #FF0000; font-weight: bold; } /* Bright red for EMPTY for critical visibility */
+        .status-folder-kept { color: #AAAAAA; } /* Light gray for kept folders */
+        .status-action { color: #FFFFFF; text-decoration: underline; } /* Underline for actions */
+        
+        /* Drag area uses a dashed white line */
+        .drag-area {
+            border: 2px dashed #FFFFFF;
+            transition: all 0.2s;
+        }
+        .drag-area.active {
+            background-color: #111111;
+        }
+
+        /* Button styling for high contrast */
+        .high-contrast-button {
+            border: 2px solid #FFFFFF;
+            background-color: #000000;
+            color: #FFFFFF;
+        }
+        .high-contrast-button:hover:not(:disabled) {
+            background-color: #FFFFFF;
+            color: #000000;
+        }
+        .high-contrast-button:disabled {
+            border-color: #555555;
+            color: #555555;
+            cursor: not-allowed;
+        }
+
+    </style>
+</head>
+<body class="p-6">
+
+    <div class="max-w-4xl mx-auto space-y-6">
+
+        <!-- Header & Title Section -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-white mb-2"> Empty Folder Cleaner & Downloader</h1>
+            <p class="text-gray-400"> Drag and Drop Required to detect all empty folders.</p>
+        </header>
+
+        <!-- Control Panel Card -->
+        <div id="control-panel" class="container-card p-6 rounded-lg">
+            
+            <!-- Upload Area -->
+            <!-- NOTE: Removed cursor-pointer and onclick from this div. It only handles drag events now. -->
+            <div id="drag-drop-area" class="drag-area text-center p-12 rounded-lg transition">
+                <p class="text-xl font-semibold mb-2">Drag & Drop a Folder Here</p>
+                <p class="text-sm text-gray-400">
+                    
+                    <span class="underline cursor-pointer" onclick="document.getElementById('folderInput').click()"></span>
+                </p>
+                <!-- The input is hidden and only activated by the explicit span link above -->
+                <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden" onchange="handleFolderUpload(event)">
+            </div>
+            <p id="folderNameDisplay" class="text-center text-sm mt-3 text-gray-300 hidden">Ready to scan: <span class="font-bold text-white"></span></p>
+            <div id="loadingIndicator" class="text-center text-sm text-yellow-500 mt-2 hidden">
+                Scanning folder structure... please wait.
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-6 flex justify-center space-x-4">
+                <button id="scanButton" onclick="scanForEmptyFolders()"
+                    class="px-8 py-3 font-semibold rounded-lg shadow-md transition duration-150 high-contrast-button"
+                    disabled>
+                    1. Scan for Empty Folders
+                </button>
+                <button id="downloadButton" onclick="cleanAndDownloadZip()"
+                    class="px-8 py-3 font-semibold rounded-lg shadow-md transition duration-150 high-contrast-button"
+                    disabled>
+                    2. Clean & Download ZIP
+                </button>
+            </div>
+        </div>
+        
+        <!-- Processing Status & Log Section -->
+        <div class="space-y-3">
+            <h2 class="text-2xl font-semibold">Processing Status Log (<span id="fileCountDisplay">0</span> Items)</h2>
+            <div class="container-card p-2 rounded-lg">
+                
+                <!-- Log Header -->
+                <div class="log-row font-bold text-sm border-b-2 border-white sticky top-0 bg-[#000000] z-10">
+                    <div class="path-col">File / Folder Path</div>
+                    <div class="contents-col">Content Type</div>
+                    <div class="status-col">Status / Action</div>
+                </div>
+
+                <!-- Log Body -->
+                <div id="logOutput" class="log-container rounded-md">
+                    <div class="p-2 text-gray-500">Awaiting folder upload...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Global State ---
+        // filesToProcess: Stores objects { file: File, path: 'relative/path/to/file.ext' }
+        let filesToProcess = [];
+        // detectedFolderPaths: Stores all unique folder paths encountered during traversal, including empty ones.
+        let detectedFolderPaths = new Set();
+        // foldersWithContent: Stores paths for folders that contain at least one file.
+        let foldersWithContent = new Set();
+        
+        let topLevelName = '';
+        let isDragAndDrop = false;
+
+        // DOM element references
+        const logOutput = document.getElementById('logOutput');
+        const scanButton = document.getElementById('scanButton');
+        const downloadButton = document.getElementById('downloadButton');
+        const folderNameDisplay = document.getElementById('folderNameDisplay');
+        const fileCountDisplay = document.getElementById('fileCountDisplay');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+
+        // --- Utility Functions ---
+
+        function resetState() {
+            filesToProcess = [];
+            detectedFolderPaths = new Set();
+            foldersWithContent = new Set();
+            topLevelName = '';
+            isDragAndDrop = false;
+            logOutput.innerHTML = '<div class="p-2 text-gray-500">Ready for a new scan...</div>';
+            scanButton.disabled = true;
+            downloadButton.disabled = true;
+            folderNameDisplay.classList.add('hidden');
+            loadingIndicator.classList.add('hidden');
+            fileCountDisplay.textContent = '0';
+        }
+
+        function appendToLog(path, contents, status, statusClass) {
+            const row = document.createElement('div');
+            row.className = 'log-row';
+            row.innerHTML = `
+                <div class="path-col" title="${path}">${path}</div>
+                <div class="contents-col">${contents}</div>
+                <div class="status-col ${statusClass}">${status}</div>
+            `;
+            logOutput.appendChild(row);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+
+        /**
+         * Extracts all parent folder paths from a file's relative path.
+         * @param {string} filePath - The file's relative path.
+         * @returns {void} Adds paths to the foldersWithContent Set.
+         */
+        function markParentFolders(filePath) {
+            const parts = filePath.split('/');
+            const dirParts = parts.slice(0, -1);
+            let currentPath = '';
+            for (const part of dirParts) {
+                if (part) {
+                    currentPath += part + '/';
+                    foldersWithContent.add(currentPath);
+                }
+            }
+        }
+
+        // --- Empty Folder Detection Core Logic ---
+
+        /**
+         * 🏆 CORE FIX: Recursively traverses the directory entry obtained via drag-and-drop.
+         * This ensures every folder, including empty ones, is recorded in 'detectedFolderPaths'.
+         * @param {FileSystemEntry} entry - The current file system entry (file or directory).
+         * @param {string} pathPrefix - The relative path leading to this entry.
+         * @returns {Promise<void>} Resolves when the entire branch is processed.
+         */
+        function readDirectoryEntry(entry, pathPrefix = '') {
+            return new Promise(async (resolve, reject) => {
+                if (entry.isFile) {
+                    // File: Get the File object and store for later processing/zipping.
+                    entry.file(file => {
+                        const fullPath = pathPrefix + file.name;
+                        filesToProcess.push({ file: file, path: fullPath });
+                        markParentFolders(fullPath); // Mark parent folders as having content
+                        resolve();
+                    }, reject);
+                } else if (entry.isDirectory) {
+                    const dirPath = pathPrefix + entry.name + '/';
+                    detectedFolderPaths.add(dirPath); // Mark the folder itself
+                    
+                    const reader = entry.createReader();
+                    let entries = [];
+
+                    // Function to read all entries from the directory (needed for large directories)
+                    const readAllEntries = () => {
+                        reader.readEntries(async (results) => {
+                            if (!results.length) {
+                                // Base case: all entries read for this directory. Process them.
+                                const entryPromises = entries.map(childEntry => 
+                                    readDirectoryEntry(childEntry, dirPath)
+                                );
+                                await Promise.all(entryPromises);
+                                resolve();
+                            } else {
+                                // Recursive step: more entries exist, read again.
+                                entries = entries.concat(results);
+                                readAllEntries();
+                            }
+                        }, reject);
+                    };
+
+                    readAllEntries();
+                } else {
+                    resolve(); // Ignore other types of entries
+                }
+            });
+        }
+
+        // --- Handler Functions ---
+
+        /**
+         * Primary handler for drag-and-drop. Uses the webkitGetAsEntry API.
+         */
+        async function handleDrop(e) {
+            e.preventDefault();
+            dragArea.classList.remove('active');
+            resetState();
+            
+            loadingIndicator.classList.remove('hidden');
+
+            const items = e.dataTransfer.items;
+            if (items.length === 0) {
+                loadingIndicator.classList.add('hidden');
+                return;
+            }
+
+            // Use the first item that is a file or folder entry
+            let itemEntry = null;
+            for (let i = 0; i < items.length; i++) {
+                const entry = items[i].webkitGetAsEntry();
+                if (entry) {
+                    itemEntry = entry;
+                    break;
+                }
+            }
+
+            if (!itemEntry || !itemEntry.isDirectory) {
+                appendToLog('Upload Failed', 'N/A', 'ERROR: Drop a single folder.', 'status-empty');
+                loadingIndicator.classList.add('hidden');
+                return;
+            }
+
+            isDragAndDrop = true;
+            topLevelName = itemEntry.name;
+
+            try {
+                // Read the directory recursively
+                await readDirectoryEntry(itemEntry);
+                
+                folderNameDisplay.querySelector('span').textContent = topLevelName;
+                folderNameDisplay.classList.remove('hidden');
+                fileCountDisplay.textContent = filesToProcess.length;
+
+                appendToLog(`Successfully processed ${topLevelName}/`, 'N/A', 'Ready to Scan (D&D)', 'status-action');
+                scanButton.disabled = false;
+            } catch (error) {
+                console.error("Error reading directory entry:", error);
+                appendToLog('Error reading directory structure. See console.', 'N/A', 'FATAL ERROR', 'status-empty');
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Fallback handler for the input element method (cannot detect empty folders).
+         */
+        function handleFolderUpload(event) {
+            resetState();
+            const files = event.target.files;
+            if (files.length === 0) return;
+
+            // Display warning for the user
+            appendToLog('⚠️ Input Method Used', 'N/A', 'WARNING', 'status-empty');
+            appendToLog('Empty folders cannot be detected using "Click to Select".', 'N/A', 'Use Drag & Drop instead.', 'status-empty');
+            
+            // Revert to old file-list logic (filesToProcess will only contain files)
+            filesToProcess = Array.from(files).map(file => ({
+                file: file, 
+                path: file.webkitRelativePath
+            }));
+            
+            // Get the name of the top-level folder
+            const firstFilePath = filesToProcess[0]?.path;
+            topLevelName = (firstFilePath && firstFilePath.indexOf('/') !== -1) 
+                ? firstFilePath.substring(0, firstFilePath.indexOf('/')) 
+                : "Folder Upload (Limited)";
+
+            folderNameDisplay.querySelector('span').textContent = topLevelName;
+            folderNameDisplay.classList.remove('hidden');
+            fileCountDisplay.textContent = filesToProcess.length;
+
+            appendToLog('Upload complete (limited).', 'N/A', 'Ready to Scan', 'status-action');
+            scanButton.disabled = false;
+        }
+
+        /**
+         * Scans the collected files and directories to determine which are truly empty.
+         */
+        function scanForEmptyFolders() {
+            scanButton.disabled = true;
+            downloadButton.disabled = true;
+            logOutput.innerHTML = ''; // Clear log
+            
+            let emptyFolders = [];
+
+            // 1. If using D&D, all folder paths are in detectedFolderPaths
+            if (isDragAndDrop) {
+                // Log all files as kept first (similar to previous version)
+                filesToProcess.forEach(item => {
+                    appendToLog(item.path, 'File', 'Scanned (Kept)', 'status-kept');
+                });
+                
+                // Determine empty folders by comparing detected folders vs folders with content
+                const sortedFolders = Array.from(detectedFolderPaths).sort();
+                
+                sortedFolders.forEach(folderPath => {
+                    if (!foldersWithContent.has(folderPath)) {
+                        emptyFolders.push(folderPath);
+                        appendToLog(
+                            folderPath, 
+                            'Folder', 
+                            ' EMPTY! (Marked for Deletion) ', 
+                            'status-empty'
+                        );
+                    } else {
+                        appendToLog(
+                            folderPath, 
+                            'Folder', 
+                            'Scanned (Has Files)', 
+                            'status-folder-kept'
+                        );
+                    }
+                });
+
+            } else {
+                 // 2. If using the limited input method, we can only log files.
+                filesToProcess.forEach(item => {
+                    appendToLog(item.path, 'File', 'Scanned (Kept)', 'status-kept');
+                });
+                appendToLog('No empty folder scan performed (limited input).', 'N/A', 'SKIPPED', 'status-empty');
+            }
+
+            // 3. Final summary
+            const filesKept = filesToProcess.length;
+            const foldersRemoved = emptyFolders.length;
+
+            appendToLog('--- Scan Summary ---', '', '', 'status-action');
+            appendToLog(`Files to Keep: ${filesKept}`, 'N/A', 'PRESERVED', 'status-kept');
+            appendToLog(`Empty Folders Found: ${foldersRemoved}`, 'N/A', 'TO DELETE', 'status-empty');
+            
+            if (filesKept > 0) {
+                downloadButton.disabled = false;
+            } else if (foldersRemoved > 0) {
+                downloadButton.disabled = false;
+                // If only empty folders were detected and marked, the ZIP will be empty but the user can download it.
+            } else {
+                appendToLog('No files or empty folders found.', '', '', 'text-gray-400');
+            }
+        }
+
+        /**
+         * Creates a ZIP archive using only the files found in the processed list.
+         */
+        async function cleanAndDownloadZip() {
+            downloadButton.disabled = true;
+            scanButton.disabled = true;
+            
+            appendToLog('--- ZIP Generation Starting ---', '', '', 'status-action');
+
+            const zip = new JSZip();
+            const filesToZip = filesToProcess.length;
+            let filesProcessed = 0;
+            
+            for (const item of filesToProcess) {
+                try {
+                    // Use FileReader to read the file content as binary string
+                    const content = await readFileAsBinaryString(item.file);
+                    zip.file(item.path, content, { binary: true });
+                    filesProcessed++;
+                    
+                    if (filesProcessed % 10 === 0 || filesProcessed === filesToZip) {
+                        appendToLog(`[Progress] Added ${filesProcessed}/${filesToZip} files.`, 'N/A', 'Processing...', 'status-action');
+                    }
+                } catch (error) {
+                    console.error('Error reading file:', item.path, error);
+                    appendToLog(item.path, 'N/A', 'ERROR: Read Failed', 'status-empty');
+                }
+            }
+
+            // Generate the final ZIP content
+            appendToLog('Generating final ZIP file...', 'N/A', 'COMPRESSING', 'status-action');
+            const content = await zip.generateAsync({ type: "blob" });
+
+            // Trigger the download
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(content);
+            downloadLink.download = `${topLevelName}_Cleaned.zip`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            
+            appendToLog('--- Download Complete ---', 'N/A', 'SUCCESS', 'status-kept');
+
+            // Re-enable for new operation
+            scanButton.disabled = false; 
+            downloadButton.disabled = false;
+        }
+
+        /**
+         * Reads a file as a binary string (used for accurate ZIP preservation) with exponential backoff.
+         */
+        function readFileAsBinaryString(file, retries = 3) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = (e) => {
+                    if (retries > 0) {
+                        console.warn(`File read failed for ${file.name}. Retrying in ${4000/retries}ms...`);
+                        setTimeout(() => readFileAsBinaryString(file, retries - 1).then(resolve).catch(reject), 4000/retries);
+                    } else {
+                        reject(e);
+                    }
+                };
+                reader.readAsBinaryString(file);
+            });
+        }
+
+        // --- Drag and Drop Event Listeners ---
+        const dragArea = document.getElementById('drag-drop-area');
+        dragArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dragArea.classList.add('active');
+        });
+
+        dragArea.addEventListener('dragleave', () => {
+            dragArea.classList.remove('active');
+        });
+
+        dragArea.addEventListener('drop', handleDrop);
+        
+    </script>
+
+</body>
+</html>
