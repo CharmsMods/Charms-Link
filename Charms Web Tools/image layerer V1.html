@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎨 Dark Mode Image Layering & Transform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Body is pure black */
+            background-color: #000000; 
+        }
+        /* Custom styles for the responsive canvas container */
+        .canvas-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: auto;
+            width: 100%;
+            border-radius: 0.5rem;
+            /* Subtle shadow using a very dark color */
+            box-shadow: 0 4px 6px -1px rgba(255, 255, 255, 0.1), 0 2px 4px -2px rgba(255, 255, 255, 0.06);
+            /* Canvas background is pure black */
+            background-color: #000000; 
+            min-height: 200px;
+        }
+        /* Style the canvas element itself */
+        #compositeCanvas {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 min-h-screen flex flex-col items-center">
+
+    <div class="w-full max-w-4xl space-y-8">
+
+        <header class="text-center">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-2">
+                Image Layer Tool
+            </h1>
+            <p class="text-gray-400 text-lg">
+                Upload two images, select the resolution, and export as lossless PNG.
+            </p>
+        </header>
+
+        <div id="statusMessage" class="hidden p-4 rounded-lg text-sm font-medium transition-all duration-300" role="alert">
+            </div>
+
+
+        <div class="bg-black p-6 sm:p-8 rounded-xl shadow-none grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <div class="flex flex-col space-y-3 p-4 bg-black rounded-lg">
+                <label for="image1Input" class="text-xl font-semibold text-white flex items-center">
+                    1. Base Image (Bottom)
+                </label>
+                <input type="file" id="image1Input" accept="image/*" class="w-full text-sm text-gray-300
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-white file:text-black
+                    hover:file:bg-gray-200 cursor-pointer"
+                    onchange="handleImageLoad(event, 1)">
+                <span id="dims1" class="text-xs text-gray-400 italic">No image loaded.</span>
+                <div class="flex items-center space-x-2 mt-2">
+                    <input type="radio" id="res1" name="resolutionSource" value="1" checked onclick="drawImages()" class="text-white focus:ring-white h-4 w-4">
+                    <label for="res1" class="text-sm font-medium text-gray-300">Use this resolution</label>
+                </div>
+            </div>
+
+            <div class="flex flex-col space-y-3 p-4 bg-black rounded-lg">
+                <label for="image2Input" class="text-xl font-semibold text-white flex items-center">
+                    2. Overlay Image (Top)
+                </label>
+                <input type="file" id="image2Input" accept="image/*" class="w-full text-sm text-gray-300
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-white file:text-black
+                    hover:file:bg-gray-200 cursor-pointer"
+                    onchange="handleImageLoad(event, 2)">
+                <span id="dims2" class="text-xs text-gray-400 italic">No image loaded.</span>
+                <div class="flex items-center space-x-2 mt-2">
+                    <input type="radio" id="res2" name="resolutionSource" value="2" onclick="drawImages()" class="text-white focus:ring-white h-4 w-4">
+                    <label for="res2" class="text-sm font-medium text-gray-300">Use this resolution</label>
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-gray-700 space-y-3">
+                    <h4 class="text-lg font-semibold text-white">Transform Controls</h4>
+                    
+                    <div>
+                        <label for="moveX" class="text-sm font-medium text-gray-300 flex justify-between items-center">
+                            Move X: <span id="moveXValue">0</span> px
+                        </label>
+                        <input type="range" id="moveX" min="-500" max="500" value="0" step="1" 
+                               oninput="updateTransform(this.id, this.value)" 
+                               class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <div>
+                        <label for="moveY" class="text-sm font-medium text-gray-300 flex justify-between items-center">
+                            Move Y: <span id="moveYValue">0</span> px
+                        </label>
+                        <input type="range" id="moveY" min="-500" max="500" value="0" step="1" 
+                               oninput="updateTransform(this.id, this.value)" 
+                               class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <div>
+                        <label for="scale" class="text-sm font-medium text-gray-300 flex justify-between items-center">
+                            Scale: <span id="scaleValue">1.00</span> $\times$
+                        </label>
+                        <input type="range" id="scale" min="0.1" max="3.0" value="1.0" step="0.01" 
+                               oninput="updateTransform(this.id, this.value)" 
+                               class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <div>
+                        <label for="rotate" class="text-sm font-medium text-gray-300 flex justify-between items-center">
+                            Rotate: <span id="rotateValue">0</span> degrees
+                        </label>
+                        <input type="range" id="rotate" min="-180" max="180" value="0" step="1" 
+                               oninput="updateTransform(this.id, this.value)" 
+                               class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                        <p class="text-xs text-gray-500 mt-1 italic">Rotation is around the image's center point.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col justify-between items-stretch p-4 bg-black rounded-lg">
+                <div>
+                    <h3 class="text-xl font-semibold text-white mb-3">3. Export Result</h3>
+                    <p class="text-sm text-gray-400 mb-4">
+                        Output will be an uncompressed PNG at the selected resolution.
+                    </p>
+                </div>
+                <button onclick="exportImage()" id="exportButton" disabled
+                    class="w-full px-6 py-3 bg-white text-black font-bold rounded-xl shadow-md transition duration-300
+                    hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Export Layered PNG
+                </button>
+            </div>
+        </div>
+
+        <h2 class="text-2xl font-bold text-white mb-4 pt-4">Composite Preview</h2>
+        <div class="canvas-container">
+            <canvas id="compositeCanvas"></canvas>
+            <p id="canvasPlaceholder" class="p-10 text-gray-400 italic">
+                Upload Image 1 and Image 2 to see the layered result.
+            </p>
+        </div>
+
+    </div>
+
+    <script>
+        // Global variables to hold the loaded Image objects
+        let image1 = null;
+        let image2 = null;
+
+        // ⭐ NEW: Global variables to store Image 2 transformation
+        let moveX = 0;
+        let moveY = 0;
+        let scale = 1.0;
+        let rotate = 0; // Stored in degrees
+
+        const canvas = document.getElementById('compositeCanvas');
+        const ctx = canvas.getContext('2d');
+        const exportButton = document.getElementById('exportButton');
+        const statusMessage = document.getElementById('statusMessage');
+        const canvasPlaceholder = document.getElementById('canvasPlaceholder');
+
+        // --- Utility Functions ---
+
+        /**
+         * Displays a temporary status message to the user.
+         * @param {string} message - The text to display.
+         * @param {string} type - 'success', 'error, or 'info'.
+         */
+        function showMessage(message, type = 'info') {
+            statusMessage.textContent = message;
+            statusMessage.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800', 'bg-blue-100', 'text-blue-800');
+
+            if (type === 'success') {
+                statusMessage.classList.add('bg-green-100', 'text-green-800');
+            } else if (type === 'error') {
+                statusMessage.classList.add('bg-red-100', 'text-red-800');
+            } else {
+                statusMessage.classList.add('bg-blue-100', 'text-blue-800');
+            }
+
+            // Hide the message after 5 seconds
+            setTimeout(() => {
+                statusMessage.classList.add('hidden');
+            }, 5000);
+        }
+
+        /**
+         * Updates the state of the export button.
+         */
+        function updateExportState() {
+            const canExport = image1 && image2;
+            exportButton.disabled = !canExport;
+
+            if (canExport) {
+                exportButton.classList.remove('disabled:opacity-50');
+            } else {
+                exportButton.classList.add('disabled:opacity-50');
+            }
+        }
+
+        // ⭐ NEW: Function to handle slider changes and redraw
+        function updateTransform(id, value) {
+            // Update the corresponding global variable and display
+            const floatValue = parseFloat(value);
+
+            if (id === 'moveX') {
+                moveX = floatValue;
+                document.getElementById('moveXValue').textContent = moveX;
+            } else if (id === 'moveY') {
+                moveY = floatValue;
+                document.getElementById('moveYValue').textContent = moveY;
+            } else if (id === 'scale') {
+                scale = floatValue;
+                // Ensure scale display has two decimal places
+                document.getElementById('scaleValue').textContent = scale.toFixed(2);
+            } else if (id === 'rotate') {
+                rotate = floatValue;
+                document.getElementById('rotateValue').textContent = rotate;
+            }
+
+            // Always redraw the images when a transform value changes
+            drawImages();
+        }
+
+        // --- Core Image Handling ---
+
+        /**
+         * Loads an image file into an Image object.
+         * @param {Event} event - The input change event.
+         * @param {number} imageIndex - 1 for base, 2 for overlay.
+         */
+        function handleImageLoad(event, imageIndex) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Update global state
+                    if (imageIndex === 1) {
+                        image1 = img;
+                        document.getElementById('dims1').textContent = `Dimensions: ${img.width}x${img.height} pixels`;
+                    } else {
+                        image2 = img;
+                        document.getElementById('dims2').textContent = `Dimensions: ${img.width}x${img.height} pixels`;
+                    }
+
+                    // Redraw the canvas
+                    drawImages();
+                    updateExportState();
+                };
+                img.onerror = () => {
+                    showMessage(`Error loading image ${imageIndex}. Please check the file format.`, 'error');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        /**
+         * Draws the two images onto the canvas based on the selected resolution source.
+         * This function handles the main layering logic and canvas resizing.
+         */
+        function drawImages() {
+            if (!image1 || !image2) {
+                canvasPlaceholder.classList.remove('hidden');
+                canvas.classList.add('hidden');
+                return; // Nothing to draw yet
+            }
+
+            canvasPlaceholder.classList.add('hidden');
+            canvas.classList.remove('hidden');
+
+            const resolutionSource = document.querySelector('input[name="resolutionSource"]:checked').value;
+            let targetImage;
+
+            if (resolutionSource === '1') {
+                targetImage = image1;
+            } else if (resolutionSource === '2') {
+                targetImage = image2;
+            } else {
+                return; // Should not happen
+            }
+
+            const targetWidth = targetImage.width;
+            const targetHeight = targetImage.height;
+
+            // 1. Set the canvas resolution (this is the exported PNG size)
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+
+            // 2. Clear the canvas
+            ctx.clearRect(0, 0, targetWidth, targetHeight);
+
+            // 3. Draw the BASE Image (Image 1)
+            // It is stretched/shrunk to fit the target canvas size.
+            ctx.drawImage(image1, 0, 0, targetWidth, targetHeight);
+
+            // ⭐ NEW: Transformation Logic for Image 2
+            
+            // Save the current canvas state before applying transformations
+            ctx.save(); 
+
+            // Calculate the center point of the target canvas, adjusted by the movement (translate)
+            const centerX = targetWidth / 2 + moveX;
+            const centerY = targetHeight / 2 + moveY;
+
+            // A. Move (translate) the canvas origin to the calculated center point
+            ctx.translate(centerX, centerY); 
+
+            // B. Rotate the canvas (convert degrees to radians: $\pi$ radians = 180 degrees)
+            ctx.rotate(rotate * Math.PI / 180); 
+
+            // C. Scale the canvas 
+            ctx.scale(scale, scale);
+
+            // 4. Draw the OVERLAY Image (Image 2)
+            // Draw it offset by half its size, so it's centered around the new origin (0, 0)
+            // The image is drawn with the targetWidth/Height, but since the context is scaled, the resulting image size is (targetWidth * scale)
+            ctx.drawImage(image2, 
+                          -targetWidth / 2, 
+                          -targetHeight / 2, 
+                          targetWidth, 
+                          targetHeight);
+            
+            // Restore the canvas state back to normal (removes the translate, rotate, and scale)
+            ctx.restore(); 
+
+            showMessage(`Canvas updated. Resolution set to ${targetWidth}x${targetHeight} (from Image ${resolutionSource}).`, 'info');
+        }
+
+        /**
+         * Exports the canvas content as a lossless PNG file.
+         */
+        function exportImage() {
+            if (!image1 || !image2) {
+                showMessage("Please load both images before exporting.", 'error');
+                return;
+            }
+
+            try {
+                // Use 'image/png' which is lossless and applies no compression.
+                const dataURL = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.href = dataURL;
+                link.download = 'layered_image_composite.png';
+                
+                // Simulate a click to trigger the download
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                showMessage("Layered PNG successfully exported!", 'success');
+
+            } catch (error) {
+                console.error("Export error:", error);
+                showMessage("An error occurred during export. Check console for details.", 'error');
+            }
+        }
+
+        // Initialize state on load
+        window.onload = function() {
+            updateExportState();
+        }
+
+    </script>
+</body>
+</html>
