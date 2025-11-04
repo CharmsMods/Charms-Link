@@ -3,27 +3,36 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Image Color Picker</title>
+  <title>Monochrome Image Color Picker</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+    /*
+      ====================================
+      | 🖼️ High-Contrast Monochrome Styles |
+      ====================================
+    */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     
     :root {
-      --text-color: #ffffff;
-      --border-color: #ffffff;
-      --hover-bg: rgba(255, 255, 255, 0.05);
+      --text-color: #ffffff; /* Pure White */
+      --background-color: #000000; /* Pure Black */
+      --border-color: #ffffff; /* Pure White */
+      --primary-color-bg: #ffffff; /* White for main buttons */
+      --primary-color-text: #000000; /* Black for text on main buttons */
+      --hover-bg: rgba(255, 255, 255, 0.1); /* Subtle white hover */
     }
     
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      transition: all 0.2s ease;
+      /* Animation key: Use transition for smooth UI changes */
+      transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Smooth transition */
     }
     
     body {
       font-family: 'Inter', sans-serif;
-      background: #0a0a0a; /* Slightly darker than pure black */
+      background: var(--background-color);
       color: var(--text-color);
       display: flex;
       flex-direction: column;
@@ -41,23 +50,26 @@
     h1 {
       font-size: 2rem;
       margin-bottom: 1.5rem;
-      font-weight: 600;
+      font-weight: 700;
     }
     
+    /* Upload Area */
     .upload-area {
       margin: 2rem 0;
       padding: 2rem;
-      border: 2px dashed #4b5563; /* Tailwind gray-600 */
-      border-radius: 8px;
+      border: 2px dashed var(--border-color);
+      border-radius: 12px;
       cursor: pointer;
       display: flex;
       justify-content: center;
       align-items: center;
       flex-direction: column;
+      position: relative;
     }
     
     .upload-area:hover {
-      background: rgba(255, 255, 255, 0.05);
+      background: var(--hover-bg);
+      border-color: var(--text-color);
     }
     
     #upload {
@@ -66,44 +78,49 @@
     
     .upload-label {
       display: block;
-      background-color: #374151; /* Tailwind gray-700 */
-      color: white;
+      background-color: var(--primary-color-bg);
+      color: var(--primary-color-text);
       padding: 0.75rem 2rem;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
-      font-weight: 500;
-      transition: background-color 0.2s;
+      font-weight: 600;
+      /* Monochromatic shadow */
+      box-shadow: 0 4px 10px rgba(255, 255, 255, 0.4); 
     }
     
     .upload-label:hover {
-      background-color: #4b5563; /* Tailwind gray-600 */
+      background-color: #cccccc; /* Slightly darker white on hover */
+      color: var(--primary-color-text);
     }
 
-    /* Modal for custom messages */
+    /* Message Box */
     .message-box {
         position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        background: #1f2937;
-        color: white;
-        padding: 20px;
+        background: var(--primary-color-bg);
+        color: var(--primary-color-text);
+        padding: 15px 30px;
         border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
         z-index: 1000;
         display: none;
+        animation: fadeInDown 0.3s ease-out;
     }
     
     #canvas {
-      width: 100%; /* Will be overridden by JS for aspect ratio */
-      height: auto; /* Will be overridden by JS for aspect ratio */
-      border: 1px solid var(--border-color);
+      width: 100%;
+      height: auto;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
       cursor: crosshair;
       margin: 0 auto;
       display: block;
-      /* Max constraint to ensure it doesn't take up the whole screen */
       max-height: 60vh;
       max-width: 100%;
+      /* Monochromatic subtle glow */
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.15); 
     }
     
     .color-info {
@@ -112,6 +129,15 @@
       flex-direction: column;
       align-items: center;
       gap: 1.5rem;
+    }
+
+    /* Color Info Pop-in Animation */
+    @keyframes popIn {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .color-info.animate-results {
+      animation: popIn 0.4s ease-out;
     }
     
     .color-values {
@@ -122,58 +148,110 @@
     }
     
     #hexValue, #rgbValue {
-      font-size: 1.2rem;
-      font-weight: 500;
-      font-family: 'Courier New', monospace;
+      font-size: 1.3rem;
+      font-weight: 600;
+      font-family: 'Fira Code', monospace; 
       letter-spacing: 1px;
+      padding: 5px 10px;
+      border-radius: 4px;
+      background: #111111; /* Slightly off-black background for code values */
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
     }
     
     #preview {
-      width: 80px;
-      height: 80px;
-      border: 3px solid #6b7280; /* Tailwind gray-500 */
-      border-radius: 12px;
-      margin: 1rem auto;
-      box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+      width: 90px;
+      height: 90px;
+      border: 4px solid var(--text-color);
+      border-radius: 50%; 
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+      transform: scale(1);
     }
     
+    /* Copy Button Pulse Animation */
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
     #copyBtn {
-      background: #10b981; /* Tailwind emerald-500 */
-      color: black;
+      background: var(--primary-color-bg);
+      color: var(--primary-color-text);
       border: none;
       padding: 0.75rem 2rem;
       font-size: 1rem;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
       margin-top: 1rem;
-      font-family: 'Inter', sans-serif;
-      font-weight: 600;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      font-weight: 700;
+      box-shadow: 0 4px 10px rgba(255, 255, 255, 0.4);
     }
     
-    #copyBtn:hover {
-      background: #059669; /* Tailwind emerald-600 */
-      color: white;
+    #copyBtn.pulsing {
+      animation: pulse 0.6s ease-out 1;
     }
-    
+
     .instructions {
       margin: 1rem 0;
-      color: #9ca3af; /* Tailwind gray-400 */
+      color: var(--text-color);
+      opacity: 0.7;
       font-size: 0.9rem;
       line-height: 1.6;
-      height: 1.5rem; /* Reserve space to prevent CLS */
+      height: 1.5rem;
       display: none;
     }
+
+    /* Console Log Area - Inverted for readability */
+    .log-area {
+        margin-top: 2rem;
+        width: 100%;
+        max-width: 800px;
+        text-align: left;
+        padding: 1rem;
+        background: var(--primary-color-bg); /* White background */
+        color: var(--primary-color-text); /* Black text */
+        border: 1px solid var(--primary-color-text);
+        border-radius: 8px;
+        font-family: 'Fira Code', monospace;
+        font-size: 0.85rem;
+        max-height: 250px;
+        overflow-y: auto;
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    }
+
+    .log-entry {
+        padding: 2px 0;
+        border-bottom: 1px dashed #cccccc; /* Light gray separator */
+    }
+
+    .log-entry:last-child {
+        border-bottom: none;
+    }
+
+    .log-timestamp {
+        color: #444444; /* Darker gray timestamp */
+        margin-right: 10px;
+    }
+
+    /* Use BOLD and ITALIC for log types instead of color */
+    .log-type-INFO { font-style: italic; } 
+    .log-type-ERROR { font-weight: bold; } 
+    .log-type-SUCCESS { font-weight: 600; } 
+    .log-type-PIXEL { font-style: italic; opacity: 0.8; }
     
+    /* Utility keyframe for message box */
+    @keyframes fadeInDown {
+      0% { opacity: 0; transform: translate(-50%, -100%); }
+      100% { opacity: 1; transform: translate(-50%, -50%); }
+    }
+
     @media (max-width: 600px) {
       h1 {
         font-size: 1.5rem;
       }
-      
       .upload-area {
         padding: 1.5rem;
       }
-      
       #hexValue, #rgbValue {
         font-size: 1rem;
       }
@@ -182,13 +260,14 @@
 </head>
 <body>
   <div class="container">
-    <h1>Image Color Picker</h1>
+    <h1>Color Picker </h1>
     
     <div class="upload-area">
       <label class="upload-label" for="upload">
         Upload Image
         <input type="file" id="upload" accept="image/*">
       </label>
+      <p style="margin-top: 10px; color: var(--text-color); opacity: 0.8;">or Drag & Drop a file here</p>
     </div>
     
     <div class="instructions" id="instructions">
@@ -197,30 +276,64 @@
     
     <canvas id="canvas"></canvas>
     
-    <div class="color-info">
+    <div class="color-info" id="colorInfo">
       <div id="preview"></div>
       <div class="color-values">
         <div id="hexValue">#------</div>
         <div id="rgbValue">RGB(---, ---, ---)</div>
       </div>
-      <button id="copyBtn">Copy Color</button>
+      <button id="copyBtn">Copy HEX Color</button>
+    </div>
+
+    <!-- The new Console Log Area -->
+    <div class="log-area">
+        <div class="log-entry log-type-INFO">
+            <span class="log-timestamp">[00:00:00]</span>
+            <span class="log-message">SYSTEM: Awaiting user action. Theme: Monochrome.</span>
+        </div>
     </div>
   </div>
 
+  <!-- The Modal for custom messages -->
   <div class="message-box" id="messageBox"></div>
 
   <script>
     // --- UTILITIES ---
+    const logArea = document.querySelector('.log-area');
+    const colorInfo = document.getElementById('colorInfo');
+
+    /**
+     * Logs an action to the console area.
+     * @param {string} message The message to log.
+     * @param {string} type The type of log (INFO, ERROR, SUCCESS, PIXEL).
+     */
+    function logAction(message, type = 'INFO') {
+        const entry = document.createElement('div');
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', { hour12: false, second: '2-digit', minute: '2-digit' });
+        
+        entry.className = `log-entry log-type-${type.toUpperCase()}`;
+        entry.innerHTML = `
+            <span class="log-timestamp">[${timeStr}]</span>
+            <span class="log-message">${type.toUpperCase()}: ${message}</span>
+        `;
+        
+        logArea.appendChild(entry);
+        // Auto-scroll to the bottom for the latest log
+        logArea.scrollTop = logArea.scrollHeight;
+    }
+
     function showMessage(text, duration = 3000) {
         const box = document.getElementById('messageBox');
         box.textContent = text;
         box.style.display = 'block';
+        logAction(`NOTIFICATION: Showing message: "${text}"`, 'INFO');
         setTimeout(() => {
             box.style.display = 'none';
         }, duration);
     }
 
-    // --- MAIN LOGIC ---
+    // --- MAIN LOGIC (NO CHANGE REQUIRED HERE, IT'S ALL JS) ---
     const upload = document.getElementById('upload');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -233,141 +346,168 @@
     let currentHex = "";
     let currentRgb = "";
     let isImageLoaded = false;
-    let originalImage = null; // Store the original Image object for reference
+    let originalImage = null;
 
     function resizeCanvas() {
         if (!originalImage) return;
 
+        logAction('RESIZE: Recalculating canvas display dimensions.', 'INFO');
+
         const img = originalImage;
-        
-        // 1. Define bounds
         const containerWidth = Math.min(window.innerWidth - 40, 800);
         const containerHeight = Math.min(window.innerHeight * 0.6, 600);
         
-        // 2. Calculate aspect ratios
         const imgAspectRatio = img.width / img.height;
         const containerAspectRatio = containerWidth / containerHeight;
         
         let displayWidth, displayHeight;
         
-        // 3. Determine dimensions to maintain aspect ratio for DISPLAY (CSS)
         if (imgAspectRatio > containerAspectRatio) {
-            // Image is wider than container relative to height
             displayWidth = containerWidth;
             displayHeight = containerWidth / imgAspectRatio;
         } else {
-            // Image is taller than container relative to width
             displayHeight = containerHeight;
             displayWidth = containerHeight * imgAspectRatio;
         }
         
-        // Set CSS dimensions (How it looks)
+        // Use a transition (via CSS) for smooth resizing
         canvas.style.width = `${displayWidth}px`;
         canvas.style.height = `${displayHeight}px`;
 
-        // The drawing buffer size (canvas.width/height) remains the original image size for accurate pixel reading
-        // It is set when the image is first loaded in the upload handler.
+        logAction(`RESIZE: Set display size to ${Math.round(displayWidth)}x${Math.round(displayHeight)}px.`, 'INFO');
     }
 
 
     // Handle file upload
     upload.addEventListener('change', function(e) {
+      logAction('UPLOAD: File input changed. Processing file...', 'INFO');
       const file = e.target.files[0];
-      if (!file) return;
+      if (!file) {
+        logAction('UPLOAD: No file selected.', 'ERROR');
+        return;
+      }
 
       const img = new Image();
       img.onload = function() {
-        originalImage = img; // Cache the loaded image object
+        logAction(`IMAGE: Image loaded successfully (MIME: ${file.type}).`, 'SUCCESS');
+        originalImage = img;
 
-        // --- THE CRITICAL FIX: Set Drawing Buffer and Draw Image ---
-        canvas.width = img.width;   // Set canvas drawing width to actual image width
-        canvas.height = img.height; // Set canvas drawing height to actual image height
-        ctx.drawImage(img, 0, 0);   // Draw the image onto the canvas buffer
-        // -----------------------------------------------------------
+        // Set the internal drawing buffer size
+        canvas.width = img.width;
+        canvas.height = img.height;
+        logAction(`CANVAS: Drawing buffer size set to ${img.width}x${img.height}.`, 'PIXEL');
+
+        // Draw the image
+        ctx.drawImage(img, 0, 0);
+        logAction('CANVAS: Image drawn onto the canvas context.', 'PIXEL');
         
         isImageLoaded = true;
         
-        // Calculate and set the responsive CSS display size
         resizeCanvas();
 
-        // Show instructions
         instructions.style.display = 'block';
-        showMessage('Image loaded! Click to pick a color.', 1500);
+        showMessage('Image loaded! Click to pick a color.', 2000);
       };
       
       img.onerror = function() {
+        logAction("IMAGE: Error loading image.", 'ERROR');
         showMessage("Error loading image. Please try another file.");
       };
       
       img.src = URL.createObjectURL(file);
+      logAction(`UPLOAD: Starting image load from URL: ${img.src.substring(0, 30)}...`, 'INFO');
     });
 
     // Handle color picking
     canvas.addEventListener('click', function(e) {
-      if (!isImageLoaded) return;
-      
+      if (!isImageLoaded) {
+        logAction('CLICK: Click ignored, no image is currently loaded.', 'INFO');
+        showMessage("Please upload an image first!", 1500);
+        return;
+      }
+
+      // 1. Get client rect for display scaling
       const rect = canvas.getBoundingClientRect();
       
-      // Calculate click position relative to the element (0-100% of visible area)
+      // 2. Calculate coordinates
       const clickXInDisplay = e.clientX - rect.left;
       const clickYInDisplay = e.clientY - rect.top;
 
-      // Scale the click position to the actual canvas drawing buffer size
-      // This is the core scaling logic for accurate reading
+      // 3. Scale to actual canvas buffer size
       const x = Math.floor(clickXInDisplay * (canvas.width / rect.width));
       const y = Math.floor(clickYInDisplay * (canvas.height / rect.height));
+
+      logAction(`PICK: Clicked at display (${Math.round(clickXInDisplay)}, ${Math.round(clickYInDisplay)}).`, 'INFO');
+      logAction(`PICK: Scaling to buffer coordinates (${x}, ${y}).`, 'PIXEL');
       
+      // 4. Get pixel data
       const pixel = ctx.getImageData(x, y, 1, 1).data;
       const r = pixel[0];
       const g = pixel[1];
       const b = pixel[2];
       
-      // Convert to hex and RGB
-      // The hex conversion is correct but simplified slightly for clarity
+      // 5. Conversion (The Math Part!)
       const toHex = (c) => c.toString(16).padStart(2, '0');
       const hex = '#' + toHex(r) + toHex(g) + toHex(b).toUpperCase();
       const rgb = `RGB(${r}, ${g}, ${b})`;
       
       currentHex = hex;
       currentRgb = rgb;
+
+      logAction(`PICK: Color captured! R:${r} G:${g} B:${b} (${hex}).`, 'SUCCESS');
       
-      // Update display
+      // 6. Update display & Animate
       hexValue.textContent = hex;
       rgbValue.textContent = rgb;
-      preview.style.backgroundColor = hex;
       
-      // Show feedback
-      copyBtn.textContent = 'Copy Color';
+      // Animate the preview color change
+      preview.style.backgroundColor = hex;
+      preview.style.transform = 'scale(1.1)';
+      setTimeout(() => preview.style.transform = 'scale(1)', 100);
+
+      // Trigger pop-in animation for results section
+      colorInfo.classList.add('animate-results');
+      // Remove class after animation to allow re-triggering
+      setTimeout(() => colorInfo.classList.remove('animate-results'), 450);
+
+      copyBtn.textContent = 'Copy HEX Color';
     });
 
     // Handle copy to clipboard
     copyBtn.addEventListener('click', function() {
       if (!currentHex) {
-        showMessage("Please pick a color first!");
+        logAction('COPY: Copy failed. No color selected.', 'ERROR');
+        showMessage("Please pick a color first!", 1500);
         return;
       }
       
-      const textToCopy = `${currentHex}\n${currentRgb}`;
-      
-      // Use document.execCommand('copy') for cross-browser compatibility in iframes
+      const textToCopy = currentHex; // Copying just HEX is generally preferred
+      logAction(`COPY: Attempting to copy HEX value ${textToCopy} to clipboard.`, 'INFO');
+
       const tempInput = document.createElement('textarea');
-      tempInput.value = currentHex; // Copying just HEX is generally preferred
+      tempInput.value = textToCopy;
       document.body.appendChild(tempInput);
       tempInput.select();
       
       try {
         const successful = document.execCommand('copy');
         if (successful) {
+            logAction(`COPY: Successfully copied ${textToCopy}.`, 'SUCCESS');
+            // Trigger pulse animation
+            copyBtn.classList.add('pulsing');
+            setTimeout(() => copyBtn.classList.remove('pulsing'), 600);
+
+            // Give user feedback
             const originalText = copyBtn.textContent;
-            copyBtn.textContent = 'Copied!';
+            copyBtn.textContent = 'Copied! ✅';
             setTimeout(() => {
                 copyBtn.textContent = originalText;
-            }, 1500);
+            }, 2000);
         } else {
-            console.error('Failed to copy using execCommand');
+            logAction('COPY: Failed to copy using execCommand.', 'ERROR');
         }
       } catch (err) {
-        console.error('Failed to copy: ', err);
+        logAction('COPY: Error during copy operation.', 'ERROR');
       } finally {
         document.body.removeChild(tempInput);
       }
@@ -375,8 +515,10 @@
 
     // Handle window resize to maintain aspect ratio
     window.addEventListener('resize', resizeCanvas);
+    logAction('SYSTEM: Window resize listener initialized.', 'INFO');
 
-    // Add drag and drop support (Your original logic was fine here)
+
+    // Drag and drop support with logging
     const dropArea = document.querySelector('.upload-area');
     
     ['dragenter', 'dragover'].forEach(eventName => {
@@ -388,7 +530,6 @@
       dropArea.addEventListener(eventName, unhighlight, false);
     });
 
-    // Prevent default drop behavior on the whole document
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
       document.addEventListener(eventName, preventDefaults, false);
     });
@@ -399,27 +540,33 @@
     }
     
     function highlight() {
-      dropArea.style.background = 'rgba(255, 255, 255, 0.1)';
-      dropArea.style.borderColor = '#9ca3af';
+      // White with black background for drag over
+      dropArea.style.background = 'rgba(255, 255, 255, 0.1)'; 
+      dropArea.style.borderColor = '#ffffff';
+      logAction('DRAG: Drag over detected, highlighting drop zone.', 'INFO');
     }
     
     function unhighlight() {
       dropArea.style.background = '';
-      dropArea.style.borderColor = '#4b5563';
+      dropArea.style.borderColor = '#ffffff';
+      logAction('DRAG: Drag leave or drop, unhighlighting drop zone.', 'INFO');
     }
     
     dropArea.addEventListener('drop', handleDrop, false);
     
     function handleDrop(e) {
+      logAction('DROP: File dropped, initiating upload process.', 'INFO');
       const dt = e.dataTransfer;
       const files = dt.files;
       if (files.length > 0) {
         upload.files = files;
-        // Trigger the 'change' event programmatically
         const event = new Event('change');
         upload.dispatchEvent(event);
+      } else {
+        logAction('DROP: No files found in drop event.', 'ERROR');
       }
     }
+    logAction('SYSTEM: Drag & Drop handlers initialized.', 'INFO');
   </script>
 </body>
 </html>

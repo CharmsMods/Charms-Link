@@ -3,31 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Border Sizer</title>
+    <title>Image Border Sizer (B&W Edition)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /*
+        * Strict Monochrome Palette:
+        * Background: #000000 (Black)
+        * Text/Borders/Elements: #ffffff (White)
+        */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
         
         :root {
+            /* All colors must be #000000 or #ffffff */
             --text-color: #ffffff;
-            --box-bg-color: rgba(0, 0, 0, 0.3);
+            --box-bg-color: rgba(255, 255, 255, 0.05); /* Very dark semi-transparent white on black background */
             --border-color: #ffffff;
-            --highlight-color: #10b981;
-            --button-color: #10b981;
-            --copy-button: #4b5563;
+            --highlight-color: #ffffff;
+            --button-primary-bg: #ffffff;
+            --button-primary-text: #000000;
+            --button-secondary-bg: #000000;
+            --button-secondary-text: #ffffff;
         }
 
+        /* Added transition to ALL elements for overall smoothness */
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            transition: all 0.3s ease;
+            transition: all 0.35s ease-out; /* Smoother, slightly longer transition */
         }
 
         body {
             font-family: 'Inter', sans-serif;
             min-height: 100vh;
-            background-color: #0a0a0a;
+            background-color: #000000;
             color: var(--text-color);
             padding: 2rem;
             display: flex;
@@ -43,14 +52,16 @@
         }
 
         h1 {
-            font-size: 2rem;
+            font-size: 2.2rem;
             margin-bottom: 1.5rem;
-            font-weight: 600;
+            font-weight: 700;
             color: var(--text-color);
+            letter-spacing: -0.5px;
         }
 
         .description {
-            color: #9ca3af;
+            color: #ffffff; /* White text for high contrast */
+            opacity: 0.8;
             margin-bottom: 2rem;
             font-size: 1rem;
             line-height: 1.6;
@@ -69,15 +80,16 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 1.5rem;
+            padding: 2px; /* Minimal padding for a tight border */
             margin-bottom: 2rem;
-            border: 1px solid var(--border-color);
+            border: 2px solid var(--border-color);
             border-radius: 8px;
-            background-color: rgba(0, 0, 0, 0.2);
+            background-color: var(--box-bg-color);
             width: 100%;
             max-width: 800px;
             margin-left: auto;
             margin-right: auto;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2); /* Subtle glow effect */
         }
 
         canvas {
@@ -87,22 +99,22 @@
             cursor: crosshair;
             margin: 0 auto;
             display: block;
-            background-color: #1a1a1a;
-            border-radius: 8px;
+            background-color: #000000; /* Black background for canvas placeholder */
+            border-radius: 6px;
             width: 300px; 
             height: 150px;
         }
 
         .controls {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1.5rem;
             max-width: 700px;
             margin: 0 auto 2rem;
             padding: 1.5rem;
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            background-color: rgba(0, 0, 0, 0.2);
+            background-color: var(--box-bg-color);
         }
 
         .control-group {
@@ -110,10 +122,45 @@
         }
 
         .control-group h3 {
-            font-size: 1rem;
+            font-size: 1.05rem;
             margin-bottom: 0.75rem;
             color: var(--text-color);
-            font-weight: 500;
+            font-weight: 600;
+        }
+        
+        /* --- SLIDER ANIMATIONS --- */
+        input[type="range"] {
+            flex-grow: 1;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            height: 8px; /* Slightly thicker track */
+            background: #ffffff; /* White track */
+            opacity: 0.2;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        input[type="range"]:focus {
+            opacity: 0.4;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #000000;
+            cursor: grab;
+            box-shadow: 0 0 0 1px #ffffff;
+            transition: all 0.2s ease; /* Animation on thumb */
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:active {
+            width: 20px;
+            height: 20px;
+            cursor: grabbing;
         }
 
         .slider-container {
@@ -121,27 +168,7 @@
             align-items: center;
             gap: 1rem;
         }
-
-        input[type="range"] {
-            flex-grow: 1;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            height: 6px;
-            background: #4b5563;
-            border-radius: 3px;
-            outline: none;
-        }
-
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #ffffff;
-            cursor: pointer;
-        }
-
+        
         .color-info-group {
             display: flex;
             flex-direction: column;
@@ -158,7 +185,8 @@
             display: flex;
             align-items: center;
             flex-grow: 1;
-            background: rgba(255, 255, 255, 0.1);
+            background: #000000;
+            border: 1px solid #ffffff;
             padding: 0.5rem;
             border-radius: 4px;
             justify-content: space-between;
@@ -171,20 +199,26 @@
             padding-right: 1rem;
         }
 
+        /* --- COPY BUTTON ANIMATIONS --- */
         .copy-button {
-            background: var(--copy-button);
-            color: white;
-            border: none;
+            background: #ffffff;
+            color: #000000;
+            border: 1px solid #ffffff;
             padding: 0.25rem 0.75rem;
             font-size: 0.8rem;
             border-radius: 4px;
             cursor: pointer;
-            font-weight: 500;
-            transition: background-color 0.2s;
+            font-weight: 600;
+            transition: background-color 0.2s, transform 0.1s;
         }
         
         .copy-button:hover {
-            background: #6b7280;
+            background: #000000;
+            color: #ffffff;
+        }
+        
+        .copy-button:active {
+            transform: scale(0.95);
         }
         
         .color-picker-input {
@@ -199,9 +233,10 @@
         }
         
         .export-controls {
+            grid-column: 1 / -1; /* Span full width */
             margin-top: 1rem;
             padding-top: 1.5rem;
-            border-top: 1px solid #374151;
+            border-top: 1px solid #ffffff;
             display: flex;
             flex-direction: column;
             gap: 1rem;
@@ -212,31 +247,58 @@
             gap: 1rem;
             justify-content: center;
         }
-
+        
+        /* --- GENERAL BUTTON ANIMATIONS --- */
+        .btn-base {
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 2px 5px rgba(255, 255, 255, 0.1);
+        }
+        
         .export-buttons button {
-            background: #374151;
-            color: white;
             flex-grow: 1;
             max-width: 150px;
+            border: 1px solid #ffffff; /* Secondary button style */
         }
-
-        .export-buttons button:hover {
-            background: #4b5563;
+        
+        .export-buttons button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #000000;
+            color: #ffffff;
         }
-
+        
+        /* Primary button: White background, Black text */
         #export-jpeg {
-            background: var(--button-color);
-            color: black;
+            background: var(--button-primary-bg);
+            color: var(--button-primary-text);
+            border: 1px solid var(--button-primary-bg);
         }
-        #export-jpeg:hover {
-            background: #059669;
-            color: white;
+        #export-jpeg:hover:not(:disabled) {
+            background: #000000;
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
         }
 
+        /* Secondary button: Black background, White text */
+        #export-png {
+            background: var(--button-secondary-bg);
+            color: var(--button-secondary-text);
+        }
+        #export-png:hover:not(:disabled) {
+            background: #ffffff;
+            color: #000000;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+        }
+
+        /* --- UPLOAD AREA ANIMATIONS --- */
         .upload-area {
             margin: 1rem 0 2rem;
             padding: 1.5rem;
-            border: 2px dashed #4b5563;
+            border: 2px dashed #ffffff;
             border-radius: 8px;
             cursor: pointer;
             display: flex;
@@ -244,27 +306,47 @@
             align-items: center;
             flex-direction: column;
             gap: 1rem;
+            transition: all 0.3s ease-in-out;
         }
 
         .upload-area:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: #9ca3af;
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+        }
+        
+        .upload-area-highlight { /* Used for Drag/Drop hover state */
+             background: rgba(255, 255, 255, 0.15) !important;
+             border-color: #ffffff !important;
+             transform: translateY(-2px);
         }
 
         .upload-label {
             display: block;
-            background-color: #374151;
-            color: white;
+            background-color: #ffffff;
+            color: #000000;
             padding: 0.75rem 1.5rem;
             border-radius: 6px;
             cursor: pointer;
-            font-weight: 500;
-            transition: background-color 0.2s;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: 1px solid #ffffff;
         }
 
         .upload-label:hover {
-            background-color: #4b5563;
+            background-color: #000000;
+            color: #ffffff;
+            box-shadow: 0 0 5px #ffffff;
         }
+        
+        /* Responsive Grid for controls */
+        @media (max-width: 600px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+        }
+        
     </style>
 </head>
 <body>
@@ -274,10 +356,10 @@
 
         <div class="upload-area" id="upload-area">
             <label class="upload-label" for="image-upload">
-                📁 Upload Image
+                <span style="font-size: 1.2rem;"></span> Upload Image
                 <input type="file" id="image-upload" accept="image/*" style="display: none;">
             </label>
-            <p>or drag and drop an image here</p>
+            <p style="opacity: 0.7;">or drag and drop an image here</p>
         </div>
 
         <div class="canvas-container">
@@ -299,16 +381,18 @@
                 <h3>Border Color</h3>
                 <div class="color-info-group">
                     <div class="color-display-row">
+                        <!-- Color picker is functional, but user is constrained to B/W here. 
+                             Keeping the picker allows for visual feedback, but we snap the value. -->
                         <input type="color" id="color-picker" value="#000000" class="color-picker-input">
                         <div class="color-value-box">
                             <span id="selected-color-hex" class="color-value-text">#000000</span>
-                            <button class="copy-button" data-copy-target="selected-color-hex">Copy</button>
+                            <button class="copy-button btn-base" data-copy-target="selected-color-hex">Copy</button>
                         </div>
                     </div>
                     <div class="color-display-row justify-end">
                          <div class="color-value-box">
                             <span id="selected-color-rgb" class="color-value-text">RGB(0, 0, 0)</span>
-                            <button class="copy-button" data-copy-target="selected-color-rgb">Copy</button>
+                            <button class="copy-button btn-base" data-copy-target="selected-color-rgb">Copy</button>
                         </div>
                     </div>
                 </div>
@@ -326,8 +410,8 @@
                 </div>
                 
                 <div class="export-buttons">
-                    <button id="export-png" disabled>Export PNG (Lossless)</button>
-                    <button id="export-jpeg" disabled>Export JPEG</button>
+                    <button id="export-png" class="btn-base" disabled>Export PNG</button>
+                    <button id="export-jpeg" class="btn-base" disabled>Export JPEG</button>
                 </div>
             </div>
         </div>
@@ -408,7 +492,7 @@
             try {
                 document.execCommand('copy');
                 const originalText = buttonElement.textContent;
-                buttonElement.textContent = 'Copied!';
+                buttonElement.textContent = 'COPIED!';
                 setTimeout(() => {
                     buttonElement.textContent = originalText;
                 }, 1500);
@@ -450,17 +534,33 @@
         }
 
         /**
+         * Forces the color to either black or white, based on which it is closer to.
+         * This maintains the monochrome constraint while allowing color picking/input.
+         * @param {string} hex - The input color in hex format (#RRGGBB).
+         * @returns {string} Either '#000000' or '#FFFFFF'.
+         */
+        function snapToMonochrome(hex) {
+            const rgb = hexToRgb(hex);
+            // Simple luminosity check: average R, G, B
+            const avg = (rgb.r + rgb.g + rgb.b) / 3;
+            return avg > 127 ? '#FFFFFF' : '#000000';
+        }
+
+        /**
          * Updates the border color and related UI elements (HEX and RGB).
          * @param {string} color - The new color in hex format (#RRGGBB).
          */
         function updateBorderColor(color) {
-            borderColor = color;
-            currentRgb = hexToRgb(color);
+            // Apply monochrome constraint
+            const monochromeColor = snapToMonochrome(color);
+            
+            borderColor = monochromeColor;
+            currentRgb = hexToRgb(monochromeColor);
             
             // Update UI elements
-            colorHex.textContent = color.toUpperCase();
+            colorHex.textContent = monochromeColor.toUpperCase();
             colorRgb.textContent = rgbToString(currentRgb);
-            colorPicker.value = color; // Ensure the native picker reflects the new color
+            colorPicker.value = monochromeColor; // Ensure the native picker reflects the new color
             
             drawWithBorder();
         }
@@ -473,6 +573,9 @@
                 const file = e.target.files[0];
                 if (!file) return;
                 
+                // Clear any lingering highlight class from drag/drop
+                uploadArea.classList.remove('upload-area-highlight');
+
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     const img = new Image();
@@ -486,7 +589,7 @@
                         canvas.style.height = `${canvas.offsetWidth / aspectRatio}px`;
 
                         drawWithBorder(); // Initial draw
-                        messageBox.textContent = 'Image loaded! Click on it to sample a color.';
+                        messageBox.textContent = 'Image loaded! Click on the image to sample a color for the border.';
                     };
                     img.onerror = () => {
                         messageBox.textContent = 'Error loading image.';
@@ -508,7 +611,7 @@
             // Color Picker Input
             colorPicker.addEventListener('input', (e) => {
                 updateBorderColor(e.target.value);
-                messageBox.textContent = `Border color set to ${e.target.value.toUpperCase()}`;
+                messageBox.textContent = `Border color set to ${borderColor.toUpperCase()}`;
             });
 
             // Quality Slider
@@ -559,15 +662,15 @@
             const y = Math.floor((clientY - rect.top) * scaleY);
             
             // Get the pixel data at the clicked position
-            // Use Math.max/min to ensure we don't sample outside the image, though technically 
-            // the border is also drawn on the canvas now.
             const pixel = ctx.getImageData(x, y, 1, 1).data;
             
-            // Convert to hex and update the UI
+            // Convert to hex (pixel[3] is alpha, ignoring it)
             const hex = rgbToHex(pixel[0], pixel[1], pixel[2]);
+            
+            // Update color (this will snap to B/W due to updateBorderColor)
             updateBorderColor(hex);
             
-            messageBox.textContent = `Color sampled: ${hex.toUpperCase()}`;
+            messageBox.textContent = `Color sampled. Border set to ${borderColor.toUpperCase()}.`;
         }
         
         function setupExportButtons() {
@@ -593,7 +696,7 @@
         function exportImage(mimeType, quality, extension) {
             try {
                 const link = document.createElement('a');
-                link.download = `bordered-image-${Date.now()}.${extension}`;
+                link.download = `bordered-image-monochrome-${Date.now()}.${extension}`;
                 
                 // canvas.toDataURL requires the MIME type and quality (for JPEG)
                 link.href = canvas.toDataURL(mimeType, quality);
@@ -627,12 +730,10 @@
                 e.stopPropagation();
             }
             function highlight() {
-                uploadArea.style.background = 'rgba(255, 255, 255, 0.1)';
-                uploadArea.style.borderColor = '#9ca3af';
+                uploadArea.classList.add('upload-area-highlight');
             }
             function unhighlight() {
-                uploadArea.style.background = '';
-                uploadArea.style.borderColor = '#4b5563';
+                uploadArea.classList.remove('upload-area-highlight');
             }
             function handleDrop(e) {
                 const dt = e.dataTransfer;
@@ -649,10 +750,10 @@
             // Initial appearance reset
             canvas.width = 300;
             canvas.height = 150;
-            ctx.fillStyle = '#1a1a1a'; 
+            ctx.fillStyle = '#000000'; 
             ctx.fillRect(0, 0, 300, 150);
             ctx.font = '16px Inter';
-            ctx.fillStyle = '#9ca3af';
+            ctx.fillStyle = '#FFFFFF';
             ctx.textAlign = 'center';
             ctx.fillText('Upload an image to start editing.', 150, 75);
         }
