@@ -103,6 +103,126 @@ body::before {
     letter-spacing: 0.5px;
 }
 
+/* Shake Animation */
+@keyframes subtleShake {
+    0%, 100% { transform: translateX(0) rotate(0); }
+    25% { transform: translateX(-1px) rotate(-1deg); }
+    75% { transform: translateX(1px) rotate(1deg); }
+}
+
+/* Social Media Bar */
+.social-bar {
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px 0;
+    z-index: 1000;
+}
+
+.social-icon {
+    width: 80px;  /* Increased from 60px */
+    height: 80px;  /* Increased from 60px */
+    background-color: rgba(26, 26, 26, 0.9);
+    border: none;
+    border-radius: 4px 0 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    box-shadow: -2px 2px 8px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    position: relative;
+    animation: subtleShake 0.5s ease-in-out infinite;
+    animation-play-state: paused;
+}
+
+/* Discord - Brand Color: #5865F2 */
+.social-icon:nth-child(1) {
+    background-color: rgba(88, 101, 242, 0.2);
+    border-left: 4px solid #5865F2;
+}
+
+.social-icon:nth-child(1):hover {
+    background-color: rgba(88, 101, 242, 0.4);
+    transform: translateX(-30px);  
+    width: 100px;  /* Increased from 75px */
+    animation-play-state: running;
+}
+
+/* YouTube - Brand Color: #FF0000 */
+.social-icon:nth-child(2) {
+    background-color: rgba(255, 0, 0, 0.2);
+    border-left: 3px solid #FF0000;
+}
+
+.social-icon:nth-child(2):hover {
+    background-color: rgba(255, 0, 0, 0.4);
+    transform: translateX(-30px);  
+    width: 100px;  /* Increased from 75px */
+    animation-play-state: running;
+}
+
+/* Twitch - Brand Color: #9146FF */
+.social-icon:nth-child(3) {
+    background-color: rgba(145, 70, 255, 0.2);
+    border-left: 3px solid #9146FF;
+}
+
+.social-icon:nth-child(3):hover {
+    background-color: rgba(145, 70, 255, 0.4);
+    transform: translateX(-30px);  
+    width: 100px;  /* Increased from 75px */
+    animation-play-state: running;
+}
+
+.social-icon svg {
+    width: 42px;  /* Increased from 32px */
+    height: 42px;  /* Increased from 32px */
+    transition: transform 0.3s ease;
+}
+
+.social-icon:hover svg {
+    transform: scale(1.2);
+    animation: subtleShake 0.4s ease-in-out infinite;
+}
+
+.social-tooltip {
+    position: absolute;
+    right: 100px;  
+    background-color: #1a1a1a;
+    color: white;
+    padding: 10px 16px;  
+    border-radius: 6px;  
+    font-size: 16px;  
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid #333;
+    pointer-events: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.social-icon:hover .social-tooltip {
+    opacity: 1;
+    visibility: visible;
+    right: 80px;  
+}
+
+/* Pause animation when reduced motion is preferred */
+@media (prefers-reduced-motion: reduce) {
+    .social-icon,
+    .social-icon:hover svg {
+        animation: none;
+    }
+}
+
 @media (max-width: 768px) {
     .grid {
         grid-template-columns: repeat(auto-fit, minmax(300px, 300px));
@@ -111,6 +231,65 @@ body::before {
     }
 
     body {
-        padding: 20px 15px;
+        padding: 20px 15px 80px; 
+    }
+    
+    .social-bar {
+        flex-direction: row;
+        bottom: 0;
+        top: auto;
+        left: 0;
+        right: 0;
+        transform: none;
+        justify-content: center;
+        background-color: rgba(26, 26, 26, 0.98);  /* Slightly more opaque */
+        padding: 12px 8px;  /* Increased padding */
+        border-top: 2px solid #444;  /* Thicker border */
+        gap: 12px;  /* Increased gap */
+        height: 80px;  /* Increased height */
+    }
+    
+    .social-icon {
+        width: 65px;  /* Increased from 48px */
+        height: 65px;  /* Increased from 48px */
+        border-radius: 6px;  /* Slightly larger border radius */
+        margin: 0 6px;  /* Increased margin */
+        border: none !important;
+        border-top: 5px solid transparent !important;  /* Thicker border */
+    }
+
+    .social-icon:nth-child(1) {
+        border-top-color: #5865F2 !important;
+    }
+
+    .social-icon:nth-child(2) {
+        border-top-color: #FF0000 !important;
+    }
+
+    .social-icon:nth-child(3) {
+        border-top-color: #9146FF !important;
+    }
+    
+    .social-icon:hover {
+        transform: translateY(-5px) !important;
+        width: 36px !important;
+    }
+    
+    .social-tooltip {
+        bottom: 50px;
+        right: auto !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        font-size: 12px;
+        padding: 4px 10px;
+    }
+    
+    .social-icon:hover .social-tooltip {
+        bottom: 55px;
+    }
+    
+    .social-icon svg {
+        width: 36px;  /* Increased from 26px */
+        height: 36px;  /* Increased from 26px */
     }
 }
