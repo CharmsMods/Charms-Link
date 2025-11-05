@@ -1,4 +1,4 @@
-// Image Color Fader - Main JavaScript File (with Invert Selection and Area Selection)
+// Image Color Fader - Main JavaScript File (with Invert Selection)
 
 // Get DOM elements
 const imageUpload = document.getElementById('imageUpload');
@@ -8,7 +8,7 @@ const opacitySlider = document.getElementById('opacitySlider');
 const toleranceToggle = document.getElementById('toleranceToggle');
 const toleranceSliderContainer = document.getElementById('toleranceSliderContainer');
 const toleranceStrengthSlider = document.getElementById('toleranceStrengthSlider');
-const invertSelectionToggle = document.getElementById('invertSelectionToggle');
+const invertSelectionToggle = document.getElementById('invertSelectionToggle'); // New element
 const antiAliasingToggle = document.getElementById('antiAliasingToggle');
 const smoothingSliderContainer = document.getElementById('smoothingSliderContainer');
 const smoothingFactorSlider = document.getElementById('smoothingFactorSlider');
@@ -31,16 +31,11 @@ const realtimePreviewToggle = document.getElementById('realtimePreviewToggle');
 const previewButton = document.getElementById('previewButton');
 const performanceWarning = document.getElementById('performance-warning');
 const dismissWarning = document.getElementById('dismiss-warning');
-const areaSelectionToggle = document.getElementById('areaSelectionToggle'); // NEW: Area Selection Toggle
 
 // Global variables to store image data and selected color
 let originalImage = new Image();
 let originalImageData = null;
 let selectedColor = null; // {r, g, b}
-
-// NEW: Area Selection Global Variables
-let isAreaSelectionMode = false;
-let selectedAreaPixels = new Set(); // Stores "x,y" strings for efficient lookup
 
 // Performance tracking variables
 let isRealtimePreviewEnabled = true;
@@ -72,7 +67,7 @@ function showMessage(message, type) {
 }
 
 /**
- * Converts RGB values to a Hexadecimal string. (No Change)
+ * Converts RGB values to a Hexadecimal string.
  * @param {number} r - Red component (0-255).
  * @param {number} g - Green component (0-255).
  * @param {number} b - Blue component (0-255).
@@ -83,7 +78,7 @@ function rgbToHex(r, g, b) {
 }
 
 /**
- * Converts a hexadecimal color string to RGB values. (No Change)
+ * Converts a hexadecimal color string to RGB values.
  * @param {string} hex - Hexadecimal color string (e.g., "#RRGGBB").
  * @returns {object} - RGB color object {r, g, b}.
  */
@@ -97,7 +92,7 @@ function hexToRgb(hex) {
 }
 
 /**
- * Calculates perceptually uniform color distance between two RGB colors. (No Change)
+ * Calculates perceptually uniform color distance between two RGB colors.
  * Uses weighted Euclidean distance that better matches human vision.
  * @param {object} color1 - {r, g, b}
  * @param {object} color2 - {r, g, b}
@@ -117,7 +112,7 @@ function colorDistance(color1, color2) {
 }
 
 /**
- * Applies gamma correction to opacity for more natural-feeling transparency. (No Change)
+ * Applies gamma correction to opacity for more natural-feeling transparency.
  * @param {number} opacity - Linear opacity value (0-1)
  * @returns {number} - Gamma-corrected opacity value
  */
@@ -126,7 +121,7 @@ function applyOpacityGamma(opacity) {
 }
 
 /**
- * Advanced interpolation function with multiple curve types. (No Change)
+ * Advanced interpolation function with multiple curve types.
  * @param {number} t - Progress value (0-1)
  * @param {number} smoothingFactor - Smoothing factor (0.1-1.0)
  * @returns {number} - Interpolated value with smooth falloff
@@ -144,64 +139,7 @@ function smoothInterpolation(t, smoothingFactor) {
 }
 
 /**
- * NEW: Executes a Flood Fill algorithm to find all connected pixels 
- * within the tolerance of the starting pixel's color.
- * @param {number} startX - The x coordinate of the starting pixel.
- * @param {number} startY - The y coordinate of the starting pixel.
- * @param {object} targetColor - {r, g, b} of the starting pixel.
- * @param {number} toleranceRadius - The max color distance allowed.
- */
-function runFloodFill(startX, startY, targetColor, toleranceRadius) {
-    if (!originalImageData) return;
-    
-    // Reset previous selection
-    selectedAreaPixels.clear(); 
-
-    const width = originalImageData.width;
-    const height = originalImageData.height;
-    // Map to track visited pixels (1D index)
-    const visited = new Array(width * height).fill(false); 
-    const queue = [{ x: startX, y: startY }];
-    
-    // Helper to get 1D index
-    const getIndex = (x, y) => y * width + x;
-
-    // Helper to get color at a 1D index
-    const getColorAtIndex = (index) => {
-        const data = originalImageData.data;
-        return { r: data[index * 4], g: data[index * 4 + 1], b: data[index * 4 + 2] };
-    };
-
-    // The main loop
-    while (queue.length > 0) {
-        const { x, y } = queue.shift();
-        const index = getIndex(x, y);
-
-        // Check if we're out of bounds or already visited
-        if (x < 0 || x >= width || y < 0 || y >= height || visited[index]) {
-            continue;
-        }
-
-        const currentColor = getColorAtIndex(index);
-        const distance = colorDistance(targetColor, currentColor);
-
-        // If the color is within tolerance
-        if (distance <= toleranceRadius) {
-            visited[index] = true;
-            selectedAreaPixels.add(`${x},${y}`); // Store coordinates as a string key
-
-            // Add neighbors to the queue (4-connectivity for speed)
-            queue.push({ x: x + 1, y: y });
-            queue.push({ x: x - 1, y: y });
-            queue.push({ x: x, y: y + 1 });
-            queue.push({ x: x, y: y - 1 });
-        }
-    }
-}
-
-
-/**
- * Loads the selected image onto the canvas. (Updated with new reset logic)
+ * Loads the selected image onto the canvas.
  * @param {Event} event - The file input change event.
  */
 function loadImage(event) {
@@ -227,7 +165,7 @@ function loadImage(event) {
             toleranceToggle.checked = true;
             toleranceSliderContainer.classList.remove('hidden');
             toleranceStrengthSlider.value = 20;
-            invertSelectionToggle.checked = false; 
+            invertSelectionToggle.checked = false; // Reset new toggle
             antiAliasingToggle.checked = true;
             smoothingSliderContainer.classList.remove('hidden');
             smoothingFactorSlider.value = 1.0;
@@ -247,10 +185,6 @@ function loadImage(event) {
             hexDisplay.textContent = '#FFFFFF';
             rgbDisplay.textContent = 'rgb(255, 255, 255)';
             colorSwatch.style.backgroundColor = '#FFFFFF';
-
-            // NEW: Reset Area Selection
-            areaSelectionToggle.checked = false;
-            selectedAreaPixels.clear();
         };
         originalImage.onerror = function () {
             showMessage('Could not load image. Please try a different file.', 'error');
@@ -264,7 +198,7 @@ function loadImage(event) {
 }
 
 /**
- * Picks a color from the canvas at the clicked coordinates. (UPDATED for Area Selection Mode)
+ * Picks a color from the canvas at the clicked coordinates.
  * @param {Event} event - The mouse click event on the canvas.
  */
 function pickColor(event) {
@@ -286,21 +220,8 @@ function pickColor(event) {
     rgbDisplay.textContent = `rgb(${selectedColor.r}, ${selectedColor.g}, ${selectedColor.b})`;
     colorSwatch.style.backgroundColor = `rgb(${selectedColor.r}, ${selectedColor.g}, ${selectedColor.b})`;
 
-    // NEW: Check Selection Mode
-    isAreaSelectionMode = areaSelectionToggle.checked;
-
-    if (isAreaSelectionMode) {
-        // Area Mode: Run Flood Fill to define the selected pixels
-        const currentToleranceRadius = parseFloat(toleranceStrengthSlider.value);
-        runFloodFill(x, y, selectedColor, currentToleranceRadius);
-        showMessage('Area picked! Adjust opacity/tolerance to see the effect.', 'info');
-    } else {
-        // Global Mode: Clear area selection
-        selectedAreaPixels.clear(); 
-        showMessage('Color picked! Adjust opacity or toggle tolerance.', 'info');
-    }
-
     applyFilter(true);
+    showMessage('Color picked! Adjust opacity or toggle tolerance.', 'info');
 }
 
 function showPerformanceWarning() {
@@ -336,7 +257,6 @@ function toggleRealtimePreview(enabled) {
 
 /**
  * Applies the opacity filter to the image based on selected color, slider, and tolerance.
- * (CRITICAL UPDATE for Area Selection)
  * @param {boolean} forceUpdate - Force update even if real-time preview is disabled
  */
 function applyFilter(forceUpdate = false) {
@@ -367,90 +287,44 @@ function applyFilter(forceUpdate = false) {
     const replacementColor = isColorReplacement ? hexToRgb(replacementColorPicker.value) : null;
     const isAntiAliasing = antiAliasingToggle.checked;
     
-    // NEW: Check Selection Mode
-    const isAreaSelectionMode = areaSelectionToggle.checked;
-
     for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i + 1];
         const b = data[i + 2];
         const originalAlpha = originalImageData.data[i + 3];
 
+        const currentPixelColor = { r, g, b };
+        const distance = isToleranceMode 
+            ? colorDistance(selectedColor, currentPixelColor) 
+            : (r === selectedColor.r && g === selectedColor.g && b === selectedColor.b ? 0 : Infinity);
+        
         let effectFactor = 0; // Represents how much of the effect (0 to 1) to apply.
 
-        if (isAreaSelectionMode) {
-            // *** AREA SELECTION MODE LOGIC ***
-            const x = (i / 4) % imageData.width;
-            const y = Math.floor((i / 4) / imageData.width);
-            const pixelKey = `${x},${y}`;
-            
-            const isSelectedPixel = selectedAreaPixels.has(pixelKey);
-
-            if (isSelectedPixel) {
-                // If the pixel is part of the connected area, calculate the anti-aliased edge (if enabled)
-                if (isAntiAliasing && isToleranceMode && currentToleranceRadius > 0) {
-                    // Re-calculate distance here for the smooth fade effect at the edge
-                    const currentPixelColor = { r, g, b };
-                    const distance = colorDistance(selectedColor, currentPixelColor);
+        if (isToleranceMode) {
+            if (distance <= currentToleranceRadius) {
+                // Pixel is INSIDE the tolerance radius
+                if (isAntiAliasing && currentToleranceRadius > 0) {
+                    const smoothingFactor = parseFloat(smoothingFactorSlider.value);
+                    const fadeZone = currentToleranceRadius * smoothingFactor;
+                    const coreZone = currentToleranceRadius - fadeZone;
                     
-                    if (distance <= currentToleranceRadius) {
-                         const smoothingFactor = parseFloat(smoothingFactorSlider.value);
-                         const fadeZone = currentToleranceRadius * smoothingFactor;
-                         const coreZone = currentToleranceRadius - fadeZone;
-                        
-                         if (distance <= coreZone) {
-                             effectFactor = isInverted ? 0 : 1;
-                         } else {
-                             const fadeProgress = (distance - coreZone) / fadeZone;
-                             const smoothProgress = smoothInterpolation(fadeProgress, smoothingFactor);
-                             effectFactor = isInverted ? smoothProgress : (1 - smoothProgress);
-                         }
-                    } else {
-                        // Beyond tolerance radius, but still in the general selected area (fallback to full effect)
+                    if (distance <= coreZone) {
                         effectFactor = isInverted ? 0 : 1;
+                    } else {
+                        const fadeProgress = (distance - coreZone) / fadeZone;
+                        const smoothProgress = smoothInterpolation(fadeProgress, smoothingFactor);
+                        effectFactor = isInverted ? smoothProgress : (1 - smoothProgress);
                     }
                 } else {
-                    // Full effect (No tolerance/No smoothing/No anti-aliasing)
                     effectFactor = isInverted ? 0 : 1;
                 }
             } else {
-                // Pixel is OUTSIDE the selected area
-                effectFactor = isInverted ? 1 : 0; 
+                // Pixel is OUTSIDE the tolerance radius
+                effectFactor = isInverted ? 1 : 0;
             }
-        } else {
-            // *** GLOBAL COLOR SELECTION MODE (Existing Logic) ***
-            const currentPixelColor = { r, g, b };
-            const distance = isToleranceMode 
-                ? colorDistance(selectedColor, currentPixelColor) 
-                : (r === selectedColor.r && g === selectedColor.g && b === selectedColor.b ? 0 : Infinity);
-            
-            if (isToleranceMode) {
-                if (distance <= currentToleranceRadius) {
-                    // Pixel is INSIDE the tolerance radius
-                    if (isAntiAliasing && currentToleranceRadius > 0) {
-                        const smoothingFactor = parseFloat(smoothingFactorSlider.value);
-                        const fadeZone = currentToleranceRadius * smoothingFactor;
-                        const coreZone = currentToleranceRadius - fadeZone;
-                        
-                        if (distance <= coreZone) {
-                            effectFactor = isInverted ? 0 : 1;
-                        } else {
-                            const fadeProgress = (distance - coreZone) / fadeZone;
-                            const smoothProgress = smoothInterpolation(fadeProgress, smoothingFactor);
-                            effectFactor = isInverted ? smoothProgress : (1 - smoothProgress);
-                        }
-                    } else {
-                        effectFactor = isInverted ? 0 : 1;
-                    }
-                } else {
-                    // Pixel is OUTSIDE the tolerance radius
-                    effectFactor = isInverted ? 1 : 0;
-                }
-            } else { // No tolerance mode, only exact match
-                effectFactor = (distance === 0) ? (isInverted ? 0 : 1) : (isInverted ? 1 : 0);
-            }
+        } else { // No tolerance mode, only exact match
+            effectFactor = (distance === 0) ? (isInverted ? 0 : 1) : (isInverted ? 1 : 0);
         }
-
 
         // Apply the effect based on the calculated effectFactor
         if (effectFactor > 0) {
@@ -493,7 +367,7 @@ function applyFilter(forceUpdate = false) {
 
 
 /**
- * Resets the image to its original state. (Updated with new reset logic)
+ * Resets the image to its original state.
  */
 function resetImage() {
     if (originalImage.src) {
@@ -507,7 +381,7 @@ function resetImage() {
         toleranceToggle.checked = true;
         toleranceSliderContainer.classList.remove('hidden');
         toleranceStrengthSlider.value = 20;
-        invertSelectionToggle.checked = false; 
+        invertSelectionToggle.checked = false; // Reset new toggle
         antiAliasingToggle.checked = true;
         smoothingSliderContainer.classList.remove('hidden');
         smoothingFactorSlider.value = 1.0;
@@ -527,11 +401,6 @@ function resetImage() {
         hexDisplay.textContent = '#FFFFFF';
         rgbDisplay.textContent = 'rgb(255, 255, 255)';
         colorSwatch.style.backgroundColor = '#FFFFFF';
-
-        // NEW: Reset Area Selection
-        areaSelectionToggle.checked = false;
-        selectedAreaPixels.clear();
-
         showMessage('Image reset to original state.', 'info');
     } else {
         showMessage('No image loaded to reset.', 'info');
@@ -539,7 +408,7 @@ function resetImage() {
 }
 
 /**
- * Saves the current state of the canvas as the new original image data. (Updated with new reset logic)
+ * Saves the current state of the canvas as the new original image data.
  */
 function applyChanges() {
     if (!originalImageData) {
@@ -555,7 +424,7 @@ function applyChanges() {
     toleranceToggle.checked = true;
     toleranceSliderContainer.classList.remove('hidden');
     toleranceStrengthSlider.value = 20;
-    invertSelectionToggle.checked = false; 
+    invertSelectionToggle.checked = false; // Reset new toggle
     antiAliasingToggle.checked = true;
     smoothingSliderContainer.classList.remove('hidden');
     smoothingFactorSlider.value = 1.0;
@@ -576,15 +445,11 @@ function applyChanges() {
     rgbDisplay.textContent = 'rgb(255, 255, 255)';
     colorSwatch.style.backgroundColor = '#FFFFFF';
 
-    // NEW: Reset Area Selection
-    areaSelectionToggle.checked = false;
-    selectedAreaPixels.clear();
-
     showMessage('Current edits applied! You can now pick a new color on the modified image.', 'success');
 }
 
 /**
- * Downloads the current state of the canvas as a PNG image. (No Change)
+ * Downloads the current state of the canvas as a PNG image.
  */
 function downloadImage() {
     if (!originalImageData) {
@@ -603,7 +468,7 @@ function downloadImage() {
 }
 
 /**
- * Copies text to clipboard and shows feedback. (No Change)
+ * Copies text to clipboard and shows feedback.
  * @param {string} text - The text to copy.
  * @param {string} type - The type of value being copied (for feedback message).
  */
@@ -626,32 +491,16 @@ async function copyToClipboard(text, type) {
     }
 }
 
-// Event Listeners (UPDATED with new Area Selection Toggle listener)
+// Event Listeners
 imageUpload.addEventListener('change', loadImage);
 imageCanvas.addEventListener('click', pickColor);
 opacitySlider.addEventListener('input', () => { if (isRealtimePreviewEnabled) applyFilter(); });
 toleranceToggle.addEventListener('change', () => {
     toleranceSliderContainer.classList.toggle('hidden', !toleranceToggle.checked);
-    if (isAreaSelectionMode && selectedColor) {
-        // Re-run Flood Fill when tolerance changes in Area Mode
-        const currentToleranceRadius = parseFloat(toleranceStrengthSlider.value);
-        // Note: x, y for runFloodFill are not stored, so we just prompt re-click for the area
-        // However, we still need to applyFilter to update the effect factor if AA is on
-        showMessage('Tolerance changed. Please click on the image again to redefine the Area Selection.', 'info');
-        selectedAreaPixels.clear(); // Force re-selection
-    }
     if (isRealtimePreviewEnabled) applyFilter();
 });
-toleranceStrengthSlider.addEventListener('input', () => { 
-    if (isRealtimePreviewEnabled) {
-        // In area mode, simply changing the strength doesn't re-run Flood Fill automatically (too slow), but updates AA/effect factor.
-        if (isAreaSelectionMode && selectedColor) {
-             showMessage('Tolerance Strength adjusted. Click on the image to redefine the Area Selection.', 'info');
-        }
-        applyFilter(); 
-    } 
-});
-invertSelectionToggle.addEventListener('change', () => { if (isRealtimePreviewEnabled) applyFilter(); }); 
+toleranceStrengthSlider.addEventListener('input', () => { if (isRealtimePreviewEnabled) applyFilter(); });
+invertSelectionToggle.addEventListener('change', () => { if (isRealtimePreviewEnabled) applyFilter(); }); // New listener
 antiAliasingToggle.addEventListener('change', () => {
     smoothingSliderContainer.classList.toggle('hidden', !antiAliasingToggle.checked);
     if (isRealtimePreviewEnabled) applyFilter();
@@ -673,21 +522,6 @@ replacementColorPicker.addEventListener('input', () => {
 realtimePreviewToggle.addEventListener('change', () => toggleRealtimePreview(realtimePreviewToggle.checked));
 previewButton.addEventListener('click', () => applyFilter(true));
 dismissWarning.addEventListener('click', () => hidePerformanceWarning());
-
-// NEW: Area Selection Mode Toggle Listener
-areaSelectionToggle.addEventListener('change', () => {
-    selectedAreaPixels.clear(); 
-    isAreaSelectionMode = areaSelectionToggle.checked;
-    
-    if (selectedColor) {
-        if (isAreaSelectionMode) {
-            showMessage('Switched to Area Selection Mode. Click on the image to define a connected area.', 'info');
-        } else {
-            showMessage('Switched to Global Color Selection Mode.', 'info');
-            applyFilter(true); // Re-run filter globally if a color was selected
-        }
-    }
-});
 
 // Initial state
 window.onload = () => {
