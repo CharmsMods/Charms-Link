@@ -2,16 +2,8 @@
 // Updated to prefer OffscreenCanvas + Worker (gpu-worker.js) and fall back to synchronous gpu-core.js
 // Exposes the same window.GPUCore.init API shape expected by the rest of the app.
 
-// Fix worker URL for GitHub Pages
-function getWorkerUrl(script) {
-  const base = window.location.href.replace(/[^/]*$/, '');
-  return new URL(script, base).href;
-}
-
-// Track GPU initialization state globally
-window.gpuInitializationFailed = false;
-
 // Immediately create a worker-backed GPU shim if available.
+// This is placed before the main app logic so the rest of the file can call attachGPUCore() as before.
 (function createWorkerShimIfPossible() {
   'use strict';
 
@@ -19,34 +11,14 @@ window.gpuInitializationFailed = false;
   const canUseWorker = typeof Worker !== 'undefined' && HTMLCanvasElement.prototype.transferControlToOffscreen;
 
   if (!canUseWorker) {
-    console.log('Web Workers or OffscreenCanvas not supported, falling back to CPU rendering');
-    window.gpuInitializationFailed = true;
+    // do nothing; the synchronous gpu-core.js will set window.GPUCore when loaded (or main will fall back)
     return;
   }
 
-  // create the worker with proper URL resolution
+  // create the worker (path must match where you saved the worker file)
   let worker;
   try {
-    const workerUrl = getWorkerUrl('gpu-worker.js');
-    console.log('Creating GPU worker with URL:', workerUrl);
-    worker = new Worker(workerUrl);
-    
-    // Add error handling for worker loading
-    worker.onerror = function(error) {
-      console.error('Worker error:', error);
-      workerReady = false;
-      window.gpuInitializationFailed = true;
-      // Fall back to CPU rendering
-      usingGPU = false;
-      setStatus('GPU worker failed, falling back to CPU', true);
-      // Clean up worker
-      worker.terminate();
-      worker = null;
-      // Force a re-render with CPU if we have an image
-      if (originalImageBitmap) {
-        handleLoadedImage(originalImageBitmap);
-      }
-    };
+    worker = new Worker('gpu-worker.js');
   } catch (e) {
     console.warn('Failed to create GPU worker:', e);
     return;
@@ -153,39 +125,20 @@ window.gpuInitializationFailed = false;
     console.error('GPU worker error event', e);
     lastWorkerError = e.message || String(e);
     workerReady = false;
-    usingGPU = false;
     try { window.dispatchEvent(new Event('GPU_CORE_READY')); } catch (e) {}
   };
 
   // Install the shim on window.GPUCore so the rest of your app can call window.GPUCore.init(...)
   window.GPUCore = window.GPUCore || {};
   window.GPUCore.init = function(noiseCanvasElement, originalCanvasElement) {
-    // If GPU initialization previously failed, don't try again
-    if (window.gpuInitializationFailed) {
-      console.log('Skipping GPU init - previous attempt failed');
-      throw new Error('GPU initialization previously failed');
-    }
-    
-    if (!worker) {
-      console.log('GPU worker not available');
-      window.gpuInitializationFailed = true;
-      throw new Error('GPU worker unavailable');
-    }
+    if (!worker) throw new Error('GPU worker unavailable');
 
     // transfer the noiseCanvas to the worker as an OffscreenCanvas
     let offscreen;
     try {
-      console.log('Attempting to transfer control to offscreen canvas');
       offscreen = noiseCanvasElement.transferControlToOffscreen();
-      console.log('Successfully created offscreen canvas');
     } catch (e) {
-      console.warn('transferControlToOffscreen failed, falling back to CPU rendering', e);
-      window.gpuInitializationFailed = true;
-      // Clean up worker
-      if (worker) {
-        worker.terminate();
-        worker = null;
-      }
+      console.warn('transferControlToOffscreen failed:', e);
       throw e;
     }
 
@@ -503,58 +456,40 @@ window.gpuInitializationFailed = false;
   });
 
   function handleLoadedImage(imgBitmapOrElem) {
-    // set canvas sizes
+    // set canvas sizes and draw original
     const w = imgBitmapOrElem.width || imgBitmapOrElem.naturalWidth || 1;
     const h = imgBitmapOrElem.height || imgBitmapOrElem.naturalHeight || 1;
-    originalWidth = w;
-    originalHeight = h;
-    
-    // Only set canvas dimensions, don't draw to them yet
+    originalWidth = w; originalHeight = h;
     originalCanvas.width = noiseCanvas.width = w;
     originalCanvas.height = noiseCanvas.height = h;
 
-    // Store the ImageBitmap or HTMLImageElement for GPU upload
+    // draw original into originalCanvas (2D) for hover reveal and CPU fallback
+    ctxOriginal.clearRect(0,0,w,h);
+    ctxOriginal.drawImage(imgBitmapOrElem, 0, 0, w, h);
+
+    // store the ImageBitmap or HTMLImageElement for GPU upload (if available)
     originalImageBitmap = imgBitmapOrElem;
 
     fitCanvasesToPreview();
-    
-    // If we've previously failed to initialize GPU, skip to CPU rendering
-    if (window.gpuInitializationFailed) {
-      console.log('Using CPU rendering (GPU initialization previously failed)');
-      useCPURendering(w, h, imgBitmapOrElem);
-      return;
-    }
 
-    // If GPUCore is available and ready, try to use it first
-    if (window.GPUCore && typeof window.GPUCore.init === 'function' && !gpu) {
+    // If GPUCore is available and ready, upload image there
+    if (window.GPUCore && typeof window.GPUCore.init === 'function') {
+      // attach GPUCore if not attached yet (this will happen via GPU_CORE_READY event normally)
       try {
-        // Try to initialize GPU with offscreen canvas
+        // window.GPUCore.init may return an API object or the module may be global; main.attachGPUCore handles it.
+        // We'll attempt to call init now (some implementations expect noiseCanvas and originalCanvas here)
+        // But to avoid double-init we will only call it when gpu is null (not attached yet)
         if (!gpu) {
           try {
             const maybeApi = window.GPUCore.init ? window.GPUCore.init(noiseCanvas, originalCanvas) : window.GPUCore;
             gpu = maybeApi || window.GPUCore;
-            
-            // If GPU initialization was successful, upload the image
-            if (gpu && typeof gpu.uploadImage === 'function') {
-              gpu.uploadImage(originalImageBitmap);
-              usingGPU = true;
-              setStatus('GPU rendering active', false);
-              scheduleRender();
-              return; // Skip 2D canvas drawing if GPU is available
-            }
           } catch (e) {
-            console.warn('GPU initialization failed, falling back to CPU', e);
-            usingGPU = false;
+            // ignore; attachGPUCore will run when GPU_CORE_READY event fires
+            console.warn('GPUCore.init call in handleLoadedImage failed (ignored)', e);
           }
         }
-      } catch (e) {
-        console.warn('GPU Core initialization failed:', e);
-        usingGPU = false;
-      }
+      } catch (e) {}
     }
-    
-    // Fallback to CPU rendering if GPU is not available or failed
-    useCPURendering(w, h, imgBitmapOrElem);
 
     // If we now have a gpu API with uploadImage, use it
     if (gpu && typeof gpu.uploadImage === 'function') {
@@ -622,34 +557,28 @@ window.gpuInitializationFailed = false;
 
   function renderCurrent(){
     if (!originalImageBitmap) return;
-    
-    // If GPU initialization previously failed, force CPU rendering
-    if (window.gpuInitializationFailed) {
-      usingGPU = false;
-    }
-    
     const params = gatherParams();
     lastRenderParams = params;
-    
+
     // ensure we have GPU API attached if available
-    if (!gpu && window.GPUCore && typeof window.GPUCore.init === 'function' && !window.gpuInitializationFailed) {
+    if (!gpu && window.GPUCore && typeof window.GPUCore.init === 'function') {
       try {
         const maybeApi = window.GPUCore.init ? window.GPUCore.init(noiseCanvas, originalCanvas) : window.GPUCore;
         gpu = maybeApi || window.GPUCore;
       } catch (e) {
-        console.warn('GPU initialization failed in renderCurrent, falling back to CPU', e);
-        window.gpuInitializationFailed = true;
-        usingGPU = false;
+        // ignore
       }
     }
-    
-    if (gpu && typeof gpu.render === 'function' && usingGPU) {
+
+    if (gpu && typeof gpu.render === 'function' && gpu.isReady && gpu.isReady()) {
       try {
         gpu.render(params);
+        usingGPU = true;
+        downloadBtn.disabled = false;
+        setStatus('Rendered on GPU');
         return;
       } catch (e) {
-        console.warn('GPU render failed, falling back to CPU', e);
-        window.gpuInitializationFailed = true;
+        console.warn('GPU render threw, falling back to CPU', e);
         usingGPU = false;
       }
     }
@@ -979,33 +908,6 @@ window.gpuInitializationFailed = false;
     crossfadeToBlend(mode);
 
     scheduleRevertToOriginal();
-  }
-
-  // Helper function for CPU rendering
-  function useCPURendering(w, h, imgBitmapOrElem) {
-    usingGPU = false;
-    window.gpuInitializationFailed = true; // Mark GPU as failed
-    
-    // Clear any existing GPU resources
-    if (gpu && typeof gpu.cleanup === 'function') {
-      try {
-        gpu.cleanup();
-      } catch (e) {
-        console.warn('Error cleaning up GPU resources:', e);
-      }
-      gpu = null;
-    }
-    
-    // Use 2D canvas for rendering
-    const ctx = originalCanvas.getContext('2d');
-    if (ctx) {
-      ctx.clearRect(0, 0, w, h);
-      ctx.drawImage(imgBitmapOrElem, 0, 0, w, h);
-    }
-    
-    // Update UI to reflect CPU rendering
-    setStatus('Using CPU rendering', false);
-    scheduleRender();
   }
 
   // pointer tracking

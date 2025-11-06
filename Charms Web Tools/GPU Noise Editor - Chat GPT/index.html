@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Digital Grain Studio</title>
+<style>
+  :root{
+    --bg:#000; --fg:#fff; --panel-max:420px;
+    --accent:#00d1ff;
+  }
+  html,body{height:100%; margin:0;}
+  body {
+      background:var(--bg);
+      color:var(--fg);
+      font-family:monospace;
+      padding:20px;
+      display:flex; gap:20px;
+      box-sizing:border-box;
+      align-items:flex-start;
+      min-height:100vh;
+  }
+  .container{display:flex; gap:20px; width:100%;}
+  .controls-panel{flex:1; min-width:260px; max-width:var(--panel-max); padding:10px; box-sizing:border-box;}
+  .preview-panel{flex:2; padding:10px; box-sizing:border-box; min-width:320px; display:flex; flex-direction:column; gap:8px;}
+  h1,h3{margin:0 0 12px 0; text-align:center;}
+  .small-note{font-size:12px; opacity:0.9; text-align:center; margin-top:6px;}
+  fieldset{border:1px solid var(--fg); padding:8px; margin-bottom:12px;}
+  legend{padding:0 6px;}
+  .control-row{display:flex; gap:10px; align-items:center; margin-bottom:8px;}
+  .control-row label{flex:0 0 140px; font-weight:bold; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  input[type="range"]{flex:1; min-width:0;}
+  .control-value{width:80px; padding:2px 6px; text-align:right; background:var(--bg); color:var(--fg); border:1px solid var(--fg); box-sizing:border-box; font-family:monospace; flex:0 0 80px;}
+  select.control-value{flex:1; min-width:120px; padding:4px 6px; box-sizing:border-box;}
+  button{background:var(--bg); color:var(--fg); border:1px solid var(--fg); padding:8px; cursor:pointer; width:100%; box-sizing:border-box; font-family:monospace;}
+  button:hover:not(:disabled){background:#111;}
+  .preview-top{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .preview-container{position:relative; border:1px solid var(--fg); background:#070707; align-self:stretch; overflow:hidden; display:flex; align-items:center; justify-content:center;}
+  canvas{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:block; max-width:none; max-height:none; image-rendering:auto; }
+  #originalCanvas { transition: opacity 500ms; z-index:2; pointer-events:none; opacity:0; }
+  #noiseCanvas    { z-index:1; pointer-events:auto; }
+  .overlay-canvas { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:block; max-width:none; max-height:none; image-rendering:auto; z-index:3; pointer-events:none; opacity:0; transition: opacity 100ms linear; }
+  .modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.4s ease; z-index:1000; }
+  .modal-overlay.show{opacity:1; pointer-events:auto;}
+  .modal{ background:#111; border:1px solid var(--fg); border-radius:8px; max-width:720px; width:calc(100% - 40px); max-height:80vh; overflow:auto; padding:20px 24px; transform:scale(0.95); transition:transform 0.35s ease;}
+  .modal-overlay.show .modal{transform:scale(1);}
+  .modal h2{text-align:center; margin-top:0;}
+  .modal h3{margin:16px 0 6px 0; border-bottom:1px solid #333;}
+  .modal p, .modal li{line-height:1.5;}
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+  @media (max-width:900px){ body{padding:12px;} .container{flex-direction:column;} .controls-panel{max-width:none; width:100%;} .preview-panel{width:100%;} .control-row label{flex:0 0 110px;} }
+
+  /* new UI: mode toggles and debug overlay */
+  .mode-row { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+  .mode-row label { font-weight:600; flex:0 0 100px; }
+  .mode-btn { padding:6px 8px; border:1px solid var(--fg); background:transparent; color:var(--fg); cursor:pointer; font-family:monospace; }
+  .mode-btn.active { background:var(--accent); color:#000; border-color:var(--accent); }
+  .debug-overlay {
+    position:fixed; top:12px; right:12px; background:rgba(0,0,0,0.6); border:1px solid #222; padding:8px 10px; color:#ddd; z-index:2000; font-family:monospace; font-size:12px; border-radius:6px;
+    box-shadow:0 6px 20px rgba(0,0,0,0.6);
+  }
+  .debug-overlay b { color:var(--fg); font-weight:700; }
+  .status-small { font-size:11px; opacity:0.9; margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="controls-panel">
+    <h1>Digital Grain Studio</h1>
+    <p class="small-note">Upload an image to start. Controls update live unless performance prompts manual render.</p>
+
+    <div style="margin-bottom:12px;">
+      <label for="imageUpload" style="display:block; font-weight:bold; margin-bottom:6px;">Image Upload</label>
+      <input id="imageUpload" type="file" accept="image/*" style="width:100%; background:transparent; color:inherit; border:1px solid var(--fg); padding:8px; box-sizing:border-box;">
+    </div>
+
+    <fieldset>
+      <legend>Noise Basics</legend>
+      <div class="control-row">
+        <label for="strength">Noise Strength (σ)</label>
+        <input id="strength" type="range" min="0" max="150" step="0.01" value="50">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="strengthValue" class="control-value" type="number" min="0" max="150" step="0.01" value="50.00">
+      </div>
+
+      <div class="control-row">
+        <label for="colorNoiseToggle">Color Noise</label>
+        <input id="colorNoiseToggle" type="checkbox" style="transform:scale(1.2);">
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Noise Shape & Blur</legend>
+      <div class="control-row">
+        <label for="noiseSize">Noise Size</label>
+        <input id="noiseSize" type="range" min="0" max="1000" step="0.01" value="4">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="noiseSizeValue" class="control-value" type="number" min="1" max="200" step="0.01" value="4.00">
+      </div>
+
+      <div style="height:6px"></div>
+
+      <div class="control-row">
+        <label for="blurriness">Blurriness (px)</label>
+        <input id="blurriness" type="range" min="0" max="1000" step="0.01" value="160">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="blurrinessValue" class="control-value" type="number" min="0" max="5" step="0.01" value="2.00">
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Blend & Visibility</legend>
+      <div class="control-row">
+        <label for="blendMode">Blend Mode</label>
+        <select id="blendMode" class="control-value">
+          <option value="source-over">Normal</option>
+          <option value="overlay" selected>Overlay</option>
+          <option value="screen">Screen</option>
+          <option value="multiply">Multiply</option>
+          <option value="lighter">Add</option>
+          <option value="difference">Subtract</option>
+        </select>
+      </div>
+
+      <div class="control-row">
+        <label for="opacity">Noise Opacity</label>
+        <input id="opacity" type="range" min="0" max="1" step="0.01" value="0.25">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="opacityValue" class="control-value" type="number" min="0" max="1" step="0.01" value="0.25">
+      </div>
+    </fieldset>
+
+    <div class="mode-row" style="margin-top:6px;">
+      <label>Runtime Mode</label>
+      <div style="display:flex; gap:6px; width:100%;">
+        <button id="modeAuto" class="mode-btn active" title="Auto: prefer worker → fallback to gpu-core → CPU">Auto</button>
+        <button id="modeWorker" class="mode-btn" title="Force using Worker (OffscreenCanvas)">Worker</button>
+        <button id="modeGPU" class="mode-btn" title="Force synchronous GPU core (gpu-core.js)">GPU</button>
+        <button id="modeCPU" class="mode-btn" title="Force CPU fallback">CPU</button>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <button id="helpBtn">Help / Manual</button>
+      <button id="downloadImage" disabled>Download Image</button>
+    </div>
+
+    <div class="status-small" id="status" style="margin-top:8px; color:#9aa;">Status: waiting for image</div>
+  </div>
+
+  <div class="preview-panel">
+    <div class="preview-top">
+      <h3 style="margin:0;">Image Preview (hover to reveal original)</h3>
+      <div style="font-size:12px; opacity:0.9; align-self:center;"></div>
+    </div>
+
+    <div id="previewArea" class="preview-container" style="height:calc(100vh - 220px);">
+      <canvas id="noiseCanvas"></canvas>
+      <canvas id="originalCanvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Manual -->
+<div class="modal-overlay" id="manualModal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="manualTitle">
+    <h2 id="manualTitle">Digital Grain Studio — Manual</h2>
+    <h3>Quick Overview</h3>
+    <p>Layer a custom noise texture over an image. The noise is generated separately, optionally blurred, then composited with your chosen blend mode and opacity. Can scale the grain from ultra-fine to chunky.</p>
+    <h3>Controls</h3>
+    <ul>
+      <li><b>Noise Strength (σ):</b> controls the standard deviation of the Gaussian noise — crank it for stronger contrast in the grain.</li>
+      <li><b>Color Noise:</b> each RGB channel receives independent noise when enabled.</li>
+      <li><b>Noise Size:</b> controls the apparent size of grains.</li>
+      <li><b>Blurriness:</b> Gaussian blur applied to the noise layer only.</li>
+      <li><b>Blend Mode:</b> how the blurred noise merges with the original.</li>
+      <li><b>Noise Opacity:</b> final transparency of the noise layer before compositing.</li>
+    </ul>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button id="closeManual">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Debug overlay -->
+<div id="debugOverlay" class="debug-overlay" aria-hidden="false" role="status" style="display:block;">
+  <div><b>Mode:</b> <span id="dbgMode">Auto</span></div>
+  <div><b>Worker Ready:</b> <span id="dbgWorker">—</span></div>
+  <div><b>GPU Ready:</b> <span id="dbgGPU">—</span></div>
+  <div><b>Canvas:</b> <span id="dbgCanvas">0×0</span></div>
+  <div class="status-small" id="dbgExtra"> </div>
+</div>
+
+<!-- Scripts: load synchronous GPU core (fallback) and main logic.
+     IMPORTANT: do NOT load gpu-worker.js with <script> — it's created by the worker shim in main.js -->
+<script src="gpu-core.js" defer></script>
+<script src="main.js" defer></script>
+
+<!-- tiny glue to wire the Runtime Mode buttons and the debug overlay -->
+<script>
+(function(){
+  const autoBtn = document.getElementById('modeAuto');
+  const workerBtn = document.getElementById('modeWorker');
+  const gpuBtn = document.getElementById('modeGPU');
+  const cpuBtn = document.getElementById('modeCPU');
+
+  const dbgMode = document.getElementById('dbgMode');
+  const dbgWorker = document.getElementById('dbgWorker');
+  const dbgGPU = document.getElementById('dbgGPU');
+  const dbgCanvas = document.getElementById('dbgCanvas');
+  const dbgExtra = document.getElementById('dbgExtra');
+
+  function setActive(btn){
+    [autoBtn, workerBtn, gpuBtn, cpuBtn].forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  // Mode switch handlers
+  autoBtn.addEventListener('click', ()=> {
+    setActive(autoBtn);
+    dbgMode.textContent = 'Auto';
+    // Auto: let main.js logic decide; prefer worker if available by re-attaching GPUCore
+    if(window.GPUCore && typeof window.GPUCore.init === 'function'){
+      try { window.GPUCore.init(document.getElementById('noiseCanvas'), document.getElementById('originalCanvas')); } catch(e){ /* ignore */ }
+    }
+    // attempt to re-enable GPU if main exposes DGS.forceCPU override
+  });
+
+  workerBtn.addEventListener('click', ()=> {
+    setActive(workerBtn);
+    dbgMode.textContent = 'Worker (OffscreenCanvas)';
+    // If worker shim exists on window.GPUCore, calling init will spawn the worker
+    try {
+      if(window.GPUCore && typeof window.GPUCore.init === 'function'){
+        window.GPUCore.init(document.getElementById('noiseCanvas'), document.getElementById('originalCanvas'));
+      } else {
+        // fallback message (main.js will create GPU shim if supported)
+        dbgExtra.textContent = 'Worker shim not present — will attempt when available';
+      }
+    } catch (e) {
+      dbgExtra.textContent = 'Worker init error';
+      console.warn(e);
+    }
+  });
+
+  gpuBtn.addEventListener('click', ()=> {
+    setActive(gpuBtn);
+    dbgMode.textContent = 'GPU core (sync)';
+    // Force synchronous GPU core: call init() of whichever GPU core is loaded (gpu-core.js)
+    try {
+      if(window.GPUCore && typeof window.GPUCore.init === 'function'){
+        window.GPUCore.init(document.getElementById('noiseCanvas'), document.getElementById('originalCanvas'));
+      } else {
+        dbgExtra.textContent = 'Sync GPU core not found';
+      }
+    } catch (e) {
+      dbgExtra.textContent = 'GPU init error';
+      console.warn(e);
+    }
+    // undo any force-CPU if user did that
+    if(window.DGS && typeof window.DGS.forceCPU === 'function'){ /* no-op — user can re-enable */ }
+  });
+
+  cpuBtn.addEventListener('click', ()=> {
+    setActive(cpuBtn);
+    dbgMode.textContent = 'CPU (forced)';
+    // Call the helper exposed in main.js to force CPU
+    try {
+      if(window.DGS && typeof window.DGS.forceCPU === 'function') window.DGS.forceCPU();
+    } catch (e) { console.warn(e); }
+  });
+
+  // Debug overlay updater
+  function updateDebug(){
+    const workerReady = !!(window.GPUCore && typeof window.GPUCore.isReady === 'function' && window.GPUCore.isReady());
+    const gpuReady = !!(window.GPUCore && typeof window.GPUCore.isReady === 'function' && window.GPUCore.isReady());
+    dbgWorker.textContent = workerReady ? 'yes' : 'no';
+    dbgGPU.textContent = gpuReady ? 'yes' : 'no';
+    const noiseCanvas = document.getElementById('noiseCanvas');
+    dbgCanvas.textContent = noiseCanvas.width + '×' + noiseCanvas.height;
+    requestAnimationFrame(updateDebug);
+  }
+  requestAnimationFrame(updateDebug);
+
+  // small UX: expose control buttons to keyboard shortcuts
+  window.addEventListener('keydown', (e)=> {
+    if(e.key === '1') autoBtn.click();
+    if(e.key === '2') workerBtn.click();
+    if(e.key === '3') gpuBtn.click();
+    if(e.key === '4') cpuBtn.click();
+  });
+})();
+</script>
+</body>
+</html>
