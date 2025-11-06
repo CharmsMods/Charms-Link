@@ -1,470 +1,295 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gaussian Noise Generator</title>
-    <style>
-        /*
-        * 1. THEME & STRUCTURE
-        * Uses only #000000 (black) and #ffffff (white).
-        */
-        body {
-            background-color: #000000;
-            color: #ffffff;
-            font-family: monospace;
-            display: flex;
-            /* ALIGN CONTENT TO LEFT */
-            justify-content: flex-start;
-            align-items: flex-start;
-            padding: 20px; /* This gives the 'slight gap' on the left */
-            margin: 0;
-            min-height: 100vh;
-            text-align: left; /* Aligns text in the controls panel */
-        }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Digital Grain Studio</title>
+<style>
+    body {
+        background:#000; color:#fff; font-family:monospace;
+        margin:0; padding:20px; display:flex;
+        justify-content:flex-start; align-items:flex-start; min-height:100vh;
+    }
+    .container { display:flex; gap:20px; width:100%; }
+    .controls-panel { flex:1; min-width:300px; max-width:420px; padding:10px; }
+    .preview-panel { flex:2; padding:10px; max-width:calc(100vw - 350px); }
+    h1,h3 { margin:0 0 12px 0; text-align:center; }
+    .input-group, fieldset { margin-bottom:12px; }
+    fieldset { border:1px solid #fff; padding:8px; }
+    legend { padding:0 6px; }
+    .control-row { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+    label { flex:1; font-weight:bold; }
+    .control-value { width:80px; text-align:right; padding:2px 6px;
+        background:#000; color:#fff; border:1px solid #fff; box-sizing:border-box; font-family:monospace; }
+    input[type="range"] { width:100%; }
+    select.control-value { width:100%; }
+    button { background:#000; color:#fff; border:1px solid #fff; padding:8px;
+        cursor:pointer; width:100%; box-sizing:border-box; font-family:monospace; }
+    button:hover:not(:disabled){ background:#222; }
+    .preview-container { position:relative; display:inline-block; border:1px solid #fff; max-width:100%; }
+    canvas { display:block; max-width:100%; height:auto; }
+    .small-note { font-size:12px; opacity:0.9; text-align:center; margin-top:6px; }
+    .hidden { display:none !important; }
 
-        .container {
-            display: flex;
-            gap: 20px;
-            width: 100%;
-            padding: 0;
-        }
+    /* Modal */
+    .modal-overlay {
+        position:fixed; top:0; left:0; right:0; bottom:0;
+        background:rgba(0,0,0,0.85);
+        display:flex; justify-content:center; align-items:center;
+        opacity:0; pointer-events:none;
+        transition:opacity 0.4s ease;
+        z-index:1000;
+    }
+    .modal-overlay.show { opacity:1; pointer-events:auto; }
+    .modal {
+        background:#111; border:1px solid #fff; border-radius:8px;
+        max-width:680px; max-height:80vh; overflow-y:auto;
+        padding:20px 24px; transform:scale(0.9);
+        transition:transform 0.3s ease;
+    }
+    .modal-overlay.show .modal { transform:scale(1); }
+    .modal h2 { text-align:center; margin-top:0; }
+    .modal h3 { margin:16px 0 6px 0; border-bottom:1px solid #333; }
+    .modal p { line-height:1.5; margin:4px 0 10px 0; }
+    .modal ul { margin-left:16px; }
+    .modal button { width:auto; margin-top:14px; }
 
-        .controls-panel {
-            flex: 1;
-            padding: 10px;
-            min-width: 300px;
-            max-width: 400px;
-        }
-        
-        .preview-panel {
-            flex: 2;
-            padding: 10px;
-            max-width: calc(100vw - 350px); 
-        }
-
-        /*
-        * 2. UI ELEMENTS STYLING
-        */
-        h1, h3 {
-            color: #ffffff;
-            margin-top: 0;
-            margin-bottom: 10px;
-            text-align: center; 
-        }
-
-        .input-group {
-            margin-bottom: 15px;
-            text-align: left;
-        }
-        
-        .control-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            padding: 5px 0;
-        }
-
-        .control-row label {
-            flex-grow: 1;
-            margin-right: 10px;
-            font-weight: bold;
-        }
-        
-        .control-value {
-            width: 30px;
-            text-align: right;
-            font-weight: bold;
-        }
-
-        input[type="range"] {
-            width: 100%;
-            height: 4px;
-            background: #ffffff;
-            cursor: pointer;
-            -webkit-appearance: none;
-        }
-
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 12px;
-            height: 12px;
-            background: #ffffff;
-            border: 1px solid #000000;
-            cursor: pointer;
-        }
-
-        /* Styling for Toggle Switch */
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 40px;
-            height: 24px;
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #000000; 
-            border: 1px solid #ffffff;
-            transition: .4s;
-            border-radius: 24px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 4px;
-            bottom: 3px;
-            background-color: white; 
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider {
-            background-color: #ffffff;
-        }
-
-        input:checked + .slider:before {
-            -webkit-transform: translateX(16px);
-            -ms-transform: translateX(16px);
-            transform: translateX(16px);
-            background-color: #000000;
-        }
-        
-        /* Button and File Input Styling */
-        input[type="file"] {
-            background-color: #000000;
-            color: #ffffff;
-            border: 1px solid #ffffff;
-            padding: 8px 15px;
-            cursor: pointer;
-            width: 100%;
-            box-sizing: border-box;
-            font-family: monospace;
-            margin-bottom: 10px;
-        }
-        
-        .button-container {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        
-        button {
-            background-color: #000000;
-            color: #ffffff;
-            border: 1px solid #ffffff;
-            padding: 8px 15px;
-            cursor: pointer;
-            box-sizing: border-box;
-            font-family: monospace;
-            width: 100%;
-        }
-
-        button:hover:not(:disabled) {
-            background-color: #333333;
-        }
-
-        /* Class to hide the manual button by default */
-        .hidden {
-            display: none !important;
-        }
-
-        /*
-        * 3. PREVIEW STYLING
-        */
-        .preview-container {
-            position: relative; 
-            display: inline-block;
-            border: 1px solid #ffffff;
-            padding: 0; 
-            margin-bottom: 20px;
-            max-width: 100%; 
-            height: auto;
-        }
-
-        #noiseCanvas {
-            max-width: 100%;
-            height: auto;
-            display: block;
-        }
-        
-        #originalCanvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            opacity: 0; 
-            transition: opacity 100ms ease-in-out; 
-            max-width: 100%;
-            height: auto;
-        }
-
-        .preview-container:hover #originalCanvas {
-            opacity: 1; 
-        }
-
-        .hidden-canvas {
-            display: none;
-        }
-    </style>
+    /* Hover reveal slower */
+    #originalCanvas { transition:opacity 500ms; }
+</style>
 </head>
 <body>
-    <div class="container">
-        <div class="controls-panel">
-            <h1 style="text-align: center;">Digital Grain Studio</h1>
-            <p style="text-align: center;">Load an image and tune the noise effect.</p>
+<div class="container">
+    <div class="controls-panel">
+        <h1>Digital Grain Studio</h1>
+        <p class="small-note">Upload an image to begin crafting your own noise texture.</p>
 
-            <div class="input-group">
-                <label for="imageUpload">Image Upload:</label>
-                <input type="file" id="imageUpload" accept="image/*">
-            </div>
-
-            <div class="input-group">
-                <div class="control-row">
-                    <label for="strength">Noise Strength (Standard Deviation):</label>
-                    <input type="range" id="strength" min="0" max="150" step="0.1" value="50">
-                    <span class="control-value" id="strengthValue">50.0</span>
-                </div>
-            </div>
-
-            <div class="input-group">
-                <div class="control-row">
-                    <label for="blurriness">Noise Blurriness (Radius):</label>
-                    <input type="range" id="blurriness" min="0" max="1000" step="1" value="160">
-                    <span class="control-value" id="blurrinessValue">2.0</span>
-                </div>
-            </div>
-            
-            <div class="input-group">
-                <div class="control-row">
-                    <label for="colorNoiseToggle">B&W Noise / Color Noise</label>
-                    <label class="switch">
-                        <input type="checkbox" id="colorNoiseToggle"> 
-                        <span class="slider"></span>
-                    </label>
-                </div>
-            </div>
-
-            <div class="button-container">
-                <button id="manualRenderButton" class="hidden">Manual Render Preview</button>
-                <button id="downloadImage" disabled>Download Noisy Image</button>
-            </div>
+        <div class="input-group">
+            <label for="imageUpload">Image Upload</label>
+            <input type="file" id="imageUpload" accept="image/*">
         </div>
 
-        <div class="preview-panel">
-            <h3 style="text-align: center;">Image Preview (Hover to see Original)</h3>
-            <div class="preview-container">
-                <canvas id="noiseCanvas" class="hidden-canvas"></canvas>
-                <canvas id="originalCanvas" class="hidden-canvas"></canvas>
+        <fieldset>
+            <legend>Noise Basics</legend>
+            <div class="control-row">
+                <label for="strength">Noise Strength (σ)</label>
+                <input type="range" id="strength" min="0" max="150" step="0.1" value="50">
             </div>
+            <div class="control-row">
+                <label></label>
+                <input type="number" id="strengthValue" class="control-value" min="0" max="150" step="0.1" value="50.0">
+            </div>
+            <div class="control-row">
+                <label for="colorNoiseToggle">Color Noise</label>
+                <input type="checkbox" id="colorNoiseToggle">
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Noise Shape & Blur</legend>
+            <div class="control-row">
+                <label for="noiseSize">Noise Size</label>
+                <input type="range" id="noiseSize" min="1" max="200" step="1" value="4">
+            </div>
+            <div class="control-row">
+                <label></label>
+                <input type="number" id="noiseSizeValue" class="control-value" min="1" max="200" step="1" value="4">
+            </div>
+            <div class="control-row">
+                <label for="blurriness">Blurriness (px)</label>
+                <input type="range" id="blurriness" min="0" max="1000" step="1" value="160">
+            </div>
+            <div class="control-row">
+                <label></label>
+                <input type="number" id="blurrinessValue" class="control-value" min="0" max="5" step="0.0001" value="2.0000">
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Blend & Visibility</legend>
+            <div class="control-row">
+                <label for="blendMode">Blend Mode</label>
+                <select id="blendMode" class="control-value">
+                    <option value="source-over">Normal</option>
+                    <option value="overlay" selected>Overlay</option>
+                    <option value="screen">Screen</option>
+                    <option value="multiply">Multiply</option>
+                    <option value="lighter">Add</option>
+                    <option value="difference">Subtract</option>
+                </select>
+            </div>
+            <div class="control-row">
+                <label for="opacity">Noise Opacity</label>
+                <input type="range" id="opacity" min="0" max="1" step="0.01" value="0.25">
+            </div>
+            <div class="control-row">
+                <label></label>
+                <input type="number" id="opacityValue" class="control-value" min="0" max="1" step="0.01" value="0.25">
+            </div>
+        </fieldset>
+
+        <div style="display:flex; gap:8px;">
+            <button id="helpBtn">Help / Manual</button>
+            <button id="downloadImage" disabled>Download Image</button>
         </div>
     </div>
 
-    <script>
-        // Get elements
-        const fileInput = document.getElementById('imageUpload');
-        const originalCanvas = document.getElementById('originalCanvas');
-        const noiseCanvas = document.getElementById('noiseCanvas');
-        const previewContainer = document.querySelector('.preview-container');
-        const ctxOriginal = originalCanvas.getContext('2d');
-        const ctxNoise = noiseCanvas.getContext('2d');
-        const strengthInput = document.getElementById('strength');
-        const blurrinessInput = document.getElementById('blurriness');
-        const strengthValueSpan = document.getElementById('strengthValue');
-        const blurrinessValueSpan = document.getElementById('blurrinessValue');
-        const colorNoiseToggle = document.getElementById('colorNoiseToggle');
-        const downloadButton = document.getElementById('downloadImage');
-        // Manual button element
-        const manualRenderButton = document.getElementById('manualRenderButton');
+    <div class="preview-panel">
+        <h3>Image Preview (hover to see original)</h3>
+        <div class="preview-container">
+            <canvas id="noiseCanvas"></canvas>
+            <canvas id="originalCanvas" style="position:absolute; top:0; left:0; opacity:0;"></canvas>
+        </div>
+        <p class="small-note">Hover the preview to reveal the original image.</p>
+    </div>
+</div>
 
-        let originalPixelData = null; // Stored raw pixel data of the original image
-        
-        // State variables for smart feature
-        let isRealTimeControl = true; 
-        const PERFORMANCE_THRESHOLD_MS = 600;
+<!-- Manual Popup -->
+<div class="modal-overlay" id="manualModal">
+  <div class="modal">
+    <h2>Digital Grain Studio Manual</h2>
 
-        // *** LOGARITHMIC MAPPING FUNCTION ***
-        function getLogarithmicBlurRadius(sliderValue) {
-            const MAX_SLIDER_VALUE = 1000;
-            const MAX_BLUR_RADIUS = 5.0;
-            
-            // Use a Square Root curve (exponent 0.5) to give more detail at the low end (0.0 to 1.0)
-            const normalizedValue = sliderValue / MAX_SLIDER_VALUE;
-            // The formula is: y = R_max * (x/X_max)^(0.5)
-            const blurRadius = MAX_BLUR_RADIUS * Math.pow(normalizedValue, 0.5);
-            
-            // Return with high precision (4 decimal places)
-            return parseFloat(blurRadius.toFixed(4));
-        }
+    <h3>Overview</h3>
+    <p>This tool lets you layer customizable noise over any image, producing digital “film grain,” analog texture, or stylized distortion.</p>
 
-        // *** GAUSSIAN RANDOM NUMBER GENERATOR (Box-Muller Transform) ***
-        function gaussianRandom(mean = 0, stdDev = 1) {
-            let u = 0, v = 0;
-            while (u === 0) u = Math.random();
-            while (v === 0) v = Math.random();
-            let num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-            return num * stdDev + mean;
-        }
+    <h3>Controls</h3>
+    <ul>
+      <li><b>Noise Strength (σ):</b> sets how strong the noise signal is — higher means more contrast and busier grain.</li>
+      <li><b>Color Noise:</b> when on, each channel gets independent noise; when off, monochrome grain.</li>
+      <li><b>Noise Size:</b> scales the pixelation of the noise — small values = fine grain, large = chunky texture.</li>
+      <li><b>Blurriness:</b> applies Gaussian blur to the noise only, softening edges for film-like smoothness.</li>
+      <li><b>Blend Mode:</b> controls how the noise mixes with your image pixels.</li>
+      <li><b>Noise Opacity:</b> transparency of the noise layer; lower for subtle realism.</li>
+    </ul>
 
-        // *** EVENT MANAGEMENT FUNCTIONS ***
-        function bindRealTimeNoiseListeners() {
-            strengthInput.addEventListener('input', applyGaussianNoise);
-            // Blur is still bound to the real-time noise function
-            blurrinessInput.addEventListener('input', applyGaussianNoise);
-            colorNoiseToggle.addEventListener('change', applyGaussianNoise);
-        }
+    <h3>Blend Mode Reference</h3>
+    <ul>
+      <li><b>Normal:</b> places the noise directly on top — no blending math.</li>
+      <li><b>Overlay:</b> increases contrast; mid-tones stay stable, highlights brighten, shadows deepen. Great general choice.</li>
+      <li><b>Screen:</b> lightens the image, as though projecting extra light.</li>
+      <li><b>Multiply:</b> darkens, similar to stacking film transparencies.</li>
+      <li><b>Add (lighter):</b> literally adds pixel values, producing bright energetic bloom — beware of clipping.</li>
+      <li><b>Subtract (difference):</b> subtracts pixel values, creating high-contrast inversion effects.</li>
+    </ul>
 
-        function unbindRealTimeNoiseListeners() {
-            strengthInput.removeEventListener('input', applyGaussianNoise);
-            blurrinessInput.removeEventListener('input', applyGaussianNoise);
-            colorNoiseToggle.removeEventListener('change', applyGaussianNoise);
-        }
+    <h3>Workflow Tips</h3>
+    <ul>
+      <li>Fine-grain film feel → <i>Overlay</i>, opacity ≈ 0.25, blur ≈ 2 px, noise size 3–6.</li>
+      <li>Dreamy haze → <i>Screen</i>, opacity ≈ 0.2, blur ≥ 3 px, large noise size > 20.</li>
+      <li>Gritty darkness → <i>Multiply</i>, opacity ≈ 0.3, blur ≈ 1 px.</li>
+      <li>Glitch art → <i>Difference</i>, strong color noise, opacity 0.4–0.6.</li>
+    </ul>
 
-        function updateValueDisplays() {
-            strengthValueSpan.textContent = parseFloat(strengthInput.value).toFixed(1); 
-            
-            // 💡 JS CHANGE: Display the calculated, real blur radius, not the abstract slider value
-            const realBlurRadius = getLogarithmicBlurRadius(parseFloat(blurrinessInput.value));
-            blurrinessValueSpan.textContent = realBlurRadius.toFixed(1);
-        }
+    <button id="closeManual">Close</button>
+  </div>
+</div>
 
-        // *** NOISE APPLICATION FUNCTION (NOW TIMED) ***
-        function applyGaussianNoise() {
-            if (!originalPixelData) {
-                return;
-            }
+<script>
+const fileInput = document.getElementById('imageUpload');
+const originalCanvas = document.getElementById('originalCanvas');
+const noiseCanvas = document.getElementById('noiseCanvas');
+const ctxOriginal = originalCanvas.getContext('2d');
+const ctxNoise = noiseCanvas.getContext('2d');
 
-            // Start Timer
-            const startTime = performance.now();
+const strengthRange=document.getElementById('strength');
+const strengthNumber=document.getElementById('strengthValue');
+const blurrinessRange=document.getElementById('blurriness');
+const blurrinessNumber=document.getElementById('blurrinessValue');
+const colorNoiseToggle=document.getElementById('colorNoiseToggle');
+const blendModeSelect=document.getElementById('blendMode');
+const opacityRange=document.getElementById('opacity');
+const opacityNumber=document.getElementById('opacityValue');
+const noiseSizeRange=document.getElementById('noiseSize');
+const noiseSizeNumber=document.getElementById('noiseSizeValue');
+const downloadBtn=document.getElementById('downloadImage');
 
-            const stdDev = parseFloat(strengthInput.value);
-            // 💡 JS CHANGE: Get the calculated logarithmic value for the blur radius
-            const blurRadius = getLogarithmicBlurRadius(parseFloat(blurrinessInput.value));
-            const isColorNoise = colorNoiseToggle.checked;
+let originalImageData=null;
 
-            // Clone the original data array for the noisy version
-            const noisyImageData = new ImageData(
-                new Uint8ClampedArray(originalPixelData.data),
-                originalCanvas.width,
-                originalCanvas.height
-            );
-            const data = noisyImageData.data;
+function gaussianRandom(m=0,s=1){let u=0,v=0;while(u===0)u=Math.random();while(v===0)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)*s+m;}
+function getLogarithmicBlurRadius(sl){const MAX_SL=1000,MAX_BR=5;return parseFloat((MAX_BR*Math.pow(sl/MAX_SL,0.5)).toFixed(4));}
+function getSliderValueFromBlurRadius(br){const MAX_SL=1000,MAX_BR=5;return Math.max(0,Math.min(MAX_SL,Math.round(MAX_SL*Math.pow(br/MAX_BR,2))));}
 
-            for (let i = 0; i < data.length; i += 4) {
-                if (isColorNoise) {
-                    // Color Noise: Apply unique noise to R, G, B
-                    for (let j = 0; j < 3; j++) {
-                        const index = i + j;
-                        const noise = gaussianRandom(0, stdDev);
-                        let value = data[index] + noise;
-                        data[index] = Math.max(0, Math.min(255, value));
-                    }
-                } else {
-                    // B&W Noise: Apply one noise value equally to R, G, B
-                    const noise = gaussianRandom(0, stdDev);
-                    for (let j = 0; j < 3; j++) {
-                        const index = i + j;
-                        let value = data[index] + noise;
-                        data[index] = Math.max(0, Math.min(255, value));
-                    }
-                }
-            }
+function applyGaussianNoise(){
+ if(!originalImageData)return;
+ const w=originalCanvas.width,h=originalCanvas.height;
+ const std=parseFloat(strengthNumber.value)||0;
+ const blur=parseFloat(blurrinessNumber.value)||0;
+ const isColor=colorNoiseToggle.checked;
+ const mode=blendModeSelect.value;
+ const op=parseFloat(opacityNumber.value)||0;
+ const size=Math.max(1,parseInt(noiseSizeNumber.value)||1);
 
-            // Draw the noisy image
-            ctxNoise.putImageData(noisyImageData, 0, 0);
+ const sw=Math.max(1,Math.ceil(w/size)),sh=Math.max(1,Math.ceil(h/size));
+ const sC=document.createElement('canvas');sC.width=sw;sC.height=sh;
+ const sCtx=sC.getContext('2d');
+ const imgData=sCtx.createImageData(sw,sh);const d=imgData.data;
+ for(let y=0;y<sh;y++){for(let x=0;x<sw;x++){const i=(y*sw+x)*4;
+  if(isColor){d[i]=Math.max(0,Math.min(255,128+gaussianRandom(0,std)));
+  d[i+1]=Math.max(0,Math.min(255,128+gaussianRandom(0,std)));
+  d[i+2]=Math.max(0,Math.min(255,128+gaussianRandom(0,std)));}
+  else{const v=Math.max(0,Math.min(255,128+gaussianRandom(0,std)));d[i]=d[i+1]=d[i+2]=v;}
+  d[i+3]=255;}}
+ sCtx.putImageData(imgData,0,0);
 
-            // Apply Blurriness
-            if (blurRadius > 0) {
-                ctxNoise.filter = `blur(${blurRadius}px)`;
-                ctxNoise.drawImage(noiseCanvas, 0, 0);
-                ctxNoise.filter = 'none';
-            }
+ const nC=document.createElement('canvas');nC.width=w;nC.height=h;const nCtx=nC.getContext('2d');
+ nCtx.imageSmoothingEnabled=true;
+ if(blur>0){nCtx.filter=`blur(${blur}px)`;nCtx.drawImage(sC,0,0,w,h);nCtx.filter='none';}
+ else nCtx.drawImage(sC,0,0,w,h);
 
-            downloadButton.disabled = false;
-            
-            // End Timer and Check Performance
-            const endTime = performance.now();
-            const processingTime = endTime - startTime;
+ ctxNoise.clearRect(0,0,w,h);
+ ctxNoise.globalCompositeOperation='source-over';
+ ctxNoise.drawImage(originalCanvas,0,0,w,h);
+ ctxNoise.globalAlpha=op;
+ ctxNoise.globalCompositeOperation=mode;
+ ctxNoise.drawImage(nC,0,0,w,h);
+ ctxNoise.globalAlpha=1;ctxNoise.globalCompositeOperation='source-over';
+ downloadBtn.disabled=false;
+}
 
-            if (processingTime > PERFORMANCE_THRESHOLD_MS && isRealTimeControl) {
-                // Switch to manual mode
-                isRealTimeControl = false;
-                unbindRealTimeNoiseListeners();
-                manualRenderButton.classList.remove('hidden');
-                
-                alert(`⚠️ Performance Alert!\nImage processing took ${processingTime.toFixed(0)}ms. Real-time preview has been disabled to prevent lag. Please use the 'Manual Render Preview' button.`);
-            }
-        }
+function loadImageToCanvases(img){
+ const w=img.width,h=img.height;
+ originalCanvas.width=noiseCanvas.width=w;originalCanvas.height=noiseCanvas.height=h;
+ ctxOriginal.clearRect(0,0,w,h);ctxOriginal.drawImage(img,0,0,w,h);
+ originalImageData=ctxOriginal.getImageData(0,0,w,h);
+ ctxNoise.drawImage(originalCanvas,0,0);
+ applyGaussianNoise();
+}
 
-        // *** EVENT HANDLERS ***
+fileInput.addEventListener('change',ev=>{
+ const f=ev.target.files&&ev.target.files[0];if(!f)return;
+ const r=new FileReader();r.onload=e=>{
+  const img=new Image();img.onload=()=>loadImageToCanvases(img);img.src=e.target.result;
+ };r.readAsDataURL(f);
+});
 
-        // 1. Image Loading
-        fileInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const width = img.width;
-                        const height = img.height;
+[strengthRange,blurrinessRange,opacityRange,noiseSizeRange].forEach(el=>el.addEventListener('input',syncAndApply));
+[strengthNumber,blurrinessNumber,opacityNumber,noiseSizeNumber].forEach(el=>el.addEventListener('change',syncAndApply));
+[colorNoiseToggle,blendModeSelect].forEach(el=>el.addEventListener('change',applyGaussianNoise));
 
-                        originalCanvas.width = noiseCanvas.width = width;
-                        originalCanvas.height = noiseCanvas.height = height;
-                        
-                        ctxOriginal.drawImage(img, 0, 0);
-                        originalPixelData = ctxOriginal.getImageData(0, 0, width, height);
+function syncAndApply(){
+ strengthNumber.value=parseFloat(strengthRange.value).toFixed(1);
+ blurrinessNumber.value=getLogarithmicBlurRadius(parseFloat(blurrinessRange.value)).toFixed(4);
+ opacityNumber.value=parseFloat(opacityRange.value).toFixed(2);
+ noiseSizeNumber.value=parseInt(noiseSizeRange.value,10);
+ applyGaussianNoise();
+}
 
-                        noiseCanvas.classList.remove('hidden-canvas');
-                        originalCanvas.classList.remove('hidden-canvas');
+downloadBtn.addEventListener('click',()=>{
+ const a=document.createElement('a');a.download='noisy_image.png';
+ a.href=noiseCanvas.toDataURL('image/png');a.click();
+});
 
-                        // Reset to real-time mode for a new image
-                        isRealTimeControl = true;
-                        manualRenderButton.classList.add('hidden');
-                        bindRealTimeNoiseListeners(); // Re-bind on new image load
+const preview=document.querySelector('.preview-container');
+preview.addEventListener('mouseenter',()=>originalCanvas.style.opacity='1');
+preview.addEventListener('mouseleave',()=>originalCanvas.style.opacity='0');
 
-                        // Apply noise immediately (uses default blur of 2.0)
-                        applyGaussianNoise();
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        // 2. Control Updates (ALWAYS update value displays)
-        strengthInput.addEventListener('input', updateValueDisplays);
-        blurrinessInput.addEventListener('input', updateValueDisplays);
-
-        // 3. Initial binding for real-time noise
-        bindRealTimeNoiseListeners(); 
-
-        // 4. Manual Render Button Handler
-        manualRenderButton.addEventListener('click', applyGaussianNoise);
-
-        // 5. Download Button
-        downloadButton.addEventListener('click', () => {
-            const link = document.createElement('a');
-            link.download = 'noisy_image.png';
-            link.href = noiseCanvas.toDataURL('image/png');
-            link.click();
-        });
-    </script>
+/* Manual modal */
+const helpBtn=document.getElementById('helpBtn');
+const manualModal=document.getElementById('manualModal');
+const closeManual=document.getElementById('closeManual');
+helpBtn.onclick=()=>manualModal.classList.add('show');
+closeManual.onclick=()=>manualModal.classList.remove('show');
+manualModal.addEventListener('click',e=>{if(e.target===manualModal)manualModal.classList.remove('show');});
+</script>
 </body>
 </html>
