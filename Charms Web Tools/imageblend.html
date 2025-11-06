@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Exposure Recombiner (Single File — WebGL)</title>
+  <style>
+    :root{
+      --bg:#0b0b0b;
+      --panel:#111;
+      --accent:#09f;
+      --fg:#eee;
+      --muted:#999;
+      --pad:12px;
+      --radius:8px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;}
+    body{
+      background:linear-gradient(180deg,#050505 0%, #0d0d0d 100%);
+      color:var(--fg);
+      padding:20px;
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+      align-items:center;
+    }
+
+    header{width:100%;max-width:1100px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+    header h1{margin:0;font-size:16px;font-weight:600}
+    header p{margin:0;color:var(--muted);font-size:13px}
+
+    main{
+      width:100%;
+      max-width:1100px;
+      display:grid;
+      grid-template-columns:320px 1fr;
+      gap:20px;
+      align-items:start;
+    }
+
+    .controls{
+      background:var(--panel);
+      padding:var(--pad);
+      border-radius:var(--radius);
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      min-height:320px;
+      box-shadow:0 6px 18px rgba(0,0,0,0.6);
+    }
+
+    .controls label{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    .controls input[type="range"]{ width:100%; accent-color:var(--accent); }
+    .controls input[type=file]{color:var(--muted)}
+    .controls button{
+      background:transparent;
+      border:1px solid rgba(255,255,255,0.06);
+      color:var(--fg);
+      padding:8px 10px;
+      border-radius:6px;
+      cursor:pointer;
+    }
+
+    .actions{display:flex; gap:8px; margin-top:6px}
+
+    .preview{
+      min-height:420px;
+      background:linear-gradient(180deg,#0a0a0a,#0c0c0c);
+      border-radius:var(--radius);
+      padding:12px;
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      justify-content:center;
+      position:relative;
+    }
+
+    #glcanvas{
+      width:100%;
+      height:100%;
+      max-height:780px;
+      background:#000;
+      border-radius:6px;
+      flex:1 1 auto;
+      display:block;
+    }
+
+    .source-preview{
+      width:220px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      align-items:center;
+      color:var(--muted);
+      text-align:center;
+    }
+    .source-preview img{
+      width:220px;
+      height:140px;
+      object-fit:cover;
+      border-radius:6px;
+      border:1px solid rgba(255,255,255,0.04);
+    }
+    .hint{font-size:12px;margin:0;color:var(--muted)}
+    footer small{color:var(--muted); margin-top:6px}
+    .note {
+      display:block;
+      margin-top:6px;
+      color:var(--muted);
+      font-size:12px;
+    }
+    .inline-row { display:flex; gap:8px; align-items:center; }
+    output{font-weight:600;color:var(--fg);font-size:13px}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Exposure Recombiner (GPU)</h1>
+      <p class="note">Generates stacked exposures on the GPU and recombines by pixel luminance.</p>
+    </div>
+    <div style="text-align:right">
+      <small style="color:var(--muted)">Single-file demo — WebGL (fragment shader)</small>
+    </div>
+  </header>
+
+  <main>
+    <section class="controls" aria-label="controls">
+      <label>Choose an image
+        <input id="file" type="file" accept="image/*" />
+      </label>
+
+      <label>Or use sample image
+        <div class="inline-row">
+          <button id="use-sample">Load sample</button>
+          <output id="sample-name">Unsplash landscape</output>
+        </div>
+      </label>
+
+      <label>Layers
+        <div class="inline-row">
+          <input id="layers" type="range" min="2" max="64" value="12" step="1">
+          <output id="layers-out">12</output>
+        </div>
+      </label>
+
+      <label>Darkest multiplier
+        <div class="inline-row">
+          <input id="dark-mult" type="range" min="0.05" max="1.0" step="0.001" value="0.25">
+          <output id="dark-out">0.250</output>
+        </div>
+      </label>
+
+      <label>Lightest multiplier
+        <div class="inline-row">
+          <input id="light-mult" type="range" min="1.0" max="6.0" step="0.001" value="2.0">
+          <output id="light-out">2.000</output>
+        </div>
+      </label>
+
+      <label>Gamma (output)
+        <div class="inline-row">
+          <input id="gamma" type="range" min="0.25" max="3.0" step="0.001" value="1.0">
+          <output id="gamma-out">1.000</output>
+        </div>
+      </label>
+
+      <div class="actions">
+        <button id="render">Render</button>
+        <button id="download">Download PNG</button>
+      </div>
+
+      <span class="hint">Tip: drag & drop an image onto the canvas or the sample preview.</span>
+    </section>
+
+    <section class="preview" aria-label="preview">
+      <canvas id="glcanvas" role="img" aria-label="Rendered image"></canvas>
+
+      <div class="source-preview">
+        <!-- Sample image hosted online (Unsplash) — crossOrigin anonymous so it can be used as a WebGL texture -->
+        <img id="sample" src="https://images.unsplash.com/photo-1504198453319-5ce911bafcde?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3&s=7a8013d9ce2fc3a3d1f41e3a6a1f7b6a" alt="sample" crossorigin="anonymous">
+        <p class="hint">Drop an image or use the sample. GPU does the recombine.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <small>Fragment shader maps pixel luminance → exposure index and blends adjacent exposures smoothly.</small>
+  </footer>
+
+  <script>
+  (function () {
+    // DOM
+    const fileInput = document.getElementById('file');
+    const useSampleBtn = document.getElementById('use-sample');
+    const sampleImg = document.getElementById('sample');
+    const canvas = document.getElementById('glcanvas');
+    const layersInput = document.getElementById('layers');
+    const layersOut = document.getElementById('layers-out');
+    const darkInput = document.getElementById('dark-mult');
+    const darkOut = document.getElementById('dark-out');
+    const lightInput = document.getElementById('light-mult');
+    const lightOut = document.getElementById('light-out');
+    const gammaInput = document.getElementById('gamma');
+    const gammaOut = document.getElementById('gamma-out');
+    const renderBtn = document.getElementById('render');
+    const downloadBtn = document.getElementById('download');
+    const sampleName = document.getElementById('sample-name');
+
+    // initial UI values
+    layersOut.value = layersInput.value;
+    darkOut.value = parseFloat(darkInput.value).toFixed(3);
+    lightOut.value = parseFloat(lightInput.value).toFixed(3);
+    gammaOut.value = parseFloat(gammaInput.value).toFixed(3);
+
+    // WebGL context
+    const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true }) ||
+               canvas.getContext('experimental-webgl', { preserveDrawingBuffer: true });
+
+    if (!gl) {
+      document.body.innerHTML = '<p style="color:red">WebGL is not supported in this browser.</p>';
+      return;
+    }
+
+    // make sure the canvas is crisp on high-DPI displays
+    function resizeCanvasToDisplaySize() {
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const displayWidth  = Math.floor(canvas.clientWidth  * dpr);
+      const displayHeight = Math.floor(canvas.clientHeight * dpr);
+      if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+        canvas.width  = displayWidth;
+        canvas.height = displayHeight;
+      }
+    }
+
+    // vertex shader
+    const vertexSrc = `
+      attribute vec2 a_pos;
+      attribute vec2 a_uv;
+      varying vec2 v_uv;
+      void main(){
+        v_uv = a_uv;
+        gl_Position = vec4(a_pos, 0.0, 1.0);
+      }
+    `;
+
+    // fragment shader: compute luminance, map to index, compute multipliers analytically, blend
+    const fragSrc = `
+      precision mediump float;
+      varying vec2 v_uv;
+      uniform sampler2D u_image;
+      uniform float u_dark;
+      uniform float u_light;
+      uniform float u_layers;
+      uniform float u_gamma;
+
+      void main(){
+        vec4 tex = texture2D(u_image, v_uv);
+        vec3 color = tex.rgb;
+
+        // perceived luminance (Rec. 709)
+        float lum = dot(color, vec3(0.2126, 0.7152, 0.0722));
+
+        // layer mapping
+        float maxIndex = max(1.0, u_layers - 1.0);
+        float idxF = lum * maxIndex;
+
+        float idx0 = floor(idxF);
+        float idx1 = min(idx0 + 1.0, maxIndex);
+        float t = idxF - idx0;
+
+        // multiplier: linear interpolation across the exposure range (dark -> light)
+        float frac0 = idx0 / maxIndex;
+        float frac1 = idx1 / maxIndex;
+        float mult0 = mix(u_dark, u_light, frac0);
+        float mult1 = mix(u_dark, u_light, frac1);
+
+        vec3 col0 = color * mult0;
+        vec3 col1 = color * mult1;
+
+        vec3 outColor = mix(col0, col1, t);
+
+        outColor = clamp(outColor, 0.0, 1.0);
+        // apply gamma (u_gamma = 1.0 means leave linear)
+        outColor = pow(outColor, vec3(1.0 / u_gamma));
+
+        gl_FragColor = vec4(outColor, tex.a);
+      }
+    `;
+
+    // shader helpers
+    function compileShader(src, type) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error('Shader compile error:', gl.getShaderInfoLog(s));
+        throw new Error('Shader compile failed');
+      }
+      return s;
+    }
+
+    const vert = compileShader(vertexSrc, gl.VERTEX_SHADER);
+    const frag = compileShader(fragSrc, gl.FRAGMENT_SHADER);
+    const program = gl.createProgram();
+    gl.attachShader(program, vert);
+    gl.attachShader(program, frag);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.error('Program link error:', gl.getProgramInfoLog(program));
+      throw new Error('Program link failed');
+    }
+
+    // quad
+    const aPos = gl.getAttribLocation(program, 'a_pos');
+    const aUV = gl.getAttribLocation(program, 'a_uv');
+    const quadVerts = new Float32Array([
+      -1, -1,  0, 0,
+       1, -1,  1, 0,
+      -1,  1,  0, 1,
+      -1,  1,  0, 1,
+       1, -1,  1, 0,
+       1,  1,  1, 1
+    ]);
+    const quadVBO = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadVBO);
+    gl.bufferData(gl.ARRAY_BUFFER, quadVerts, gl.STATIC_DRAW);
+
+    // uniforms
+    const uniImage = gl.getUniformLocation(program, 'u_image');
+    const uniDark = gl.getUniformLocation(program, 'u_dark');
+    const uniLight = gl.getUniformLocation(program, 'u_light');
+    const uniLayers = gl.getUniformLocation(program, 'u_layers');
+    const uniGamma = gl.getUniformLocation(program, 'u_gamma');
+
+    // texture holder
+    let texture = gl.createTexture();
+
+    function createTextureFromImage(img) {
+      // create or re-use texture object
+      if (!texture) texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      // flip Y so UV matches DOM image
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      // try to avoid premultiply issues
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      return texture;
+    }
+
+    // draw routine
+    function draw(img) {
+      // set canvas CSS size based on image aspect ratio
+      const containerWidth = Math.max(320, Math.min(window.innerWidth - 380, 900));
+      const maxHeight = window.innerHeight - 200;
+      const aspect = img.width / img.height;
+      const cssWidth = Math.min(containerWidth, Math.round(maxHeight * aspect));
+      const cssHeight = Math.min(maxHeight, Math.round(cssWidth / aspect));
+      canvas.style.width = cssWidth + 'px';
+      canvas.style.height = cssHeight + 'px';
+
+      resizeCanvasToDisplaySize();
+      gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+
+      gl.useProgram(program);
+
+      // bind quad geometry
+      gl.bindBuffer(gl.ARRAY_BUFFER, quadVBO);
+      gl.enableVertexAttribArray(aPos);
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 16, 0);
+      gl.enableVertexAttribArray(aUV);
+      gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 16, 8);
+
+      // upload texture
+      createTextureFromImage(img);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.uniform1i(uniImage, 0);
+
+      // uniforms
+      gl.uniform1f(uniDark, parseFloat(darkInput.value));
+      gl.uniform1f(uniLight, parseFloat(lightInput.value));
+      gl.uniform1f(uniLayers, parseFloat(layersInput.value));
+      gl.uniform1f(uniGamma, parseFloat(gammaInput.value));
+
+      // draw
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+
+    // image loading helpers
+    function loadImageFromURL(url, cb) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => cb(img);
+      img.onerror = (e) => { console.error('Failed to load image', e); alert('Failed to load image'); };
+      img.src = url;
+    }
+
+    function loadImageFromFile(file, cb) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => cb(img);
+        img.onerror = (e) => { console.error(e); alert('Invalid image'); };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // UI events
+    fileInput.addEventListener('change', (ev) => {
+      const f = ev.target.files && ev.target.files[0];
+      if (!f) return;
+      sampleName.textContent = f.name;
+      loadImageFromFile(f, (img) => {
+        sampleImg.src = img.src;
+        draw(img);
+      });
+    });
+
+    useSampleBtn.addEventListener('click', () => {
+      sampleName.textContent = 'Unsplash landscape';
+      if (!sampleImg.complete || !sampleImg.naturalWidth) {
+        sampleImg.onload = () => draw(sampleImg);
+      } else {
+        draw(sampleImg);
+      }
+    });
+
+    layersInput.addEventListener('input', () => { layersOut.value = layersInput.value; });
+    darkInput.addEventListener('input', () => { darkOut.value = parseFloat(darkInput.value).toFixed(3); });
+    lightInput.addEventListener('input', () => { lightOut.value = parseFloat(lightInput.value).toFixed(3); });
+    gammaInput.addEventListener('input', () => { gammaOut.value = parseFloat(gammaInput.value).toFixed(3); });
+
+    renderBtn.addEventListener('click', () => {
+      if (!sampleImg.complete || !sampleImg.naturalWidth) {
+        sampleImg.onload = () => draw(sampleImg);
+      } else {
+        draw(sampleImg);
+      }
+    });
+
+    // drag & drop
+    ['dragenter','dragover','dragleave','drop'].forEach(evt => {
+      document.addEventListener(evt, (e) => {
+        if (evt === 'drop') e.preventDefault();
+        e.stopPropagation();
+      });
+    });
+
+    canvas.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) {
+        sampleName.textContent = f.name;
+        loadImageFromFile(f, (img) => {
+          sampleImg.src = img.src;
+          draw(img);
+        });
+      }
+    });
+
+    // allow dropping on sample preview too
+    sampleImg.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) {
+        sampleName.textContent = f.name;
+        loadImageFromFile(f, (img) => {
+          sampleImg.src = img.src;
+          draw(img);
+        });
+      }
+    });
+
+    // download canvas
+    downloadBtn.addEventListener('click', () => {
+      // preserveDrawingBuffer must be true to allow readback; we set it at context creation
+      const dataURL = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataURL;
+      a.download = 'exposure_recombined.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+
+    // keyboard: R to re-render
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'r' || e.key === 'R') renderBtn.click();
+    });
+
+    // keep canvas sized on resize
+    window.addEventListener('resize', () => {
+      if (sampleImg && sampleImg.complete) {
+        draw(sampleImg);
+      }
+    });
+
+    // initial draw when sample is ready
+    if (sampleImg.complete && sampleImg.naturalWidth) {
+      draw(sampleImg);
+    } else {
+      sampleImg.onload = () => draw(sampleImg);
+    }
+
+    // small UX: clicking the sample image loads it into the renderer
+    sampleImg.style.cursor = 'pointer';
+    sampleImg.addEventListener('click', () => {
+      sampleName.textContent = 'Unsplash landscape';
+      draw(sampleImg);
+    });
+
+    // End IIFE
+  })();
+  </script>
+</body>
+</html>
