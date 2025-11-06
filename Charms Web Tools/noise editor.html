@@ -15,8 +15,7 @@
         color:var(--fg);
         font-family:monospace;
         padding:20px;
-        display:flex;
-        gap:20px;
+        display:flex; gap:20px;
         box-sizing:border-box;
         align-items:flex-start;
         min-height:100vh;
@@ -61,6 +60,9 @@
     }
     #originalCanvas { transition: opacity 500ms; z-index:2; pointer-events:none; opacity:0; }
     #noiseCanvas    { z-index:1; pointer-events:auto; }
+
+    /* overlay canvas used during blend-mode crossfade */
+    .overlay-canvas { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:block; max-width:none; max-height:none; image-rendering:auto; z-index:3; pointer-events:none; opacity:0; transition: opacity 100ms linear; }
 
     /* Modal */
     .modal-overlay{
@@ -195,6 +197,7 @@
             <!-- canvases hold full-resolution image. CSS size will be computed to fit previewArea -->
             <canvas id="noiseCanvas"></canvas>
             <canvas id="originalCanvas"></canvas>
+            <!-- overlay canvas will be created dynamically when scrolling -->
         </div>
 
         <!-- tip removed as requested -->
@@ -333,20 +336,12 @@ function fitCanvasesToPreview(){
 }
 
 /* -------------------------
-   Main noise pipeline
+   Helper: Generate noise bitmap (returns a canvas sized to w x h with the blurred noise)
+   This duplicates the noise-generation part of applyGaussianNoise but isolates it for reuse
    ------------------------- */
-function applyGaussianNoise(){
-    if(!originalImageData) return;
-    const w = originalCanvas.width;
-    const h = originalCanvas.height;
-
-    const std = parseFloat(strengthNumber.value) || 0.0;
-    const blurSlider = parseFloat(blurrinessRange.value) || 0.0;
+function generateNoiseFullCanvas(w, h, params){
+    const { std, isColor, blurSlider, noiseSlider } = params;
     const blurPx = blurFromSlider(blurSlider);
-    const isColor = colorNoiseToggle.checked;
-    const blend = blendModeSelect.value || 'source-over';
-    const opacity = parseFloat(opacityNumber.value) || 0.0;
-    const noiseSlider = parseFloat(noiseSizeRange.value) || 1.0;
     const noiseSize = noiseSizeFromSlider(noiseSlider);
 
     const smallW = Math.max(1, Math.round(w / noiseSize));
@@ -386,6 +381,30 @@ function applyGaussianNoise(){
     } else {
         nfCtx.drawImage(smallCanvas, 0, 0, w, h);
     }
+
+    return noiseFull;
+}
+
+/* -------------------------
+   Main noise pipeline (unchanged; kept for normal live updates)
+   ------------------------- */
+function applyGaussianNoise(){
+    if(!originalImageData) return;
+    const w = originalCanvas.width;
+    const h = originalCanvas.height;
+
+    const std = parseFloat(strengthNumber.value) || 0.0;
+    const blurSlider = parseFloat(blurrinessRange.value) || 0.0;
+    const blurPx = blurFromSlider(blurSlider);
+    const isColor = colorNoiseToggle.checked;
+    const blend = blendModeSelect.value || 'source-over';
+    const opacity = parseFloat(opacityNumber.value) || 0.0;
+    const noiseSlider = parseFloat(noiseSizeRange.value) || 1.0;
+    const noiseSize = noiseSizeFromSlider(noiseSlider);
+
+    const noiseFull = generateNoiseFullCanvas(w, h, {
+        std, isColor, blurSlider, noiseSlider
+    });
 
     // composite: draw original then blend noise over it on noiseCanvas
     ctxNoise.clearRect(0,0,w,h);
@@ -515,11 +534,201 @@ fileInput.addEventListener('change', (ev) => {
 });
 
 /* -------------------------
-   Hover reveal
+   Hover & Scroll reveal behaviour (NEW)
+   - Scroll while hovering cycles blend modes
+   - Each change crossfades (100ms)
+   - After 2s of no scroll while still hovering show original image again
+   - Leaving preview shows edited image (original opacity 0)
    ------------------------- */
+
 const previewContainer = previewArea;
-previewContainer.addEventListener('mouseenter', ()=> originalCanvas.style.opacity = '1');
-previewContainer.addEventListener('mouseleave', ()=> originalCanvas.style.opacity = '0');
+
+// Blend modes in same order as select
+const blendModes = Array.from(blendModeSelect.options).map(o => o.value);
+let currentBlendIndex = blendModes.indexOf(blendModeSelect.value || 'overlay');
+if(currentBlendIndex === -1) currentBlendIndex = 0;
+
+// state
+let scrollInactivityTimer = null;
+let overlayCanvas = null;
+let activeTransition = null; // used to cancel overlapping transitions
+let scrollModeActive = false;  // true when user scrolled recently and we are in "previewing blends" mode
+
+// helpers
+function clearScrollInactivityTimer(){
+    if(scrollInactivityTimer) { clearTimeout(scrollInactivityTimer); scrollInactivityTimer = null; }
+}
+function scheduleRevertToOriginal(){
+    clearScrollInactivityTimer();
+    scrollInactivityTimer = setTimeout(()=> {
+        // only revert if still hovering
+        if(isPointerOverPreview){
+            scrollModeActive = false;
+            // fade original back in (originalCanvas has CSS transition 500ms already)
+            originalCanvas.style.opacity = '1';
+            // remove any overlay that might linger
+            removeOverlayCanvasImmediate();
+        }
+        scrollInactivityTimer = null;
+    }, 2000);
+}
+function removeOverlayCanvasImmediate(){
+    if(overlayCanvas && overlayCanvas.parentElement){
+        overlayCanvas.parentElement.removeChild(overlayCanvas);
+    }
+    overlayCanvas = null;
+    activeTransition = null;
+}
+
+// returns promise resolved after transition complete (100ms)
+function crossfadeToBlend(mode){
+    return new Promise((resolve) => {
+        if(!originalImageData) { resolve(); return; }
+        const w = originalCanvas.width, h = originalCanvas.height;
+        // Generate noiseFull using current UI param values but override blend to `mode`
+        const std = parseFloat(strengthNumber.value) || 0.0;
+        const blurSlider = parseFloat(blurrinessRange.value) || 0.0;
+        const isColor = colorNoiseToggle.checked;
+        const opacity = parseFloat(opacityNumber.value) || 0.0;
+        const noiseSlider = parseFloat(noiseSizeRange.value) || 1.0;
+
+        const noiseFull = generateNoiseFullCanvas(w, h, {
+            std, isColor, blurSlider, noiseSlider
+        });
+
+        // Build overlay canvas that has the composed result for this blend mode
+        const ov = document.createElement('canvas');
+        ov.width = w; ov.height = h;
+        ov.className = 'overlay-canvas';
+        // match CSS sizing so it lines up
+        ov.style.width = noiseCanvas.style.width;
+        ov.style.height = noiseCanvas.style.height;
+        ov.style.left = noiseCanvas.style.left;
+        ov.style.top = noiseCanvas.style.top;
+        ov.style.transform = noiseCanvas.style.transform;
+        ov.style.opacity = '0';
+
+        const ovCtx = ov.getContext('2d');
+        ovCtx.clearRect(0,0,w,h);
+        ovCtx.globalCompositeOperation = 'source-over';
+        ovCtx.drawImage(originalCanvas, 0, 0, w, h);
+
+        ovCtx.globalAlpha = opacity;
+        ovCtx.globalCompositeOperation = mode;
+        ovCtx.drawImage(noiseFull, 0, 0, w, h);
+
+        // reset
+        ovCtx.globalAlpha = 1.0;
+        ovCtx.globalCompositeOperation = 'source-over';
+
+        // remove previous overlay if present and not yet removed (we'll replace)
+        if(overlayCanvas && overlayCanvas.parentElement){
+            overlayCanvas.parentElement.removeChild(overlayCanvas);
+            overlayCanvas = null;
+        }
+        overlayCanvas = ov;
+
+        // append and trigger the fade-in
+        previewArea.appendChild(overlayCanvas);
+
+        // force reflow
+        void overlayCanvas.offsetWidth;
+
+        // make sure original image isn't visible while previewing blends
+        originalCanvas.style.opacity = '0';
+
+        // cancel previous transition if still running
+        if(activeTransition && activeTransition.cancel) activeTransition.cancel();
+
+        let cancelled = false;
+        activeTransition = {
+            cancel: ()=> { cancelled = true; }
+        };
+
+        // start fade-in
+        overlayCanvas.style.opacity = '1';
+
+        // after fade completes (100ms) copy overlay pixels into noiseCanvas to become the new baseline,
+        // then remove overlay.
+        const t = setTimeout(()=> {
+            if(cancelled){
+                // cleanup and bail
+                if(overlayCanvas && overlayCanvas.parentElement) overlayCanvas.parentElement.removeChild(overlayCanvas);
+                overlayCanvas = null;
+                activeTransition = null;
+                resolve();
+                return;
+            }
+            try{
+                // copy rendered overlay contents into noiseCanvas bitmap
+                ctxNoise.clearRect(0,0,w,h);
+                ctxNoise.drawImage(overlayCanvas, 0, 0, w, h);
+            }catch(e){
+                // ignore errors
+            }
+            // remove overlay
+            if(overlayCanvas && overlayCanvas.parentElement) overlayCanvas.parentElement.removeChild(overlayCanvas);
+            overlayCanvas = null;
+            activeTransition = null;
+            resolve();
+        }, 110); // slightly more than 100ms to be safe
+    });
+}
+
+// wheel handler to change blend mode index
+function wheelCycleBlendMode(ev){
+    if(!originalImageData) return;
+    // keep default scrolling for page? Prevent to avoid accidental scrolling while hovering area
+    ev.preventDefault();
+
+    const delta = ev.deltaY || ev.wheelDelta || 0;
+    if(delta === 0) return;
+
+    // determine direction
+    const dir = delta > 0 ? 1 : -1;
+    currentBlendIndex = (currentBlendIndex + dir + blendModes.length) % blendModes.length;
+
+    const mode = blendModes[currentBlendIndex];
+    // reflect in UI select *but do not call its change handler* automatically (we'll update the UI value and render)
+    blendModeSelect.value = mode;
+
+    // entering scroll-preview mode
+    scrollModeActive = true;
+    // ensure original hidden so edited is visible
+    originalCanvas.style.opacity = '0';
+
+    // crossfade to the newly rendered blend result
+    crossfadeToBlend(mode);
+
+    // reset inactivity revert timer
+    scheduleRevertToOriginal();
+}
+
+// pointer state tracking
+let isPointerOverPreview = false;
+previewContainer.addEventListener('mouseenter', (e)=> {
+    isPointerOverPreview = true;
+    // If we haven't entered scroll-preview mode recently, show original (old behavior)
+    if(!scrollModeActive){
+        originalCanvas.style.opacity = '1';
+    } else {
+        // if in scroll preview mode, keep original hidden (we're previewing blends)
+        originalCanvas.style.opacity = '0';
+    }
+});
+previewContainer.addEventListener('mouseleave', (e)=> {
+    isPointerOverPreview = false;
+    // leaving preview: always show edited (noise) canvas and cancel revert timers
+    clearScrollInactivityTimer();
+    scrollModeActive = false;
+    originalCanvas.style.opacity = '0';
+    // remove any overlay (but keep the current composite on noiseCanvas)
+    removeOverlayCanvasImmediate();
+});
+
+// add wheel listener for scrolling through blends
+// use passive: false so we can preventDefault to avoid page scroll
+previewContainer.addEventListener('wheel', wheelCycleBlendMode, { passive: false });
 
 /* -------------------------
    Download
