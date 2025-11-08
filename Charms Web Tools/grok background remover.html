@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Color Fader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom Slider Styles */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #1f2937;
+            border-radius: 9999px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #06b6d4;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.2);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #06b6d4;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.2);
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            background: #06b6d4;
+            height: 6px;
+            border-radius: 9999px;
+        }
+        input[type="range"]::-moz-range-track {
+            background: #06b6d4;
+            height: 6px;
+            border-radius: 9999px;
+        }
+        /* Custom Toggle Styles */
+        .toggle-checkbox {
+            position: absolute;
+            opacity: 0;
+        }
+        .toggle-label {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 42px;
+            height: 24px;
+            background-color: #4b5563;
+            border-radius: 9999px;
+            transition: background-color 0.3s;
+        }
+        .toggle-switch::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        .toggle-checkbox:checked + .toggle-switch {
+            background-color: #06b6d4;
+        }
+        .toggle-checkbox:checked + .toggle-switch::before {
+            transform: translateX(18px);
+        }
+        /* Canvas Container */
+        #image-canvas {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 8px;
+            background: #111;
+        }
+        /* Hover Effects */
+        button:hover {
+            transform: scale(1.05);
+            transition: transform 0.2s;
+        }
+        /* Message Box */
+        #message-box {
+            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #06b6d4;
+        }
+        #performance-warning {
+            background: rgba(234, 179, 8, 0.8);
+            color: black;
+            border: 1px solid #d97706;
+        }
+    </style>
+</head>
+<body class="bg-black text-white min-h-screen flex flex-col items-center justify-center p-4 font-sans antialiased">
+    <div id="message-box" class="fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg hidden z-50"></div>
+    <div id="performance-warning" class="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 px-4 py-2 rounded-lg shadow-lg hidden z-50 max-w-md">
+        Warning: Large image detected. Real-time preview may cause slowdowns. Consider disabling it for better performance.
+    </div>
+    <div class="w-full max-w-7xl flex flex-col md:flex-row gap-6">
+        <!-- Canvas Area -->
+        <div class="flex-1 flex flex-col items-center">
+            <canvas id="image-canvas" class="border-4 border-white rounded-lg max-w-full h-auto"></canvas>
+            <div class="mt-2 text-cyan-400 font-medium">Resolution: <span id="resolution">N/A</span></div>
+            <div class="mt-4 flex flex-wrap gap-4 justify-center">
+                <button id="upload-button" class="bg-cyan-500 text-black px-4 py-2 rounded-lg shadow-md font-semibold">Upload Image</button>
+                <input type="file" id="image-upload" accept="image/*" class="hidden">
+                <button id="reset-button" class="bg-gray-600 px-4 py-2 rounded-lg shadow-md font-semibold" disabled>Reset Image</button>
+                <button id="download-button" class="bg-cyan-500 text-black px-4 py-2 rounded-lg shadow-md font-semibold" disabled>Download Image</button>
+            </div>
+        </div>
+        <!-- Info Panel -->
+        <div class="w-full md:w-72 bg-gray-900 p-6 rounded-lg shadow-lg flex flex-col gap-4">
+            <h2 class="text-lg font-semibold text-cyan-400">Selected Color</h2>
+            <div id="color-swatch" class="w-24 h-24 rounded-lg shadow-md border border-gray-700"></div>
+            <div class="flex items-center gap-2">
+                <span class="font-medium">HEX:</span>
+                <span id="hex-display" class="flex-1 bg-gray-800 p-2 rounded-md">#000000</span>
+                <button id="copy-hex" class="bg-cyan-500 text-black px-3 py-1 rounded-md font-medium">Copy</button>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="font-medium">RGB:</span>
+                <span id="rgb-display" class="flex-1 bg-gray-800 p-2 rounded-md">rgb(0, 0, 0)</span>
+                <button id="copy-rgb" class="bg-cyan-500 text-black px-3 py-1 rounded-md font-medium">Copy</button>
+            </div>
+        </div>
+        <!-- Control Panel -->
+        <div class="w-full md:w-96 bg-gray-900 p-6 rounded-lg shadow-lg flex flex-col gap-8">
+            <!-- Section 1: Replacement Settings -->
+            <div class="flex flex-col gap-4">
+                <h3 class="text-lg font-semibold text-cyan-400">Replacement Settings</h3>
+                <div class="flex items-center gap-2">
+                    <span class="font-medium">Color:</span>
+                    <input type="color" id="replacement-color" value="#ffffff" class="w-10 h-10 rounded-md cursor-pointer">
+                    <span id="replacement-hex" class="flex-1 bg-gray-800 p-2 rounded-md">#FFFFFF</span>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <span class="font-medium">Opacity: <span id="opacity-value">100</span>%</span>
+                    <input type="range" id="opacity-slider" min="0" max="100" value="100" step="1">
+                </div>
+                <label class="toggle-label">
+                    <input type="checkbox" id="real-time-toggle" class="toggle-checkbox">
+                    <div class="toggle-switch mr-3"></div>
+                    <span class="font-medium">Real-Time Preview</span>
+                </label>
+                <button id="apply-button" class="bg-cyan-500 text-black px-4 py-2 rounded-lg shadow-md font-semibold w-full">Apply Filter</button>
+            </div>
+            <!-- Section 2: Selection Mode -->
+            <div class="flex flex-col gap-4">
+                <h3 class="text-lg font-semibold text-cyan-400">Selection Mode</h3>
+                <label class="toggle-label">
+                    <input type="checkbox" id="mode-toggle" class="toggle-checkbox">
+                    <div class="toggle-switch mr-3"></div>
+                    <span class="font-medium">Area Selection (Unchecked: Global)</span>
+                </label>
+            </div>
+            <!-- Section 3: Advanced Refinement -->
+            <div class="flex flex-col gap-4">
+                <h3 class="text-lg font-semibold text-cyan-400">Advanced Refinement</h3>
+                <div class="flex flex-col gap-1">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="tolerance-toggle" class="toggle-checkbox">
+                        <div class="toggle-switch mr-3"></div>
+                        <span class="font-medium">Tolerance</span>
+                    </label>
+                    <input type="range" id="tolerance-slider" min="0" max="50" value="0" step="1" disabled>
+                </div>
+                <label class="toggle-label">
+                    <input type="checkbox" id="invert-toggle" class="toggle-checkbox">
+                    <div class="toggle-switch mr-3"></div>
+                    <span class="font-medium">Invert Selection</span>
+                </label>
+                <div class="flex flex-col gap-1">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="smoothing-toggle" class="toggle-checkbox">
+                        <div class="toggle-switch mr-3"></div>
+                        <span class="font-medium">Edge Smoothing</span>
+                    </label>
+                    <input type="range" id="smoothing-slider" min="0.1" max="1" value="0.5" step="0.05" disabled>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const __app_id = 'placeholder';
+        const __firebase_config = {};
+        const __initial_auth_token = 'placeholder';
+
+        const canvas = document.getElementById('image-canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        let originalImageData = null;
+        let selectedColor = { r: 0, g: 0, b: 0, a: 255 };
+        let selectedAreaPixels = new Set();
+
+        function drawPlaceholder() {
+            canvas.width = 800;
+            canvas.height = 400;
+            ctx.fillStyle = '#1f2937';
+            ctx.fillRect(0, 0, 800, 400);
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '24px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('Upload an image to begin.', 400, 200);
+            document.getElementById('resolution').textContent = 'N/A';
+        }
+        drawPlaceholder();
+
+        function showMessage(text, type = 'info') {
+            const box = document.getElementById('message-box');
+            box.textContent = text;
+            box.classList.remove('bg-green-500', 'bg-red-500', 'bg-blue-500');
+            if (type === 'success') box.classList.add('bg-green-500');
+            else if (type === 'error') box.classList.add('bg-red-500');
+            else box.classList.add('bg-blue-500');
+            box.classList.remove('hidden');
+            setTimeout(() => box.classList.add('hidden'), 3000);
+        }
+
+        function rgbToHex(r, g, b) {
+            return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+        }
+
+        function hexToRgb(hex) {
+            hex = hex.replace('#', '');
+            return {
+                r: parseInt(hex.substring(0, 2), 16),
+                g: parseInt(hex.substring(2, 4), 16),
+                b: parseInt(hex.substring(4, 6), 16)
+            };
+        }
+
+        function copyText(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showMessage('Copied to clipboard!', 'success');
+        }
+
+        function updateInfoPanel() {
+            document.getElementById('color-swatch').style.backgroundColor = `rgb(${selectedColor.r}, ${selectedColor.g}, ${selectedColor.b})`;
+            const hex = rgbToHex(selectedColor.r, selectedColor.g, selectedColor.b);
+            document.getElementById('hex-display').textContent = hex;
+            document.getElementById('rgb-display').textContent = `rgb(${selectedColor.r}, ${selectedColor.g}, ${selectedColor.b})`;
+        }
+
+        function colorDistance(c1, c2) {
+            return Math.sqrt((c1.r - c2.r) ** 2 + (c1.g - c2.g) ** 2 + (c1.b - c2.b) ** 2);
+        }
+
+        function getPixel(x, y, data, width) {
+            const idx = (y * width + x) * 4;
+            return { r: data[idx], g: data[idx + 1], b: data[idx + 2], a: data[idx + 3] };
+        }
+
+        function floodFill(startX, startY) {
+            const tolerance = document.getElementById('tolerance-toggle').checked ? parseFloat(document.getElementById('tolerance-slider').value) : 0;
+            const width = canvas.width;
+            const height = canvas.height;
+            const pixelData = originalImageData.data;
+            const targetColor = getPixel(startX, startY, pixelData, width);
+            const stack = [[startX, startY]];
+            const visited = new Set();
+            selectedAreaPixels.clear();
+
+            while (stack.length) {
+                const [x, y] = stack.pop();
+                const key = y * width + x;
+                if (visited.has(key)) continue;
+                visited.add(key);
+                const color = getPixel(x, y, pixelData, width);
+                if (colorDistance(targetColor, color) > tolerance) continue;
+                selectedAreaPixels.add(key);
+
+                if (x > 0) stack.push([x - 1, y]);
+                if (x < width - 1) stack.push([x + 1, y]);
+                if (y > 0) stack.push([x, y - 1]);
+                if (y < height - 1) stack.push([x, y + 1]);
+            }
+        }
+
+        function isEdge(x, y, width, height, isArea, areaSet, tolerance, data, selectedColor, isMatchBase) {
+            const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+            for (let [dx, dy] of directions) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (nx < 0 || nx >= width || ny < 0 || ny >= height) return true;
+                let nMatch;
+                if (isArea) {
+                    const nKey = ny * width + nx;
+                    nMatch = areaSet.has(nKey);
+                } else {
+                    const nPixel = getPixel(nx, ny, data, width);
+                    nMatch = colorDistance(selectedColor, nPixel) <= tolerance;
+                }
+                if (nMatch !== isMatchBase) return true;
+            }
+            return false;
+        }
+
+        function applyFilter() {
+            if (!originalImageData) return;
+            const width = canvas.width;
+            const height = canvas.height;
+            const data = new Uint8ClampedArray(originalImageData.data);
+            const tolerance = document.getElementById('tolerance-toggle').checked ? parseFloat(document.getElementById('tolerance-slider').value) : 0;
+            const opacity = parseFloat(document.getElementById('opacity-slider').value) / 100;
+            const replacement = hexToRgb(document.getElementById('replacement-color').value);
+            const invert = document.getElementById('invert-toggle').checked;
+            const smoothingFactor = document.getElementById('smoothing-toggle').checked ? parseFloat(document.getElementById('smoothing-slider').value) : 0;
+            const isArea = document.getElementById('mode-toggle').checked;
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    const pixel = getPixel(x, y, data, width);
+                    let isMatch = isArea ? selectedAreaPixels.has(y * width + x) : colorDistance(selectedColor, pixel) <= tolerance;
+                    const isMatchBase = isMatch; // Before invert for edge detection
+                    if (invert) isMatch = !isMatch;
+                    if (isMatch) {
+                        let finalOpacity = opacity;
+                        if (smoothingFactor > 0 && isEdge(x, y, width, height, isArea, selectedAreaPixels, tolerance, data, selectedColor, isMatchBase)) {
+                            finalOpacity *= smoothingFactor;
+                        }
+                        data[idx] = pixel.r * (1 - finalOpacity) + replacement.r * finalOpacity;
+                        data[idx + 1] = pixel.g * (1 - finalOpacity) + replacement.g * finalOpacity;
+                        data[idx + 2] = pixel.b * (1 - finalOpacity) + replacement.b * finalOpacity;
+                    }
+                }
+            }
+            ctx.putImageData(new ImageData(data, width, height), 0, 0);
+            showMessage('Filter applied!', 'success');
+        }
+
+        // Event Listeners
+        document.getElementById('upload-button').addEventListener('click', () => document.getElementById('image-upload').click());
+        document.getElementById('image-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const img = new Image();
+            img.onload = () => {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                document.getElementById('resolution').textContent = `${img.width} x ${img.height}`;
+                document.getElementById('reset-button').disabled = false;
+                document.getElementById('download-button').disabled = false;
+                if (img.width > 2000 || img.height > 2000) {
+                    document.getElementById('performance-warning').classList.remove('hidden');
+                } else {
+                    document.getElementById('performance-warning').classList.add('hidden');
+                }
+                showMessage('Image loaded successfully!', 'success');
+                selectedAreaPixels.clear();
+                updateInfoPanel();
+            };
+            img.src = URL.createObjectURL(file);
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (!originalImageData) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / rect.width * canvas.width);
+            const y = Math.floor((e.clientY - rect.top) / rect.height * canvas.height);
+            const pixelData = ctx.getImageData(x, y, 1, 1).data;
+            selectedColor = { r: pixelData[0], g: pixelData[1], b: pixelData[2], a: pixelData[3] };
+            updateInfoPanel();
+            if (document.getElementById('mode-toggle').checked) {
+                floodFill(x, y);
+            }
+            if (document.getElementById('real-time-toggle').checked) applyFilter();
+        });
+
+        document.getElementById('reset-button').addEventListener('click', () => {
+            if (originalImageData) {
+                ctx.putImageData(originalImageData, 0, 0);
+                showMessage('Image reset to original.', 'info');
+            }
+        });
+
+        document.getElementById('download-button').addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'image-color-fader.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            showMessage('Image downloaded!', 'success');
+        });
+
+        document.getElementById('copy-hex').addEventListener('click', () => copyText(document.getElementById('hex-display').textContent));
+        document.getElementById('copy-rgb').addEventListener('click', () => copyText(document.getElementById('rgb-display').textContent));
+
+        document.getElementById('replacement-color').addEventListener('input', (e) => {
+            document.getElementById('replacement-hex').textContent = e.target.value.toUpperCase();
+            if (document.getElementById('real-time-toggle').checked) applyFilter();
+        });
+
+        document.getElementById('opacity-slider').addEventListener('input', (e) => {
+            document.getElementById('opacity-value').textContent = e.target.value;
+            if (document.getElementById('real-time-toggle').checked) applyFilter();
+        });
+
+        document.getElementById('apply-button').addEventListener('click', applyFilter);
+
+        const realTimeToggle = document.getElementById('real-time-toggle');
+        realTimeToggle.addEventListener('change', () => {
+            if (realTimeToggle.checked) applyFilter();
+        });
+
+        document.getElementById('mode-toggle').addEventListener('change', () => {
+            selectedAreaPixels.clear();
+            if (document.getElementById('real-time-toggle').checked) applyFilter();
+        });
+
+        document.getElementById('tolerance-toggle').addEventListener('change', (e) => {
+            document.getElementById('tolerance-slider').disabled = !e.target.checked;
+            if (document.getElementById('real-time-toggle').checked) applyFilter();
+        });
+
+        document.getElementById('tolerance-slider').addEventListener('input', () => {
+            if (document.getElementById('real-time-toggle').checked) applyFilter();
+        });
+
+        document.getElementById('invert-toggle').addEventListener('change', () => {
+            if (document.getElementById('real-time-toggle').checked) applyFilter();
+        });
+
+        document.getElementById('smoothing-toggle').addEventListener('change', (e) => {
+            document.getElementById('smoothing-slider').disabled = !e.target.checked;
+            if (document.getElementById('real-time-toggle').checked) applyFilter();
+        });
+
+        document.getElementById('smoothing-slider').addEventListener('input', () => {
+            if (document.getElementById('real-time-toggle').checked) applyFilter();
+        });
+    </script>
+</body>
+</html>

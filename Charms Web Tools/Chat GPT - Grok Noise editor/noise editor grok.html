@@ -1,0 +1,2374 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /><title>Digital Grain Studio</title><style>
+  
+    /* ---- Theme / Layout ---- */
+  
+    :root{
+  
+        --bg:#000; --fg:#fff; --panel-max:420px;
+  
+    }
+  
+    html,body{height:100%; margin:0;}
+  
+    body {
+  
+        background:var(--bg);
+  
+        color:var(--fg);
+  
+        font-family:monospace;
+  
+        padding:20px;
+  
+        display:flex; gap:20px;
+  
+        box-sizing:border-box;
+  
+        align-items:flex-start;
+  
+        min-height:100vh;
+  
+    }
+  
+    .container{display:flex; gap:20px; width:100%;}
+  
+    .controls-panel{flex:1; min-width:260px; max-width:var(--panel-max); padding:10px; box-sizing:border-box;}
+  
+    .preview-panel{flex:2; padding:10px; box-sizing:border-box; min-width:320px; display:flex; flex-direction:column; gap:8px;}
+  
+
+  
+    h1,h3{margin:0 0 12px 0; text-align:center;}
+  
+    .small-note{font-size:12px; opacity:0.9; text-align:center; margin-top:6px;}
+  
+
+  
+    fieldset{border:1px solid var(--fg); padding:8px; margin-bottom:12px;}
+  
+    legend{padding:0 6px;}
+  
+    .control-row{display:flex; gap:10px; align-items:center; margin-bottom:8px;}
+  
+    /* Make label fixed-width to avoid overlap with controls */
+  
+    .control-row label{flex:0 0 140px; font-weight:bold; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  
+    /* ranges take remaining space */
+  
+    input[type="range"]{flex:1; min-width:0;}
+  
+    /* number boxes compact */
+  
+    .control-value{width:80px; padding:2px 6px; text-align:right; background:var(--bg); color:var(--fg); border:1px solid var(--fg); box-sizing:border-box; font-family:monospace; flex:0 0 80px;}
+  
+    /* select should expand if needed, but not overlap the label */
+  
+    select.control-value{flex:1; min-width:120px; padding:4px 6px; box-sizing:border-box;}
+  
+
+  
+    button{background:var(--bg); color:var(--fg); border:1px solid var(--fg); padding:8px; cursor:pointer; width:100%; box-sizing:border-box; font-family:monospace;}
+  
+    button:hover:not(:disabled){background:#222;}
+  
+
+  
+    /* Preview container: we will measure available space and scale CSS size of canvas to fit */
+  
+    .preview-top{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  
+    .preview-container{position:relative; border:1px solid var(--fg); background:#070707; align-self:stretch; overflow:hidden; display:flex; align-items:center; justify-content:center;}
+  
+    /* The canvases hold full pixel buffer; we'll control CSS size to fit area
+  
+       Make canvases absolutely positioned and centered so they always overlay exactly */
+  
+    canvas{
+  
+        position:absolute;
+  
+        top:50%;
+  
+        left:50%;
+  
+        transform:translate(-50%,-50%);
+  
+        display:block;
+  
+        max-width:none;
+  
+        max-height:none;
+  
+        image-rendering:auto;
+  
+        /* default styles for stacking */
+  
+    }
+  
+    #originalCanvas { transition: opacity 500ms; z-index:2; pointer-events:none; opacity:0; }
+  
+    #noiseCanvas    { z-index:1; pointer-events:auto; }
+  
+
+  
+    /* overlay canvas used during blend-mode crossfade */
+  
+    .overlay-canvas { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:block; max-width:none; max-height:none; image-rendering:auto; z-index:3; pointer-events:none; opacity:0; transition: opacity 100ms linear; }
+  
+
+  
+    /* Modal */
+  
+    .modal-overlay{
+  
+        position:fixed; inset:0; background:rgba(0,0,0,0.85);
+  
+        display:flex; align-items:center; justify-content:center;
+  
+        opacity:0; pointer-events:none; transition:opacity 0.4s ease; z-index:1000;
+  
+    }
+  
+    .modal-overlay.show{opacity:1; pointer-events:auto;}
+  
+    .modal{
+  
+        background:#111; border:1px solid var(--fg); border-radius:8px; max-width:720px; width:calc(100% - 40px);
+  
+        max-height:80vh; overflow:auto; padding:20px 24px; transform:scale(0.95); transition:transform 0.35s ease;
+  
+    }
+  
+    .modal-overlay.show .modal{transform:scale(1);}
+  
+    .modal h2{text-align:center; margin-top:0;}
+  
+    .modal h3{margin:16px 0 6px 0; border-bottom:1px solid #333;}
+  
+    .modal p, .modal li{line-height:1.5;}
+  
+
+  
+    /* Remove spinner arrows for number inputs (cross-browser) */
+  
+    /* Chrome, Safari, Edge, Opera */
+  
+    input[type=number]::-webkit-outer-spin-button,
+  
+    input[type=number]::-webkit-inner-spin-button {
+  
+        -webkit-appearance: none;
+  
+        margin: 0;
+  
+    }
+  
+    /* Firefox */
+  
+    input[type=number] {
+  
+        -moz-appearance: textfield;
+  
+    }
+  
+
+  
+    /* Small screens: stack */
+  
+    @media (max-width:900px){
+  
+        body{padding:12px;}
+  
+        .container{flex-direction:column;}
+  
+        .controls-panel{max-width:none; width:100%;}
+  
+        .preview-panel{width:100%;}
+  
+        .control-row label{flex:0 0 110px;}
+  
+    }
+  
+</style></head><body><div class="container"><div class="controls-panel">
+
+    <h1>Digital Grain Studio</h1>
+
+    <p class="small-note">Upload an image to start. Controls update live unless performance prompts manual render.</p>
+
+
+
+    <!-- File input (no filename display) -->
+
+    <div style="margin-bottom:12px;">
+
+        <label for="imageUpload" style="display:block; font-weight:bold; margin-bottom:6px;">Image Upload</label>
+
+        <input id="imageUpload" type="file" accept="image/*" style="width:100%; background:transparent; color:inherit; border:1px solid var(--fg); padding:8px; box-sizing:border-box;">
+
+    </div>
+
+
+
+    <fieldset>
+
+        <legend>Noise Basics</legend>
+
+        <div class="control-row">
+
+            <label for="strength">Noise Strength (σ)</label>
+
+            <input id="strength" type="range" min="0" max="150" step="0.01" value="50">
+
+        </div>
+
+        <div class="control-row">
+
+            <label></label>
+
+            <input id="strengthValue" class="control-value" type="number" min="0" max="150" step="0.01" value="50.00">
+
+        </div>
+
+
+
+        <div class="control-row">
+
+            <label for="noiseType">Noise Type</label>
+
+            <select id="noiseType" class="control-value">
+
+                <option value="color">Color</option>
+
+                <option value="grayscale" selected>Grayscale</option>
+
+                <option value="blend">Blend</option>
+
+            </select>
+
+        </div>
+
+        <div id="satStrengthContainer" style="display:none;">
+
+            <div class="control-row">
+
+                <label for="satStrength">Sat Change Strength</label>
+
+                <input id="satStrength" type="range" min="0" max="4" step="0.01" value="1">
+
+            </div>
+
+            <div class="control-row">
+
+                <label></label>
+
+                <input id="satStrengthValue" class="control-value" type="number" min="0" max="4" step="0.01" value="1.00">
+
+            </div>
+
+        </div>
+
+    </fieldset>
+
+
+
+    <fieldset>
+
+        <legend>Noise Shape & Blur</legend>
+
+
+
+        <div class="control-row">
+
+            <label for="noiseSize">Noise Size</label>
+
+            <!-- slider exposes a large virtual range; mapping functions handle zooming -->
+
+            <input id="noiseSize" type="range" min="0" max="1000" step="0.01" value="4">
+
+        </div>
+
+        <div class="control-row">
+
+            <label></label>
+
+            <input id="noiseSizeValue" class="control-value" type="number" min="1" max="200" step="0.01" value="4.00">
+
+        </div>
+
+
+
+        <div style="height:6px"></div>
+
+
+
+        <div class="control-row">
+
+            <label for="blurriness">Blurriness (px)</label>
+
+            <input id="blurriness" type="range" min="0" max="1000" step="0.01" value="160">
+
+        </div>
+
+        <div class="control-row">
+
+            <label></label>
+
+            <input id="blurrinessValue" class="control-value" type="number" min="0" max="5" step="0.01" value="2.00">
+
+        </div>
+
+    </fieldset>
+
+
+
+    <fieldset>
+
+        <legend>Noise Masking</legend>
+
+        <div class="control-row">
+
+            <label for="enableShadows">Noise in Shadows</label>
+
+            <input id="enableShadows" type="checkbox" aria-label="Noise in Shadows toggle" style="transform:scale(1.2);">
+
+        </div>
+
+        <div class="control-row">
+
+            <label for="shadowThreshold">Shadow Threshold</label>
+
+            <input id="shadowThreshold" type="range" min="0" max="1" step="0.01" value="0.3">
+
+        </div>
+
+        <div class="control-row">
+
+            <label></label>
+
+            <input id="shadowThresholdValue" class="control-value" type="number" min="0" max="1" step="0.01" value="0.30">
+
+        </div>
+
+        <div class="control-row">
+
+            <label for="shadowFade">Shadow Fade</label>
+
+            <input id="shadowFade" type="range" min="0" max="1" step="0.01" value="0.2">
+
+        </div>
+
+        <div class="control-row">
+
+            <label></label>
+
+            <input id="shadowFadeValue" class="control-value" type="number" min="0" max="1" step="0.01" value="0.20">
+
+        </div>
+
+        <div class="control-row">
+
+            <label for="enableHighlights">Noise in Highlights</label>
+
+            <input id="enableHighlights" type="checkbox" aria-label="Noise in Highlights toggle" style="transform:scale(1.2);">
+
+        </div>
+
+        <div class="control-row">
+
+            <label for="highlightThreshold">Highlight Threshold</label>
+
+            <input id="highlightThreshold" type="range" min="0" max="1" step="0.01" value="0.7">
+
+        </div>
+
+        <div class="control-row">
+
+            <label></label>
+
+            <input id="highlightThresholdValue" class="control-value" type="number" min="0" max="1" step="0.01" value="0.70">
+
+        </div>
+
+        <div class="control-row">
+
+            <label for="highlightFade">Highlight Fade</label>
+
+            <input id="highlightFade" type="range" min="0" max="1" step="0.01" value="0.2">
+
+        </div>
+
+        <div class="control-row">
+
+            <label></label>
+
+            <input id="highlightFadeValue" class="control-value" type="number" min="0" max="1" step="0.01" value="0.20">
+
+        </div>
+
+    </fieldset>
+
+
+
+    <fieldset>
+
+        <legend>Blend & Visibility</legend>
+
+
+
+        <div class="control-row">
+
+            <label for="blendMode">Blend Mode</label>
+
+            <select id="blendMode" class="control-value">
+
+                <option value="source-over">Normal</option>
+
+                <option value="overlay" selected>Overlay</option>
+
+                <option value="screen">Screen</option>
+
+                <option value="multiply">Multiply</option>
+
+                <option value="lighter">Add</option>
+
+                <option value="difference">Subtract</option>
+
+            </select>
+
+        </div>
+
+
+
+        <div class="control-row">
+
+            <label for="opacity">Noise Opacity</label>
+
+            <input id="opacity" type="range" min="0" max="1" step="0.01" value="0.25">
+
+        </div>
+
+        <div class="control-row">
+
+            <label></label>
+
+            <input id="opacityValue" class="control-value" type="number" min="0" max="1" step="0.01" value="0.25">
+
+        </div>
+
+    </fieldset>
+
+
+
+    <fieldset>
+
+        <legend>Image Adjustments</legend>
+
+        <div class="control-row">
+
+            <label for="brightness">Brightness</label>
+
+            <input id="brightness" type="range" min="-100" max="100" step="1" value="0">
+
+        </div>
+
+        <div class="control-row">
+
+            <label></label>
+
+            <input id="brightnessValue" class="control-value" type="number" min="-100" max="100" step="1" value="0">
+
+        </div>
+
+        <div class="control-row">
+
+            <label for="contrast">Contrast</label>
+
+            <input id="contrast" type="range" min="-200" max="200" step="1" value="100">
+
+        </div>
+
+        <div class="control-row">
+
+            <label></label>
+
+            <input id="contrastValue" class="control-value" type="number" min="-200" max="200" step="1" value="100">
+
+        </div>
+
+        <div class="control-row">
+
+            <label for="saturationAdj">Saturation</label>
+
+            <input id="saturationAdj" type="range" min="-100" max="100" step="1" value="0">
+
+        </div>
+
+        <div class="control-row">
+
+            <label></label>
+
+            <input id="saturationAdjValue" class="control-value" type="number" min="-100" max="100" step="1" value="0">
+
+        </div>
+
+    </fieldset>
+
+
+
+    <div style="display:flex; gap:8px;">
+
+        <button id="helpBtn">Help / Manual</button>
+
+        <button id="downloadImage" disabled>Download Image</button>
+
+    </div>
+
+</div>
+
+
+
+<div class="preview-panel">
+
+    <div class="preview-top">
+
+        <h3 style="margin:0;">Image Preview (hover to reveal original)</h3>
+
+        <div style="font-size:12px; opacity:0.9; align-self:center;"></div>
+
+    </div>
+
+
+
+    <div id="previewArea" class="preview-container" style="height:calc(100vh - 220px);">
+
+        <!-- canvases hold full-resolution image. CSS size will be computed to fit previewArea -->
+
+        <canvas id="noiseCanvas"></canvas>
+
+        <canvas id="originalCanvas"></canvas>
+
+        <!-- overlay canvas will be created dynamically when scrolling -->
+
+    </div>
+
+
+
+    <!-- tip removed as requested -->
+
+</div>
+
+</div><!-- Manual Popup --><div class="modal-overlay" id="manualModal" aria-hidden="true">  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="manualTitle"><h2 id="manualTitle">Digital Grain Studio — Manual</h2>
+
+
+
+<h3>Quick Overview</h3>
+
+<p>Layer a custom noise texture over an image. The noise is generated separately, optionally blurred, then composited with your chosen blend mode and opacity. Can scale the grain from ultra-fine to chunky.</p>
+
+
+
+<h3>Controls</h3>
+
+<ul>
+
+  <li><b>Noise Strength (σ):</b> controls the standard deviation of the Gaussian noise — crank it for stronger contrast in the grain.</li>
+
+  <li><b>Noise Type:</b> Color for RGB noise, Grayscale for mono noise, Blend for saturation-based noise matching underlying colors.</li>
+
+  <li><b>Sat Change Strength:</b> (Blend mode only) Controls the range of saturation adjustment.</li>
+
+  <li><b>Noise Size:</b> controls the apparent size of grains. The slider provides extreme low-end precision; the numeric box shows the effective size (1.00 → 200.00).</li>
+
+  <li><b>Blurriness:</b> Gaussian blur applied to the noise layer only.</li>
+
+  <li><b>Noise Masking:</b> Control noise application to shadows or highlights with thresholds and fade ranges.</li>
+
+  <li><b>Blend Mode:</b> how the blurred noise merges with the original (see reference below).</li>
+
+  <li><b>Noise Opacity:</b> final transparency of the noise layer before compositing.</li>
+
+  <li><b>Image Adjustments:</b> Basic edits for brightness, contrast (negative for inverse), and saturation.</li>
+
+</ul>
+
+
+
+<h3>Blend Mode Reference</h3>
+
+<ul>
+
+  <li><b>Normal:</b> the noise simply sits on top (replaces where applied).</li>
+
+  <li><b>Overlay:</b> contrast-preserving; lights brighten, darks deepen — classic film-grain feel.</li>
+
+  <li><b>Screen:</b> lightens — good for softening and glow-like grain.</li>
+
+  <li><b>Multiply:</b> darkens — useful for gritty or moody looks.</li>
+
+  <li><b>Add (lighter):</b> adds pixel values (brightens strongly) — can blow highlights, use sparingly.</li>
+
+  <li><b>Subtract (difference):</b> creates inverted / high-contrast effects — more experimental.</li>
+
+</ul>
+
+
+
+<div style="display:flex; gap:8px; justify-content:flex-end;">
+
+  <button id="closeManual">Close</button>
+
+</div>
+
+  </div></div><script>
+  
+/* -------------------------
+  
+   Elements & state
+  
+   ------------------------- */
+  
+const fileInput = document.getElementById('imageUpload');
+  
+const originalCanvas = document.getElementById('originalCanvas');
+  
+const noiseCanvas = document.getElementById('noiseCanvas');
+  
+const ctxOriginal = originalCanvas.getContext('2d');
+  
+const ctxNoise = noiseCanvas.getContext('2d');
+  
+
+  
+const strengthRange = document.getElementById('strength');
+  
+const strengthNumber = document.getElementById('strengthValue');
+  
+
+  
+const noiseSizeRange = document.getElementById('noiseSize');
+  
+const noiseSizeNumber = document.getElementById('noiseSizeValue');
+  
+
+  
+const blurrinessRange = document.getElementById('blurriness');
+  
+const blurrinessNumber = document.getElementById('blurrinessValue');
+  
+
+  
+const noiseTypeSelect = document.getElementById('noiseType');
+  
+const satStrengthContainer = document.getElementById('satStrengthContainer');
+  
+const satStrengthRange = document.getElementById('satStrength');
+  
+const satStrengthNumber = document.getElementById('satStrengthValue');
+  
+
+  
+const enableShadows = document.getElementById('enableShadows');
+  
+const shadowThresholdRange = document.getElementById('shadowThreshold');
+  
+const shadowThresholdNumber = document.getElementById('shadowThresholdValue');
+  
+const shadowFadeRange = document.getElementById('shadowFade');
+  
+const shadowFadeNumber = document.getElementById('shadowFadeValue');
+  
+
+  
+const enableHighlights = document.getElementById('enableHighlights');
+  
+const highlightThresholdRange = document.getElementById('highlightThreshold');
+  
+const highlightThresholdNumber = document.getElementById('highlightThresholdValue');
+  
+const highlightFadeRange = document.getElementById('highlightFade');
+  
+const highlightFadeNumber = document.getElementById('highlightFadeValue');
+  
+
+  
+const brightnessRange = document.getElementById('brightness');
+  
+const brightnessNumber = document.getElementById('brightnessValue');
+  
+const contrastRange = document.getElementById('contrast');
+  
+const contrastNumber = document.getElementById('contrastValue');
+  
+const saturationAdjRange = document.getElementById('saturationAdj');
+  
+const saturationAdjNumber = document.getElementById('saturationAdjValue');
+  
+
+  
+const blendModeSelect = document.getElementById('blendMode');
+  
+const opacityRange = document.getElementById('opacity');
+  
+const opacityNumber = document.getElementById('opacityValue');
+  
+
+  
+const downloadBtn = document.getElementById('downloadImage');
+  
+const previewArea = document.getElementById('previewArea');
+  
+
+  
+const helpBtn = document.getElementById('helpBtn');
+  
+const manualModal = document.getElementById('manualModal');
+  
+const closeManual = document.getElementById('closeManual');
+  
+
+  
+let originalImageData = null;
+  
+
+  
+/* -------------------------
+  
+   Utility: Gaussian (Box-Muller)
+  
+   ------------------------- */
+  
+function gaussianRandom(mean=0,std=1){
+  
+    let u=0,v=0; while(u===0) u=Math.random(); while(v===0) v=Math.random();
+  
+    return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v) * std + mean;
+  
+}
+  
+
+  
+/* -------------------------
+  
+   Color conversion functions
+  
+   ------------------------- */
+  
+function rgbToHsl(r, g, b) {
+  
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  
+  let h, s, l = (max + min) / 2;
+  
+  if (max === min) {
+  
+    h = s = 0;
+  
+  } else {
+  
+    const d = max - min;
+  
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  
+    switch (max) {
+  
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+  
+      case g: h = (b - r) / d + 2; break;
+  
+      case b: h = (r - g) / d + 4; break;
+  
+    }
+  
+    h /= 6;
+  
+  }
+  
+  return { h, s, l };
+  
+}
+  
+
+  
+function hslToRgb(h, s, l) {
+  
+  let r, g, b;
+  
+  if (s === 0) {
+  
+    r = g = b = l;
+  
+  } else {
+  
+    const hue2rgb = (p, q, t) => {
+  
+      if (t < 0) t += 1;
+  
+      if (t > 1) t -= 1;
+  
+      if (t < 1/6) return p + (q - p) * 6 * t;
+  
+      if (t < 1/2) return q;
+  
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+  
+      return p;
+  
+    };
+  
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  
+    const p = 2 * l - q;
+  
+    r = hue2rgb(p, q, h + 1/3);
+  
+    g = hue2rgb(p, q, h);
+  
+    b = hue2rgb(p, q, h - 1/3);
+  
+  }
+  
+  return { r, g, b };
+  
+}
+  
+
+  
+/* -------------------------
+  
+   Smoothstep function
+  
+   ------------------------- */
+  
+function smoothstep(min, max, value) {
+  
+  if (min > max) [min, max] = [max, min];
+  
+  const x = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  
+  return x * x * (3 - 2 * x);
+  
+}
+  
+
+  
+/* -------------------------
+  
+   Slider mapping for noiseSize and blur
+  
+   ------------------------- */
+  
+const MAX_NOISE_SIZE = 200.0;
+  
+const MAX_BLUR = 5.0;
+  
+const SLIDER_MAX = 1000.0;
+  
+const ZOOM_EXPONENT = 3.0;
+  
+
+  
+function noiseSizeFromSlider(s){
+  
+    const t = Math.pow(s / SLIDER_MAX, ZOOM_EXPONENT);
+  
+    return 1.0 + (MAX_NOISE_SIZE - 1.0) * t;
+  
+}
+  
+function sliderFromNoiseSize(size){
+  
+    const t = (Math.max(1.0, Math.min(MAX_NOISE_SIZE, size)) - 1.0) / (MAX_NOISE_SIZE - 1.0);
+  
+    return SLIDER_MAX * Math.pow(t, 1.0 / ZOOM_EXPONENT);
+  
+}
+  
+
+  
+function blurFromSlider(s){
+  
+    const t = Math.pow(s / SLIDER_MAX, ZOOM_EXPONENT);
+  
+    return MAX_BLUR * t;
+  
+}
+  
+function sliderFromBlur(blur){
+  
+    const t = Math.max(0.0, Math.min(MAX_BLUR, blur)) / MAX_BLUR;
+  
+    return SLIDER_MAX * Math.pow(t, 1.0 / ZOOM_EXPONENT);
+  
+}
+  
+
+  
+/* -------------------------
+  
+   Preview sizing: compute CSS size for canvases to fit previewArea
+  
+   Keep canvases centered and identical in size/position
+  
+   ------------------------- */
+  
+function fitCanvasesToPreview(){
+  
+    if(!originalImageData) return;
+  
+    const w = originalCanvas.width;
+  
+    const h = originalCanvas.height;
+  
+    const areaRect = previewArea.getBoundingClientRect();
+  
+    const padding = 8;
+  
+    const maxW = Math.max(32, areaRect.width - padding);
+  
+    const maxH = Math.max(32, areaRect.height - padding);
+  
+
+  
+    const scale = Math.min(maxW / w, maxH / h, 1);
+  
+    const cssW = Math.round(w * scale);
+  
+    const cssH = Math.round(h * scale);
+  
+
+  
+    // apply identical CSS sizing and center transform (CSS already sets centering)
+  
+    [originalCanvas, noiseCanvas].forEach(c => {
+  
+        c.style.width = cssW + 'px';
+  
+        c.style.height = cssH + 'px';
+  
+        c.style.left = '50%';
+  
+        c.style.top = '50%';
+  
+        c.style.transform = 'translate(-50%,-50%)';
+  
+    });
+  
+
+  
+    // Also set previewArea min-height so smaller tall images don't collapse UI
+  
+    previewArea.style.minHeight = Math.min(maxH, cssH) + 'px';
+  
+}
+  
+
+  
+/* -------------------------
+  
+   Apply image adjustments to original canvas
+  
+   ------------------------- */
+  
+function applyAdjustments(){
+  
+    if(!originalImageData) return;
+  
+    const w = originalCanvas.width;
+  
+    const h = originalCanvas.height;
+  
+    const data = ctxOriginal.getImageData(0, 0, w, h);
+  
+    const d = data.data;
+  
+    const bright = parseFloat(brightnessNumber.value) || 0;
+  
+    const cont = parseFloat(contrastNumber.value) || 100;
+  
+    const sat = parseFloat(saturationAdjNumber.value) || 0;
+  
+    const factor_cont = cont / 100;
+  
+    const factor_sat = 1 + sat / 100;
+  
+    const offset_bright = bright * 2.55;
+  
+    for (let i = 0; i < d.length; i += 4) {
+  
+        let r = d[i], g = d[i+1], b = d[i+2];
+  
+        // saturation
+  
+        const lum = r * 0.299 + g * 0.587 + b * 0.114;
+  
+        r = lum + (r - lum) * factor_sat;
+  
+        g = lum + (g - lum) * factor_sat;
+  
+        b = lum + (b - lum) * factor_sat;
+  
+        // contrast
+  
+        r = (r - 128) * factor_cont + 128;
+  
+        g = (g - 128) * factor_cont + 128;
+  
+        b = (b - 128) * factor_cont + 128;
+  
+        // brightness
+  
+        r += offset_bright;
+  
+        g += offset_bright;
+  
+        b += offset_bright;
+  
+        // clamp
+  
+        d[i] = clamp(r, 0, 255);
+  
+        d[i+1] = clamp(g, 0, 255);
+  
+        d[i+2] = clamp(b, 0, 255);
+  
+    }
+  
+    ctxOriginal.putImageData(data, 0, 0);
+  
+    originalImageData = data;
+  
+}
+  
+
+  
+/* -------------------------
+  
+   Helper: Generate noise bitmap (returns a canvas sized to w x h with the blurred noise)
+  
+   ------------------------- */
+  
+function generateNoiseFullCanvas(w, h, params){
+  
+    const { std, noiseType, blurSlider, noiseSlider, satStrength } = params;
+  
+    const blurPx = blurFromSlider(blurSlider);
+  
+    const noiseSize = noiseSizeFromSlider(noiseSlider);
+  
+
+  
+    const smallW = Math.max(1, Math.round(w / noiseSize));
+  
+    const smallH = Math.max(1, Math.round(h / noiseSize));
+  
+
+  
+    const smallCanvas = document.createElement('canvas');
+  
+    smallCanvas.width = smallW; smallCanvas.height = smallH;
+  
+    const sCtx = smallCanvas.getContext('2d');
+  
+    const smallImg = sCtx.createImageData(smallW, smallH);
+  
+    const sd = smallImg.data;
+  
+
+  
+    const isColor = noiseType === 'color';
+  
+    for(let y=0;y<smallH;y++){
+  
+        for(let x=0;x<smallW;x++){
+  
+            const i = (y*smallW + x)*4;
+  
+            let v_r = 128 + gaussianRandom(0, std);
+  
+            let v_g = 128 + gaussianRandom(0, std);
+  
+            let v_b = 128 + gaussianRandom(0, std);
+  
+            if (!isColor) {
+  
+                v_r = v_g = v_b;
+  
+            }
+  
+            sd[i]   = clamp(v_r, 0, 255);
+  
+            sd[i+1] = clamp(v_g, 0, 255);
+  
+            sd[i+2] = clamp(v_b, 0, 255);
+  
+            sd[i+3] = 255;
+  
+        }
+  
+    }
+  
+    sCtx.putImageData(smallImg, 0, 0);
+  
+
+  
+    const noiseFull = document.createElement('canvas');
+  
+    noiseFull.width = w; noiseFull.height = h;
+  
+    const nfCtx = noiseFull.getContext('2d');
+  
+    nfCtx.imageSmoothingEnabled = true;
+  
+
+  
+    if(blurPx > 0){
+  
+        nfCtx.filter = `blur(${blurPx}px)`;
+  
+        nfCtx.drawImage(smallCanvas, 0, 0, w, h);
+  
+        nfCtx.filter = 'none';
+  
+    } else {
+  
+        nfCtx.drawImage(smallCanvas, 0, 0, w, h);
+  
+    }
+  
+
+  
+    if (noiseType === 'blend') {
+  
+        const noiseMapData = nfCtx.getImageData(0, 0, w, h);
+  
+        const origData = originalImageData.data;
+  
+        const outData = nfCtx.createImageData(w, h);
+  
+        for (let i = 0; i < outData.data.length; i += 4) {
+  
+            const noise_val = noiseMapData.data[i]; // grayscale
+  
+            const delta = (noise_val / 255 - 0.5) * 2 * satStrength;
+  
+            const r = origData[i], g = origData[i+1], b = origData[i+2];
+  
+            const hsl = rgbToHsl(r / 255, g / 255, b / 255);
+  
+            hsl.s = clamp(hsl.s + delta, 0, 2);
+  
+            const rgb_new = hslToRgb(hsl.h, hsl.s, hsl.l);
+  
+            outData.data[i] = Math.round(rgb_new.r * 255);
+  
+            outData.data[i+1] = Math.round(rgb_new.g * 255);
+  
+            outData.data[i+2] = Math.round(rgb_new.b * 255);
+  
+            outData.data[i+3] = 255;
+  
+        }
+  
+        nfCtx.putImageData(outData, 0, 0);
+  
+    }
+  
+
+  
+    return noiseFull;
+  
+}
+  
+
+  
+/* -------------------------
+  
+   Main noise pipeline
+  
+   ------------------------- */
+  
+function applyGaussianNoise(){
+  
+    if(!originalImageData) return;
+  
+    const w = originalCanvas.width;
+  
+    const h = originalCanvas.height;
+  
+
+  
+    const std = parseFloat(strengthNumber.value) || 0.0;
+  
+    const blurSlider = parseFloat(blurrinessRange.value) || 0.0;
+  
+    const noiseType = noiseTypeSelect.value;
+  
+    const blend = blendModeSelect.value || 'source-over';
+  
+    const opacity = parseFloat(opacityNumber.value) || 0.0;
+  
+    const noiseSlider = parseFloat(noiseSizeRange.value) || 1.0;
+  
+    const satStrength = parseFloat(satStrengthNumber.value) || 1.0;
+  
+
+  
+    const noiseFull = generateNoiseFullCanvas(w, h, {
+  
+        std, noiseType, blurSlider, noiseSlider, satStrength
+  
+    });
+  
+    const nfCtx = noiseFull.getContext('2d');
+  
+
+  
+    // Apply masking to noiseFull alpha
+  
+    const enable_sh = enableShadows.checked;
+  
+    const enable_hi = enableHighlights.checked;
+  
+    if (enable_sh || enable_hi) {
+  
+        const noiseData = nfCtx.getImageData(0, 0, w, h);
+  
+        const origData = originalImageData.data;
+  
+        const dd = noiseData.data;
+  
+        const sh_th = parseFloat(shadowThresholdNumber.value) || 0.3;
+  
+        const sh_f = parseFloat(shadowFadeNumber.value) || 0.2;
+  
+        const hi_th = parseFloat(highlightThresholdNumber.value) || 0.7;
+  
+        const hi_f = parseFloat(highlightFadeNumber.value) || 0.2;
+  
+
+  
+        for (let i = 0; i < dd.length; i += 4) {
+  
+            const r = origData[i] / 255, g = origData[i+1] / 255, b = origData[i+2] / 255;
+  
+            const lum = r * 0.299 + g * 0.587 + b * 0.114;
+  
+
+  
+            let shadow_mask = 0;
+  
+            if (enable_sh) {
+  
+                const low = sh_th - sh_f / 2;
+  
+                const high = sh_th + sh_f / 2;
+  
+                shadow_mask = 1 - smoothstep(low, high, lum);
+  
+            }
+  
+            let highlight_mask = 0;
+  
+            if (enable_hi) {
+  
+                const low = hi_th - hi_f / 2;
+  
+                const high = hi_th + hi_f / 2;
+  
+                highlight_mask = smoothstep(low, high, lum);
+  
+            }
+  
+            const total_mask = Math.max(shadow_mask, highlight_mask);
+  
+            dd[i+3] = 255 * total_mask;
+  
+        }
+  
+        nfCtx.putImageData(noiseData, 0, 0);
+  
+    }
+  
+
+  
+    // composite: draw original then blend noise over it on noiseCanvas
+  
+    ctxNoise.clearRect(0,0,w,h);
+  
+    ctxNoise.globalCompositeOperation = 'source-over';
+  
+    ctxNoise.drawImage(originalCanvas, 0, 0, w, h);
+  
+
+  
+    ctxNoise.globalAlpha = opacity;
+  
+    ctxNoise.globalCompositeOperation = blend;
+  
+    ctxNoise.drawImage(noiseFull, 0, 0, w, h);
+  
+
+  
+    // reset
+  
+    ctxNoise.globalAlpha = 1.0;
+  
+    ctxNoise.globalCompositeOperation = 'source-over';
+  
+
+  
+    // allow download
+  
+    downloadBtn.disabled = false;
+  
+
+  
+    // redraw fit (in case image size changed)
+  
+    fitCanvasesToPreview();
+  
+}
+  
+
+  
+/* -------------------------
+  
+   Loading image -> set canvas pixel buffers -> initial render -> fit
+  
+   ------------------------- */
+  
+function loadImageToCanvases(img){
+  
+    const w = img.naturalWidth || img.width;
+  
+    const h = img.naturalHeight || img.height;
+  
+
+  
+    originalCanvas.width = noiseCanvas.width = w;
+  
+    originalCanvas.height = noiseCanvas.height = h;
+  
+
+  
+    ctxOriginal.clearRect(0,0,w,h);
+  
+    ctxOriginal.drawImage(img, 0, 0, w, h);
+  
+    originalImageData = ctxOriginal.getImageData(0,0,w,h);
+  
+
+  
+    applyAdjustments(); // apply initial adjustments
+  
+  
+
+  
+    ctxNoise.clearRect(0,0,w,h);
+  
+    ctxNoise.drawImage(originalCanvas, 0, 0, w, h);
+  
+
+  
+    fitCanvasesToPreview();
+  
+    applyGaussianNoise();
+  
+}
+  
+
+  
+/* -------------------------
+  
+   Event bindings and synchronization
+  
+   ------------------------- */
+  
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+  
+
+  
+// Strength
+  
+strengthRange.addEventListener('input', ()=> {
+  
+    strengthNumber.value = parseFloat(strengthRange.value).toFixed(2);
+  
+    applyGaussianNoise();
+  
+});
+  
+strengthNumber.addEventListener('change', ()=> {
+  
+    let v = parseFloat(strengthNumber.value); if(isNaN(v)) v=0;
+  
+    v = clamp(v, 0, 150);
+  
+    strengthNumber.value = v.toFixed(2);
+  
+    strengthRange.value = v;
+  
+    applyGaussianNoise();
+  
+});
+  
+
+  
+// Noise Size
+  
+function syncNoiseSizeFromSlider(){
+  
+    const slider = parseFloat(noiseSizeRange.value);
+  
+    const size = noiseSizeFromSlider(slider);
+  
+    noiseSizeNumber.value = size.toFixed(2);
+  
+}
+  
+noiseSizeRange.addEventListener('input', ()=> {
+  
+    syncNoiseSizeFromSlider();
+  
+    applyGaussianNoise();
+  
+});
+  
+noiseSizeNumber.addEventListener('change', ()=> {
+  
+    let v = parseFloat(noiseSizeNumber.value); if(isNaN(v)) v = 1.0;
+  
+    v = clamp(v, 1.0, MAX_NOISE_SIZE);
+  
+    noiseSizeNumber.value = v.toFixed(2);
+  
+    noiseSizeRange.value = sliderFromNoiseSize(v).toFixed(2);
+  
+    applyGaussianNoise();
+  
+});
+  
+
+  
+// Blurriness
+  
+function syncBlurFromSlider(){
+  
+    const slider = parseFloat(blurrinessRange.value);
+  
+    const blur = blurFromSlider(slider);
+  
+    blurrinessNumber.value = blur.toFixed(2);
+  
+}
+  
+blurrinessRange.addEventListener('input', ()=> {
+  
+    syncBlurFromSlider();
+  
+    applyGaussianNoise();
+  
+});
+  
+blurrinessNumber.addEventListener('change', ()=> {
+  
+    let v = parseFloat(blurrinessNumber.value); if(isNaN(v)) v = 0;
+  
+    v = clamp(v, 0.0, MAX_BLUR);
+  
+    blurrinessNumber.value = v.toFixed(2);
+  
+    blurrinessRange.value = sliderFromBlur(v).toFixed(2);
+  
+    applyGaussianNoise();
+  
+});
+  
+
+  
+// Opacity
+  
+opacityRange.addEventListener('input', ()=> {
+  
+    opacityNumber.value = parseFloat(opacityRange.value).toFixed(2);
+  
+    applyGaussianNoise();
+  
+});
+  
+opacityNumber.addEventListener('change', ()=> {
+  
+    let v = parseFloat(opacityNumber.value); if(isNaN(v)) v = 0;
+  
+    v = clamp(v, 0, 1);
+  
+    opacityNumber.value = v.toFixed(2);
+  
+    opacityRange.value = v;
+  
+    applyGaussianNoise();
+  
+});
+  
+
+  
+// Noise Type
+  
+noiseTypeSelect.addEventListener('change', ()=> {
+  
+    satStrengthContainer.style.display = noiseTypeSelect.value === 'blend' ? 'block' : 'none';
+  
+    applyGaussianNoise();
+  
+});
+  
+
+  
+// Sat Strength
+  
+satStrengthRange.addEventListener('input', ()=> {
+  
+    satStrengthNumber.value = parseFloat(satStrengthRange.value).toFixed(2);
+  
+    applyGaussianNoise();
+  
+});
+  
+satStrengthNumber.addEventListener('change', ()=> {
+  
+    let v = parseFloat(satStrengthNumber.value); if(isNaN(v)) v = 0;
+  
+    v = clamp(v, 0, 4);
+  
+    satStrengthNumber.value = v.toFixed(2);
+  
+    satStrengthRange.value = v;
+  
+    applyGaussianNoise();
+  
+});
+  
+
+  
+// Shadow Threshold
+  
+shadowThresholdRange.addEventListener('input', ()=> {
+  
+    shadowThresholdNumber.value = parseFloat(shadowThresholdRange.value).toFixed(2);
+  
+    applyGaussianNoise();
+  
+});
+  
+shadowThresholdNumber.addEventListener('change', ()=> {
+  
+    let v = parseFloat(shadowThresholdNumber.value); if(isNaN(v)) v = 0;
+  
+    v = clamp(v, 0, 1);
+  
+    shadowThresholdNumber.value = v.toFixed(2);
+  
+    shadowThresholdRange.value = v;
+  
+    applyGaussianNoise();
+  
+});
+  
+
+  
+// Shadow Fade
+  
+shadowFadeRange.addEventListener('input', ()=> {
+  
+    shadowFadeNumber.value = parseFloat(shadowFadeRange.value).toFixed(2);
+  
+    applyGaussianNoise();
+  
+});
+  
+shadowFadeNumber.addEventListener('change', ()=> {
+  
+    let v = parseFloat(shadowFadeNumber.value); if(isNaN(v)) v = 0;
+  
+    v = clamp(v, 0, 1);
+  
+    shadowFadeNumber.value = v.toFixed(2);
+  
+    shadowFadeRange.value = v;
+  
+    applyGaussianNoise();
+  
+});
+  
+
+  
+// Highlight Threshold
+  
+highlightThresholdRange.addEventListener('input', ()=> {
+  
+    highlightThresholdNumber.value = parseFloat(highlightThresholdRange.value).toFixed(2);
+  
+    applyGaussianNoise();
+  
+});
+  
+highlightThresholdNumber.addEventListener('change', ()=> {
+  
+    let v = parseFloat(highlightThresholdNumber.value); if(isNaN(v)) v = 0;
+  
+    v = clamp(v, 0, 1);
+  
+    highlightThresholdNumber.value = v.toFixed(2);
+  
+    highlightThresholdRange.value = v;
+  
+    applyGaussianNoise();
+  
+});
+  
+
+  
+// Highlight Fade
+  
+highlightFadeRange.addEventListener('input', ()=> {
+  
+    highlightFadeNumber.value = parseFloat(highlightFadeRange.value).toFixed(2);
+  
+    applyGaussianNoise();
+  
+});
+  
+highlightFadeNumber.addEventListener('change', ()=> {
+  
+    let v = parseFloat(highlightFadeNumber.value); if(isNaN(v)) v = 0;
+  
+    v = clamp(v, 0, 1);
+  
+    highlightFadeNumber.value = v.toFixed(2);
+  
+    highlightFadeRange.value = v;
+  
+    applyGaussianNoise();
+  
+});
+  
+
+  
+// Enable Shadows/Highlights
+  
+enableShadows.addEventListener('change', applyGaussianNoise);
+  
+enableHighlights.addEventListener('change', applyGaussianNoise);
+  
+
+  
+// Brightness
+  
+brightnessRange.addEventListener('input', ()=> {
+  
+    brightnessNumber.value = parseInt(brightnessRange.value);
+  
+    applyAdjustments();
+  
+    applyGaussianNoise();
+  
+});
+  
+brightnessNumber.addEventListener('change', ()=> {
+  
+    let v = parseInt(brightnessNumber.value); if(isNaN(v)) v = 0;
+  
+    v = clamp(v, -100, 100);
+  
+    brightnessNumber.value = v;
+  
+    brightnessRange.value = v;
+  
+    applyAdjustments();
+  
+    applyGaussianNoise();
+  
+});
+  
+
+  
+// Contrast
+  
+contrastRange.addEventListener('input', ()=> {
+  
+    contrastNumber.value = parseInt(contrastRange.value);
+  
+    applyAdjustments();
+  
+    applyGaussianNoise();
+  
+});
+  
+contrastNumber.addEventListener('change', ()=> {
+  
+    let v = parseInt(contrastNumber.value); if(isNaN(v)) v = 100;
+  
+    v = clamp(v, -200, 200);
+  
+    contrastNumber.value = v;
+  
+    contrastRange.value = v;
+  
+    applyAdjustments();
+  
+    applyGaussianNoise();
+  
+});
+  
+
+  
+// Saturation Adj
+  
+saturationAdjRange.addEventListener('input', ()=> {
+  
+    saturationAdjNumber.value = parseInt(saturationAdjRange.value);
+  
+    applyAdjustments();
+  
+    applyGaussianNoise();
+  
+});
+  
+saturationAdjNumber.addEventListener('change', ()=> {
+  
+    let v = parseInt(saturationAdjNumber.value); if(isNaN(v)) v = 0;
+  
+    v = clamp(v, -100, 100);
+  
+    saturationAdjNumber.value = v;
+  
+    saturationAdjRange.value = v;
+  
+    applyAdjustments();
+  
+    applyGaussianNoise();
+  
+});
+  
+
+  
+// Other controls
+  
+blendModeSelect.addEventListener('change', applyGaussianNoise);
+  
+
+  
+/* -------------------------
+  
+   File input handling
+  
+   ------------------------- */
+  
+fileInput.addEventListener('change', (ev) => {
+  
+    const file = ev.target.files && ev.target.files[0];
+  
+    if(!file) return;
+  
+    const reader = new FileReader();
+  
+    reader.onload = (e) => {
+  
+        const img = new Image();
+  
+        img.onload = () => loadImageToCanvases(img);
+  
+        img.src = e.target.result;
+  
+    };
+  
+    reader.readAsDataURL(file);
+  
+});
+  
+
+  
+/* -------------------------
+  
+   Hover & Scroll reveal behaviour (NEW)
+  
+   - Scroll while hovering cycles blend modes
+  
+   - Each change crossfades (100ms)
+  
+   - After 2s of no scroll while still hovering show original image again
+  
+   - Leaving preview shows edited image (original opacity 0)
+  
+   ------------------------- */
+  
+
+  
+const previewContainer = previewArea;
+  
+
+  
+// Blend modes in same order as select
+  
+const blendModes = Array.from(blendModeSelect.options).map(o => o.value);
+  
+let currentBlendIndex = blendModes.indexOf(blendModeSelect.value || 'overlay');
+  
+if(currentBlendIndex === -1) currentBlendIndex = 0;
+  
+
+  
+// state
+  
+let scrollInactivityTimer = null;
+  
+let overlayCanvas = null;
+  
+let activeTransition = null; // used to cancel overlapping transitions
+  
+let scrollModeActive = false;  // true when user scrolled recently and we are in "previewing blends" mode
+  
+
+  
+// helpers
+  
+function clearScrollInactivityTimer(){
+  
+    if(scrollInactivityTimer) { clearTimeout(scrollInactivityTimer); scrollInactivityTimer = null; }
+  
+}
+  
+function scheduleRevertToOriginal(){
+  
+    clearScrollInactivityTimer();
+  
+    scrollInactivityTimer = setTimeout(()=> {
+  
+        // only revert if still hovering
+  
+        if(isPointerOverPreview){
+  
+            scrollModeActive = false;
+  
+            // fade original back in (originalCanvas has CSS transition 500ms already)
+  
+            originalCanvas.style.opacity = '1';
+  
+            // remove any overlay that might linger
+  
+            removeOverlayCanvasImmediate();
+  
+        }
+  
+        scrollInactivityTimer = null;
+  
+    }, 2000);
+  
+}
+  
+function removeOverlayCanvasImmediate(){
+  
+    if(overlayCanvas && overlayCanvas.parentElement){
+  
+        overlayCanvas.parentElement.removeChild(overlayCanvas);
+  
+    }
+  
+    overlayCanvas = null;
+  
+    activeTransition = null;
+  
+}
+  
+
+  
+// returns promise resolved after transition complete (100ms)
+  
+function crossfadeToBlend(mode){
+  
+    return new Promise((resolve) => {
+  
+        if(!originalImageData) { resolve(); return; }
+  
+        const w = originalCanvas.width, h = originalCanvas.height;
+  
+        // Generate noiseFull using current UI param values but override blend to `mode`
+  
+        const std = parseFloat(strengthNumber.value) || 0.0;
+  
+        const blurSlider = parseFloat(blurrinessRange.value) || 0.0;
+  
+        const noiseType = noiseTypeSelect.value;
+  
+        const opacity = parseFloat(opacityNumber.value) || 0.0;
+  
+        const noiseSlider = parseFloat(noiseSizeRange.value) || 1.0;
+  
+        const satStrength = parseFloat(satStrengthNumber.value) || 1.0;
+  
+
+  
+        const noiseFull = generateNoiseFullCanvas(w, h, {
+  
+            std, noiseType, blurSlider, noiseSlider, satStrength
+  
+        });
+  
+
+  
+        // Apply masking as in applyGaussianNoise
+  
+        const nfCtx = noiseFull.getContext('2d');
+  
+        const enable_sh = enableShadows.checked;
+  
+        const enable_hi = enableHighlights.checked;
+  
+        if (enable_sh || enable_hi) {
+  
+            const noiseData = nfCtx.getImageData(0, 0, w, h);
+  
+            const origData = originalImageData.data;
+  
+            const dd = noiseData.data;
+  
+            const sh_th = parseFloat(shadowThresholdNumber.value) || 0.3;
+  
+            const sh_f = parseFloat(shadowFadeNumber.value) || 0.2;
+  
+            const hi_th = parseFloat(highlightThresholdNumber.value) || 0.7;
+  
+            const hi_f = parseFloat(highlightFadeNumber.value) || 0.2;
+  
+
+  
+            for (let i = 0; i < dd.length; i += 4) {
+  
+                const r = origData[i] / 255, g = origData[i+1] / 255, b = origData[i+2] / 255;
+  
+                const lum = r * 0.299 + g * 0.587 + b * 0.114;
+  
+
+  
+                let shadow_mask = 0;
+  
+                if (enable_sh) {
+  
+                    const low = sh_th - sh_f / 2;
+  
+                    const high = sh_th + sh_f / 2;
+  
+                    shadow_mask = 1 - smoothstep(low, high, lum);
+  
+                }
+  
+                let highlight_mask = 0;
+  
+                if (enable_hi) {
+  
+                    const low = hi_th - hi_f / 2;
+  
+                    const high = hi_th + hi_f / 2;
+  
+                    highlight_mask = smoothstep(low, high, lum);
+  
+                }
+  
+                const total_mask = Math.max(shadow_mask, highlight_mask);
+  
+                dd[i+3] = 255 * total_mask;
+  
+            }
+  
+            nfCtx.putImageData(noiseData, 0, 0);
+  
+        }
+  
+
+  
+        // Build overlay canvas that has the composed result for this blend mode
+  
+        const ov = document.createElement('canvas');
+  
+        ov.width = w; ov.height = h;
+  
+        ov.className = 'overlay-canvas';
+  
+        // match CSS sizing so it lines up
+  
+        ov.style.width = noiseCanvas.style.width;
+  
+        ov.style.height = noiseCanvas.style.height;
+  
+        ov.style.left = noiseCanvas.style.left;
+  
+        ov.style.top = noiseCanvas.style.top;
+  
+        ov.style.transform = noiseCanvas.style.transform;
+  
+        ov.style.opacity = '0';
+  
+
+  
+        const ovCtx = ov.getContext('2d');
+  
+        ovCtx.clearRect(0,0,w,h);
+  
+        ovCtx.globalCompositeOperation = 'source-over';
+  
+        ovCtx.drawImage(originalCanvas, 0, 0, w, h);
+  
+
+  
+        ovCtx.globalAlpha = opacity;
+  
+        ovCtx.globalCompositeOperation = mode;
+  
+        ovCtx.drawImage(noiseFull, 0, 0, w, h);
+  
+
+  
+        // reset
+  
+        ovCtx.globalAlpha = 1.0;
+  
+        ovCtx.globalCompositeOperation = 'source-over';
+  
+
+  
+        // remove previous overlay if present and not yet removed (we'll replace)
+  
+        if(overlayCanvas && overlayCanvas.parentElement){
+  
+            overlayCanvas.parentElement.removeChild(overlayCanvas);
+  
+            overlayCanvas = null;
+  
+        }
+  
+        overlayCanvas = ov;
+  
+
+  
+        // append and trigger the fade-in
+  
+        previewArea.appendChild(overlayCanvas);
+  
+
+  
+        // force reflow
+  
+        void overlayCanvas.offsetWidth;
+  
+
+  
+        // make sure original image isn't visible while previewing blends
+  
+        originalCanvas.style.opacity = '0';
+  
+
+  
+        // cancel previous transition if still running
+  
+        if(activeTransition && activeTransition.cancel) activeTransition.cancel();
+  
+
+  
+        let cancelled = false;
+  
+        activeTransition = {
+  
+            cancel: ()=> { cancelled = true; }
+  
+        };
+  
+
+  
+        // start fade-in
+  
+        overlayCanvas.style.opacity = '1';
+  
+
+  
+        // after fade completes (100ms) copy overlay pixels into noiseCanvas to become the new baseline,
+  
+        // then remove overlay.
+  
+        const t = setTimeout(()=> {
+  
+            if(cancelled){
+  
+                // cleanup and bail
+  
+                if(overlayCanvas && overlayCanvas.parentElement) overlayCanvas.parentElement.removeChild(overlayCanvas);
+  
+                overlayCanvas = null;
+  
+                activeTransition = null;
+  
+                resolve();
+  
+                return;
+  
+            }
+  
+            try{
+  
+                // copy rendered overlay contents into noiseCanvas bitmap
+  
+                ctxNoise.clearRect(0,0,w,h);
+  
+                ctxNoise.drawImage(overlayCanvas, 0, 0, w, h);
+  
+            }catch(e){
+  
+                // ignore errors
+  
+            }
+  
+            // remove overlay
+  
+            if(overlayCanvas && overlayCanvas.parentElement) overlayCanvas.parentElement.removeChild(overlayCanvas);
+  
+            overlayCanvas = null;
+  
+            activeTransition = null;
+  
+            resolve();
+  
+        }, 110); // slightly more than 100ms to be safe
+  
+    });
+  
+}
+  
+
+  
+// wheel handler to change blend mode index
+  
+function wheelCycleBlendMode(ev){
+  
+    if(!originalImageData) return;
+  
+    // keep default scrolling for page? Prevent to avoid accidental scrolling while hovering area
+  
+    ev.preventDefault();
+  
+
+  
+    const delta = ev.deltaY || ev.wheelDelta || 0;
+  
+    if(delta === 0) return;
+  
+
+  
+    // determine direction
+  
+    const dir = delta > 0 ? 1 : -1;
+  
+    currentBlendIndex = (currentBlendIndex + dir + blendModes.length) % blendModes.length;
+  
+
+  
+    const mode = blendModes[currentBlendIndex];
+  
+    // reflect in UI select *but do not call its change handler* automatically (we'll update the UI value and render)
+  
+    blendModeSelect.value = mode;
+  
+
+  
+    // entering scroll-preview mode
+  
+    scrollModeActive = true;
+  
+    // ensure original hidden so edited is visible
+  
+    originalCanvas.style.opacity = '0';
+  
+
+  
+    // crossfade to the newly rendered blend result
+  
+    crossfadeToBlend(mode);
+  
+
+  
+    // reset inactivity revert timer
+  
+    scheduleRevertToOriginal();
+  
+}
+  
+
+  
+// pointer state tracking
+  
+let isPointerOverPreview = false;
+  
+previewContainer.addEventListener('mouseenter', (e)=> {
+  
+    isPointerOverPreview = true;
+  
+    // If we haven't entered scroll-preview mode recently, show original (old behavior)
+  
+    if(!scrollModeActive){
+  
+        originalCanvas.style.opacity = '1';
+  
+    } else {
+  
+        // if in scroll preview mode, keep original hidden (we're previewing blends)
+  
+        originalCanvas.style.opacity = '0';
+  
+    }
+  
+});
+  
+previewContainer.addEventListener('mouseleave', (e)=> {
+  
+    isPointerOverPreview = false;
+  
+    // leaving preview: always show edited (noise) canvas and cancel revert timers
+  
+    clearScrollInactivityTimer();
+  
+    scrollModeActive = false;
+  
+    originalCanvas.style.opacity = '0';
+  
+    // remove any overlay (but keep the current composite on noiseCanvas)
+  
+    removeOverlayCanvasImmediate();
+  
+});
+  
+
+  
+// add wheel listener for scrolling through blends
+  
+// use passive: false so we can preventDefault to avoid page scroll
+  
+previewContainer.addEventListener('wheel', wheelCycleBlendMode, { passive: false });
+  
+
+  
+/* -------------------------
+  
+   Download
+  
+   ------------------------- */
+  
+downloadBtn.addEventListener('click', ()=> {
+  
+    const a = document.createElement('a');
+  
+    a.download = 'noisy_image.png';
+  
+    a.href = noiseCanvas.toDataURL('image/png');
+  
+    a.click();
+  
+});
+  
+
+  
+/* -------------------------
+  
+   Modal manual
+  
+   ------------------------- */
+  
+helpBtn.addEventListener('click', ()=> {
+  
+    manualModal.classList.add('show');
+  
+    manualModal.setAttribute('aria-hidden','false');
+  
+});
+  
+closeManual.addEventListener('click', ()=> {
+  
+    manualModal.classList.remove('show');
+  
+    manualModal.setAttribute('aria-hidden','true');
+  
+});
+  
+manualModal.addEventListener('click', (e)=> { if(e.target === manualModal) { manualModal.classList.remove('show'); manualModal.setAttribute('aria-hidden','true'); }});
+  
+
+  
+/* -------------------------
+  
+   Resize handling
+  
+   ------------------------- */
+  
+window.addEventListener('resize', ()=> {
+  
+    if(window._fitTimeout) clearTimeout(window._fitTimeout);
+  
+    window._fitTimeout = setTimeout(()=> {
+  
+        fitCanvasesToPreview();
+  
+    }, 80);
+  
+});
+  
+
+  
+/* -------------------------
+  
+   Initialize default values & sync map
+  
+   ------------------------- */
+  
+(function init(){
+  
+    strengthNumber.value = parseFloat(strengthRange.value).toFixed(2);
+  
+
+  
+    noiseSizeRange.value = sliderFromNoiseSize(parseFloat(noiseSizeNumber.value || 4)).toFixed(2);
+  
+    syncNoiseSizeFromSlider();
+  
+
+  
+    blurrinessRange.value = sliderFromBlur(parseFloat(blurrinessNumber.value || 2)).toFixed(2);
+  
+    syncBlurFromSlider();
+  
+
+  
+    opacityNumber.value = parseFloat(opacityRange.value).toFixed(2);
+  
+
+  
+    satStrengthContainer.style.display = noiseTypeSelect.value === 'blend' ? 'block' : 'none';
+  
+
+  
+    brightnessNumber.value = parseInt(brightnessRange.value);
+  
+    contrastNumber.value = parseInt(contrastRange.value);
+  
+    saturationAdjNumber.value = parseInt(saturationAdjRange.value);
+  
+
+  
+    shadowThresholdNumber.value = parseFloat(shadowThresholdRange.value).toFixed(2);
+  
+    shadowFadeNumber.value = parseFloat(shadowFadeRange.value).toFixed(2);
+  
+    highlightThresholdNumber.value = parseFloat(highlightThresholdRange.value).toFixed(2);
+  
+    highlightFadeNumber.value = parseFloat(highlightFadeRange.value).toFixed(2);
+  
+})();
+  
+</script></body></html>

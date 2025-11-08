@@ -151,6 +151,24 @@
             width: 100%; /* Important for mobile */
         }
 
+        /* Styling for secondary tool boxes */
+        .tool-box.secondary-tool {
+            width: 200px;
+            height: 140px;
+        }
+        
+        .tool-box.secondary-tool h2 {
+            font-size: 1.1rem;
+        }
+        
+        .tool-box.secondary-tool .info-popup h2 {
+            font-size: 1.1rem;
+        }
+        
+        .tool-box.secondary-tool .info-popup p {
+            font-size: 0.8rem;
+        }
+
         /* Styling for each tool box */
         .tool-box {
             display: flex;
@@ -303,43 +321,20 @@
         </div>
 
         <div class="tools-container">
+            <!-- Image-related tools -->
+            <a href="./Chat GPT - Grok Noise editor/v7, performance.html" class="tool-box" data-id="noise-studio">
+                <h2>Noise Studio</h2>
+                <div class="info-popup">
+                    <h2>Noise Studio</h2>
+                    <p>Create and customize noise patterns with various parameters to generate unique textures and effects for your designs.</p>
+                </div>
+            </a>
+
             <a href="./Background%20Remover/index.html" class="tool-box" data-id="background-remover">
                 <h2>Background Remover</h2>
                 <div class="info-popup">
                     <h2>Background Remover</h2>
                     <p>Remove backgrounds from images with this easy-to-use tool. Perfect for product photos or creating transparent PNGs.</p>
-                </div>
-            </a>
-
-            <a href="./File%20Encryptor/index.html" class="tool-box" data-id="file-encryptor">
-                <h2>File Encryptor</h2>
-                <div class="info-popup">
-                    <h2>File Encryptor/Decryptor</h2>
-                    <p>Securely encrypt and decrypt files using strong encryption algorithms. All processing happens in your browser.</p>
-                </div>
-            </a>
-
-            <a href="./base%20converter.html" class="tool-box" data-id="base-converter">
-                <h2>Base Converter</h2>
-                <div class="info-popup">
-                    <h2>Base Converter</h2>
-                    <p>Convert numbers between different bases (binary, decimal, hexadecimal, etc.) with this easy-to-use tool.</p>
-                </div>
-            </a>
-
-            <a href="./QR%20code%20gen.html" class="tool-box" data-id="qr-generator">
-                <h2>QR Code Generator</h2>
-                <div class="info-popup">
-                    <h2>QR Code Generator</h2>
-                    <p>Create custom QR codes for URLs, text, contact information, and more. Download or share your QR codes easily.</p>
-                </div>
-            </a>
-
-            <a href="./image%20to%20ascii%20art.html" class="tool-box" data-id="ascii-art">
-                <h2>Image to ASCII Art</h2>
-                <div class="info-popup">
-                    <h2>Image to ASCII Art</h2>
-                    <p>Convert your images into ASCII art. Customize the output with different characters and color options.</p>
                 </div>
             </a>
 
@@ -359,22 +354,6 @@
                 </div>
             </a>
 
-            <a href="./image%20hex%20code.html" class="tool-box" data-id="hex-picker">
-                <h2>Image Color Picker</h2>
-                <div class="info-popup">
-                    <h2>Image Color Picker</h2>
-                    <p>Extract and identify color hex codes from any image. Click on any part of your image to get the exact color code.</p>
-                </div>
-            </a>
-
-            <a href="./zalgo%20gen.html" class="tool-box" data-id="zalgo-gen">
-                <h2>Zalgo Text Generator</h2>
-                <div class="info-popup">
-                    <h2>Zalgo Text Generator</h2>
-                    <p>Create glitchy, corrupted-looking text with various intensity levels. Perfect for creating surreal or horror-themed text effects.</p>
-                </div>
-            </a>
-
             <a href="./foldercleaner.html" class="tool-box" data-id="folder-cleaner">
                 <h2>Folder Cleaner</h2>
                 <div class="info-popup">
@@ -383,19 +362,74 @@
                 </div>
             </a>
 
-            <a href="./image%20layerer%20V1.html" class="tool-box" data-id="image-layerer">
+            <a href="./image%20to%20ascii%20art.html" class="tool-box" data-id="ascii-art">
+                <h2>Image to ASCII Art</h2>
+                <div class="info-popup">
+                    <h2>Image to ASCII Art</h2>
+                    <p>Convert your images into ASCII art. Customize the output with different characters and color options.</p>
+                </div>
+            </a>
+
+            <a href="./swaper.html" class="tool-box" data-id="color-swapper">
+                <h2>Color Palette Swapper</h2>
+                <div class="info-popup">
+                    <h2>Color Palette Swapper</h2>
+                    <p>Upload an image and swap its colors with a custom or random color palette. Great for creating themed artwork or exploring different color schemes.</p>
+                </div>
+            </a>
+
+            <!-- Separator -->
+            <div style="width: 100%; height: 2px; background: rgba(255, 255, 255, 0.2); margin: 2rem 0; grid-column: 1 / -1;"></div>
+            
+            <!-- Add a heading for secondary tools -->
+            <h3 style="grid-column: 1 / -1; text-align: center; margin: 0.5rem 0 1rem; font-weight: 400; color: rgba(255, 255, 255, 0.7);">Other Tools</h3>
+
+            <!-- Other tools with smaller size -->
+            <a href="./File%20Encryptor/index.html" class="tool-box secondary-tool" data-id="file-encryptor">
+                <h2>File Encryptor</h2>
+                <div class="info-popup">
+                    <h2>File Encryptor/Decryptor</h2>
+                    <p>Securely encrypt and decrypt files using strong encryption algorithms. All processing happens in your browser.</p>
+                </div>
+            </a>
+
+            <a href="./base%20converter.html" class="tool-box secondary-tool" data-id="base-converter">
+                <h2>Base Converter</h2>
+                <div class="info-popup">
+                    <h2>Base Converter</h2>
+                    <p>Convert numbers between different bases (binary, decimal, hexadecimal, etc.) with this easy-to-use tool.</p>
+                </div>
+            </a>
+
+            <a href="./QR%20code%20gen.html" class="tool-box secondary-tool" data-id="qr-generator">
+                <h2>QR Code Generator</h2>
+                <div class="info-popup">
+                    <h2>QR Code Generator</h2>
+                    <p>Create custom QR codes for URLs, text, contact information, and more. Download or share your QR codes easily.</p>
+                </div>
+            </a>
+
+            <a href="./image%20hex%20code.html" class="tool-box secondary-tool" data-id="hex-picker">
+                <h2>Image Color Picker</h2>
+                <div class="info-popup">
+                    <h2>Image Color Picker</h2>
+                    <p>Extract and identify color hex codes from any image. Click on any part of your image to get the exact color code.</p>
+                </div>
+            </a>
+
+            <a href="./zalgo%20gen.html" class="tool-box secondary-tool" data-id="zalgo-gen">
+                <h2>Zalgo Text Generator</h2>
+                <div class="info-popup">
+                    <h2>Zalgo Text Generator</h2>
+                    <p>Create glitchy, corrupted-looking text with various intensity levels. Perfect for creating surreal or horror-themed text effects.</p>
+                </div>
+            </a>
+
+            <a href="./image%20layerer%20V1.html" class="tool-box secondary-tool" data-id="image-layerer">
                 <h2>Image Layerer V1</h2>
                 <div class="info-popup">
                     <h2>Image Layerer V1</h2>
                     <p>Layer multiple images together with different blending modes, opacity, and positioning to create stunning composite images.</p>
-                </div>
-            </a>
-
-            <a href="./noise%20editor.html" class="tool-box" data-id="noise-editor">
-                <h2>Noise Editor</h2>
-                <div class="info-popup">
-                    <h2>Noise Editor</h2>
-                    <p>Create and customize noise patterns with various parameters to generate unique textures and effects for your designs.</p>
                 </div>
             </a>
         </div>

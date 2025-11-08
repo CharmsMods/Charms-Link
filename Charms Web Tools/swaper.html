@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Palette Image Recreater</title>
+    <style>
+        body {
+            background: #000000;
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        .popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            background: #000000;
+            border: 1px solid #ffffff;
+            padding: 20px;
+            opacity: 0;
+            display: none;
+            transition: opacity 0.5s, transform 0.5s;
+            transform-origin: center;
+            image-rendering: pixelated;
+            z-index: 10;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        #uploadPopup {
+            border-style: dashed;
+        }
+        button, input {
+            background: #000000;
+            color: #ffffff;
+            border: 1px solid #ffffff;
+            padding: 5px;
+        }
+        #mainUI {
+            display: none;
+        }
+        #controls {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 200px;
+            padding: 10px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        #paletteContainer {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .color-squircle {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            margin: 5px;
+        }
+        #preview {
+            position: absolute;
+            left: 200px;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            margin: auto;
+            transition: opacity 0.3s;
+            max-width: calc(100vw - 200px);
+            max-height: 100vh;
+            border: none;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        #customColorsContainer {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        #customColorsContainer input {
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="popup1" class="popup">
+    <h2>Number of Colors in Palette</h2>
+    <input type="number" id="numColors" min="2" max="10000" value="5">
+    <button onclick="submitNumColors()">Submit</button>
+</div>
+
+<div id="popup2" class="popup">
+    <h2>Generate Random Palette?</h2>
+    <button onclick="chooseRandom(true)">Yes</button>
+    <button onclick="chooseRandom(false)">No</button>
+</div>
+
+<div id="randomPalettePopup" class="popup">
+    <h2>Random Palette</h2>
+    <div id="randomPaletteDisplay"></div>
+    <button onclick="generateRandomPalette()">Regenerate</button>
+    <button onclick="acceptPalette()">OK</button>
+</div>
+
+<div id="customColorsPopup" class="popup">
+    <h2>Pick Colors</h2>
+    <div id="customColorsContainer"></div>
+    <button onclick="submitCustomColors()">Submit</button>
+</div>
+
+<div id="uploadPopup" class="popup">
+    <h2>Upload Image</h2>
+    <p>Click to select or drag and drop</p>
+    <input type="file" id="fileInput" accept="image/*">
+</div>
+
+<div id="mainUI">
+    <div id="controls">
+        <label>Num Colors: <input type="number" id="numColorsMain" min="2" max="10000"></label>
+        <button id="changeNumColors">Change</button>
+        <button id="editPalette">Edit Palette</button>
+        <button id="randomizePalette">Randomize Palette</button>
+        <div id="paletteContainer"></div>
+        <label>Bit Depth:
+            <input type="range" id="bitDepth" min="2" max="8" value="8">
+        </label>
+    </div>
+    <canvas id="preview"></canvas>
+</div>
+
+<script>
+    let numColors = 0;
+    let palette = [];
+    let originalImage = null;
+
+    window.onload = () => {
+        showPopup('popup1');
+    };
+
+    function showPopup(id) {
+        const p = document.getElementById(id);
+        p.style.display = 'block';
+        setTimeout(() => {
+            p.style.opacity = 1;
+        }, 10);
+    }
+
+    function hidePopup(id, next) {
+        const p = document.getElementById(id);
+        p.style.transform = 'scale(0.1)';
+        p.style.opacity = 0;
+        setTimeout(() => {
+            p.style.display = 'none';
+            p.style.transform = 'scale(1)';
+            if (next) showPopup(next);
+        }, 500);
+    }
+
+    function submitNumColors() {
+        numColors = parseInt(document.getElementById('numColors').value);
+        hidePopup('popup1', 'popup2');
+    }
+
+    function chooseRandom(isRandom) {
+        hidePopup('popup2');
+        if (isRandom) {
+            generateRandomPalette();
+            showPopup('randomPalettePopup');
+        } else {
+            setupCustomColors();
+            showPopup('customColorsPopup');
+        }
+    }
+
+    function generateRandomPalette() {
+        palette = [];
+        for (let i = 0; i < numColors; i++) {
+            const color = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+            palette.push(color);
+        }
+        displayPalette('randomPaletteDisplay');
+    }
+
+    function displayPalette(containerId) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        palette.forEach(color => {
+            const div = document.createElement('div');
+            div.className = 'color-squircle';
+            div.style.backgroundColor = color;
+            container.appendChild(div);
+        });
+    }
+
+    function acceptPalette() {
+        hidePopup('randomPalettePopup', 'uploadPopup');
+    }
+
+    function setupCustomColors() {
+        const container = document.getElementById('customColorsContainer');
+        container.innerHTML = '';
+        for (let i = 0; i < numColors; i++) {
+            const input = document.createElement('input');
+            input.type = 'color';
+            input.value = '#000000';
+            container.appendChild(input);
+        }
+    }
+
+    function submitCustomColors() {
+        palette = [];
+        const inputs = document.getElementById('customColorsContainer').querySelectorAll('input');
+        inputs.forEach(input => {
+            palette.push(input.value);
+        });
+        hidePopup('customColorsPopup');
+        displayPalette('paletteContainer');
+        processImage(300);
+    }
+
+    // Upload handling
+    const uploadPopup = document.getElementById('uploadPopup');
+    const fileInput = document.getElementById('fileInput');
+
+    uploadPopup.ondragover = e => e.preventDefault();
+    uploadPopup.ondrop = e => {
+        e.preventDefault();
+        handleFile(e.dataTransfer.files[0]);
+    };
+
+    fileInput.onchange = e => {
+        handleFile(e.target.files[0]);
+    };
+
+    function handleFile(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            originalImage = new Image();
+            originalImage.src = e.target.result;
+            originalImage.onload = () => {
+                hidePopup('uploadPopup');
+                document.getElementById('mainUI').style.display = 'block';
+                document.getElementById('numColorsMain').value = numColors;
+                displayPalette('paletteContainer');
+                setupUIEvents();
+                processImage(300);
+            };
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function setupUIEvents() {
+        document.getElementById('randomizePalette').onclick = () => {
+            generateRandomPalette();
+            displayPalette('paletteContainer');
+            processImage(300);
+        };
+
+        document.getElementById('changeNumColors').onclick = () => {
+            numColors = parseInt(document.getElementById('numColorsMain').value);
+            generateRandomPalette();
+            displayPalette('paletteContainer');
+            processImage(300);
+        };
+
+        document.getElementById('editPalette').onclick = () => {
+            const container = document.getElementById('customColorsContainer');
+            container.innerHTML = '';
+            for (let i = 0; i < numColors; i++) {
+                const input = document.createElement('input');
+                input.type = 'color';
+                input.value = palette[i] || '#000000';
+                container.appendChild(input);
+            }
+            showPopup('customColorsPopup');
+        };
+
+        const bitDepth = document.getElementById('bitDepth');
+        bitDepth.oninput = () => processImage(100);
+        bitDepth.onwheel = e => {
+            e.preventDefault();
+            let val = parseInt(bitDepth.value);
+            val += e.deltaY < 0 ? 1 : -1;
+            val = Math.max(bitDepth.min, Math.min(bitDepth.max, val));
+            bitDepth.value = val;
+            processImage(100);
+        };
+
+        const preview = document.getElementById('preview');
+        preview.onwheel = e => {
+            e.preventDefault();
+            let val = parseInt(bitDepth.value);
+            val += e.deltaY < 0 ? 1 : -1;
+            val = Math.max(bitDepth.min, Math.min(bitDepth.max, val));
+            bitDepth.value = val;
+            processImage(100);
+        };
+    }
+
+    function processImage(duration = 300) {
+        if (!originalImage) return;
+
+        const preview = document.getElementById('preview');
+        preview.style.transition = `opacity ${duration / 1000}s`;
+        preview.style.opacity = 0.5;
+
+        setTimeout(() => {
+            const maxW = window.innerWidth - 200;
+            const maxH = window.innerHeight;
+            const scale = Math.min(maxW / originalImage.width, maxH / originalImage.height);
+            const w = originalImage.width * scale;
+            const h = originalImage.height * scale;
+            preview.width = w;
+            preview.height = h;
+
+            const ctx = preview.getContext('2d');
+            ctx.drawImage(originalImage, 0, 0, w, h);
+
+            const imageData = ctx.getImageData(0, 0, w, h);
+            const data = imageData.data;
+
+            const bit = parseInt(document.getElementById('bitDepth').value);
+            const levels = Math.pow(2, bit);
+
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = Math.round(data[i] / 255 * (levels - 1)) * 255 / (levels - 1);     // R
+                data[i + 1] = Math.round(data[i + 1] / 255 * (levels - 1)) * 255 / (levels - 1); // G
+                data[i + 2] = Math.round(data[i + 2] / 255 * (levels - 1)) * 255 / (levels - 1); // B
+            }
+
+            const paletteRgb = palette.map(hexToRgb);
+            for (let i = 0; i < data.length; i += 4) {
+                const rgb = { r: data[i], g: data[i + 1], b: data[i + 2] };
+                const closest = findClosestColor(rgb, paletteRgb);
+                data[i] = closest.r;
+                data[i + 1] = closest.g;
+                data[i + 2] = closest.b;
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+            preview.style.opacity = 1;
+        }, duration);
+    }
+
+    function hexToRgb(hex) {
+        return {
+            r: parseInt(hex.substr(1, 2), 16),
+            g: parseInt(hex.substr(3, 2), 16),
+            b: parseInt(hex.substr(5, 2), 16)
+        };
+    }
+
+    function findClosestColor(rgb, paletteRgb) {
+        let minDist = Infinity;
+        let closest = paletteRgb[0];
+        paletteRgb.forEach(col => {
+            const dist = Math.pow(rgb.r - col.r, 2) + Math.pow(rgb.g - col.g, 2) + Math.pow(rgb.b - col.b, 2);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = col;
+            }
+        });
+        return closest;
+    }
+</script>
+
+</body>
+</html>

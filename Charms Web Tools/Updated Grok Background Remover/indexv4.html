@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Color Fader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-black text-white">
+    <div id="message-box" class="fixed bottom-4 right-4 z-50 hidden p-4 text-sm rounded-lg shadow-lg max-w-sm border" role="alert">
+        <span class="font-medium" id="message-text"></span>
+    </div>
+
+    <div id="performance-warning" class="fixed top-4 right-4 z-50 hidden p-4 text-sm rounded-lg shadow-lg max-w-sm bg-yellow-900 border border-yellow-600 text-yellow-200" role="alert">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                </svg>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium">Performance Mode</h3>
+                <p class="mt-1 text-xs">Real-time preview disabled due to slow processing. Use the Preview button to see changes, or re-enable real-time mode if desired.</p>
+                <button id="dismiss-warning" class="mt-2 text-xs text-yellow-400 hover:text-yellow-300 underline">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="magnifier" class="hidden fixed bg-black border-2 border-white p-1 rounded shadow-lg pointer-events-none z-50">
+        <canvas id="magCanvas" width="90" height="90" style="image-rendering: pixelated;"></canvas>
+        <div style="position:absolute; top:40px; left:40px; width:10px; height:10px; border:1px solid red; pointer-events:none;"></div>
+    </div>
+
+    <header class="bg-black border-b border-white py-6">
+        <div class="container mx-auto px-6">
+            <h1 class="text-3xl font-bold text-center text-cyan-400">Image Color Fader</h1>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-6 py-8 max-w-7xl">
+        <div class="grid grid-cols-1 xl:grid-cols-4 gap-8">
+            <div class="xl:col-span-3">
+                <div class="bg-black rounded-lg p-6 border border-white">
+                    <div class="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+                        <label for="imageUpload" class="custom-file-upload">
+                            Upload Image
+                        </label>
+                        <input type="file" id="imageUpload" accept="image/*">
+
+                        <div class="flex gap-3 flex-wrap">
+                            <button id="previewButton" class="action-btn bg-purple-600 hover:bg-purple-700 hidden">
+                                Preview
+                            </button>
+                            <button id="resetButton" class="action-btn bg-red-600 hover:bg-red-700">
+                                Reset
+                            </button>
+                            <button id="applyButton" class="action-btn bg-cyan-600 hover:bg-cyan-700">
+                                Apply
+                            </button>
+                            <button id="downloadButton" class="action-btn bg-green-600 hover:bg-green-700">
+                                Download
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="canvas-container relative overflow-hidden">
+                        <canvas id="imageCanvas" class="w-full h-auto"></canvas>
+                        <canvas id="overlayCanvas" class="absolute top-0 left-0 pointer-events-none" style="display:none;"></canvas>
+                        <canvas id="glCanvas" style="display:none;"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="xl:col-span-1">
+                <div class="bg-black rounded-lg p-6 border border-white sticky top-8">
+                    <h2 class="text-xl font-semibold text-cyan-400 mb-6">Controls</h2>
+
+                    <div class="control-section">
+                        <h3 class="control-title">Preview</h3>
+                        <label class="toggle-container">
+                            <input type="checkbox" id="realtimePreviewToggle" class="toggle-input" checked>
+                            <span class="toggle-label">Real-time Preview</span>
+                        </label>
+                        <p class="text-xs text-white opacity-70 mt-2">Updates preview as you adjust settings</p>
+                    </div>
+
+                    <div class="control-section">
+                        <h3 class="control-title">Rendering Mode</h3>
+                        <label class="toggle-container">
+                            <input type="checkbox" id="gpuToggle" class="toggle-input" checked>
+                            <span class="toggle-label">Use GPU</span>
+                        </label>
+                    </div>
+
+                    <div class="control-section">
+                        <h3 class="control-title">Selected Color</h3>
+                        <div class="flex items-center space-x-3 mb-3">
+                            <div id="colorSwatch" class="w-12 h-12 border-2 border-white rounded-lg shadow-sm" style="background-color: #ffffff;"></div>
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-sm text-white">Hex: <span id="hexDisplay" class="text-cyan-400 font-mono">#FFFFFF</span></span>
+                                    <button id="copyHexButton" class="copy-btn" title="Copy hex value">Copy</button>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-white">RGB: <span id="rgbDisplay" class="text-cyan-400 font-mono">rgb(255, 255, 255)</span></span>
+                                    <button id="copyRgbButton" class="copy-btn" title="Copy RGB value">Copy</button>
+                                </div>
+                                <div class="mt-2">
+                                    <span class="text-sm text-white">Resolution: <span id="resolutionDisplay" class="text-cyan-400 font-mono">No image</span></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <label class="text-sm text-white mb-2 block">Color Space for Tolerance</label>
+                            <select id="colorSpaceSelect" class="bg-black border border-white text-white p-1 rounded w-full">
+                                <option value="rgb">RGB</option>
+                                <option value="hsl">HSL</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3 class="control-title">Selection Mode</h3>
+                        <div class="space-y-3">
+                            <label class="toggle-container">
+                                <input type="checkbox" id="areaSelectionToggle" class="toggle-input">
+                                <span class="toggle-label">Area Selection (Flood Fill)</span>
+                            </label>
+                            <p class="text-xs text-white opacity-70 mt-2">Target only the connected area you click on.</p>
+                        </div>
+                    </div>
+                    <div class="control-section">
+                        <h3 class="control-title">Mode</h3>
+                        <div class="space-y-3">
+                            <label class="toggle-container">
+                                <input type="checkbox" id="colorReplacementToggle" class="toggle-input">
+                                <span class="toggle-label">Replace with Color</span>
+                            </label>
+                            <div id="colorPickerContainer" class="hidden pl-6">
+                                <div class="flex items-center space-x-3">
+                                    <input type="color" id="replacementColorPicker" value="#ff0000" class="color-picker">
+                                    <span class="text-sm text-white">Color: <span id="replacementColorDisplay" class="text-cyan-400 font-mono">#FF0000</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <h3 class="control-title">Opacity</h3>
+                        <div class="slider-container">
+                            <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0" class="custom-slider">
+                            <div class="flex justify-between text-xs text-white opacity-70 mt-1">
+                                <span>0%</span>
+                                <span id="opacityValue" class="text-white opacity-100">0%</span>
+                                <span>100%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <details open class="control-section">
+                        <summary class="control-title cursor-pointer">Selection Refinement</summary>
+                        <div class="mt-3">
+                            <label class="toggle-container">
+                                <input type="checkbox" id="toleranceToggle" class="toggle-input" checked>
+                                <span class="toggle-label">Enable Tolerance Mode</span>
+                            </label>
+                            <div id="toleranceSliderContainer" class="mt-3 pl-6">
+                                <div class="slider-container">
+                                    <label class="text-sm text-white mb-2 block">Strength</label>
+                                    <input type="range" id="toleranceStrengthSlider" min="0" max="400" step="1" value="0" class="custom-slider">
+                                    <div class="flex justify-between text-xs text-white opacity-70 mt-1">
+                                        <span>Low</span>
+                                        <span id="toleranceValue" class="text-white opacity-100">0</span>
+                                        <span>High</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <label class="toggle-container">
+                                <input type="checkbox" id="invertSelectionToggle" class="toggle-input">
+                                <span class="toggle-label">Invert Selection</span>
+                            </label>
+                            <p class="text-xs text-white opacity-70 mt-2">Applies effect to all colors EXCEPT the selection.</p>
+                        </div>
+                        <div class="mt-3">
+                            <label class="toggle-container">
+                                <input type="checkbox" id="antiAliasingToggle" class="toggle-input" checked>
+                                <span class="toggle-label">Enable Edge Smoothing</span>
+                            </label>
+                            <div id="smoothingSliderContainer" class="mt-3 pl-6">
+                                <div class="slider-container">
+                                    <label class="text-sm text-white mb-2 block">Factor</label>
+                                    <input type="range" id="smoothingFactorSlider" min="0.1" max="1.0" step="0.05" value="0.1" class="custom-slider">
+                                    <div class="flex justify-between text-xs text-white opacity-70 mt-1">
+                                        <span>Sharp</span>
+                                        <span id="smoothingValue" class="text-white opacity-100">0.10</span>
+                                        <span>Smooth</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="aaModeContainer" class="mt-3 pl-6">
+                                <label class="text-sm text-white mb-2 block">AA Mode</label>
+                                <div class="flex space-x-4">
+                                    <label class="text-xs"><input type="radio" name="aaMode" value="boundary" checked> Boundary</label>
+                                    <label class="text-xs"><input type="radio" name="aaMode" value="full"> Full</label>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Dark Theme Image Color Fader */
+
+        /* General styling */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #000000 !important;
+            color: #ffffff !important;
+            min-height: 100vh;
+        }
+
+        /* Canvas styling */
+        .canvas-container {
+            background-color: #000000;
+            background-image:
+                linear-gradient(45deg, #333 25%, transparent 25%),
+                linear-gradient(-45deg, #333 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #333 75%),
+                linear-gradient(-45deg, transparent 75%, #333 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            border: 2px solid #ffffff;
+            position: relative;
+        }
+
+        canvas {
+            background-color: transparent;
+            max-width: 100%;
+            max-height: 75vh;
+            width: auto;
+            height: auto;
+            display: block;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 25px rgba(255, 255, 255, 0.1);
+            border: 1px solid #ffffff;
+            margin: 0 auto;
+            transform-origin: 50% 50%;
+        }
+
+        /* File input styling */
+        input[type="file"] {
+            display: none;
+        }
+
+        .custom-file-upload {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            color: white;
+            border: 2px solid #0891b2;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            font-size: 0.875rem;
+        }
+
+        .custom-file-upload:hover {
+            background: linear-gradient(135deg, #0891b2, #0e7490);
+            border-color: #0e7490;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+        }
+
+        /* Action buttons */
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Control sections */
+        .control-section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #ffffff;
+        }
+
+        .control-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .control-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Toggle switches */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .toggle-input {
+            appearance: none;
+            width: 2.5rem;
+            height: 1.25rem;
+            background-color: #000000;
+            border-radius: 0.625rem;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-right: 0.75rem;
+            border: 2px solid #ffffff;
+        }
+
+        .toggle-input:checked {
+            background-color: #06b6d4;
+            border-color: #0891b2;
+        }
+
+        .toggle-input.disabled {
+            background-color: #000000;
+            border-color: #ffffff;
+            cursor: not-allowed;
+            opacity: 0.3;
+        }
+
+        .toggle-input.disabled:checked {
+            background-color: #000000;
+            border-color: #ffffff;
+        }
+
+        .toggle-container.disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .toggle-input::before {
+            content: '';
+            position: absolute;
+            width: 0.875rem;
+            height: 0.875rem;
+            border-radius: 50%;
+            background-color: white;
+            top: 50%;
+            left: 0.125rem;
+            transform: translateY(-50%);
+            transition: transform 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-input:checked::before {
+            transform: translateY(-50%) translateX(1.25rem);
+        }
+
+        .toggle-input.disabled::before {
+            background-color: #ffffff;
+            opacity: 0.5;
+        }
+
+        .toggle-label {
+            font-size: 0.875rem;
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        /* Custom sliders */
+        .slider-container {
+            margin-top: 0.5rem;
+        }
+
+        .custom-slider {
+            width: 100%;
+            height: 0.375rem;
+            border-radius: 0.1875rem;
+            background: #ffffff;
+            outline: none;
+            appearance: none;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .custom-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            cursor: pointer;
+            border: 2px solid #000000;
+            box-shadow: 0 2px 6px rgba(6, 182, 212, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .custom-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.5);
+        }
+
+        .custom-slider::-moz-range-thumb {
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            cursor: pointer;
+            border: 2px solid #000000;
+            box-shadow: 0 2px 6px rgba(6, 182, 212, 0.3);
+        }
+
+        /* Color picker */
+        .color-picker {
+            width: 2.5rem;
+            height: 2rem;
+            border: 2px solid #ffffff;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            background: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .color-picker:hover {
+            border-color: #06b6d4;
+        }
+
+        /* Copy buttons */
+        .copy-btn {
+            padding: 0.25rem 0.5rem;
+            background: #000000;
+            color: #06b6d4;
+            border: 1px solid #ffffff;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #ffffff;
+            border-color: #06b6d4;
+            color: #000000;
+        }
+
+        /* Message styling */
+        #message-box {
+            backdrop-filter: blur(10px);
+        }
+
+        #message-box.success {
+            background: rgba(6, 182, 212, 0.2);
+            border-color: #06b6d4;
+            color: #67e8f9;
+        }
+
+        #message-box.error {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+            color: #fca5a5;
+        }
+
+        #message-box.info {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+            color: #93c5fd;
+        }
+
+        /* Animate pulse for overlay */
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 0.2; }
+            100% { opacity: 0.4; }
+        }
+
+        .animate-pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1280px) {
+            .canvas-container {
+                margin-bottom: 2rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .custom-file-upload {
+                width: 100%;
+                justify-content: center;
+                margin-bottom: 1rem;
+            }
+
+            .action-btn {
+                flex: 1;
+            }
+        }
+    </style>
+
+    <script>
+        // Worker code as blob
+        const workerBlob = new Blob([`
+            function rgbToHex(r, g, b) {
+                return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+            }
+
+            function hexToRgb(hex) {
+                const result = /^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : null;
+            }
+
+            function colorDistance(color1, color2) {
+                const dr = color1.r - color2.r;
+                const dg = color1.g - color2.g;
+                const db = color1.b - color2.b;
+                const rWeight = 0.3;
+                const gWeight = 0.59;
+                const bWeight = 0.11;
+                return Math.sqrt(rWeight * dr * dr + gWeight * dg * dg + bWeight * db * db);
+            }
+
+            function rgbToHsl(color) {
+                let r = color.r / 255, g = color.g / 255, b = color.b / 255;
+                let max = Math.max(r, g, b), min = Math.min(r, g, b);
+                let h, s, l = (max + min) / 2;
+                if (max === min) {
+                    h = s = 0;
+                } else {
+                    let d = max - min;
+                    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                    switch (max) {
+                        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                        case g: h = (b - r) / d + 2; break;
+                        case b: h = (r - g) / d + 4; break;
+                    }
+                    h /= 6;
+                }
+                return { h: h * 360, s: s * 100, l: l * 100 };
+            }
+
+            function hslDistance(hsl1, hsl2) {
+                const dh = Math.min(Math.abs(hsl1.h - hsl2.h), 360 - Math.abs(hsl1.h - hsl2.h));
+                const ds = Math.abs(hsl1.s - hsl2.s);
+                const dl = Math.abs(hsl1.l - hsl2.l);
+                return Math.sqrt(dh * dh + ds * ds + dl * dl);
+            }
+
+            function applyOpacityGamma(opacity) {
+                return Math.pow(opacity, 2.2);
+            }
+
+            function smoothInterpolation(t, smoothingFactor) {
+                t = Math.max(0, Math.min(1, t));
+                if (smoothingFactor <= 0.3) {
+                    return (1 - Math.cos(t * Math.PI)) / 2;
+                } else if (smoothingFactor <= 0.7) {
+                    return t * t * (3 - 2 * t);
+                } else {
+                    return t * t * t * (t * (t * 6 - 15) + 10);
+                }
+            }
+
+            onmessage = function(e) {
+                const data = e.data;
+                if (data.type === 'floodfill') {
+                    const { buffer, width, height, startX, startY, targetColor, toleranceRadius, colorSpace } = data;
+                    const imgData = new Uint8ClampedArray(buffer);
+                    const getColor = (x, y) => {
+                        const i = (y * width + x) * 4;
+                        return { r: imgData[i], g: imgData[i + 1], b: imgData[i + 2] };
+                    };
+                    const distFunc = colorSpace === 'hsl' ? (c1, c2) => hslDistance(rgbToHsl(c1), rgbToHsl(c2)) : colorDistance;
+                    const visited = new Uint8Array(width * height).fill(0);
+                    const selectedMask = new Uint8Array(width * height).fill(0);
+                    const queue = [{ x: startX, y: startY }];
+                    const target = getColor(startX, startY);
+                    while (queue.length > 0) {
+                        const { x, y } = queue.shift();
+                        const index = y * width + x;
+                        if (x < 0 || x >= width || y < 0 || y >= height || visited[index]) continue;
+                        visited[index] = 1;
+                        const current = getColor(x, y);
+                        const dist = distFunc(target, current);
+                        if (dist <= toleranceRadius) {
+                            selectedMask[index] = 1;
+                            queue.push({ x: x + 1, y });
+                            queue.push({ x: x - 1, y });
+                            queue.push({ x: x, y: y + 1 });
+                            queue.push({ x: x, y: y - 1 });
+                        }
+                    }
+                    postMessage({ type: 'floodfill', selectedMask: selectedMask.buffer }, [selectedMask.buffer]);
+                } else if (data.type === 'process') {
+                    const { buffer, width, height, selectedColor, opacity, toleranceEnabled, toleranceRadius, invert, colorReplacement, replacementColor, antiAliasing, smoothingFactor, aaMode, areaMode, selectedMaskBuffer, colorSpace } = data;
+                    const imgData = new Uint8ClampedArray(buffer);
+                    const selectedMask = areaMode ? new Uint8Array(selectedMaskBuffer) : null;
+                    const getColor = (x, y) => {
+                        const i = (y * width + x) * 4;
+                        return { r: imgData[i], g: imgData[i + 1], b: imgData[i + 2] };
+                    };
+                    const distFunc = colorSpace === 'hsl' ? (c1, c2) => hslDistance(rgbToHsl(c1), rgbToHsl(c2)) : colorDistance;
+                    const isSelected = (x, y) => {
+                        if (x < 0 || x >= width || y < 0 || y >= height) return false;
+                        const index = y * width + x;
+                        if (areaMode) return selectedMask[index] === 1;
+                        const current = getColor(x, y);
+                        const dist = distFunc(selectedColor, current);
+                        return toleranceEnabled ? dist <= toleranceRadius : dist === 0;
+                    };
+                    const isBoundary = (x, y) => {
+                        const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                        for (let d of dirs) {
+                            const nx = x + d[0], ny = y + d[1];
+                            if (!isSelected(nx, ny)) return true;
+                        }
+                        return false;
+                    };
+                    for (let y = 0; y < height; y++) {
+                        for (let x = 0; x < width; x++) {
+                            const i = (y * width + x) * 4;
+                            const index = y * width + x;
+                            const currentColor = getColor(x, y);
+                            const originalAlpha = imgData[i + 3];
+                            const dist = distFunc(selectedColor, currentColor);
+                            let sel = areaMode ? selectedMask[index] === 1 : (toleranceEnabled ? (dist <= toleranceRadius) : (dist === 0));
+                            let effectFactor = invert ? (sel ? 0 : 1) : (sel ? 1 : 0);
+                            if (effectFactor > 0 && antiAliasing && toleranceEnabled) {
+                                const useSmooth = (aaMode === 'full') || isBoundary(x, y);
+                                if (useSmooth) {
+                                    const fadeZone = toleranceRadius * smoothingFactor;
+                                    const coreZone = toleranceRadius - fadeZone;
+                                    let progress = 0;
+                                    if (toleranceRadius > 0) {
+                                        progress = Math.max(0, (dist - coreZone) / fadeZone);
+                                    }
+                                    const smoothProgress = smoothInterpolation(progress, smoothingFactor);
+                                    effectFactor = invert ? smoothProgress : 1 - smoothProgress;
+                                }
+                            }
+                            if (effectFactor > 0) {
+                                if (colorReplacement) {
+                                    imgData[i] = Math.round(currentColor.r + (replacementColor.r - currentColor.r) * effectFactor);
+                                    imgData[i + 1] = Math.round(currentColor.g + (replacementColor.g - currentColor.g) * effectFactor);
+                                    imgData[i + 2] = Math.round(currentColor.b + (replacementColor.b - currentColor.b) * effectFactor);
+                                } else {
+                                    const correctedOpacity = applyOpacityGamma(opacity);
+                                    imgData[i + 3] = originalAlpha * (1 - (correctedOpacity * effectFactor));
+                                }
+                            } else {
+                                imgData[i + 3] = originalAlpha;
+                            }
+                        }
+                    }
+                    postMessage({ type: 'process', buffer: imgData.buffer }, [imgData.buffer]);
+                }
+            };
+        `], { type: 'application/javascript' });
+        const worker = new Worker(URL.createObjectURL(workerBlob));
+
+        // Get DOM elements
+        const imageUpload = document.getElementById('imageUpload');
+        const imageCanvas = document.getElementById('imageCanvas');
+        const ctx = imageCanvas.getContext('2d', { willReadFrequently: true });
+        const overlayCanvas = document.getElementById('overlayCanvas');
+        const ctxOverlay = overlayCanvas.getContext('2d');
+        const glCanvas = document.getElementById('glCanvas');
+        const opacitySlider = document.getElementById('opacitySlider');
+        const opacityValue = document.getElementById('opacityValue');
+        const toleranceToggle = document.getElementById('toleranceToggle');
+        const toleranceSliderContainer = document.getElementById('toleranceSliderContainer');
+        const toleranceStrengthSlider = document.getElementById('toleranceStrengthSlider');
+        const toleranceValue = document.getElementById('toleranceValue');
+        const invertSelectionToggle = document.getElementById('invertSelectionToggle');
+        const antiAliasingToggle = document.getElementById('antiAliasingToggle');
+        const smoothingSliderContainer = document.getElementById('smoothingSliderContainer');
+        const smoothingFactorSlider = document.getElementById('smoothingFactorSlider');
+        const smoothingValue = document.getElementById('smoothingValue');
+        const aaModeContainer = document.getElementById('aaModeContainer');
+        const hexDisplay = document.getElementById('hexDisplay');
+        const rgbDisplay = document.getElementById('rgbDisplay');
+        const resolutionDisplay = document.getElementById('resolutionDisplay');
+        const colorSwatch = document.getElementById('colorSwatch');
+        const resetButton = document.getElementById('resetButton');
+        const downloadButton = document.getElementById('downloadButton');
+        const applyButton = document.getElementById('applyButton');
+        const messageBox = document.getElementById('message-box');
+        const messageText = document.getElementById('message-text');
+        const copyHexButton = document.getElementById('copyHexButton');
+        const copyRgbButton = document.getElementById('copyRgbButton');
+        const colorReplacementToggle = document.getElementById('colorReplacementToggle');
+        const colorPickerContainer = document.getElementById('colorPickerContainer');
+        const replacementColorPicker = document.getElementById('replacementColorPicker');
+        const replacementColorDisplay = document.getElementById('replacementColorDisplay');
+        const realtimePreviewToggle = document.getElementById('realtimePreviewToggle');
+        const previewButton = document.getElementById('previewButton');
+        const performanceWarning = document.getElementById('performance-warning');
+        const dismissWarning = document.getElementById('dismiss-warning');
+        const areaSelectionToggle = document.getElementById('areaSelectionToggle');
+        const colorSpaceSelect = document.getElementById('colorSpaceSelect');
+        const canvasContainer = document.querySelector('.canvas-container');
+        const magnifier = document.getElementById('magnifier');
+        const magCanvas = document.getElementById('magCanvas');
+        const magCtx = magCanvas.getContext('2d');
+        const gpuToggle = document.getElementById('gpuToggle');
+
+        // Global variables
+        let originalImage = new Image();
+        let originalImageData = null;
+        let selectedColor = null;
+        let selectedMask = null;
+        let startX = undefined;
+        let startY = undefined;
+        let isAreaSelectionMode = false;
+        let isRealtimePreviewEnabled = true;
+        let performanceCheckCount = 0;
+        let totalProcessingTime = 0;
+        let isPerformanceModeActive = false;
+        let zoom = 1;
+        let gl = null;
+        let program = null;
+        let imageTexture = null;
+        let maskTexture = null;
+        let gpuAvailable = false;
+
+        // Worker message handler
+        worker.onmessage = function(e) {
+            const msg = e.data;
+            if (msg.type === 'floodfill') {
+                selectedMask = new Uint8Array(msg.selectedMask);
+                updateMaskTexture();
+                showOverlay();
+                applyFilter(true);
+                showMessage('Area selected!', 'success');
+            } else if (msg.type === 'process') {
+                const processedData = new ImageData(new Uint8ClampedArray(msg.buffer), imageCanvas.width, imageCanvas.height);
+                ctx.putImageData(processedData, 0, 0);
+                const endTime = performance.now();
+                const processingTime = endTime - window.processStartTime;
+                if (isRealtimePreviewEnabled) {
+                    performanceCheckCount++;
+                    totalProcessingTime += processingTime;
+                    if (processingTime > 750) {
+                        showPerformanceWarning();
+                    } else if (performanceCheckCount >= 2) {
+                        const averageTime = totalProcessingTime / performanceCheckCount;
+                        if (averageTime > 750) {
+                            showPerformanceWarning();
+                        }
+                        performanceCheckCount = 0;
+                        totalProcessingTime = 0;
+                    }
+                }
+            }
+        };
+
+        function showMessage(message, type) {
+            messageBox.classList.remove('hidden', 'success', 'error', 'info');
+            messageText.textContent = message;
+            messageBox.classList.add(type);
+            setTimeout(() => messageBox.classList.add('hidden'), 5000);
+        }
+
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null;
+        }
+
+        function loadImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                originalImage.onload = function() {
+                    imageCanvas.width = originalImage.width;
+                    imageCanvas.height = originalImage.height;
+                    overlayCanvas.width = originalImage.width;
+                    overlayCanvas.height = originalImage.height;
+                    ctx.drawImage(originalImage, 0, 0);
+                    originalImageData = ctx.getImageData(0, 0, imageCanvas.width, imageCanvas.height);
+                    resolutionDisplay.textContent = `${originalImage.width} × ${originalImage.height}`;
+                    resetControls();
+                    updateImageTexture();
+                    showMessage('Image loaded successfully! Click on the image to pick a color.', 'success');
+                };
+                originalImage.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function resetControls() {
+            selectedColor = null;
+            selectedMask = null;
+            startX = undefined;
+            startY = undefined;
+            opacitySlider.value = 0;
+            toleranceToggle.checked = true;
+            toleranceSliderContainer.classList.remove('hidden');
+            toleranceStrengthSlider.value = 0;
+            invertSelectionToggle.checked = false;
+            antiAliasingToggle.checked = true;
+            antiAliasingToggle.disabled = false;
+            antiAliasingToggle.classList.remove('disabled');
+            antiAliasingToggle.parentElement.classList.remove('disabled');
+            smoothingSliderContainer.classList.remove('hidden');
+            aaModeContainer.classList.remove('hidden');
+            smoothingFactorSlider.value = 0.1;
+            colorReplacementToggle.checked = false;
+            colorPickerContainer.classList.add('hidden');
+            replacementColorPicker.value = '#ff0000';
+            replacementColorDisplay.textContent = '#FF0000';
+            isRealtimePreviewEnabled = true;
+            realtimePreviewToggle.checked = true;
+            realtimePreviewToggle.classList.remove('disabled');
+            realtimePreviewToggle.parentElement.classList.remove('disabled');
+            previewButton.classList.add('hidden');
+            hidePerformanceWarning();
+            performanceCheckCount = 0;
+            totalProcessingTime = 0;
+            isPerformanceModeActive = false;
+            hexDisplay.textContent = '#FFFFFF';
+            rgbDisplay.textContent = 'rgb(255, 255, 255)';
+            colorSwatch.style.backgroundColor = '#FFFFFF';
+            areaSelectionToggle.checked = false;
+            isAreaSelectionMode = false;
+            colorSpaceSelect.value = 'rgb';
+            zoom = 1;
+            imageCanvas.style.transform = `scale(${zoom})`;
+            overlayCanvas.style.transform = `scale(${zoom})`;
+            setToleranceMax();
+            updateSliderValues();
+        }
+
+        function setToleranceMax() {
+            if (colorSpaceSelect.value === 'rgb') {
+                toleranceStrengthSlider.max = 255;
+            } else {
+                toleranceStrengthSlider.max = 400;
+            }
+            toleranceStrengthSlider.value = Math.min(toleranceStrengthSlider.value, toleranceStrengthSlider.max);
+            updateSliderValues();
+        }
+
+        function pickColor(event) {
+            if (!originalImageData) return showMessage('Please upload an image first.', 'info');
+            const rect = imageCanvas.getBoundingClientRect();
+            const x = Math.floor((event.clientX - rect.left) / rect.width * imageCanvas.width);
+            const y = Math.floor((event.clientY - rect.top) / rect.height * imageCanvas.height);
+            const pixel = ctx.getImageData(x, y, 1, 1).data;
+            selectedColor = { r: pixel[0], g: pixel[1], b: pixel[2] };
+            hexDisplay.textContent = rgbToHex(selectedColor.r, selectedColor.g, selectedColor.b);
+            rgbDisplay.textContent = `rgb(${selectedColor.r}, ${selectedColor.g}, ${selectedColor.b})`;
+            colorSwatch.style.backgroundColor = `rgb(${selectedColor.r}, ${selectedColor.g}, ${selectedColor.b})`;
+            startX = x;
+            startY = y;
+            isAreaSelectionMode = areaSelectionToggle.checked;
+            if (isAreaSelectionMode) {
+                runFloodFill();
+            } else {
+                selectedMask = null;
+                applyFilter(true);
+            }
+            showMessage('Color picked!', 'info');
+        }
+
+        function runFloodFill() {
+            if (!selectedColor || startX === undefined) return;
+            const toleranceRadius = toleranceToggle.checked ? parseFloat(toleranceStrengthSlider.value) : 0;
+            const sendBuffer = new Uint8ClampedArray(originalImageData.data).buffer;
+            worker.postMessage({
+                type: 'floodfill',
+                buffer: sendBuffer,
+                width: imageCanvas.width,
+                height: imageCanvas.height,
+                startX,
+                startY,
+                targetColor: selectedColor,
+                toleranceRadius,
+                colorSpace: colorSpaceSelect.value
+            }, [sendBuffer]);
+        }
+
+        function showOverlay() {
+            if (!selectedMask) return;
+            const maskData = ctxOverlay.createImageData(imageCanvas.width, imageCanvas.height);
+            for (let j = 0; j < selectedMask.length; j++) {
+                if (selectedMask[j] === 1) {
+                    const i = j * 4;
+                    maskData.data[i] = 0;
+                    maskData.data[i + 1] = 255;
+                    maskData.data[i + 2] = 255;
+                    maskData.data[i + 3] = 128;
+                }
+            }
+            ctxOverlay.putImageData(maskData, 0, 0);
+            overlayCanvas.style.display = 'block';
+            overlayCanvas.classList.add('animate-pulse');
+            setTimeout(() => {
+                overlayCanvas.style.display = 'none';
+                overlayCanvas.classList.remove('animate-pulse');
+            }, 3000);
+        }
+
+        function initGPU() {
+            gl = glCanvas.getContext('webgl2');
+            if (!gl) {
+                showMessage('WebGL2 not supported, falling back to CPU', 'error');
+                gpuToggle.checked = false;
+                gpuToggle.disabled = true;
+                gpuAvailable = false;
+                return false;
+            }
+
+            const vsSource = `#version 300 es
+                in vec2 aPosition;
+                in vec2 aTexCoord;
+                out vec2 vTexCoord;
+                void main() {
+                    gl_Position = vec4(aPosition, 0, 1);
+                    vTexCoord = aTexCoord;
+                }
+            `;
+
+            const fsSource = `#version 300 es
+                precision mediump float;
+                uniform sampler2D uImage;
+                uniform sampler2D uMask;
+                uniform vec3 uSelectedColor;
+                uniform float uOpacity;
+                uniform bool uToleranceEnabled;
+                uniform float uToleranceRadius;
+                uniform bool uInvert;
+                uniform bool uColorReplacement;
+                uniform vec3 uReplacementColor;
+                uniform bool uAntiAliasing;
+                uniform float uSmoothingFactor;
+                uniform bool uAreaMode;
+                uniform bool uBoundaryAA;
+                uniform bool uHSLMode;
+                in vec2 vTexCoord;
+                out vec4 gl_FragColor;
+
+                float colorDistance(vec3 c1, vec3 c2) {
+                    vec3 d = (c1 - c2) * 255.0;
+                    return sqrt(0.3 * d.r * d.r + 0.59 * d.g * d.g + 0.11 * d.b * d.b);
+                }
+
+                vec3 rgbToHsl(vec3 c) {
+                    float r = c.r, g = c.g, b = c.b;
+                    float maxC = max(max(r, g), b);
+                    float minC = min(min(r, g), b);
+                    vec3 hsl;
+                    hsl.z = (maxC + minC) / 2.0;
+                    if (maxC == minC) {
+                        hsl.x = hsl.y = 0.0;
+                    } else {
+                        float d = maxC - minC;
+                        hsl.y = (hsl.z < 0.5) ? d / (maxC + minC) : d / (2.0 - maxC - minC);
+                        if (r == maxC) hsl.x = (g - b) / d + (g < b ? 6.0 : 0.0);
+                        else if (g == maxC) hsl.x = (b - r) / d + 2.0;
+                        else hsl.x = (r - g) / d + 4.0;
+                        hsl.x /= 6.0;
+                    }
+                    return hsl;
+                }
+
+                float hslDistance(vec3 c1, vec3 c2) {
+                    vec3 hsl1 = rgbToHsl(c1);
+                    vec3 hsl2 = rgbToHsl(c2);
+                    float dh = min(abs(hsl1.x - hsl2.x), 1.0 - abs(hsl1.x - hsl2.x)) * 360.0;
+                    float ds = abs(hsl1.y - hsl2.y) * 100.0;
+                    float dl = abs(hsl1.z - hsl2.z) * 100.0;
+                    return sqrt(dh * dh + ds * ds + dl * dl);
+                }
+
+                float applyOpacityGamma(float opacity) {
+                    return pow(opacity, 2.2);
+                }
+
+                float smoothInterpolation(float t, float sf) {
+                    t = clamp(t, 0.0, 1.0);
+                    if (sf <= 0.3) {
+                        return (1.0 - cos(t * 3.14159265)) / 2.0;
+                    } else if (sf <= 0.7) {
+                        return t * t * (3.0 - 2.0 * t);
+                    } else {
+                        return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+                    }
+                }
+
+                void main() {
+                    vec4 color = texture(uImage, vTexCoord);
+                    vec3 rgb = color.rgb;
+                    float alpha = color.a;
+                    float dist = uHSLMode ? hslDistance(uSelectedColor, rgb) : colorDistance(uSelectedColor, rgb);
+                    float mask = uAreaMode ? texture(uMask, vTexCoord).r : 1.0;
+                    bool sel = uAreaMode ? (mask > 0.5) : (uToleranceEnabled ? (dist <= uToleranceRadius) : (dist == 0.0));
+                    float effectFactor = uInvert ? (sel ? 0.0 : 1.0) : (sel ? 1.0 : 0.0);
+                    if (effectFactor > 0.0 && uAntiAliasing && uToleranceEnabled) {
+                        bool isBound = !uBoundaryAA;
+                        if (uBoundaryAA) {
+                            ivec2 texSize = textureSize(uImage, 0);
+                            vec2 px = 1.0 / vec2(texSize);
+                            vec2 offsets[4] = vec2[](vec2(px.x, 0.0), vec2(-px.x, 0.0), vec2(0.0, px.y), vec2(0.0, -px.y));
+                            float nCount = 0.0;
+                            for (int k = 0; k < 4; k++) {
+                                vec2 nCoord = vTexCoord + offsets[k];
+                                vec4 nColor = texture(uImage, nCoord);
+                                float nDist = uHSLMode ? hslDistance(uSelectedColor, nColor.rgb) : colorDistance(uSelectedColor, nColor.rgb);
+                                float nMask = uAreaMode ? texture(uMask, nCoord).r : 1.0;
+                                bool nSel = uAreaMode ? (nMask > 0.5) : (uToleranceEnabled ? (nDist <= uToleranceRadius) : (nDist == 0.0));
+                                if (nSel) nCount += 1.0;
+                            }
+                            if (nCount < 4.0) isBound = true;
+                        }
+                        if (isBound) {
+                            float fadeZone = uToleranceRadius * uSmoothingFactor;
+                            float coreZone = uToleranceRadius - fadeZone;
+                            float progress = max(0.0, (dist - coreZone) / fadeZone);
+                            float smoothProgress = smoothInterpolation(progress, uSmoothingFactor);
+                            effectFactor = uInvert ? smoothProgress : 1.0 - smoothProgress;
+                        }
+                    }
+                    if (effectFactor > 0.0) {
+                        if (uColorReplacement) {
+                            rgb = mix(rgb, uReplacementColor, effectFactor);
+                        } else {
+                            float correctedOpacity = applyOpacityGamma(uOpacity);
+                            alpha *= (1.0 - (correctedOpacity * effectFactor));
+                        }
+                    }
+                    gl_FragColor = vec4(rgb, alpha);
+                }
+            `;
+
+            const vs = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vs, vsSource);
+            gl.compileShader(vs);
+            if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
+                console.error('Vertex shader compilation error:', gl.getShaderInfoLog(vs));
+                return false;
+            }
+
+            const fs = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fs, fsSource);
+            gl.compileShader(fs);
+            if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+                console.error('Fragment shader compilation error:', gl.getShaderInfoLog(fs));
+                return false;
+            }
+
+            program = gl.createProgram();
+            gl.attachShader(program, vs);
+            gl.attachShader(program, fs);
+            gl.linkProgram(program);
+            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                console.error('Program link error:', gl.getProgramInfoLog(program));
+                return false;
+            }
+
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+            gpuAvailable = true;
+            return true;
+        }
+
+        function updateImageTexture() {
+            if (!gl) return;
+            if (!imageTexture) imageTexture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, imageTexture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, originalImage);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        }
+
+        function updateMaskTexture() {
+            if (!gl || !selectedMask) return;
+            const maskData = new Uint8ClampedArray(imageCanvas.width * imageCanvas.height * 4);
+            for (let i = 0; i < selectedMask.length; i++) {
+                maskData[i * 4] = selectedMask[i] * 255;
+                maskData[i * 4 + 3] = 255;
+            }
+            if (!maskTexture) maskTexture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, maskTexture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, imageCanvas.width, imageCanvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, maskData);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        }
+
+        function renderGPU() {
+            if (!gl || !program) return;
+            if (glCanvas.width !== imageCanvas.width || glCanvas.height !== imageCanvas.height) {
+                glCanvas.width = imageCanvas.width;
+                glCanvas.height = imageCanvas.height;
+            }
+            gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.useProgram(program);
+
+            gl.uniform3fv(gl.getUniformLocation(program, 'uSelectedColor'), [selectedColor.r / 255, selectedColor.g / 255, selectedColor.b / 255]);
+            gl.uniform1f(gl.getUniformLocation(program, 'uOpacity'), parseFloat(opacitySlider.value));
+            gl.uniform1i(gl.getUniformLocation(program, 'uToleranceEnabled'), toleranceToggle.checked ? 1 : 0);
+            const toleranceRadius = toleranceToggle.checked ? parseFloat(toleranceStrengthSlider.value) : 0;
+            gl.uniform1f(gl.getUniformLocation(program, 'uToleranceRadius'), toleranceRadius);
+            gl.uniform1i(gl.getUniformLocation(program, 'uInvert'), invertSelectionToggle.checked ? 1 : 0);
+            gl.uniform1i(gl.getUniformLocation(program, 'uColorReplacement'), colorReplacementToggle.checked ? 1 : 0);
+            const repColor = colorReplacementToggle.checked ? hexToRgb(replacementColorPicker.value) : {r:0, g:0, b:0};
+            gl.uniform3fv(gl.getUniformLocation(program, 'uReplacementColor'), [repColor.r / 255, repColor.g / 255, repColor.b / 255]);
+            gl.uniform1i(gl.getUniformLocation(program, 'uAntiAliasing'), antiAliasingToggle.checked ? 1 : 0);
+            gl.uniform1f(gl.getUniformLocation(program, 'uSmoothingFactor'), parseFloat(smoothingFactorSlider.value));
+            gl.uniform1i(gl.getUniformLocation(program, 'uAreaMode'), isAreaSelectionMode ? 1 : 0);
+            gl.uniform1i(gl.getUniformLocation(program, 'uBoundaryAA'), document.querySelector('input[name="aaMode"]:checked').value === 'boundary' ? 1 : 0);
+            gl.uniform1i(gl.getUniformLocation(program, 'uHSLMode'), colorSpaceSelect.value === 'hsl' ? 1 : 0);
+
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, imageTexture);
+            gl.uniform1i(gl.getUniformLocation(program, 'uImage'), 0);
+
+            if (isAreaSelectionMode && maskTexture) {
+                gl.activeTexture(gl.TEXTURE1);
+                gl.bindTexture(gl.TEXTURE_2D, maskTexture);
+                gl.uniform1i(gl.getUniformLocation(program, 'uMask'), 1);
+            }
+
+            const positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+            const posLoc = gl.getAttribLocation(program, 'aPosition');
+            gl.enableVertexAttribArray(posLoc);
+            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+            const texBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, texBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]), gl.STATIC_DRAW);
+            const texLoc = gl.getAttribLocation(program, 'aTexCoord');
+            gl.enableVertexAttribArray(texLoc);
+            gl.vertexAttribPointer(texLoc, 2, gl.FLOAT, false, 0, 0);
+
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+            ctx.drawImage(glCanvas, 0, 0);
+        }
+
+        function applyFilter(force = false) {
+            if (!isRealtimePreviewEnabled && !force) return;
+            if (!originalImageData || !selectedColor) {
+                ctx.drawImage(originalImage, 0, 0);
+                return;
+            }
+            let useGPU = gpuToggle.checked;
+            if (useGPU) {
+                if (!gpuAvailable) {
+                    if (!initGPU()) {
+                        useGPU = false;
+                    }
+                }
+            }
+            window.processStartTime = performance.now();
+            const toleranceRadius = toleranceToggle.checked ? parseFloat(toleranceStrengthSlider.value) : 0;
+            if (useGPU) {
+                renderGPU();
+            } else {
+                const sendBuffer = new Uint8ClampedArray(originalImageData.data).buffer;
+                const selectedMaskBuffer = isAreaSelectionMode ? new Uint8Array(selectedMask).buffer : null;
+                const aaMode = document.querySelector('input[name="aaMode"]:checked').value;
+                const repColor = colorReplacementToggle.checked ? hexToRgb(replacementColorPicker.value) : {r:0, g:0, b:0};
+                worker.postMessage({
+                    type: 'process',
+                    buffer: sendBuffer,
+                    width: imageCanvas.width,
+                    height: imageCanvas.height,
+                    selectedColor,
+                    opacity: parseFloat(opacitySlider.value),
+                    toleranceEnabled: toleranceToggle.checked,
+                    toleranceRadius,
+                    invert: invertSelectionToggle.checked,
+                    colorReplacement: colorReplacementToggle.checked,
+                    replacementColor: repColor,
+                    antiAliasing: antiAliasingToggle.checked,
+                    smoothingFactor: parseFloat(smoothingFactorSlider.value),
+                    aaMode,
+                    areaMode: isAreaSelectionMode,
+                    selectedMaskBuffer,
+                    colorSpace: colorSpaceSelect.value
+                }, [sendBuffer, ...(isAreaSelectionMode ? [selectedMaskBuffer] : [])]);
+            }
+        }
+
+        function resetImage() {
+            if (originalImage.src) {
+                ctx.drawImage(originalImage, 0, 0);
+                originalImageData = ctx.getImageData(0, 0, imageCanvas.width, imageCanvas.height);
+                resetControls();
+                showMessage('Image reset to original state.', 'info');
+            }
+        }
+
+        function applyChanges() {
+            if (!originalImageData) return showMessage('Please upload an image first.', 'info');
+            originalImageData = ctx.getImageData(0, 0, imageCanvas.width, imageCanvas.height);
+            updateImageTexture();
+            resetControls();
+            showMessage('Current edits applied!', 'success');
+        }
+
+        function downloadImage() {
+            if (!originalImageData) return showMessage('Please upload and edit an image first.', 'info');
+            const dataURL = imageCanvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = dataURL;
+            a.download = 'edited-image.png';
+            a.click();
+            showMessage('Image downloaded successfully!', 'success');
+        }
+
+        async function copyToClipboard(text, type) {
+            try {
+                await navigator.clipboard.writeText(text);
+                showMessage(`${type} value copied!`, 'success');
+            } catch (err) {
+                showMessage('Failed to copy.', 'error');
+            }
+        }
+
+        function showPerformanceWarning() {
+            if (!isPerformanceModeActive) {
+                isPerformanceModeActive = true;
+                performanceWarning.classList.remove('hidden');
+                isRealtimePreviewEnabled = false;
+                realtimePreviewToggle.checked = false;
+                realtimePreviewToggle.classList.add('disabled');
+                realtimePreviewToggle.parentElement.classList.add('disabled');
+                previewButton.classList.remove('hidden');
+                showMessage('Real-time preview disabled due to performance', 'info');
+            }
+        }
+
+        function hidePerformanceWarning() {
+            performanceWarning.classList.add('hidden');
+        }
+
+        function toggleRealtimePreview(enabled) {
+            isRealtimePreviewEnabled = enabled;
+            if (enabled) {
+                previewButton.classList.add('hidden');
+                realtimePreviewToggle.classList.remove('disabled');
+                realtimePreviewToggle.parentElement.classList.remove('disabled');
+                performanceCheckCount = 0;
+                totalProcessingTime = 0;
+                isPerformanceModeActive = false;
+            } else {
+                previewButton.classList.remove('hidden');
+            }
+        }
+
+        function updateSliderValues() {
+            opacityValue.textContent = Math.round(opacitySlider.value * 100) + '%';
+            toleranceValue.textContent = toleranceStrengthSlider.value;
+            smoothingValue.textContent = parseFloat(smoothingFactorSlider.value).toFixed(2);
+        }
+
+        // Event Listeners
+        imageUpload.addEventListener('change', loadImage);
+        imageCanvas.addEventListener('click', pickColor);
+        opacitySlider.addEventListener('input', () => { updateSliderValues(); if (isRealtimePreviewEnabled) applyFilter(); });
+        toleranceToggle.addEventListener('change', () => {
+            toleranceSliderContainer.classList.toggle('hidden', !toleranceToggle.checked);
+            antiAliasingToggle.disabled = !toleranceToggle.checked;
+            if (!toleranceToggle.checked) {
+                antiAliasingToggle.checked = false;
+            }
+            antiAliasingToggle.classList.toggle('disabled', !toleranceToggle.checked);
+            antiAliasingToggle.parentElement.classList.toggle('disabled', !toleranceToggle.checked);
+            smoothingSliderContainer.classList.toggle('hidden', !(toleranceToggle.checked && antiAliasingToggle.checked));
+            aaModeContainer.classList.toggle('hidden', !(toleranceToggle.checked && antiAliasingToggle.checked));
+            if (isRealtimePreviewEnabled) applyFilter();
+        });
+        toleranceStrengthSlider.addEventListener('input', () => {
+            updateSliderValues();
+            if (isAreaSelectionMode && startX !== undefined) runFloodFill();
+            if (isRealtimePreviewEnabled) applyFilter();
+        });
+        invertSelectionToggle.addEventListener('change', () => { if (isRealtimePreviewEnabled) applyFilter(); });
+        antiAliasingToggle.addEventListener('change', () => {
+            smoothingSliderContainer.classList.toggle('hidden', !antiAliasingToggle.checked);
+            aaModeContainer.classList.toggle('hidden', !antiAliasingToggle.checked);
+            if (isRealtimePreviewEnabled) applyFilter();
+        });
+        smoothingFactorSlider.addEventListener('input', () => { updateSliderValues(); if (isRealtimePreviewEnabled) applyFilter(); });
+        document.querySelectorAll('input[name="aaMode"]').forEach(r => r.addEventListener('change', () => { if (isRealtimePreviewEnabled) applyFilter(); }));
+        resetButton.addEventListener('click', resetImage);
+        downloadButton.addEventListener('click', downloadImage);
+        applyButton.addEventListener('click', applyChanges);
+        copyHexButton.addEventListener('click', () => copyToClipboard(hexDisplay.textContent, 'Hex'));
+        copyRgbButton.addEventListener('click', () => copyToClipboard(rgbDisplay.textContent, 'RGB'));
+        colorReplacementToggle.addEventListener('change', () => {
+            colorPickerContainer.classList.toggle('hidden', !colorReplacementToggle.checked);
+            if (isRealtimePreviewEnabled) applyFilter();
+        });
+        replacementColorPicker.addEventListener('input', () => {
+            replacementColorDisplay.textContent = replacementColorPicker.value.toUpperCase();
+            if (isRealtimePreviewEnabled) applyFilter();
+        });
+        realtimePreviewToggle.addEventListener('change', () => toggleRealtimePreview(realtimePreviewToggle.checked));
+        previewButton.addEventListener('click', () => applyFilter(true));
+        dismissWarning.addEventListener('click', hidePerformanceWarning);
+        areaSelectionToggle.addEventListener('change', () => {
+            isAreaSelectionMode = areaSelectionToggle.checked;
+            if (isAreaSelectionMode && startX !== undefined) {
+                runFloodFill();
+            } else {
+                selectedMask = null;
+                applyFilter(true);
+            }
+        });
+        colorSpaceSelect.addEventListener('change', () => {
+            setToleranceMax();
+            if (isAreaSelectionMode && startX !== undefined) runFloodFill();
+            if (isRealtimePreviewEnabled) applyFilter();
+        });
+        gpuToggle.addEventListener('change', () => { if (isRealtimePreviewEnabled) applyFilter(); });
+
+        // Scroll wheel integration
+        canvasContainer.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            if (e.altKey) {
+                const delta = e.deltaY > 0 ? -1 : 1;
+                toleranceStrengthSlider.value = Math.max(0, Math.min(parseFloat(toleranceStrengthSlider.max), parseFloat(toleranceStrengthSlider.value) + delta));
+                toleranceStrengthSlider.dispatchEvent(new Event('input'));
+            }
+        });
+
+        [opacitySlider, toleranceStrengthSlider, smoothingFactorSlider].forEach(slider => {
+            slider.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const step = parseFloat(slider.step);
+                const delta = e.deltaY > 0 ? -step : step;
+                slider.value = Math.max(parseFloat(slider.min), Math.min(parseFloat(slider.max), parseFloat(slider.value) + delta));
+                slider.dispatchEvent(new Event('input'));
+            });
+        });
+
+        // Magnifier
+        imageCanvas.addEventListener('mousemove', (e) => {
+            if (!originalImageData) return;
+            const rect = imageCanvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / rect.width * imageCanvas.width);
+            const y = Math.floor((e.clientY - rect.top) / rect.height * imageCanvas.height);
+            const size = 9;
+            const half = size / 2;
+            magCtx.drawImage(imageCanvas, x - half, y - half, size, size, 0, 0, 90, 90);
+            magnifier.style.left = `${e.pageX + 10}px`;
+            magnifier.style.top = `${e.pageY + 10}px`;
+            magnifier.classList.remove('hidden');
+        });
+        imageCanvas.addEventListener('mouseleave', () => magnifier.classList.add('hidden'));
+
+        // Initial state
+        if (!originalImage.src) {
+            imageCanvas.width = 600;
+            imageCanvas.height = 400;
+            overlayCanvas.width = 600;
+            overlayCanvas.height = 400;
+            ctx.font = '24px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#64748b';
+            ctx.fillText('Upload an image to get started', 300, 200);
+        }
+        setToleranceMax();
+        updateSliderValues();
+    </script>
+</body>
+</html>

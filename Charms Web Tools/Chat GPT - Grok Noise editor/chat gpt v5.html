@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Digital Grain Studio — Fixed Previews</title>
+<style>
+  :root{ --bg:#000; --fg:#fff; --panel-max:460px; --muted:#8c8c8c; --accent:#2a9df4; }
+  html,body { height:100%; margin:0; background:var(--bg); color:var(--fg); font-family:monospace; }
+  body { padding:16px; box-sizing:border-box; display:flex; gap:16px; align-items:flex-start; min-height:100vh; }
+  .container{ display:flex; gap:16px; width:100%; align-items:flex-start; }
+  /* Left control column */
+  .controls-panel { flex:0 0 var(--panel-max); max-width:var(--panel-max); min-width:260px; padding:10px; box-sizing:border-box; border-right:1px solid rgba(255,255,255,0.04); }
+  .controls-panel h1 { font-size:18px; margin:0 0 10px 0; text-align:center; }
+  .muted { color:var(--muted); font-size:13px; }
+  details { border:1px solid rgba(255,255,255,0.08); margin-bottom:10px; padding:6px; border-radius:6px; }
+  details[open] { background:rgba(255,255,255,0.01); }
+  summary { cursor:pointer; font-weight:bold; margin:0 0 6px 0; outline:none; }
+  .control-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; min-height:32px; }
+  .control-row label { flex:0 0 130px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  input[type="range"] { flex:1; }
+  .control-value { width:86px; padding:4px; text-align:right; background:transparent; color:var(--fg); border:1px solid rgba(255,255,255,0.06); font-family:monospace; }
+  select.control-value { flex:1; min-width:120px; padding:4px; }
+  .row-buttons { display:flex; gap:8px; margin-top:8px; }
+  button { background:transparent; color:var(--fg); border:1px solid rgba(255,255,255,0.08); padding:8px; cursor:pointer; }
+  button:hover { background:rgba(255,255,255,0.02); }
+
+  /* Right preview column */
+  .preview-column { flex:1 1 auto; min-width:320px; display:flex; flex-direction:column; gap:12px; }
+  .preview-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .preview-container { position:relative; border:1px solid rgba(255,255,255,0.06); background:#070707; overflow:visible; padding:8px; display:flex; align-items:center; justify-content:center; }
+  /* main display canvas: in-DOM canvas that is stretched to fill available width while preserving aspect ratio */
+  .main-display { width:100%; height:auto; display:block; max-width:100%; border-radius:2px; }
+  /* overlay original canvas sits absolutely on top and matches CSS size of main display */
+  .overlay-original { position:absolute; top:8px; left:8px; right:8px; bottom:8px; pointer-events:none; display:flex; align-items:center; justify-content:center; }
+  .overlay-original canvas { width:100%; height:auto; display:block; opacity:0; transition:opacity 200ms ease; }
+  .overlay-original.show canvas { opacity:1; pointer-events:none; }
+
+  /* Layer preview area */
+  .layer-preview-container { border:1px solid rgba(255,255,255,0.06); background:#050505; padding:8px; overflow:visible; display:flex; flex-direction:column; gap:12px; }
+  .layer-item { background:transparent; border:1px solid rgba(255,255,255,0.03); padding:8px; border-radius:6px; display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
+  .layer-title-row { width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .layer-title { color:var(--muted); font-size:13px; margin:0; }
+  .layer-canvas { width:100%; height:auto; display:block; border:1px solid rgba(255,255,255,0.03); border-radius:3px; background:#0a0a0a; }
+  .layer-actions { display:flex; gap:8px; }
+  .small { font-size:12px; color:var(--muted); }
+
+  /* modals */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 200ms ease; z-index:3000; }
+  .modal-overlay.show { opacity:1; pointer-events:auto; }
+  .modal { background:#111; border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:12px; max-width:92vw; width:880px; max-height:90vh; overflow:auto; color:var(--fg); }
+  .compare-area { display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap; }
+  .compare-canvas { border:1px solid rgba(255,255,255,0.06); background:#000; }
+
+  /* small responsive */
+  @media (max-width:900px) {
+    body { padding:10px; }
+    .controls-panel { order:2; width:100%; max-width:none; }
+    .preview-column { order:1; width:100%; }
+    .control-row label { flex:0 0 110px; }
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="controls-panel">
+      <h1>Digital Grain Studio</h1>
+      <p class="muted">Upload an image, tweak controls, inspect layers below. Sections are collapsed by default.</p>
+
+      <div style="margin:10px 0;">
+        <label style="font-weight:bold; display:block; margin-bottom:6px;">Image Upload</label>
+        <input id="imageUpload" type="file" accept="image/*" style="width:100%; padding:8px; box-sizing:border-box;">
+      </div>
+
+      <!-- Collapsible sections (details closed by default) -->
+      <details>
+        <summary>Noise Basics</summary>
+        <div class="control-row">
+          <label for="strength">Noise Strength (σ)</label>
+          <input id="strength" type="range" min="0" max="150" step="0.01" value="50">
+        </div>
+        <div class="control-row">
+          <label for="noiseType">Noise Type</label>
+          <select id="noiseType" class="control-value">
+            <option value="color">Color</option>
+            <option value="grayscale" selected>Grayscale</option>
+            <option value="blend">Blend (saturation)</option>
+          </select>
+        </div>
+        <div class="control-row" id="satStrengthRow" style="display:none;">
+          <label for="satStrength">Sat Change Strength</label>
+          <input id="satStrength" type="range" min="0" max="4" step="0.01" value="1">
+        </div>
+        <div class="control-row" id="satPerNoiseRow" style="display:none;">
+          <label for="satPerNoise">Noise Sat Impact</label>
+          <input id="satPerNoise" type="range" min="-100" max="100" step="0.1" value="0">
+        </div>
+      </details>
+
+      <details>
+        <summary>Noise Shape & Blur</summary>
+        <div class="control-row">
+          <label for="noiseSize">Noise Size</label>
+          <input id="noiseSize" type="range" min="0" max="1000" step="0.01" value="4">
+        </div>
+        <div class="control-row">
+          <label for="blurriness">Blurriness</label>
+          <input id="blurriness" type="range" min="0" max="1000" step="0.01" value="160">
+        </div>
+      </details>
+
+      <details>
+        <summary>Noise Masking</summary>
+        <div class="control-row">
+          <label for="enableShadows">Noise in Shadows</label>
+          <input id="enableShadows" type="checkbox" style="transform:scale(1.2);">
+        </div>
+        <div class="control-row">
+          <label for="shadowThreshold">Shadow Threshold</label>
+          <input id="shadowThreshold" type="range" min="0" max="1" step="0.0001" value="0.3">
+        </div>
+        <div class="control-row">
+          <label for="shadowFade">Shadow Fade</label>
+          <input id="shadowFade" type="range" min="0" max="1" step="0.0001" value="0.2">
+        </div>
+
+        <div style="height:6px;"></div>
+
+        <div class="control-row">
+          <label for="enableHighlights">Noise in Highlights</label>
+          <input id="enableHighlights" type="checkbox" style="transform:scale(1.2);">
+        </div>
+        <div class="control-row">
+          <label for="highlightThreshold">Highlight Threshold</label>
+          <input id="highlightThreshold" type="range" min="0" max="1" step="0.0001" value="0.7">
+        </div>
+        <div class="control-row">
+          <label for="highlightFade">Highlight Fade</label>
+          <input id="highlightFade" type="range" min="0" max="1" step="0.0001" value="0.2">
+        </div>
+      </details>
+
+      <details>
+        <summary>Blend & Visibility</summary>
+        <div class="control-row">
+          <label for="blendMode">Blend Mode</label>
+          <select id="blendMode" class="control-value">
+            <option value="source-over">Normal</option>
+            <option value="overlay" selected>Overlay</option>
+            <option value="screen">Screen</option>
+            <option value="multiply">Multiply</option>
+            <option value="lighter">Add</option>
+            <option value="difference">Subtract</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <label for="opacity">Noise Opacity</label>
+          <input id="opacity" type="range" min="0" max="1" step="0.01" value="0.25">
+        </div>
+      </details>
+
+      <details>
+        <summary>Image Adjustments</summary>
+        <div class="control-row">
+          <label for="brightness">Brightness</label>
+          <input id="brightness" type="range" min="-100" max="100" step="1" value="0">
+        </div>
+        <div class="control-row">
+          <label for="contrast">Contrast</label>
+          <input id="contrast" type="range" min="-300" max="300" step="1" value="100">
+        </div>
+        <div class="control-row">
+          <label for="saturationAdj">Saturation</label>
+          <input id="saturationAdj" type="range" min="-100" max="100" step="0.1" value="0">
+        </div>
+      </details>
+
+      <details>
+        <summary>HDR Emulation</summary>
+        <div class="control-row">
+          <label for="hdrTolerance">Tolerance</label>
+          <input id="hdrTolerance" type="range" min="0" max="1" step="0.01" value="0.35">
+        </div>
+        <div class="control-row">
+          <label for="hdrAmount">Amount (%)</label>
+          <input id="hdrAmount" type="range" min="0" max="100" step="1" value="20">
+        </div>
+      </details>
+
+      <details>
+        <summary>Transparent Pixels</summary>
+        <div class="control-row">
+          <label for="ignoreAlphaToggle">Ignore Transparent Areas</label>
+          <input id="ignoreAlphaToggle" type="checkbox" style="transform:scale(1.2);">
+        </div>
+        <div class="control-row">
+          <label for="ignoreAlphaStrength">Ignore Strength</label>
+          <input id="ignoreAlphaStrength" type="range" min="0" max="100" step="1" value="100">
+        </div>
+      </details>
+
+      <div class="row-buttons">
+        <button id="helpBtn">Help / Manual</button>
+        <button id="compareBtn">Compare</button>
+        <button id="downloadImage" disabled>Download Image</button>
+      </div>
+
+    </div>
+
+    <div class="preview-column">
+      <div class="preview-top">
+        <h3 style="margin:0;">Main Preview (hover to reveal original)</h3>
+        <div class="muted">Hover + wheel to cycle blend modes (blocks page scroll while hovering)</div>
+      </div>
+
+      <div id="previewArea" class="preview-container" style="min-height:400px;">
+        <!-- displayCanvas shows composite scaled to fill width. It's the main visible element. -->
+        <canvas id="displayCanvas" class="main-display"></canvas>
+
+        <!-- overlay original: uses its own canvas sized to match displayCanvas visually -->
+        <div class="overlay-original" id="overlayOriginalWrap">
+          <canvas id="overlayOriginalCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="preview-top">
+        <h3 style="margin:0;">Layers & Mask Preview</h3>
+        <div class="muted">Each layer is separate; click a layer's Download button to export that layer at original resolution.</div>
+      </div>
+
+      <!-- layer preview container: each layer has its own DOM canvas sized to original resolution (pixel dims)
+           and style.width = 100% so it scales responsively while preserving aspect ratio -->
+      <div id="layerPreviewArea" class="layer-preview-container"></div>
+    </div>
+  </div>
+
+  <!-- Compare modal -->
+  <div id="compareModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="compareTitle">
+      <h2 id="compareTitle">Compare — Original vs Edited</h2>
+      <div class="compare-area" id="compareArea">
+        <canvas id="compareOriginal" class="compare-canvas"></canvas>
+        <canvas id="compareEdited" class="compare-canvas"></canvas>
+      </div>
+      <div style="display:flex; gap:8px; justify-content:center; margin-top:12px;">
+        <button id="exportSideBySide">Export Side-by-Side</button>
+        <button id="exportStacked">Export Stacked</button>
+        <button id="closeCompare">Close</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* -------------------------
+   State & elements
+   ------------------------- */
+const fileInput = document.getElementById('imageUpload');
+const displayCanvas = document.getElementById('displayCanvas');
+const overlayWrap = document.getElementById('overlayOriginalWrap');
+const overlayCanvas = document.getElementById('overlayOriginalCanvas');
+const layerPreviewArea = document.getElementById('layerPreviewArea');
+
+const strengthRange = document.getElementById('strength');
+const noiseTypeSelect = document.getElementById('noiseType');
+const satStrengthRow = document.getElementById('satStrengthRow');
+const satPerNoiseRow = document.getElementById('satPerNoiseRow');
+const satStrength = document.getElementById('satStrength'); // created later in DOM? We'll create fallback values in code
+const satPerNoise = document.getElementById('satPerNoise');
+
+const noiseSizeRange = document.getElementById('noiseSize');
+const blurrinessRange = document.getElementById('blurriness');
+
+const enableShadows = document.getElementById('enableShadows');
+const shadowThreshold = document.getElementById('shadowThreshold');
+const shadowFade = document.getElementById('shadowFade');
+
+const enableHighlights = document.getElementById('enableHighlights');
+const highlightThreshold = document.getElementById('highlightThreshold');
+const highlightFade = document.getElementById('highlightFade');
+
+const blendModeSelect = document.getElementById('blendMode');
+const opacityRange = document.getElementById('opacity');
+
+const brightnessRange = document.getElementById('brightness');
+const contrastRange = document.getElementById('contrast');
+const saturationAdjRange = document.getElementById('saturationAdj');
+
+const hdrTolerance = document.getElementById('hdrTolerance');
+const hdrAmount = document.getElementById('hdrAmount');
+
+const ignoreAlphaToggle = document.getElementById('ignoreAlphaToggle');
+const ignoreAlphaStrength = document.getElementById('ignoreAlphaStrength');
+
+const helpBtn = document.getElementById('helpBtn');
+const compareBtn = document.getElementById('compareBtn');
+const downloadBtn = document.getElementById('downloadImage');
+
+const compareModal = document.getElementById('compareModal');
+const compareOriginal = document.getElementById('compareOriginal');
+const compareEdited = document.getElementById('compareEdited');
+const exportSideBySideBtn = document.getElementById('exportSideBySide');
+const exportStackedBtn = document.getElementById('exportStacked');
+const closeCompareBtn = document.getElementById('closeCompare');
+
+/* Offscreen / internal canvases at full resolution */
+let baseImageCanvas = null;       // original
+let adjustedImageData = null;     // after brightness/contrast/sat/HDR (ImageData)
+let lastNoiseCanvas = null;       // noise full-resolution canvas
+let lastMasks = {};               // object: combined/shadows/highlights canvases
+let previews = [];                // array of {name, canvas} for layer previews
+
+let originalImageLoaded = false;
+
+/* Utility */
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function gaussianRandom(mean=0,std=1){
+  let u=0,v=0; while(u===0) u=Math.random(); while(v===0) v=Math.random();
+  return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v) * std + mean;
+}
+function rgbToHsl(r,g,b){
+  const max=Math.max(r,g,b), min=Math.min(r,g,b); let h,s,l=(max+min)/2;
+  if(max===min){h=s=0;} else {
+    const d = max-min;
+    s = l>0.5? d/(2-max-min) : d/(max+min);
+    switch(max){ case r: h=(g-b)/d + (g<b?6:0); break; case g: h=(b-r)/d + 2; break; case b: h=(r-g)/d + 4; break; }
+    h /= 6;
+  }
+  return {h,s,l};
+}
+function hslToRgb(h,s,l){
+  let r,g,b;
+  if(s===0) r=g=b=l;
+  else {
+    const hue2rgb=(p,q,t)=>{ if(t<0) t+=1; if(t>1) t-=1; if(t<1/6) return p+(q-p)*6*t; if(t<1/2) return q; if(t<2/3) return p+(q-p)*(2/3-t)*6; return p; };
+    const q = l<0.5? l*(1+s) : l + s - l*s;
+    const p = 2*l - q;
+    r=hue2rgb(p,q,h+1/3); g=hue2rgb(p,q,h); b=hue2rgb(p,q,h-1/3);
+  }
+  return {r,g,b};
+}
+function smoothstep(min,max,value){
+  if(min>max) [min,max] = [max,min];
+  const x = Math.max(0, Math.min(1, (value-min)/(max-min)));
+  return x*x*(3 - 2*x);
+}
+
+/* Slider mappings (same mapping as before) */
+const MAX_NOISE_SIZE = 200.0;
+const MAX_BLUR = 5.0;
+const SLIDER_MAX = 1000.0;
+const ZOOM_EXPONENT = 3.0;
+function noiseSizeFromSlider(s){ const t = Math.pow(s/SLIDER_MAX, ZOOM_EXPONENT); return 1.0 + (MAX_NOISE_SIZE-1.0)*t; }
+function blurFromSlider(s){ const t = Math.pow(s/SLIDER_MAX, ZOOM_EXPONENT); return MAX_BLUR * t; }
+
+/* Mask slider mapping: keep finer low-end */
+function maskSliderToValue(s){ const v = Math.max(0, Math.min(1, Number(s))); return v*v; }
+function valueToMaskSlider(v){ return Math.sqrt(Math.max(0, Math.min(1, Number(v)))); }
+
+/* -------------------------
+   Fit display canvas to preview area, preserving aspect ratio
+   - displayCanvas is the only visible main canvas; its CSS width = container width minus padding
+   - displayCanvas internal pixel size should be set to original resolution for crispness
+   - We scale the visible CSS size by setting style.width='100%' and style.height='auto'
+   ------------------------- */
+function fitMainDisplayToPreview(){
+  if (!originalImageLoaded) return;
+  // displayCanvas pixel size already matches original resolution
+  // CSS: make it fill width
+  displayCanvas.style.width = '100%';
+  displayCanvas.style.height = 'auto';
+  // overlayCanvas CSS should match displayCanvas visually
+  overlayCanvas.style.width = '100%';
+  overlayCanvas.style.height = 'auto';
+  // ensure overlayWrap sits over canvas
+  overlayWrap.style.top = overlayWrap.style.left = '8px';
+}
+
+/* -------------------------
+   apply adjustments + HDR emulation -> produce adjustedImageData (ImageData)
+   and draw it into base on-demand
+   ------------------------- */
+function applyAdjustmentsAndHDR(){
+  if (!baseImageCanvas) return;
+  const w = baseImageCanvas.width, h = baseImageCanvas.height;
+  const ctx = baseImageCanvas.getContext('2d');
+  const src = ctx.getImageData(0,0,w,h);
+  const out = new ImageData(new Uint8ClampedArray(src.data), w, h);
+  const d = out.data;
+
+  const bright = parseFloat(brightnessRange.value) || 0;
+  const cont = parseFloat(contrastRange.value) || 100;
+  const sat = parseFloat(saturationAdjRange.value) || 0;
+  const factor_cont = cont / 100;
+  const factor_sat = 1 + sat / 100;
+  const offset_bright = bright * 2.55;
+
+  const tol = parseFloat(hdrTolerance.value) || 0.35;
+  const amt = parseFloat(hdrAmount.value) || 0;
+
+  for (let i=0;i<d.length;i+=4){
+    let r = d[i], g = d[i+1], b = d[i+2];
+    // saturation (lum-based)
+    const lum = r*0.299 + g*0.587 + b*0.114;
+    r = lum + (r - lum) * factor_sat;
+    g = lum + (g - lum) * factor_sat;
+    b = lum + (b - lum) * factor_sat;
+    // contrast
+    r = (r - 128) * factor_cont + 128;
+    g = (g - 128) * factor_cont + 128;
+    b = (b - 128) * factor_cont + 128;
+    // brightness
+    r += offset_bright; g += offset_bright; b += offset_bright;
+    // HDR emulate: darken darker regions
+    const nl = (0.299*r + 0.587*g + 0.114*b) / 255;
+    if (nl < tol){
+      const strength = (amt / 100) * (1 - nl / tol);
+      r = r * (1 - strength); g = g * (1 - strength); b = b * (1 - strength);
+    }
+    d[i] = clamp(r,0,255); d[i+1] = clamp(g,0,255); d[i+2] = clamp(b,0,255);
+    // alpha preserved
+  }
+  adjustedImageData = out;
+}
+
+/* -------------------------
+   Generate a full-resolution noise canvas (w x h) given params
+   This returns a canvas object sized to original image resolution
+   ------------------------- */
+function generateNoiseFullCanvas(w,h,params){
+  const { std, noiseType, blurSlider, noiseSlider, satStrengthVal, satPerNoiseVal, ignoreAlpha, ignoreAlphaStrength } = params;
+  const blurPx = blurFromSlider(blurSlider);
+  const noiseSize = noiseSizeFromSlider(noiseSlider);
+  const smallW = Math.max(1, Math.round(w / noiseSize));
+  const smallH = Math.max(1, Math.round(h / noiseSize));
+  const smallCanvas = document.createElement('canvas'); smallCanvas.width = smallW; smallCanvas.height = smallH;
+  const sCtx = smallCanvas.getContext('2d');
+  const smallImg = sCtx.createImageData(smallW, smallH);
+  const sd = smallImg.data;
+  const isColor = noiseType === 'color';
+  for (let y=0;y<smallH;y++){
+    for (let x=0;x<smallW;x++){
+      const i = (y*smallW + x)*4;
+      let vr = 128 + gaussianRandom(0, std);
+      let vg = 128 + gaussianRandom(0, std);
+      let vb = 128 + gaussianRandom(0, std);
+      if (!isColor) { vr = vg = vb; }
+      sd[i] = clamp(vr,0,255); sd[i+1] = clamp(vg,0,255); sd[i+2] = clamp(vb,0,255); sd[i+3] = 255;
+    }
+  }
+  sCtx.putImageData(smallImg, 0, 0);
+  const noiseFull = document.createElement('canvas'); noiseFull.width = w; noiseFull.height = h;
+  const nfCtx = noiseFull.getContext('2d');
+  nfCtx.imageSmoothingEnabled = true;
+  if (blurPx > 0) { nfCtx.filter = `blur(${blurPx}px)`; nfCtx.drawImage(smallCanvas, 0, 0, w, h); nfCtx.filter = 'none'; }
+  else nfCtx.drawImage(smallCanvas, 0, 0, w, h);
+
+  // blend mode 'blend' modifies saturation: compute per-pixel
+  if (noiseType === 'blend'){
+    const noiseMap = nfCtx.getImageData(0,0,w,h);
+    const orig = adjustedImageData ? adjustedImageData.data : baseImageCanvas.getContext('2d').getImageData(0,0,w,h).data;
+    const out = nfCtx.createImageData(w,h);
+    for (let i=0;i<out.data.length;i+=4){
+      const val = noiseMap.data[i]/255;
+      const centered = (val - 0.5) * 2;
+      const combinedStrength = satStrengthVal * (1 + (satPerNoiseVal/100));
+      const delta = centered * combinedStrength;
+      const r = orig[i], g = orig[i+1], b = orig[i+2];
+      const hsl = rgbToHsl(r/255,g/255,b/255);
+      hsl.s = clamp(hsl.s + delta, 0, 2);
+      const rgb = hslToRgb(hsl.h, hsl.s, hsl.l);
+      out.data[i] = Math.round(rgb.r*255);
+      out.data[i+1] = Math.round(rgb.g*255);
+      out.data[i+2] = Math.round(rgb.b*255);
+      out.data[i+3] = 255;
+    }
+    nfCtx.putImageData(out, 0, 0);
+  }
+
+  // apply masking alpha for shadows/highlights, and respect ignoreAlpha toggle
+  if (enableShadows.checked || enableHighlights.checked || ignoreAlpha){
+    const noiseData = nfCtx.getImageData(0,0,w,h);
+    const nd = noiseData.data;
+    const orig = adjustedImageData ? adjustedImageData.data : baseImageCanvas.getContext('2d').getImageData(0,0,w,h).data;
+    const sh_raw = parseFloat(shadowThreshold.value || 0.3), sh_f_raw = parseFloat(shadowFade.value || 0.2);
+    const hi_raw = parseFloat(highlightThreshold.value || 0.7), hi_f_raw = parseFloat(highlightFade.value || 0.2);
+    const sh_th = maskSliderToValue(sh_raw), sh_f = maskSliderToValue(sh_f_raw);
+    const hi_th = maskSliderToValue(hi_raw), hi_f = maskSliderToValue(hi_f_raw);
+    const ignoreStrength = ignoreAlphaStrength ? (parseFloat(ignoreAlphaStrength.value)/100) : 0;
+    for (let i=0;i<nd.length;i+=4){
+      const r = orig[i]/255, g = orig[i+1]/255, b = orig[i+2]/255;
+      const lum = r*0.299 + g*0.587 + b*0.114;
+      let shadow_mask = 0;
+      let highlight_mask = 0;
+      if (enableShadows.checked) { const low = sh_th - sh_f/2, high = sh_th + sh_f/2; shadow_mask = 1 - smoothstep(low, high, lum); }
+      if (enableHighlights.checked) { const low = hi_th - hi_f/2, high = hi_th + hi_f/2; highlight_mask = smoothstep(low, high, lum); }
+      let total = Math.max(shadow_mask, highlight_mask);
+      // If ignoring transparent regions, factor alpha
+      const alpha = (baseImageCanvas && baseImageCanvas.getContext('2d').getImageData(0,0,w,h).data[i+3] !== undefined) ? baseImageCanvas.getContext('2d').getImageData(0,0,w,h).data[i+3]/255 : 1;
+      if (ignoreAlpha && alpha < 1) total *= (1 - ignoreStrength * (1 - alpha));
+      nd[i+3] = Math.round(255 * total);
+    }
+    nfCtx.putImageData(noiseData, 0, 0);
+  }
+
+  return noiseFull;
+}
+
+/* -------------------------
+   Compose final edited image and draw to displayCanvas (and cache previews)
+   ------------------------- */
+function composeAndRender(){
+  if (!originalImageLoaded) return;
+  applyAdjustmentsAndHDR();
+  const w = baseImageCanvas.width, h = baseImageCanvas.height;
+  // params
+  const params = {
+    std: parseFloat(strengthRange.value) || 0,
+    noiseType: noiseTypeSelect.value,
+    blurSlider: parseFloat(blurrinessRange.value) || 0,
+    noiseSlider: parseFloat(noiseSizeRange.value) || 1,
+    satStrengthVal: parseFloat(document.getElementById('satStrength') ? document.getElementById('satStrength').value : 1) || 1,
+    satPerNoiseVal: parseFloat(document.getElementById('satPerNoise') ? document.getElementById('satPerNoise').value : 0) || 0,
+    ignoreAlpha: ignoreAlphaToggle.checked,
+    ignoreAlphaStrength: parseFloat(ignoreAlphaStrength.value) || 0
+  };
+  // generate noise
+  lastNoiseCanvas = generateNoiseFullCanvas(w,h,params);
+
+  // create final composite in an offscreen canvas (full resolution)
+  const comp = document.createElement('canvas'); comp.width = w; comp.height = h;
+  const cctx = comp.getContext('2d');
+  // draw adjusted base
+  cctx.putImageData(adjustedImageData, 0, 0);
+  // blend
+  cctx.globalAlpha = parseFloat(opacityRange.value) || 1;
+  cctx.globalCompositeOperation = blendModeSelect.value || 'source-over';
+  cctx.drawImage(lastNoiseCanvas, 0, 0);
+  cctx.globalAlpha = 1.0;
+  cctx.globalCompositeOperation = 'source-over';
+
+  // draw composite into displayCanvas (which we keep at full original pixel dimensions)
+  displayCanvas.width = w; displayCanvas.height = h;
+  const dctx = displayCanvas.getContext('2d');
+  dctx.clearRect(0,0,w,h);
+  dctx.drawImage(comp, 0, 0);
+
+  // prepare overlay original canvas (draw base image)
+  overlayCanvas.width = w; overlayCanvas.height = h;
+  const octx = overlayCanvas.getContext('2d'); octx.clearRect(0,0,w,h); octx.drawImage(baseImageCanvas, 0, 0);
+
+  // cache masks for layer previews
+  buildMasks(w,h);
+
+  // build preview canvases for layer area and render them
+  buildLayerPreviews(w,h, comp, lastNoiseCanvas);
+
+  // enable download button
+  document.getElementById('downloadImage').disabled = false;
+
+  // fit
+  fitMainDisplayToPreview();
+}
+
+/* -------------------------
+   Build masks (combined/shadows/highlights) at full resolution
+   ------------------------- */
+function buildMasks(w,h){
+  const shadows = document.createElement('canvas'); shadows.width = w; shadows.height = h;
+  const highlights = document.createElement('canvas'); highlights.width = w; highlights.height = h;
+  const combined = document.createElement('canvas'); combined.width = w; combined.height = h;
+  const sctx = shadows.getContext('2d'), hctx = highlights.getContext('2d'), cctx = combined.getContext('2d');
+  const src = adjustedImageData.data;
+  const sImg = sctx.createImageData(w,h), hImg = hctx.createImageData(w,h), cImg = cctx.createImageData(w,h);
+  const sh_th = maskSliderToValue(parseFloat(shadowThreshold.value || 0.3));
+  const sh_f = maskSliderToValue(parseFloat(shadowFade.value || 0.2));
+  const hi_th = maskSliderToValue(parseFloat(highlightThreshold.value || 0.7));
+  const hi_f = maskSliderToValue(parseFloat(highlightFade.value || 0.2));
+  for (let i=0;i<src.length;i+=4){
+    const r = src[i]/255, g = src[i+1]/255, b = src[i+2]/255;
+    const lum = r*0.299 + g*0.587 + b*0.114;
+    let shadow_mask = 0, highlight_mask = 0;
+    if (enableShadows.checked) { const low = sh_th - sh_f/2, high = sh_th + sh_f/2; shadow_mask = 1 - smoothstep(low, high, lum); }
+    if (enableHighlights.checked) { const low = hi_th - hi_f/2, high = hi_th + hi_f/2; highlight_mask = smoothstep(low, high, lum); }
+    const tot = Math.max(shadow_mask, highlight_mask);
+    const gs = Math.round(255*shadow_mask);
+    const gh = Math.round(255*highlight_mask);
+    const gc = Math.round(255*tot);
+    sImg.data[i] = sImg.data[i+1] = sImg.data[i+2] = gs; sImg.data[i+3] = 255;
+    hImg.data[i] = hImg.data[i+1] = hImg.data[i+2] = gh; hImg.data[i+3] = 255;
+    cImg.data[i] = cImg.data[i+1] = cImg.data[i+2] = gc; cImg.data[i+3] = 255;
+  }
+  sctx.putImageData(sImg,0,0); hctx.putImageData(hImg,0,0); cctx.putImageData(cImg,0,0);
+  lastMasks = { shadows, highlights, combined };
+}
+
+/* -------------------------
+   Build layer previews DOM elements: each preview has its own <canvas> sized to original pixels
+   Previews list: Base Original, Adjusted(with HDR), HDR Result (same as adjusted for clarity), Noise, Mask Combined, Shadows, Highlights, Composite
+   Each preview element: title, canvas (pixel-dims = original), Download button
+   ------------------------- */
+function buildLayerPreviews(w,h, compositeCanvas, noiseCanvas){
+  // clear existing
+  layerPreviewArea.innerHTML = '';
+  previews = [];
+
+  // helper to create a preview item
+  function makePreviewItem(name, srcCanvas){
+    const item = document.createElement('div'); item.className = 'layer-item';
+    const titleRow = document.createElement('div'); titleRow.className = 'layer-title-row';
+    const title = document.createElement('div'); title.className = 'layer-title'; title.textContent = name;
+    const actions = document.createElement('div'); actions.className = 'layer-actions';
+    const downloadBtn = document.createElement('button'); downloadBtn.textContent = 'Download';
+    downloadBtn.title = 'Download this layer at original resolution (PNG)';
+    actions.appendChild(downloadBtn);
+    titleRow.appendChild(title); titleRow.appendChild(actions);
+    const canvas = document.createElement('canvas');
+    // set pixel dims to original resolution so download yields full-size PNG
+    canvas.width = srcCanvas.width; canvas.height = srcCanvas.height;
+    canvas.className = 'layer-canvas';
+    // CSS sizing: make it responsive to container width while preserving aspect
+    canvas.style.width = '100%';
+    canvas.style.height = 'auto';
+    // draw content
+    const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(srcCanvas, 0, 0);
+    // hook up download
+    downloadBtn.addEventListener('click', ()=> {
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = `${name.replace(/\s+/g,'_').toLowerCase()}.png`;
+      link.click();
+    });
+    item.appendChild(titleRow);
+    item.appendChild(canvas);
+    // append to container
+    layerPreviewArea.appendChild(item);
+    // store
+    previews.push({ name, canvas, container: item });
+  }
+
+  // Base Original
+  makePreviewItem('Base Original', baseImageCanvas);
+
+  // Adjusted (with HDR) - we draw adjustedImageData into a canvas
+  const adjCanvas = document.createElement('canvas'); adjCanvas.width = w; adjCanvas.height = h;
+  adjCanvas.getContext('2d').putImageData(adjustedImageData, 0, 0);
+  makePreviewItem('Adjusted (with HDR)', adjCanvas);
+
+  // HDR Emulation Result (same as adjusted; kept separate for user)
+  makePreviewItem('HDR Emulation Result', adjCanvas);
+
+  // Noise layer
+  if (noiseCanvas) makePreviewItem('Noise Layer', noiseCanvas);
+
+  // Masks
+  if (lastMasks.combined) makePreviewItem('Mask (combined)', lastMasks.combined);
+  if (lastMasks.shadows) makePreviewItem('Shadows Mask', lastMasks.shadows);
+  if (lastMasks.highlights) makePreviewItem('Highlights Mask', lastMasks.highlights);
+
+  // Composite final
+  makePreviewItem('Composite (Edited)', compositeCanvas);
+}
+
+/* -------------------------
+   Fit overlay & hover behavior for main preview
+   ------------------------- */
+const previewArea = document.getElementById('previewArea');
+let isPointerOverMain = false;
+previewArea.addEventListener('mouseenter', ()=> {
+  isPointerOverMain = true;
+  // show original overlay
+  overlayWrap.classList.add('show');
+});
+previewArea.addEventListener('mouseleave', ()=> {
+  isPointerOverMain = false;
+  overlayWrap.classList.remove('show');
+});
+
+/* -------------------------
+   Wheel behavior: while hovering main preview, cycle blend modes and block page scroll
+   ------------------------- */
+const blendModes = Array.from(blendModeSelect.options).map(o=>o.value);
+let currentBlendIndex = blendModes.indexOf(blendModeSelect.value) || 0;
+let wheelTimeout = null;
+previewArea.addEventListener('wheel', (ev) => {
+  if (!originalImageLoaded) return;
+  ev.preventDefault(); // block page scroll while hovering
+  const delta = ev.deltaY || ev.wheelDelta || 0;
+  if (!delta) return;
+  const dir = delta > 0 ? 1 : -1;
+  currentBlendIndex = (currentBlendIndex + dir + blendModes.length) % blendModes.length;
+  blendModeSelect.value = blendModes[currentBlendIndex];
+  // quick preview: recompute composite preview but don't disturb saved composite yet
+  composeAndRender(); // composition is fast enough here; it updates display
+  // schedule revert? previously we reverted to original after inactivity; we keep behavior so original overlay continues to show on hover unless user scrolls - here user explicitly changed blend so main canvas shows changed blend
+  clearTimeout(wheelTimeout);
+  wheelTimeout = setTimeout(()=> { wheelTimeout = null; }, 1000);
+}, { passive:false });
+
+/* -------------------------
+   Compare modal handlers and exporting side-by-side/stacked
+   ------------------------- */
+compareBtn.addEventListener('click', ()=> {
+  if (!originalImageLoaded) return;
+  compareModal.classList.add('show'); compareModal.setAttribute('aria-hidden','false');
+  // draw scaled images into compare canvases to fit modal
+  const modalRect = document.querySelector('.modal').getBoundingClientRect();
+  const areaWidth = Math.floor((modalRect.width - 40) / 2);
+  const w = baseImageCanvas.width, h = baseImageCanvas.height;
+  const scale = Math.min(1, areaWidth / w);
+  const cw = Math.round(w * scale), ch = Math.round(h * scale);
+  compareOriginal.width = cw; compareOriginal.height = ch;
+  compareEdited.width = cw; compareEdited.height = ch;
+  const c1 = compareOriginal.getContext('2d'); c1.clearRect(0,0,cw,ch); c1.drawImage(baseImageCanvas, 0,0,w,h, 0,0,cw,ch);
+  const c2 = compareEdited.getContext('2d'); c2.clearRect(0,0,cw,ch); c2.drawImage(displayCanvas, 0,0,w,h, 0,0,cw,ch);
+});
+closeCompareBtn.addEventListener('click', ()=> { compareModal.classList.remove('show'); compareModal.setAttribute('aria-hidden','true'); });
+
+exportSideBySideBtn.addEventListener('click', ()=> {
+  if (!originalImageLoaded) return;
+  const w = baseImageCanvas.width, h = baseImageCanvas.height;
+  const out = document.createElement('canvas'); out.width = w*2; out.height = h;
+  const oc = out.getContext('2d'); oc.drawImage(baseImageCanvas, 0,0); oc.drawImage(displayCanvas, w,0);
+  const link = document.createElement('a'); link.href = out.toDataURL('image/png'); link.download = 'compare_side_by_side.png'; link.click();
+  setTimeout(()=> { compareModal.classList.remove('show'); }, 300);
+});
+
+exportStackedBtn.addEventListener('click', ()=> {
+  if (!originalImageLoaded) return;
+  const w = baseImageCanvas.width, h = baseImageCanvas.height;
+  const out = document.createElement('canvas'); out.width = w; out.height = h*2;
+  const oc = out.getContext('2d'); oc.drawImage(baseImageCanvas, 0,0); oc.drawImage(displayCanvas, 0,h);
+  const link = document.createElement('a'); link.href = out.toDataURL('image/png'); link.download = 'compare_stacked.png'; link.click();
+  setTimeout(()=> { compareModal.classList.remove('show'); }, 300);
+});
+
+/* -------------------------
+   File loading and initial render
+   ------------------------- */
+fileInput.addEventListener('change', (ev) => {
+  const f = ev.target.files && ev.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => loadImage(img);
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(f);
+});
+
+function loadImage(img){
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  // create base canvas at original resolution
+  baseImageCanvas = document.createElement('canvas'); baseImageCanvas.width = w; baseImageCanvas.height = h;
+  const bctx = baseImageCanvas.getContext('2d'); bctx.clearRect(0,0,w,h); bctx.drawImage(img, 0,0,w,h);
+  originalImageLoaded = true;
+  // initialize displayCanvas pixel dimensions
+  displayCanvas.width = w; displayCanvas.height = h;
+  // initialize overlay canvas too
+  overlayCanvas.width = w; overlayCanvas.height = h;
+  // initial composition
+  composeAndRender();
+}
+
+/* -------------------------
+   Wire UI control events to composeAndRender
+   - also show/hide sat controls depending on noiseType
+   ------------------------- */
+noiseTypeSelect.addEventListener('change', ()=>{
+  const val = noiseTypeSelect.value;
+  satStrengthRow.style.display = (val === 'blend') ? 'flex' : 'none';
+  satPerNoiseRow.style.display = (val === 'blend') ? 'flex' : 'none';
+  composeAndRender();
+});
+
+// create satStrength and satPerNoise inputs dynamically inside DOM to avoid referencing non-existent earlier
+(function createSatControlsIfNeeded(){
+  // If rows are hidden initialy, ensure they have inputs
+  if (!document.getElementById('satStrength')) {
+    const inpt = document.createElement('input'); inpt.id = 'satStrength'; inpt.type = 'range'; inpt.min='0'; inpt.max='4'; inpt.step='0.01'; inpt.value='1';
+    satStrengthRow.appendChild(inpt);
+  }
+  if (!document.getElementById('satPerNoise')) {
+    const inpt = document.createElement('input'); inpt.id = 'satPerNoise'; inpt.type = 'range'; inpt.min='-100'; inpt.max='100'; inpt.step='0.1'; inpt.value='0';
+    satPerNoiseRow.appendChild(inpt);
+  }
+})();
+
+// wire all other inputs to re-compose on change/input
+const inputsToWatch = [
+  strengthRange, noiseSizeRange, blurrinessRange,
+  enableShadows, shadowThreshold, shadowFade,
+  enableHighlights, highlightThreshold, highlightFade,
+  blendModeSelect, opacityRange,
+  brightnessRange, contrastRange, saturationAdjRange,
+  hdrTolerance, hdrAmount,
+  ignoreAlphaToggle, ignoreAlphaStrength
+];
+inputsToWatch.forEach(el => {
+  if (!el) return;
+  el.addEventListener('input', ()=> composeAndRender());
+  el.addEventListener('change', ()=> composeAndRender());
+});
+
+// also hook sat controls
+document.addEventListener('input', (ev) => {
+  if (ev.target && (ev.target.id === 'satStrength' || ev.target.id === 'satPerNoise')) composeAndRender();
+}, true);
+
+/* -------------------------
+   Main download button (composite)
+   ------------------------- */
+downloadBtn.addEventListener('click', ()=> {
+  if (!originalImageLoaded) return;
+  const link = document.createElement('a');
+  link.href = displayCanvas.toDataURL('image/png');
+  link.download = 'edited_image.png';
+  link.click();
+});
+
+/* -------------------------
+   Help modal (simple)
+   ------------------------- */
+helpBtn.addEventListener('click', ()=> {
+  alert('Controls are in collapsed sections on the left. Hover main preview to see original; click layer Download to export a full-resolution PNG for that layer.');
+});
+
+/* -------------------------
+   init: collapse all details by default (HTML default does that)
+   and ensure layout fits on resize
+   ------------------------- */
+window.addEventListener('resize', ()=> {
+  fitMainDisplayToPreview();
+  // ensure layer canvases scale to new width (style.width=100% handles visual resize)
+});
+
+// helper mask slider mapping (reuse)
+function maskSliderToValue(s){ const v = Math.max(0, Math.min(1, Number(s))); return v*v; }
+
+/* Note: The app draws to real full-resolution canvases for each preview and the display canvas.
+   Layer previews are individual canvas elements sized to the full original resolution (canvas.width/height),
+   but their CSS width is set to 100% so they scale responsively while preserving aspect ratio.
+   Clicking a layer's Download button exports the canvas content at its full pixel size (original resolution).
+*/
+
+</script>
+</body>
+</html>

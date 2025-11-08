@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Digital Grain Studio</title>
+<style>
+  /* ---- Theme / Layout ---- */
+  :root{ --bg:#000; --fg:#fff; --panel-max:420px; }
+  html,body{height:100%; margin:0;}
+  body {
+    background:var(--bg);
+    color:var(--fg);
+    font-family:monospace;
+    padding:20px;
+    display:flex; gap:20px;
+    box-sizing:border-box;
+    align-items:flex-start;
+    min-height:100vh;
+  }
+  .container{display:flex; gap:20px; width:100%;}
+  .controls-panel{flex:1; min-width:260px; max-width:var(--panel-max); padding:10px; box-sizing:border-box;}
+  .preview-column{flex:2; padding:10px; box-sizing:border-box; min-width:320px; display:flex; flex-direction:column; gap:8px;}
+  h1,h3{margin:0 0 12px 0; text-align:center;}
+  .small-note{font-size:12px; opacity:0.9; text-align:center; margin-top:6px;}
+  fieldset{border:1px solid var(--fg); padding:8px; margin-bottom:12px;}
+  legend{padding:0 6px;}
+  .control-row{display:flex; gap:8px; align-items:center; margin-bottom:8px;}
+  .control-row label{flex:0 0 120px; font-weight:bold; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  input[type="range"]{flex:1; min-width:0;}
+  .control-value{width:80px; padding:2px 6px; text-align:right; background:var(--bg); color:var(--fg); border:1px solid var(--fg); box-sizing:border-box; font-family:monospace; flex:0 0 80px;}
+  select.control-value{flex:1; min-width:120px; padding:4px 6px; box-sizing:border-box;}
+  button{background:var(--bg); color:var(--fg); border:1px solid var(--fg); padding:8px; cursor:pointer; width:100%; box-sizing:border-box; font-family:monospace;}
+  button:hover:not(:disabled){background:#222;}
+  .preview-top{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .preview-container{position:relative; border:1px solid var(--fg); background:#070707; align-self:stretch; overflow:hidden; display:flex; align-items:center; justify-content:center; transition:opacity 300ms;}
+  canvas{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    display:block;
+    max-width:none;
+    max-height:none;
+    image-rendering:auto;
+  }
+  #originalCanvas { transition: opacity 250ms; z-index:3; pointer-events:none; opacity:0; }
+  #noiseCanvas    { z-index:2; pointer-events:auto; }
+  .overlay-canvas { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:block; max-width:none; max-height:none; image-rendering:auto; z-index:4; pointer-events:none; opacity:0; transition: opacity 100ms linear; }
+  /* layer preview */
+  .layer-preview-container{position:relative; border:1px solid var(--fg); background:#050505; overflow:hidden; display:flex; align-items:center; justify-content:center; transition:opacity 300ms;}
+  #layerCanvas{ position:relative; z-index:1; pointer-events:none; }
+  .hide-on-load{opacity:0; pointer-events:none;}
+  /* Modal */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.85);
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity 0.4s ease; z-index:1000;
+  }
+  .modal-overlay.show{opacity:1; pointer-events:auto;}
+  .modal{
+    background:#111; border:1px solid var(--fg); border-radius:8px; max-width:720px; width:calc(100% - 40px);
+    max-height:80vh; overflow:auto; padding:20px 24px; transform:scale(0.95); transition:transform 0.35s ease;
+  }
+  .modal-overlay.show .modal{transform:scale(1);}
+  .modal h2{text-align:center; margin-top:0;}
+  .modal h3{margin:16px 0 6px 0; border-bottom:1px solid #333;}
+  .modal p, .modal li{line-height:1.5;}
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button {-webkit-appearance: none; margin: 0;}
+  input[type=number] { -moz-appearance: textfield; }
+  @media (max-width:900px){
+    body{padding:12px;}
+    .container{flex-direction:column;}
+    .controls-panel{max-width:none; width:100%;}
+    .preview-column{width:100%;}
+    .control-row label{flex:0 0 110px;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="controls-panel">
+    <h1>Digital Grain Studio</h1>
+    <p class="small-note">Upload an image to start. Controls update live unless performance prompts manual render.</p>
+
+    <!-- File input -->
+    <div style="margin-bottom:12px;">
+      <label for="imageUpload" style="display:block; font-weight:bold; margin-bottom:6px;">Image Upload</label>
+      <input id="imageUpload" type="file" accept="image/*" style="width:100%; background:transparent; color:inherit; border:1px solid var(--fg); padding:8px; box-sizing:border-box;">
+    </div>
+
+    <fieldset>
+      <legend>Noise Basics</legend>
+
+      <div class="control-row">
+        <label for="strength">Noise Strength (σ)</label>
+        <input id="strength" type="range" min="0" max="150" step="0.01" value="50">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="strengthValue" class="control-value" type="number" min="0" max="150" step="0.01" value="50.00">
+      </div>
+
+      <div class="control-row">
+        <label for="noiseType">Noise Type</label>
+        <select id="noiseType" class="control-value">
+          <option value="color">Color</option>
+          <option value="grayscale" selected>Grayscale</option>
+          <option value="blend">Blend</option>
+        </select>
+      </div>
+
+      <div id="satStrengthContainer" style="display:none;">
+        <div class="control-row">
+          <label for="satStrength">Sat Change Strength</label>
+          <input id="satStrength" type="range" min="0" max="4" step="0.01" value="1">
+        </div>
+        <div class="control-row">
+          <label></label>
+          <input id="satStrengthValue" class="control-value" type="number" min="0" max="4" step="0.01" value="1.00">
+        </div>
+        <div class="control-row">
+          <label for="satPerNoise">Noise Saturation Impact</label>
+          <input id="satPerNoise" type="range" min="-100" max="100" step="0.1" value="0">
+        </div>
+        <div class="control-row">
+          <label></label>
+          <input id="satPerNoiseValue" class="control-value" type="number" min="-100" max="100" step="0.1" value="0.0">
+        </div>
+      </div>
+
+    </fieldset>
+
+    <fieldset>
+      <legend>Noise Shape & Blur</legend>
+
+      <div class="control-row">
+        <label for="noiseSize">Noise Size</label>
+        <input id="noiseSize" type="range" min="0" max="1000" step="0.01" value="4">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="noiseSizeValue" class="control-value" type="number" min="1" max="200" step="0.01" value="4.00">
+      </div>
+
+      <div style="height:6px"></div>
+
+      <div class="control-row">
+        <label for="blurriness">Blurriness (px)</label>
+        <input id="blurriness" type="range" min="0" max="1000" step="0.01" value="160">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="blurrinessValue" class="control-value" type="number" min="0" max="5" step="0.01" value="2.00">
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Noise Masking</legend>
+
+      <div class="control-row">
+        <label for="enableShadows">Noise in Shadows</label>
+        <input id="enableShadows" type="checkbox" aria-label="Noise in Shadows toggle" style="transform:scale(1.2);">
+      </div>
+
+      <div class="control-row">
+        <label for="shadowThreshold">Shadow Threshold</label>
+        <input id="shadowThreshold" type="range" min="0" max="1" step="0.0001" value="0.3">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="shadowThresholdValue" class="control-value" type="number" min="0" max="1" step="0.01" value="0.30">
+      </div>
+
+      <div class="control-row">
+        <label for="shadowFade">Shadow Fade</label>
+        <input id="shadowFade" type="range" min="0" max="1" step="0.0001" value="0.2">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="shadowFadeValue" class="control-value" type="number" min="0" max="1" step="0.01" value="0.20">
+      </div>
+
+      <div class="control-row">
+        <label for="enableHighlights">Noise in Highlights</label>
+        <input id="enableHighlights" type="checkbox" aria-label="Noise in Highlights toggle" style="transform:scale(1.2);">
+      </div>
+
+      <div class="control-row">
+        <label for="highlightThreshold">Highlight Threshold</label>
+        <input id="highlightThreshold" type="range" min="0" max="1" step="0.0001" value="0.7">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="highlightThresholdValue" class="control-value" type="number" min="0" max="1" step="0.01" value="0.70">
+      </div>
+
+      <div class="control-row">
+        <label for="highlightFade">Highlight Fade</label>
+        <input id="highlightFade" type="range" min="0" max="1" step="0.0001" value="0.2">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="highlightFadeValue" class="control-value" type="number" min="0" max="1" step="0.01" value="0.20">
+      </div>
+
+    </fieldset>
+
+    <fieldset>
+      <legend>Blend & Visibility</legend>
+
+      <div class="control-row">
+        <label for="blendMode">Blend Mode</label>
+        <select id="blendMode" class="control-value">
+          <option value="source-over">Normal</option>
+          <option value="overlay" selected>Overlay</option>
+          <option value="screen">Screen</option>
+          <option value="multiply">Multiply</option>
+          <option value="lighter">Add</option>
+          <option value="difference">Subtract</option>
+        </select>
+      </div>
+
+      <div class="control-row">
+        <label for="opacity">Noise Opacity</label>
+        <input id="opacity" type="range" min="0" max="1" step="0.01" value="0.25">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="opacityValue" class="control-value" type="number" min="0" max="1" step="0.01" value="0.25">
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Image Adjustments</legend>
+
+      <div class="control-row">
+        <label for="brightness">Brightness</label>
+        <input id="brightness" type="range" min="-100" max="100" step="1" value="0">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="brightnessValue" class="control-value" type="number" min="-100" max="100" step="1" value="0">
+      </div>
+
+      <div class="control-row">
+        <label for="contrast">Contrast</label>
+        <input id="contrast" type="range" min="-300" max="300" step="1" value="100">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="contrastValue" class="control-value" type="number" min="-300" max="300" step="1" value="100">
+      </div>
+
+      <div class="control-row">
+        <label for="saturationAdj">Saturation</label>
+        <input id="saturationAdj" type="range" min="-100" max="100" step="0.1" value="0">
+      </div>
+      <div class="control-row">
+        <label></label>
+        <input id="saturationAdjValue" class="control-value" type="number" min="-100" max="100" step="0.1" value="0">
+      </div>
+
+    </fieldset>
+
+    <div style="display:flex; gap:8px;">
+      <button id="helpBtn">Help / Manual</button>
+      <button id="downloadImage" disabled>Download Image</button>
+    </div>
+  </div>
+
+  <div class="preview-column">
+    <div class="preview-top">
+      <h3 style="margin:0;">Image Preview (hover to reveal original)</h3>
+      <div style="font-size:12px; opacity:0.9; align-self:center;"></div>
+    </div>
+
+    <div id="previewArea" class="preview-container" style="height:calc(60vh - 60px);">
+      <canvas id="noiseCanvas"></canvas>
+      <canvas id="originalCanvas"></canvas>
+    </div>
+
+    <div class="preview-top" style="margin-top:8px;">
+      <h3 style="margin:0;">Layers & Mask Preview</h3>
+      <div style="font-size:12px; opacity:0.9; align-self:center;">(original / mask / noise)</div>
+    </div>
+
+    <div id="layerPreviewArea" class="layer-preview-container hide-on-load" style="height:calc(60vh - 60px);">
+      <canvas id="layerCanvas"></canvas>
+    </div>
+
+  </div>
+</div>
+
+<!-- Manual Popup -->
+<div class="modal-overlay" id="manualModal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="manualTitle">
+    <h2 id="manualTitle">Digital Grain Studio — Manual</h2>
+
+    <h3>Quick Overview</h3>
+    <p>Layer a noise texture over your picture to create grain/texture effects. Noise is generated, optionally blurred, then blended with your photo. Use the Layer Preview to inspect mask & noise placement.</p>
+
+    <h3>How previews work (simple)</h3>
+    <ul>
+      <li><b>Main preview</b> shows the edited image with noise and edits. Hover to see the original unedited photo.</li>
+      <li><b>Layers & Mask preview</b> appears when you change settings and shows three panels: original, mask (where noise applies), and the noise layer. It auto-hides after 5 seconds of no edits.</li>
+    </ul>
+
+    <h3>Controls explained simply</h3>
+    <ul>
+      <li><b>Noise Strength:</b> how strong grain contrast is.</li>
+      <li><b>Noise Type:</b> color, grayscale, or blend (alters saturation).</li>
+      <li><b>Noise Saturation Impact:</b> pushes noise to saturate (+) or desaturate (-) local pixels (blend mode).</li>
+      <li><b>Noise Size / Blur:</b> fine/coarse grain and softness.</li>
+      <li><b>Masking:</b> limit noise to shadows/highlights; thresholds use a fine low-end curve for better control.</li>
+      <li><b>Blend Mode / Opacity:</b> how the noise mixes, and how strong it is.</li>
+      <li><b>Image Adjustments:</b> brightness, contrast (wide range), saturation applied before noise.</li>
+    </ul>
+
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button id="closeManual">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* -------------------------
+   Elements & state
+   ------------------------- */
+const fileInput = document.getElementById('imageUpload');
+const originalCanvas = document.getElementById('originalCanvas');
+const noiseCanvas = document.getElementById('noiseCanvas');
+const layerCanvas = document.getElementById('layerCanvas');
+const ctxOriginal = originalCanvas.getContext('2d');
+const ctxNoise = noiseCanvas.getContext('2d');
+const ctxLayer = layerCanvas.getContext('2d');
+
+const strengthRange = document.getElementById('strength');
+const strengthNumber = document.getElementById('strengthValue');
+
+const noiseSizeRange = document.getElementById('noiseSize');
+const noiseSizeNumber = document.getElementById('noiseSizeValue');
+
+const blurrinessRange = document.getElementById('blurriness');
+const blurrinessNumber = document.getElementById('blurrinessValue');
+
+const noiseTypeSelect = document.getElementById('noiseType');
+const satStrengthContainer = document.getElementById('satStrengthContainer');
+const satStrengthRange = document.getElementById('satStrength');
+const satStrengthNumber = document.getElementById('satStrengthValue');
+
+const satPerNoiseRange = document.getElementById('satPerNoise');
+const satPerNoiseNumber = document.getElementById('satPerNoiseValue');
+
+const enableShadows = document.getElementById('enableShadows');
+const shadowThresholdRange = document.getElementById('shadowThreshold');
+const shadowThresholdNumber = document.getElementById('shadowThresholdValue');
+const shadowFadeRange = document.getElementById('shadowFade');
+const shadowFadeNumber = document.getElementById('shadowFadeValue');
+
+const enableHighlights = document.getElementById('enableHighlights');
+const highlightThresholdRange = document.getElementById('highlightThreshold');
+const highlightThresholdNumber = document.getElementById('highlightThresholdValue');
+const highlightFadeRange = document.getElementById('highlightFade');
+const highlightFadeNumber = document.getElementById('highlightFadeValue');
+
+const brightnessRange = document.getElementById('brightness');
+const brightnessNumber = document.getElementById('brightnessValue');
+const contrastRange = document.getElementById('contrast');
+const contrastNumber = document.getElementById('contrastValue');
+const saturationAdjRange = document.getElementById('saturationAdj');
+const saturationAdjNumber = document.getElementById('saturationAdjValue');
+
+const blendModeSelect = document.getElementById('blendMode');
+const opacityRange = document.getElementById('opacity');
+const opacityNumber = document.getElementById('opacityValue');
+
+const downloadBtn = document.getElementById('downloadImage');
+const previewArea = document.getElementById('previewArea');
+const layerPreviewArea = document.getElementById('layerPreviewArea');
+
+const helpBtn = document.getElementById('helpBtn');
+const manualModal = document.getElementById('manualModal');
+const closeManual = document.getElementById('closeManual');
+
+let baseImageData = null;
+let adjustedImageData = null;
+let baseImageCanvas = null;
+let originalImageLoaded = false;
+
+/* -------------------------
+   Utility functions
+   ------------------------- */
+function gaussianRandom(mean=0,std=1){
+  let u=0,v=0; while(u===0) u=Math.random(); while(v===0) v=Math.random();
+  return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v) * std + mean;
+}
+function rgbToHsl(r, g, b) {
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s, l = (max + min) / 2;
+  if (max === min) { h = s = 0; } else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return { h, s, l };
+}
+function hslToRgb(h, s, l) {
+  let r, g, b;
+  if (s === 0) { r = g = b = l; } else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1/3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1/3);
+  }
+  return { r, g, b };
+}
+function smoothstep(min, max, value) {
+  if (min > max) [min, max] = [max, min];
+  const x = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  return x * x * (3 - 2 * x);
+}
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+/* -------------------------
+   Noise / slider mappings
+   ------------------------- */
+const MAX_NOISE_SIZE = 200.0;
+const MAX_BLUR = 5.0;
+const SLIDER_MAX = 1000.0;
+const ZOOM_EXPONENT = 3.0;
+function noiseSizeFromSlider(s){ const t = Math.pow(s / SLIDER_MAX, ZOOM_EXPONENT); return 1.0 + (MAX_NOISE_SIZE - 1.0) * t; }
+function sliderFromNoiseSize(size){ const t = (Math.max(1.0, Math.min(MAX_NOISE_SIZE, size)) - 1.0) / (MAX_NOISE_SIZE - 1.0); return SLIDER_MAX * Math.pow(t, 1.0 / ZOOM_EXPONENT); }
+function blurFromSlider(s){ const t = Math.pow(s / SLIDER_MAX, ZOOM_EXPONENT); return MAX_BLUR * t; }
+function sliderFromBlur(blur){ const t = Math.max(0.0, Math.min(MAX_BLUR, blur)) / MAX_BLUR; return SLIDER_MAX * Math.pow(t, 1.0 / ZOOM_EXPONENT); }
+
+/* mask slider mapping: finer low-end */
+function maskSliderToValue(s) { const v = Math.max(0, Math.min(1, Number(s))); return v * v; }
+function valueToMaskSlider(v) { return Math.sqrt(Math.max(0, Math.min(1, Number(v)))); }
+
+/* -------------------------
+   Preview sizing
+   ------------------------- */
+function fitCanvasesToPreview(){
+  if(!originalImageLoaded) return;
+  const w = originalCanvas.width, h = originalCanvas.height;
+  const areaRect = previewArea.getBoundingClientRect();
+  const padding = 8;
+  const maxW = Math.max(32, areaRect.width - padding);
+  const maxH = Math.max(32, areaRect.height - padding);
+  const scale = Math.min(maxW / w, maxH / h, 1);
+  const cssW = Math.round(w * scale), cssH = Math.round(h * scale);
+  [originalCanvas, noiseCanvas].forEach(c => {
+    c.style.width = cssW + 'px'; c.style.height = cssH + 'px';
+    c.style.left = '50%'; c.style.top = '50%'; c.style.transform = 'translate(-50%,-50%)';
+  });
+  layerCanvas.style.width = cssW + 'px'; layerCanvas.style.height = cssH + 'px';
+  layerCanvas.style.left = '50%'; layerCanvas.style.top = '50%'; layerCanvas.style.transform = 'translate(-50%,-50%)';
+  previewArea.style.minHeight = Math.min(maxH, cssH) + 'px';
+  layerPreviewArea.style.minHeight = Math.min(maxH, cssH) + 'px';
+}
+
+/* -------------------------
+   Apply image adjustments
+   ------------------------- */
+function applyAdjustments(){
+  if(!baseImageData) return;
+  const w = originalCanvas.width, h = originalCanvas.height;
+  const data = new ImageData(new Uint8ClampedArray(baseImageData.data), w, h);
+  const d = data.data;
+  const bright = parseFloat(brightnessNumber.value) || 0;
+  const cont = parseFloat(contrastNumber.value) || 100;
+  const sat = parseFloat(saturationAdjNumber.value) || 0;
+  const factor_cont = cont / 100;
+  const factor_sat = 1 + sat / 100;
+  const offset_bright = bright * 2.55;
+  for (let i = 0; i < d.length; i += 4) {
+    let r = d[i], g = d[i+1], b = d[i+2];
+    const lum = r * 0.299 + g * 0.587 + b * 0.114;
+    r = lum + (r - lum) * factor_sat;
+    g = lum + (g - lum) * factor_sat;
+    b = lum + (b - lum) * factor_sat;
+    r = (r - 128) * factor_cont + 128;
+    g = (g - 128) * factor_cont + 128;
+    b = (b - 128) * factor_cont + 128;
+    r += offset_bright; g += offset_bright; b += offset_bright;
+    d[i] = clamp(r, 0, 255); d[i+1] = clamp(g, 0, 255); d[i+2] = clamp(b, 0, 255);
+  }
+  ctxOriginal.putImageData(data, 0, 0);
+  adjustedImageData = data;
+}
+
+/* -------------------------
+   Generate noise canvas
+   ------------------------- */
+function generateNoiseFullCanvas(w, h, params){
+  const { std, noiseType, blurSlider, noiseSlider, satStrength, satPerNoise } = params;
+  const blurPx = blurFromSlider(blurSlider);
+  const noiseSize = noiseSizeFromSlider(noiseSlider);
+  const smallW = Math.max(1, Math.round(w / noiseSize));
+  const smallH = Math.max(1, Math.round(h / noiseSize));
+  const smallCanvas = document.createElement('canvas'); smallCanvas.width = smallW; smallCanvas.height = smallH;
+  const sCtx = smallCanvas.getContext('2d');
+  const smallImg = sCtx.createImageData(smallW, smallH); const sd = smallImg.data;
+  const isColor = noiseType === 'color';
+  for(let y=0;y<smallH;y++){
+    for(let x=0;x<smallW;x++){
+      const i = (y*smallW + x)*4;
+      let v_r = 128 + gaussianRandom(0, std);
+      let v_g = 128 + gaussianRandom(0, std);
+      let v_b = 128 + gaussianRandom(0, std);
+      if (!isColor) { v_r = v_g = v_b; }
+      sd[i]   = clamp(v_r, 0, 255);
+      sd[i+1] = clamp(v_g, 0, 255);
+      sd[i+2] = clamp(v_b, 0, 255);
+      sd[i+3] = 255;
+    }
+  }
+  sCtx.putImageData(smallImg, 0, 0);
+  const noiseFull = document.createElement('canvas'); noiseFull.width = w; noiseFull.height = h;
+  const nfCtx = noiseFull.getContext('2d'); nfCtx.imageSmoothingEnabled = true;
+  if(blurPx > 0){ nfCtx.filter = `blur(${blurPx}px)`; nfCtx.drawImage(smallCanvas, 0, 0, w, h); nfCtx.filter = 'none'; }
+  else { nfCtx.drawImage(smallCanvas, 0, 0, w, h); }
+
+  if (noiseType === 'blend') {
+    const noiseMapData = nfCtx.getImageData(0, 0, w, h);
+    const origData = (adjustedImageData || baseImageData).data;
+    const outData = nfCtx.createImageData(w, h);
+    for (let i = 0; i < outData.data.length; i += 4) {
+      const noise_val = noiseMapData.data[i];
+      const normalized = noise_val / 255;
+      const centered = (normalized - 0.5) * 2;
+      const combinedStrength = satStrength * (1 + (satPerNoise/100));
+      const delta = centered * combinedStrength;
+      const r = origData[i], g = origData[i+1], b = origData[i+2];
+      const hsl = rgbToHsl(r / 255, g / 255, b / 255);
+      hsl.s = clamp(hsl.s + delta, 0, 2);
+      const rgb_new = hslToRgb(hsl.h, hsl.s, hsl.l);
+      outData.data[i] = Math.round(rgb_new.r * 255);
+      outData.data[i+1] = Math.round(rgb_new.g * 255);
+      outData.data[i+2] = Math.round(rgb_new.b * 255);
+      outData.data[i+3] = 255;
+    }
+    nfCtx.putImageData(outData, 0, 0);
+  }
+  return noiseFull;
+}
+
+/* -------------------------
+   Main pipeline
+   ------------------------- */
+function applyGaussianNoise(){
+  if(!originalImageLoaded) return;
+  const w = originalCanvas.width, h = originalCanvas.height;
+  const std = parseFloat(strengthNumber.value) || 0.0;
+  const blurSlider = parseFloat(blurrinessRange.value) || 0.0;
+  const noiseType = noiseTypeSelect.value;
+  const blend = blendModeSelect.value || 'source-over';
+  const opacity = parseFloat(opacityNumber.value) || 0.0;
+  const noiseSlider = parseFloat(noiseSizeRange.value) || 1.0;
+  const satStrength = parseFloat(satStrengthNumber.value) || 1.0;
+  const satPerNoise = parseFloat(satPerNoiseNumber.value) || 0.0;
+
+  const noiseFull = generateNoiseFullCanvas(w, h, { std, noiseType, blurSlider, noiseSlider, satStrength, satPerNoise });
+  const nfCtx = noiseFull.getContext('2d');
+
+  const enable_sh = enableShadows.checked;
+  const enable_hi = enableHighlights.checked;
+  if (enable_sh || enable_hi) {
+    const noiseData = nfCtx.getImageData(0, 0, w, h);
+    const origData = (adjustedImageData || baseImageData).data;
+    const dd = noiseData.data;
+
+    const sh_th_raw = parseFloat(shadowThresholdRange.value) || 0.3;
+    const sh_f_raw = parseFloat(shadowFadeRange.value) || 0.2;
+    const hi_th_raw = parseFloat(highlightThresholdRange.value) || 0.7;
+    const hi_f_raw = parseFloat(highlightFadeRange.value) || 0.2;
+
+    const sh_th = maskSliderToValue(sh_th_raw);
+    const sh_f = maskSliderToValue(sh_f_raw);
+    const hi_th = maskSliderToValue(hi_th_raw);
+    const hi_f = maskSliderToValue(hi_f_raw);
+
+    for (let i = 0; i < dd.length; i += 4) {
+      const r = origData[i] / 255, g = origData[i+1] / 255, b = origData[i+2] / 255;
+      const lum = r * 0.299 + g * 0.587 + b * 0.114;
+      let shadow_mask = 0;
+      if (enable_sh) {
+        const low = sh_th - sh_f / 2;
+        const high = sh_th + sh_f / 2;
+        shadow_mask = 1 - smoothstep(low, high, lum);
+      }
+      let highlight_mask = 0;
+      if (enable_hi) {
+        const low = hi_th - hi_f / 2;
+        const high = hi_th + hi_f / 2;
+        highlight_mask = smoothstep(low, high, lum);
+      }
+      const total_mask = Math.max(shadow_mask, highlight_mask);
+      dd[i+3] = Math.round(255 * total_mask);
+    }
+    nfCtx.putImageData(noiseData, 0, 0);
+  }
+
+  // composite
+  ctxNoise.clearRect(0,0,w,h);
+  ctxNoise.globalCompositeOperation = 'source-over';
+  ctxNoise.drawImage(originalCanvas, 0, 0, w, h);
+  ctxNoise.globalAlpha = opacity;
+  ctxNoise.globalCompositeOperation = blend;
+  ctxNoise.drawImage(noiseFull, 0, 0, w, h);
+  ctxNoise.globalAlpha = 1.0;
+  ctxNoise.globalCompositeOperation = 'source-over';
+
+  downloadBtn.disabled = false;
+  fitCanvasesToPreview();
+
+  updateLayerPreview(noiseFull);
+  showLayerPreview();
+}
+
+/* -------------------------
+   Layer preview: aspect-fit three panels
+   ------------------------- */
+function drawAspectFit(ctx, srcCanvasOrImage, destX, destY, destW, destH) {
+  const iw = srcCanvasOrImage.width, ih = srcCanvasOrImage.height;
+  const scale = Math.min(destW / iw, destH / ih);
+  const dw = Math.round(iw * scale), dh = Math.round(ih * scale);
+  const dx = destX + Math.round((destW - dw) / 2), dy = destY + Math.round((destH - dh) / 2);
+  ctx.drawImage(srcCanvasOrImage, 0, 0, iw, ih, dx, dy, dw, dh);
+}
+
+function updateLayerPreview(noiseFull) {
+  if(!originalImageLoaded) return;
+  const w = layerCanvas.width = originalCanvas.width;
+  const h = layerCanvas.height = originalCanvas.height;
+  ctxLayer.clearRect(0,0,w,h);
+
+  const cw = Math.floor(w / 3);
+  const ch = h;
+
+  // create mask canvas from noiseFull alpha
+  const tmp = document.createElement('canvas'); tmp.width = w; tmp.height = h;
+  const tctx = tmp.getContext('2d'); tctx.clearRect(0,0,w,h);
+  tctx.drawImage(noiseFull, 0, 0, w, h);
+  const nfData = tctx.getImageData(0,0,w,h);
+  // convert alpha into grayscale
+  for(let i=0;i<nfData.data.length;i+=4){
+    const a = nfData.data[i+3];
+    nfData.data[i] = nfData.data[i+1] = nfData.data[i+2] = a;
+    nfData.data[i+3] = 255;
+  }
+  const maskCanvas = document.createElement('canvas'); maskCanvas.width = w; maskCanvas.height = h;
+  const mctx = maskCanvas.getContext('2d'); mctx.putImageData(nfData, 0, 0);
+
+  // left: base original (aspect-fit)
+  drawAspectFit(ctxLayer, baseImageCanvas, 0, 0, cw, ch);
+
+  // middle: mask (aspect-fit)
+  drawAspectFit(ctxLayer, maskCanvas, cw, 0, cw, ch);
+
+  // right: noise layer (aspect-fit)
+  drawAspectFit(ctxLayer, noiseFull, cw*2, 0, w - cw*2, ch);
+}
+
+/* -------------------------
+   Layer preview show/hide
+   ------------------------- */
+let layerPreviewTimer = null;
+function showLayerPreview(){
+  layerPreviewArea.classList.remove('hide-on-load');
+  layerPreviewArea.style.opacity = '1';
+  layerPreviewArea.style.pointerEvents = 'auto';
+  if(layerPreviewTimer) { clearTimeout(layerPreviewTimer); layerPreviewTimer = null; }
+  layerPreviewTimer = setTimeout(()=> {
+    layerPreviewArea.style.opacity = '0';
+    layerPreviewArea.style.pointerEvents = 'none';
+    layerPreviewTimer = null;
+  }, 5000);
+}
+
+/* -------------------------
+   Load image
+   ------------------------- */
+function loadImageToCanvases(img){
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  originalCanvas.width = noiseCanvas.width = layerCanvas.width = w;
+  originalCanvas.height = noiseCanvas.height = layerCanvas.height = h;
+  baseImageCanvas = document.createElement('canvas'); baseImageCanvas.width = w; baseImageCanvas.height = h;
+  const bctx = baseImageCanvas.getContext('2d'); bctx.drawImage(img, 0, 0, w, h);
+  baseImageData = bctx.getImageData(0,0,w,h);
+  applyAdjustments();
+  ctxNoise.clearRect(0,0,w,h);
+  ctxNoise.drawImage(originalCanvas, 0, 0, w, h);
+  originalImageLoaded = true;
+  fitCanvasesToPreview();
+  applyGaussianNoise();
+}
+
+/* -------------------------
+   Event bindings
+   ------------------------- */
+strengthRange.addEventListener('input', ()=> { strengthNumber.value = parseFloat(strengthRange.value).toFixed(2); applyGaussianNoise(); });
+strengthNumber.addEventListener('change', ()=> { let v = parseFloat(strengthNumber.value); if(isNaN(v)) v=0; v = clamp(v, 0, 150); strengthNumber.value = v.toFixed(2); strengthRange.value = v; applyGaussianNoise(); });
+
+function syncNoiseSizeFromSlider(){ const slider = parseFloat(noiseSizeRange.value); const size = noiseSizeFromSlider(slider); noiseSizeNumber.value = size.toFixed(2); }
+noiseSizeRange.addEventListener('input', ()=> { syncNoiseSizeFromSlider(); applyGaussianNoise(); });
+noiseSizeNumber.addEventListener('change', ()=> { let v = parseFloat(noiseSizeNumber.value); if(isNaN(v)) v = 1.0; v = clamp(v, 1.0, MAX_NOISE_SIZE); noiseSizeNumber.value = v.toFixed(2); noiseSizeRange.value = sliderFromNoiseSize(v).toFixed(2); applyGaussianNoise(); });
+
+function syncBlurFromSlider(){ const slider = parseFloat(blurrinessRange.value); const blur = blurFromSlider(slider); blurrinessNumber.value = blur.toFixed(2); }
+blurrinessRange.addEventListener('input', ()=> { syncBlurFromSlider(); applyGaussianNoise(); });
+blurrinessNumber.addEventListener('change', ()=> { let v = parseFloat(blurrinessNumber.value); if(isNaN(v)) v = 0; v = clamp(v, 0.0, MAX_BLUR); blurrinessNumber.value = v.toFixed(2); blurrinessRange.value = sliderFromBlur(v).toFixed(2); applyGaussianNoise(); });
+
+opacityRange.addEventListener('input', ()=> { opacityNumber.value = parseFloat(opacityRange.value).toFixed(2); applyGaussianNoise(); });
+opacityNumber.addEventListener('change', ()=> { let v = parseFloat(opacityNumber.value); if(isNaN(v)) v = 0; v = clamp(v, 0, 1); opacityNumber.value = v.toFixed(2); opacityRange.value = v; applyGaussianNoise(); });
+
+noiseTypeSelect.addEventListener('change', ()=> { satStrengthContainer.style.display = noiseTypeSelect.value === 'blend' ? 'block' : 'none'; applyGaussianNoise(); });
+satStrengthRange.addEventListener('input', ()=> { satStrengthNumber.value = parseFloat(satStrengthRange.value).toFixed(2); applyGaussianNoise(); });
+satStrengthNumber.addEventListener('change', ()=> { let v = parseFloat(satStrengthNumber.value); if(isNaN(v)) v = 0; v = clamp(v, 0, 4); satStrengthNumber.value = v.toFixed(2); satStrengthRange.value = v; applyGaussianNoise(); });
+
+satPerNoiseRange.addEventListener('input', ()=> { satPerNoiseNumber.value = parseFloat(satPerNoiseRange.value).toFixed(1); applyGaussianNoise(); });
+satPerNoiseNumber.addEventListener('change', ()=> { let v = parseFloat(satPerNoiseNumber.value); if(isNaN(v)) v = 0; v = clamp(v, -100, 100); satPerNoiseNumber.value = v.toFixed(1); satPerNoiseRange.value = v; applyGaussianNoise(); });
+
+shadowThresholdRange.addEventListener('input', ()=> { const mapped = maskSliderToValue(parseFloat(shadowThresholdRange.value)); shadowThresholdNumber.value = mapped.toFixed(2); applyGaussianNoise(); });
+shadowThresholdNumber.addEventListener('change', ()=> { let v = parseFloat(shadowThresholdNumber.value); if(isNaN(v)) v = 0; v = clamp(v, 0, 1); shadowThresholdNumber.value = v.toFixed(2); shadowThresholdRange.value = valueToMaskSlider(v); applyGaussianNoise(); });
+
+shadowFadeRange.addEventListener('input', ()=> { const mapped = maskSliderToValue(parseFloat(shadowFadeRange.value)); shadowFadeNumber.value = mapped.toFixed(2); applyGaussianNoise(); });
+shadowFadeNumber.addEventListener('change', ()=> { let v = parseFloat(shadowFadeNumber.value); if(isNaN(v)) v = 0; v = clamp(v, 0, 1); shadowFadeNumber.value = v.toFixed(2); shadowFadeRange.value = valueToMaskSlider(v); applyGaussianNoise(); });
+
+highlightThresholdRange.addEventListener('input', ()=> { const mapped = maskSliderToValue(parseFloat(highlightThresholdRange.value)); highlightThresholdNumber.value = mapped.toFixed(2); applyGaussianNoise(); });
+highlightThresholdNumber.addEventListener('change', ()=> { let v = parseFloat(highlightThresholdNumber.value); if(isNaN(v)) v = 0; v = clamp(v, 0, 1); highlightThresholdNumber.value = v.toFixed(2); highlightThresholdRange.value = valueToMaskSlider(v); applyGaussianNoise(); });
+
+highlightFadeRange.addEventListener('input', ()=> { const mapped = maskSliderToValue(parseFloat(highlightFadeRange.value)); highlightFadeNumber.value = mapped.toFixed(2); applyGaussianNoise(); });
+highlightFadeNumber.addEventListener('change', ()=> { let v = parseFloat(highlightFadeNumber.value); if(isNaN(v)) v = 0; v = clamp(v, 0, 1); highlightFadeNumber.value = v.toFixed(2); highlightFadeRange.value = valueToMaskSlider(v); applyGaussianNoise(); });
+
+enableShadows.addEventListener('change', applyGaussianNoise);
+enableHighlights.addEventListener('change', applyGaussianNoise);
+
+brightnessRange.addEventListener('input', ()=> { brightnessNumber.value = parseInt(brightnessRange.value); applyAdjustments(); applyGaussianNoise(); });
+brightnessNumber.addEventListener('change', ()=> { let v = parseInt(brightnessNumber.value); if(isNaN(v)) v = 0; v = clamp(v, -100, 100); brightnessNumber.value = v; brightnessRange.value = v; applyAdjustments(); applyGaussianNoise(); });
+
+contrastRange.addEventListener('input', ()=> { contrastNumber.value = parseInt(contrastRange.value); applyAdjustments(); applyGaussianNoise(); });
+contrastNumber.addEventListener('change', ()=> { let v = parseInt(contrastNumber.value); if(isNaN(v)) v = 100; v = clamp(v, -300, 300); contrastNumber.value = v; contrastRange.value = v; applyAdjustments(); applyGaussianNoise(); });
+
+saturationAdjRange.addEventListener('input', ()=> { saturationAdjNumber.value = parseFloat(saturationAdjRange.value).toFixed(1); applyAdjustments(); applyGaussianNoise(); });
+saturationAdjNumber.addEventListener('change', ()=> { let v = parseFloat(saturationAdjNumber.value); if(isNaN(v)) v = 0; v = clamp(v, -100, 100); saturationAdjNumber.value = v.toFixed(1); saturationAdjRange.value = v; applyAdjustments(); applyGaussianNoise(); });
+
+blendModeSelect.addEventListener('change', applyGaussianNoise);
+
+/* -------------------------
+   File handling & hover behavior
+   ------------------------- */
+fileInput.addEventListener('change', (ev) => {
+  const file = ev.target.files && ev.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => { const img = new Image(); img.onload = () => loadImageToCanvases(img); img.src = e.target.result; };
+  reader.readAsDataURL(file);
+});
+
+/* -------------------------
+   Hover & wheel blending preview
+   ------------------------- */
+const previewContainer = previewArea;
+const blendModes = Array.from(blendModeSelect.options).map(o => o.value);
+let currentBlendIndex = blendModes.indexOf(blendModeSelect.value || 'overlay'); if(currentBlendIndex === -1) currentBlendIndex = 0;
+let scrollInactivityTimer = null; let overlayCanvas = null; let activeTransition = null; let scrollModeActive = false;
+
+function clearScrollInactivityTimer(){ if(scrollInactivityTimer) { clearTimeout(scrollInactivityTimer); scrollInactivityTimer = null; } }
+function scheduleRevertToOriginal(){ clearScrollInactivityTimer(); scrollInactivityTimer = setTimeout(()=> { if(isPointerOverPreview){ scrollModeActive = false; drawBaseImageToOriginalCanvas(); originalCanvas.style.opacity = '1'; removeOverlayCanvasImmediate(); } scrollInactivityTimer = null; }, 2000); }
+function removeOverlayCanvasImmediate(){ if(overlayCanvas && overlayCanvas.parentElement){ overlayCanvas.parentElement.removeChild(overlayCanvas); } overlayCanvas = null; activeTransition = null; }
+
+function crossfadeToBlend(mode){
+  return new Promise((resolve) => {
+    if(!originalImageLoaded) { resolve(); return; }
+    const w = originalCanvas.width, h = originalCanvas.height;
+    const std = parseFloat(strengthNumber.value) || 0.0;
+    const blurSlider = parseFloat(blurrinessRange.value) || 0.0;
+    const noiseType = noiseTypeSelect.value;
+    const opacity = parseFloat(opacityNumber.value) || 0.0;
+    const noiseSlider = parseFloat(noiseSizeRange.value) || 1.0;
+    const satStrength = parseFloat(satStrengthNumber.value) || 1.0;
+    const satPerNoise = parseFloat(satPerNoiseNumber.value) || 0.0;
+
+    const noiseFull = generateNoiseFullCanvas(w, h, { std, noiseType, blurSlider, noiseSlider, satStrength, satPerNoise });
+    const nfCtx = noiseFull.getContext('2d');
+
+    const enable_sh = enableShadows.checked; const enable_hi = enableHighlights.checked;
+    if (enable_sh || enable_hi) {
+      const noiseData = nfCtx.getImageData(0, 0, w, h);
+      const origData = (adjustedImageData || baseImageData).data;
+      const dd = noiseData.data;
+      const sh_th = maskSliderToValue(parseFloat(shadowThresholdRange.value));
+      const sh_f = maskSliderToValue(parseFloat(shadowFadeRange.value));
+      const hi_th = maskSliderToValue(parseFloat(highlightThresholdRange.value));
+      const hi_f = maskSliderToValue(parseFloat(highlightFadeRange.value));
+      for (let i = 0; i < dd.length; i += 4) {
+        const r = origData[i] / 255, g = origData[i+1] / 255, b = origData[i+2] / 255;
+        const lum = r * 0.299 + g * 0.587 + b * 0.114;
+        let shadow_mask = 0;
+        if (enable_sh) { const low = sh_th - sh_f / 2; const high = sh_th + sh_f / 2; shadow_mask = 1 - smoothstep(low, high, lum); }
+        let highlight_mask = 0;
+        if (enable_hi) { const low = hi_th - hi_f / 2; const high = hi_th + hi_f / 2; highlight_mask = smoothstep(low, high, lum); }
+        const total_mask = Math.max(shadow_mask, highlight_mask);
+        dd[i+3] = 255 * total_mask;
+      }
+      nfCtx.putImageData(noiseData, 0, 0);
+    }
+
+    const ov = document.createElement('canvas'); ov.width = w; ov.height = h; ov.className = 'overlay-canvas';
+    ov.style.width = noiseCanvas.style.width; ov.style.height = noiseCanvas.style.height;
+    ov.style.left = noiseCanvas.style.left; ov.style.top = noiseCanvas.style.top; ov.style.transform = noiseCanvas.style.transform; ov.style.opacity = '0';
+    const ovCtx = ov.getContext('2d'); ovCtx.clearRect(0,0,w,h);
+    ovCtx.drawImage(originalCanvas, 0, 0, w, h);
+    ovCtx.globalAlpha = opacity; ovCtx.globalCompositeOperation = mode; ovCtx.drawImage(noiseFull, 0, 0, w, h);
+    ovCtx.globalAlpha = 1.0; ovCtx.globalCompositeOperation = 'source-over';
+
+    if(overlayCanvas && overlayCanvas.parentElement){ overlayCanvas.parentElement.removeChild(overlayCanvas); }
+    overlayCanvas = ov; previewArea.appendChild(overlayCanvas); void overlayCanvas.offsetWidth; originalCanvas.style.opacity = '0';
+    if(activeTransition && activeTransition.cancel) activeTransition.cancel();
+    let cancelled = false; activeTransition = { cancel: ()=> { cancelled = true; } };
+    overlayCanvas.style.opacity = '1';
+    setTimeout(()=> {
+      if(cancelled){ if(overlayCanvas && overlayCanvas.parentElement) overlayCanvas.parentElement.removeChild(overlayCanvas); overlayCanvas = null; activeTransition = null; resolve(); return; }
+      try{ ctxNoise.clearRect(0,0,w,h); ctxNoise.drawImage(overlayCanvas, 0, 0, w, h); }catch(e){}
+      if(overlayCanvas && overlayCanvas.parentElement) overlayCanvas.parentElement.removeChild(overlayCanvas);
+      overlayCanvas = null; activeTransition = null; resolve();
+    }, 110);
+  });
+}
+
+function wheelCycleBlendMode(ev){
+  if(!originalImageLoaded) return;
+  ev.preventDefault();
+  const delta = ev.deltaY || ev.wheelDelta || 0; if(delta === 0) return;
+  const dir = delta > 0 ? 1 : -1;
+  currentBlendIndex = (currentBlendIndex + dir + blendModes.length) % blendModes.length;
+  const mode = blendModes[currentBlendIndex];
+  blendModeSelect.value = mode;
+  scrollModeActive = true;
+  originalCanvas.style.opacity = '0';
+  crossfadeToBlend(mode);
+  scheduleRevertToOriginal();
+}
+
+let isPointerOverPreview = false;
+function drawBaseImageToOriginalCanvas(){ if(!baseImageCanvas) return; ctxOriginal.clearRect(0,0,originalCanvas.width, originalCanvas.height); ctxOriginal.drawImage(baseImageCanvas, 0, 0, originalCanvas.width, originalCanvas.height); }
+previewContainer.addEventListener('mouseenter', (e)=> {
+  isPointerOverPreview = true;
+  if(!scrollModeActive){ drawBaseImageToOriginalCanvas(); originalCanvas.style.opacity = '1'; } else { originalCanvas.style.opacity = '0'; }
+});
+previewContainer.addEventListener('mouseleave', (e)=> {
+  isPointerOverPreview = false; clearScrollInactivityTimer(); scrollModeActive = false; originalCanvas.style.opacity = '0'; removeOverlayCanvasImmediate();
+});
+previewContainer.addEventListener('wheel', wheelCycleBlendMode, { passive: false });
+
+/* -------------------------
+   Download & modal
+   ------------------------- */
+downloadBtn.addEventListener('click', ()=> { const a = document.createElement('a'); a.download = 'noisy_image.png'; a.href = noiseCanvas.toDataURL('image/png'); a.click(); });
+
+helpBtn.addEventListener('click', ()=> { manualModal.classList.add('show'); manualModal.setAttribute('aria-hidden','false'); });
+closeManual.addEventListener('click', ()=> { manualModal.classList.remove('show'); manualModal.setAttribute('aria-hidden','true'); });
+manualModal.addEventListener('click', (e)=> { if(e.target === manualModal) { manualModal.classList.remove('show'); manualModal.setAttribute('aria-hidden','true'); }});
+
+/* -------------------------
+   Resize & init
+   ------------------------- */
+window.addEventListener('resize', ()=> { if(window._fitTimeout) clearTimeout(window._fitTimeout); window._fitTimeout = setTimeout(()=> { fitCanvasesToPreview(); }, 80); });
+
+(function init(){
+  strengthNumber.value = parseFloat(strengthRange.value).toFixed(2);
+  noiseSizeRange.value = sliderFromNoiseSize(parseFloat(noiseSizeNumber.value || 4)).toFixed(2);
+  syncNoiseSizeFromSlider();
+  blurrinessRange.value = sliderFromBlur(parseFloat(blurrinessNumber.value || 2)).toFixed(2);
+  syncBlurFromSlider();
+  opacityNumber.value = parseFloat(opacityRange.value).toFixed(2);
+  satStrengthContainer.style.display = noiseTypeSelect.value === 'blend' ? 'block' : 'none';
+  brightnessNumber.value = parseInt(brightnessRange.value);
+  contrastNumber.value = parseInt(contrastRange.value);
+  saturationAdjNumber.value = parseFloat(saturationAdjRange.value).toFixed(1);
+  shadowThresholdNumber.value = maskSliderToValue(parseFloat(shadowThresholdRange.value)).toFixed(2);
+  shadowFadeNumber.value = maskSliderToValue(parseFloat(shadowFadeRange.value)).toFixed(2);
+  highlightThresholdNumber.value = maskSliderToValue(parseFloat(highlightThresholdRange.value)).toFixed(2);
+  highlightFadeNumber.value = maskSliderToValue(parseFloat(highlightFadeRange.value)).toFixed(2);
+  layerPreviewArea.style.opacity = '0'; layerPreviewArea.style.pointerEvents = 'none';
+})();
+</script>
+</body>
+</html>
