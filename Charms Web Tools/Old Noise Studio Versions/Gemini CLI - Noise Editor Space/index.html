@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Digital Grain Studio — Updated</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+      <div class="container">
+        <div class="controls-panel">
+          <h1>Digital Grain Studio</h1>
+          <p class="muted">Settings (Some Sections Collapsed)</p>
+  
+          <div style="margin:10px 0">
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">Image Upload</label>
+            <input id="imageUpload" type="file" accept="image/*" style="width:100%; padding:8px; box-sizing:border-box;">
+          </div>
+  
+          <div class="controls-grid">
+            <!-- Noise Basics expanded by default -->
+            <details open>
+              <summary>Noise Basics</summary>
+              <div class="control-row">
+                <label for="strength">Noise Strength (σ)</label>
+                <input id="strength" type="range" min="0" max="150" step="0.01" value="50">
+              </div>
+              <div class="control-row">
+                <label for="noiseType">Noise Type</label>
+                <select id="noiseType" class="control-value">
+                  <option value="color">Color</option>
+                  <option value="grayscale" selected>Grayscale</option>
+                  <option value="blend">Blend (saturation)</option>
+                </select>
+              </div>
+              <div class="control-row" id="satControls" style="display:flex">
+                <label for="satStrength">Sat Change</label>
+                <input id="satStrength" type="range" min="0" max="4" step="0.01" value="1">
+              </div>
+              <div class="control-row" id="satPerNoiseRow" style="display:flex">
+                <label for="satPerNoise">Noise Sat Impact</label>
+                <input id="satPerNoise" type="range" min="-100" max="100" step="0.1" value="0">
+              </div>
+            </details>
+  
+            <!-- Noise Shape & Blur expanded by default -->
+            <details open>
+              <summary>Noise Shape & Blur</summary>
+              <div class="control-row">
+                <label for="noiseSize">Noise Size</label>
+                <input id="noiseSize" type="range" min="0" max="1000" step="0.01" value="4">
+              </div>
+              <div class="control-row">
+                <label for="blurriness">Blurriness</label>
+                <input id="blurriness" type="range" min="0" max="1000" step="0.01" value="160">
+              </div>
+            </details>
+  
+            <!-- Blend & Visibility expanded by default -->
+            <details open>
+              <summary>Blend & Visibility</summary>
+              <div class="control-row">
+                <label for="blendMode">Blend Mode</label>
+                <select id="blendMode" class="control-value">
+                  <option value="source-over">Normal</option>
+                  <option value="overlay" selected>Overlay</option>
+                  <option value="screen">Screen</option>
+                  <option value="multiply">Multiply</option>
+                  <option value="lighter">Add</option>
+                  <option value="difference">Subtract</option>
+                </select>
+              </div>
+              <div class="control-row">
+                <label for="opacity">Noise Opacity</label>
+                <input id="opacity" type="range" min="0" max="1" step="0.01" value="0.25">
+              </div>
+            </details>
+  
+            <details>
+              <summary>Noise Masking</summary>
+              <div class="control-row">
+                <label for="enableShadows">Noise in Shadows</label>
+                <input id="enableShadows" type="checkbox" style="transform:scale(1.15)">
+              </div>
+              <div class="control-row">
+                <label for="shadowThreshold">Shadow Threshold</label>
+                <input id="shadowThreshold" type="range" min="0" max="1" step="0.0001" value="0.3">
+              </div>
+              <div class="control-row">
+                <label for="shadowFade">Shadow Fade</label>
+                <input id="shadowFade" type="range" min="0" max="1" step="0.0001" value="0.2">
+              </div>
+  
+              <div style="height:6px;"></div>
+  
+              <div class="control-row">
+                <label for="enableHighlights">Noise in Highlights</label>
+                <input id="enableHighlights" type="checkbox" style="transform:scale(1.15)">
+              </div>
+              <div class="control-row">
+                <label for="highlightThreshold">Highlight Threshold</label>
+                <input id="highlightThreshold" type="range" min="0" max="1" step="0.0001" value="0.7">
+              </div>
+              <div class="control-row">
+                <label for="highlightFade">Highlight Fade</label>
+                <input id="highlightFade" type="range" min="0" max="1" step="0.0001" value="0.2">
+              </div>
+            </details>
+  
+            <details>
+              <summary>Image Adjustments</summary>
+              <div class="control-row">
+                <label for="brightness">Brightness</label>
+                <input id="brightness" type="range" min="-100" max="100" step="1" value="0">
+              </div>
+              <div class="control-row">
+                <label for="contrast">Contrast</label>
+                <input id="contrast" type="range" min="-300" max="300" step="1" value="100">
+              </div>
+              <div class="control-row">
+                <label for="saturationAdj">Saturation</label>
+                <input id="saturationAdj" type="range" min="-100" max="100" step="0.1" value="0">
+              </div>
+            </details>
+  
+            <details>
+              <summary>HDR Emulation</summary>
+              <div class="control-row">
+                <label for="hdrTolerance">Tolerance</label>
+                <input id="hdrTolerance" type="range" min="0" max="1" step="0.01" value="0.35">
+              </div>
+              <div class="control-row">
+                <label for="hdrAmount">Amount (%)</label>
+                <input id="hdrAmount" type="range" min="0" max="100" step="1" value="20">
+              </div>
+            </details>
+  
+            <details>
+              <summary>Transparent Pixels</summary>
+              <div class="control-row">
+                <label for="ignoreAlphaToggle">Ignore Transparent Areas</label>
+                <input id="ignoreAlphaToggle" type="checkbox" style="transform:scale(1.15)">
+              </div>
+              <div class="control-row">
+                <label for="ignoreAlphaStrength">Ignore Strength</label>
+                <input id="ignoreAlphaStrength" type="range" min="0" max="100" step="1" value="100">
+              </div>
+            </details>
+          </div>
+  
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button id="realtimeToggle">Realtime: ON</button>
+            <!-- Added missing Apply button so JS won't throw -->
+            <button id="applyBtn">Apply</button>
+          </div>
+  
+          <div class="row-buttons" style="margin-top:10px">
+            <button id="helpBtn">Help / Manual</button>
+            <button id="compareBtn">Compare</button>
+            <button id="downloadImage" disabled>Download Image</button>
+          </div>
+        </div>
+  
+        <div class="right-content-wrapper">
+          <div class="preview-column">
+            <div class="preview-top">
+              <h3 style="margin:0">Main Preview (hover to reveal original)</h3>
+              <div class="muted">Main preview fills available area and keeps aspect ratio. Wheel scrolling no longer changes blend.</div>
+            </div>
+  
+            <div id="previewArea" class="preview-container" style="min-height:160px;">
+              <div class="main-canvas-wrap" id="canvasWrap" style="width:100%; padding:8px 0;">
+                <!-- display canvas; script controls CSS width/height to fit viewport with aspect preserved -->
+                <canvas id="displayCanvas"></canvas>
+              </div>
+              <div class="overlay-original" id="overlayOriginal">
+                <canvas id="overlayCanvas"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="layers-column">
+            <div class="preview-top">
+              <h3 style="margin:0">Layers & Mask Preview</h3>
+              <div class="muted">All layers live inside this single window below the main preview</div>
+            </div>
+  
+            <!-- single layer preview window, fixed max height (viewport height) and internal grid -->
+            <div id="layerPreviewWindow" class="layer-preview-window" style="max-height:60vh">
+              <div id="layerGrid" class="layer-grid"></div>
+            </div>
+  
+            <div class="row-buttons" style="margin-top:10px">
+              <button id="exportLayersBtn">Export Layers</button>
+            </div>
+          </div>
+        </div>
+      </div>
+  <!-- Compare modal -->
+  <div id="compareModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="compareTitle">
+      <h2 id="compareTitle">Compare — Original vs Edited</h2>
+      <div style="display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;">
+        <canvas id="compareOriginal" style="border:1px solid #333; background:#000"></canvas>
+        <canvas id="compareEdited" style="border:1px solid #333; background:#000"></canvas>
+      </div>
+      <div style="display:flex; gap:8px; justify-content:center; margin-top:12px">
+        <button id="exportSideBySide">Export Side-by-Side</button>
+        <button id="exportStacked">Export Stacked</button>
+        <button id="closeCompare">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Layers export modal -->
+  <div id="layersModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="layersTitle">
+      <h2 id="layersTitle">Export Layers</h2>
+      <div style="display:flex; gap:8px; justify-content:center; margin-top:12px">
+        <button id="exportLayersSide">Export Side-by-Side</button>
+        <button id="exportLayersGrid">Export Grid (2x4)</button>
+        <button id="closeLayers">Close</button>
+      </div>
+    </div>
+  </div>
+
+<script src="script.js" defer></script>
+</body>
+</html>

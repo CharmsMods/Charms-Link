@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moire Filtering Math Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
+        canvas { border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); }
+        .control-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <script>
+        // Global Constants & Variables
+        const DEFAULT_IMAGE_URL = "https://placehold.co/500x300/60a5fa/ffffff?text=Load+Image+or+Use+Default";
+        let originalImage = new Image();
+        let imageWidth = 500;
+        let imageHeight = 300;
+
+        // The Convolution core is defined by the Kernel. We now generate this dynamically.
+
+        // --- Kernel Generation Functions (The Core Math) ---
+
+        /**
+         * Creates a 2D Gaussian Kernel (for smoother, weighted averaging).
+         * @param {number} radius - Half of the kernel side length (e.g., radius=1 for 3x3, 2 for 5x5).
+         * @returns {number[]} The normalized 1D Gaussian kernel array.
+         */
+        function createGaussianKernel(radius) {
+            const size = 2 * radius + 1;
+            const sigma = radius > 0 ? radius / 2 : 0.8; // Sigma adapted to radius for visual effect
+            const kernel = new Array(size * size);
+            let sum = 0;
+
+            for (let y = -radius; y <= radius; y++) {
+                for (let x = -radius; x <= radius; x++) {
+                    // Gaussian function: e^(-(x^2 + y^2) / (2*sigma^2))
+                    const rSquared = x * x + y * y;
+                    const weight = Math.exp(-rSquared / (2 * sigma * sigma));
+                    
+                    const index = (y + radius) * size + (x + radius);
+                    kernel[index] = weight;
+                    sum += weight;
+                }
+            }
+
+            // Normalize the kernel (ensures the overall brightness remains the same)
+            for (let i = 0; i < kernel.length; i++) {
+                kernel[i] /= sum;
+            }
+            return kernel;
+        }
+
+        /**
+         * Creates a 2D Box Blur Kernel (simple averaging).
+         * @param {number} radius - Half of the kernel side length (e.g., radius=1 for 3x3, 2 for 5x5).
+         * @returns {number[]} The normalized 1D Box Blur kernel array.
+         */
+        function createBoxKernel(radius) {
+            const size = 2 * radius + 1;
+            const totalElements = size * size;
+            const weight = 1 / totalElements;
+            const kernel = new Array(totalElements).fill(weight);
+            return kernel;
+        }
+
+
+        /**
+         * Applies a convolution kernel to image data.
+         * This function implements the mathematical definition of 2D Convolution.
+         * @param {ImageData} imageData - The pixel data object.
+         * @param {number[]} kernel - The 1D array representing the square kernel.
+         * @param {number} kernelSize - The side length (e.g., 3, 5, 7).
+         * @returns {ImageData} The new, filtered pixel data.
+         */
+        function applyConvolution(imageData, kernel, kernelSize) {
+            const data = imageData.data;
+            const width = imageData.width;
+            const height = imageData.height;
+            const outputData = new Uint8ClampedArray(data.length);
+            const kernelHalfSide = Math.floor(kernelSize / 2);
+
+            // Copy edge pixels directly (simplifies boundary condition logic)
+            outputData.set(data);
+
+            // Iterate through every pixel where the kernel fully overlaps
+            for (let y = kernelHalfSide; y < height - kernelHalfSide; y++) {
+                for (let x = kernelHalfSide; x < width - kernelHalfSide; x++) {
+                    
+                    let r = 0, g = 0, b = 0;
+
+                    // Iterate over the kernel (neighborhood)
+                    for (let ky = 0; ky < kernelSize; ky++) {
+                        for (let kx = 0; kx < kernelSize; kx++) {
+                            
+                            // Calculate the position of the neighbor pixel
+                            const neighborX = x + kx - kernelHalfSide;
+                            const neighborY = y + ky - kernelHalfSide;
+                            
+                            // Calculate the index of the neighbor pixel in the 1D data array
+                            const neighborIndex = (neighborY * width + neighborX) * 4;
+                            
+                            // Get the kernel weight
+                            const weight = kernel[ky * kernelSize + kx];
+
+                            // Accumulate weighted color values
+                            r += data[neighborIndex] * weight;
+                            g += data[neighborIndex + 1] * weight;
+                            b += data[neighborIndex + 2] * weight;
+                        }
+                    }
+
+                    // Write the new (filtered) color value back to the output array
+                    const pixelIndex = (y * width + x) * 4;
+                    outputData[pixelIndex] = Math.round(r);
+                    outputData[pixelIndex + 1] = Math.round(g);
+                    outputData[pixelIndex + 2] = Math.round(b);
+                    outputData[pixelIndex + 3] = data[pixelIndex + 3]; // Preserve Alpha Channel
+                }
+            }
+
+            return new ImageData(outputData, width, height);
+        }
+
+        // --- Main Rendering and Setup ---
+
+        function processImage() {
+            const canvasOriginal = document.getElementById('canvas-original');
+            const ctxOriginal = canvasOriginal.getContext('2d');
+            const canvasFiltered = document.getElementById('canvas-filtered');
+            const ctxFiltered = canvasFiltered.getContext('2d');
+            const statusDiv = document.getElementById('status');
+            
+            // Get current control settings
+            const filterType = document.getElementById('filter-type').value;
+            const kernelSize = parseInt(document.getElementById('kernel-size').value);
+            const kernelRadius = Math.floor(kernelSize / 2);
+
+            statusDiv.textContent = `Processing image with ${kernelSize}x${kernelSize} ${filterType} filter...`;
+
+            // 1. Draw Original Image
+            ctxOriginal.drawImage(originalImage, 0, 0, imageWidth, imageHeight);
+            
+            // 2. Get ImageData (Input to the math function)
+            const imageData = ctxOriginal.getImageData(0, 0, imageWidth, imageHeight);
+
+            // 3. Generate the correct Mathematical Filter (Kernel)
+            let kernel;
+            if (filterType === 'Gaussian Blur') {
+                kernel = createGaussianKernel(kernelRadius);
+            } else { // Box Blur
+                kernel = createBoxKernel(kernelRadius);
+            }
+            
+            // 4. Apply the Mathematical Filter (Convolution)
+            const startTime = performance.now();
+            const filteredData = applyConvolution(imageData, kernel, kernelSize);
+            const endTime = performance.now();
+            
+            // 5. Draw Filtered Image (Output)
+            ctxFiltered.putImageData(filteredData, 0, 0);
+
+            statusDiv.textContent = `Filtering complete in ${(endTime - startTime).toFixed(2)}ms using ${kernelSize}x${kernelSize} ${filterType} filter.`;
+        }
+
+        function setupImage(url) {
+            originalImage = new Image();
+            originalImage.crossOrigin = "Anonymous"; 
+            originalImage.onload = () => {
+                imageWidth = originalImage.width;
+                imageHeight = originalImage.height;
+                
+                // Adjust canvas sizes to match the loaded image
+                const canvases = document.querySelectorAll('canvas');
+                canvases.forEach(c => {
+                    c.width = imageWidth;
+                    c.height = imageHeight;
+                });
+                
+                processImage();
+            };
+            originalImage.onerror = () => {
+                document.getElementById('status').textContent = 'Error loading image. Using default placeholder.';
+                imageWidth = 500;
+                imageHeight = 300;
+                // Fallback to placeholder size
+                const canvases = document.querySelectorAll('canvas');
+                canvases.forEach(c => {
+                    c.width = imageWidth;
+                    c.height = imageHeight;
+                });
+                // Draw a simple block
+                const ctxOriginal = document.getElementById('canvas-original').getContext('2d');
+                ctxOriginal.fillStyle = '#ef4444';
+                ctxOriginal.fillRect(0, 0, imageWidth, imageHeight);
+                document.getElementById('status').textContent = 'Error loading default image. Displaying solid color.';
+            };
+            originalImage.src = url;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setupImage(DEFAULT_IMAGE_URL);
+            
+            const fileInput = document.getElementById('file-input');
+            fileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        setupImage(e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Add event listeners to controls to re-process the image when settings change
+            const filterTypeControl = document.getElementById('filter-type');
+            const kernelSizeControl = document.getElementById('kernel-size');
+            
+            filterTypeControl.addEventListener('change', processImage);
+            kernelSizeControl.addEventListener('change', processImage);
+        });
+    </script>
+
+    <header class="text-center mb-10">
+        <h1 class="text-4xl font-extrabold text-blue-800 tracking-tight mb-2">Moire Pattern Math Demo</h1>
+        <p class="text-lg text-gray-600">Pure JavaScript Signal Processing for Image De-Moiré</p>
+    </header>
+    
+    <!-- Explanation of the Math -->
+    <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
+        <h2 class="text-2xl font-bold text-blue-700 mb-4">The Mathematical Solution: Low-Pass Filtering (Convolution)</h2>
+        <div class="space-y-3 text-gray-700">
+            <p>Moire is a high-frequency interference, a phenomenon known as **spatial aliasing**. The fix is to apply a filter that selectively removes high frequencies before they interact.</p>
+            <p>1. **Convolution:** This is the core mathematical operation. It involves sliding a small matrix, called a **Kernel** (or filter), over every pixel of the image. The kernel computes a weighted average of the pixel's color and its neighbors' colors.</p>
+            <p>2. **Low-Pass Kernels:** We now have two types:</p>
+            <ul class="list-disc list-inside ml-4">
+                <li>**Box Blur:** Simple averaging (all weights are equal, $1/N$).</li>
+                <li>**Gaussian Blur:** Uses the $$e^{-x^2 / 2\sigma^2}$$ function to assign weights based on the Gaussian curve, prioritizing pixels closer to the center. This is generally more effective for smoothing.</li>
+            </ul>
+        </div>
+        
+        <div class="overflow-x-auto mt-4">
+             <table class="w-full text-center border-collapse min-w-max">
+                <caption class="font-semibold text-gray-600 mb-2">Filter Comparison (Math Cheat Sheet)</caption>
+                <thead class="bg-gray-200">
+                    <tr>
+                        <th class="p-2 border border-gray-300">Filter</th>
+                        <th class="p-2 border border-gray-300">Mathematical Basis</th>
+                        <th class="p-2 border border-gray-300">Result</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm">
+                    <tr class="bg-gray-50">
+                        <td class="p-2 border border-gray-300 font-medium text-blue-800">Box Blur</td>
+                        <td class="p-2 border border-gray-300">Uniform Weighting ($$1/N$$ for all cells)</td>
+                        <td class="p-2 border border-gray-300">Simple, but can introduce blocky artifacts.</td>
+                    </tr>
+                    <tr class="bg-white">
+                        <td class="p-2 border border-gray-300 font-medium text-green-800">Gaussian Blur</td>
+                        <td class="p-2 border border-gray-300">Weights based on **Gaussian Distribution** (Bell Curve)</td>
+                        <td class="p-2 border border-gray-300">Superior smoothing, more natural de-Moire effect.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Control Panel -->
+    <div class="mb-8 p-6 bg-blue-50 rounded-xl shadow-inner flex flex-col md:flex-row items-stretch justify-around gap-4">
+        
+        <div class="control-group">
+            <label for="filter-type" class="text-sm font-medium text-blue-800">Select Filter Type:</label>
+            <select id="filter-type" class="p-2 border border-blue-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm">
+                <option value="Box Blur">Box Blur</option>
+                <option value="Gaussian Blur" selected>Gaussian Blur</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label for="kernel-size" class="text-sm font-medium text-blue-800">Kernel Size (Blur Strength):</label>
+            <select id="kernel-size" class="p-2 border border-blue-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm">
+                <option value="3">3x3 (Light)</option>
+                <option value="5" selected>5x5 (Medium)</option>
+                <option value="7">7x7 (Strong)</option>
+                <option value="9">9x9 (Very Strong)</option>
+            </select>
+        </div>
+    </div>
+    
+    <!-- File Input -->
+    <div class="mb-8 p-4 bg-white rounded-xl shadow-lg flex flex-col sm:flex-row items-center justify-between">
+        <label for="file-input" class="text-lg font-medium text-gray-700 mb-2 sm:mb-0">Upload Your Image:</label>
+        <input type="file" id="file-input" accept="image/*" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+    </div>
+
+    <!-- Canvas Output Section -->
+    <div class="flex flex-col lg:flex-row gap-8">
+        <!-- Original Canvas -->
+        <div class="w-full lg:w-1/2 p-4 bg-white rounded-xl shadow-lg">
+            <h2 class="text-xl font-bold mb-3 text-red-600">Original Image</h2>
+            <canvas id="canvas-original" class="w-full h-auto"></canvas>
+        </div>
+        
+        <!-- Filtered Canvas -->
+        <div class="w-full lg:w-1/2 p-4 bg-white rounded-xl shadow-lg">
+            <h2 class="text-xl font-bold mb-3 text-green-600">Filtered Image (De-Moiré Effect)</h2>
+            <canvas id="canvas-filtered" class="w-full h-auto"></canvas>
+        </div>
+    </div>
+
+    <div id="status" class="mt-8 text-center text-lg font-semibold text-gray-700 p-4 bg-yellow-100 rounded-xl shadow">
+        Image data will load here. Upload your own image for testing!
+    </div>
+
+</body>
+</html>

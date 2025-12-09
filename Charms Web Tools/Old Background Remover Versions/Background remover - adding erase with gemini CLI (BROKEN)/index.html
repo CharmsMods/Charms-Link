@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Color Fader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="min-h-screen">
+    <div id="message-box" class="fixed top-4 left-4 z-50 hidden p-4 text-sm rounded-lg shadow-lg max-w-sm" role="alert">
+        <span class="font-medium" id="message-text"></span>
+    </div>
+
+    <div id="performance-warning" class="fixed top-4 right-4 z-50 hidden p-4 text-sm rounded-lg shadow-lg max-w-sm bg-yellow-900 border border-yellow-600 text-yellow-200" role="alert">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2-98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                </svg>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium">Performance Mode</h3>
+                <p class="mt-1 text-xs">Real-time preview disabled due to slow processing. Use the Preview button to see changes, or re-enable real-time mode if desired.</p>
+                <button id="dismiss-warning" class="mt-2 text-xs text-yellow-400 hover:text-yellow-300 underline">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
+    <header class="bg-black border-b border-white py-6">
+        <div class="container mx-auto px-6">
+            <h1 class="text-3xl font-bold text-center text-cyan-400">Image Color Fader</h1>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-6 py-8 max-w-7xl">
+        <div class="grid grid-cols-1 xl:col-cols-4 gap-8">
+            <div class="xl:col-span-3">
+                <div class="bg-black rounded-lg p-6 border border-white">
+                    <div class="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+                        <label for="imageUpload" class="custom-file-upload">
+                            Upload Image
+                        </label>
+                        <input type="file" id="imageUpload" accept="image/*">
+
+                        <div class="flex gap-3 flex-wrap">
+                            <button id="previewButton" class="action-btn bg-purple-600 hover:bg-purple-700 hidden">
+                                Preview
+                            </button>
+                            <button id="resetButton" class="action-btn bg-red-600 hover:bg-red-700">
+                                Reset
+                            </button>
+                            <button id="applyButton" class="action-btn bg-cyan-600 hover:bg-cyan-700">
+                                Apply
+                            </button>
+                            <button id="downloadButton" class="action-btn bg-green-600 hover:bg-green-700">
+                                Download
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="canvas-container">
+                        <canvas id="imageCanvas" class="w-full h-auto"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="xl:col-span-1">
+                <div class="bg-black rounded-lg p-6 border border-white sticky top-8">
+                    <h2 class="text-xl font-semibold text-cyan-400 mb-6">Controls</h2>
+
+                    <div class="control-section">
+                        <h3 class="control-title">Preview</h3>
+                        <label class="toggle-container">
+                            <input type="checkbox" id="realtimePreviewToggle" class="toggle-input" checked>
+                            <span class="toggle-label">Real-time Preview</span>
+                        </label>
+                        <p class="text-xs text-white opacity-70 mt-2">Updates preview as you adjust settings</p>
+                    </div>
+
+                    <div class="control-section">
+                        <h3 class="control-title">Selected Color</h3>
+                        <div class="flex items-center space-x-3 mb-3">
+                            <div id="colorSwatch" class="w-12 h-12 border-2 border-white rounded-lg shadow-sm" style="background-color: #ffffff;"></div>
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-sm text-white">Hex: <span id="hexDisplay" class="text-cyan-400 font-mono">#FFFFFF</span></span>
+                                    <button id="copyHexButton" class="copy-btn" title="Copy hex value">Copy</button>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-white">RGB: <span id="rgbDisplay" class="text-cyan-400 font-mono">rgb(255, 255, 255)</span></span>
+                                    <button id="copyRgbButton" class="copy-btn" title="Copy RGB value">Copy</button>
+                                </div>
+                                <div class="mt-2">
+                                    <span class="text-sm text-white">Resolution: <span id="resolutionDisplay" class="text-cyan-400 font-mono">No image</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3 class="control-title">Selection Mode</h3>
+                        <div class="space-y-3">
+                            <label class="toggle-container">
+                                <input type="checkbox" id="areaSelectionToggle" class="toggle-input">
+                                <span class="toggle-label">Area Selection (Flood Fill)</span>
+                            </label>
+                            <p class="text-xs text-white opacity-70 mt-2">Target only the connected area you click on.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3 class="control-title">Erase/Replace Tool</h3>
+                        <label class="toggle-container">
+                            <input type="checkbox" id="brushToolToggle" class="toggle-input">
+                            <span class="toggle-label">Enable Brush Tool</span>
+                        </label>
+                        <div id="brushControls" class="hidden pl-6 mt-4 space-y-4">
+                            <div>
+                                <h4 class="text-sm text-white mb-2 block">Brush Shape</h4>
+                                <div class="flex gap-2">
+                                    <button id="brushShapeCircle" class="brush-shape-btn active">Circle</button>
+                                    <button id="brushShapeSquare" class="brush-shape-btn">Square</button>
+                                </div>
+                            </div>
+                             <div>
+                                <h4 class="text-sm text-white mb-2 block">Brush Mode</h4>
+                                <div class="flex gap-2">
+                                    <button id="brushModeReplace" class="brush-mode-btn active">Replace</button>
+                                    <button id="brushModeErase" class="brush-mode-btn">Erase</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-sm text-white mb-2 block">Brush Size</label>
+                                <div class="slider-container">
+                                    <input type="range" id="brushSizeSlider" min="1" max="100" step="1" value="20" class="custom-slider">
+                                    <div class="flex justify-between text-xs text-white opacity-70 mt-1">
+                                        <span>1px</span>
+                                        <span>100px</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <h3 class="control-title">Mode</h3>
+                        <div class="space-y-3">
+                            <label class="toggle-container">
+                                <input type="checkbox" id="colorReplacementToggle" class="toggle-input">
+                                <span class="toggle-label">Replace with Color</span>
+                            </label>
+                            <div id="colorPickerContainer" class="hidden pl-6">
+                                <div class="flex items-center space-x-3">
+                                    <input type="color" id="replacementColorPicker" value="#ff0000" class="color-picker">
+                                    <span class="text-sm text-white">Color: <span id="replacementColorDisplay" class="text-cyan-400 font-mono">#FF0000</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <h3 class="control-title">Opacity</h3>
+                        <div class="slider-container">
+                            <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0" class="custom-slider">
+                            <div class="flex justify-between text-xs text-white opacity-70 mt-1">
+                                <span>0%</span>
+                                <span>100%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <h3 class="control-title">Tolerance</h3>
+                        <label class="toggle-container">
+                            <input type="checkbox" id="toleranceToggle" class="toggle-input" checked>
+                            <span class="toggle-label">Enable Tolerance Mode</span>
+                        </label>
+                        <div id="toleranceSliderContainer" class="mt-3 pl-6">
+                            <div class="slider-container">
+                                <label class="text-sm text-white mb-2 block">Strength</label>
+                                <input type="range" id="toleranceStrengthSlider" min="0" max="100" step="1" value="20" class="custom-slider">
+                                <div class="flex justify-between text-xs text-white opacity-70 mt-1">
+                                    <span>Low</span>
+                                    <span>High</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3 class="control-title">Selection</h3>
+                        <label class="toggle-container">
+                            <input type="checkbox" id="invertSelectionToggle" class="toggle-input">
+                            <span class="toggle-label">Invert Selection</span>
+                        </label>
+                         <p class="text-xs text-white opacity-70 mt-2">Applies effect to all colors EXCEPT the selection.</p>
+                    </div>
+
+                    <div class="control-section">
+                        <h3 class="control-title">Edge Smoothing</h3>
+                        <label class="toggle-container">
+                            <input type="checkbox" id="antiAliasingToggle" class="toggle-input" checked>
+                            <span class="toggle-label">Enable Edge Smoothing</span>
+                        </label>
+                        <div id="smoothingSliderContainer" class="mt-3 pl-6">
+                            <div class="slider-container">
+                                <label class="text-sm text-white mb-2 block">Factor</label>
+                                <input type="range" id="smoothingFactorSlider" min="0.1" max="1.0" step="0.05" value="1.0" class="custom-slider">
+                                <div class="flex justify-between text-xs text-white opacity-70 mt-1">
+                                    <span>Sharp</span>
+                                    <span>Smooth</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

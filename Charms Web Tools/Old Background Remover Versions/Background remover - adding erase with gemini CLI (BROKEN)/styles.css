@@ -1,0 +1,317 @@
+/* Dark Theme Image Color Fader */
+
+/* General styling */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    min-height: 100vh;
+}
+
+/* Canvas styling */
+.canvas-container {
+    background: #000000;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    border: 2px solid #ffffff;
+}
+
+canvas {
+    background-color: #ffffff;
+    max-width: 100%;
+    max-height: 75vh;
+    width: auto;
+    height: auto;
+    display: block;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 25px rgba(255, 255, 255, 0.1);
+    border: 1px solid #ffffff;
+    margin: 0 auto;
+}
+
+/* File input styling */
+input[type="file"] {
+    display: none;
+}
+
+.custom-file-upload {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #06b6d4, #0891b2);
+    color: white;
+    border: 2px solid #0891b2;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+.custom-file-upload:hover {
+    background: linear-gradient(135deg, #0891b2, #0e7490);
+    border-color: #0e7490;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+}
+
+/* Action buttons */
+.action-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: white;
+}
+
+.action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Control sections */
+.control-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #ffffff;
+}
+
+.control-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.control-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Toggle switches */
+.toggle-container {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle-input {
+    appearance: none;
+    width: 2.5rem;
+    height: 1.25rem;
+    background-color: #000000;
+    border-radius: 0.625rem;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-right: 0.75rem;
+    border: 2px solid #ffffff;
+}
+
+.toggle-input:checked {
+    background-color: #06b6d4;
+    border-color: #0891b2;
+}
+
+.toggle-input.disabled {
+    background-color: #000000;
+    border-color: #ffffff;
+    cursor: not-allowed;
+    opacity: 0.3;
+}
+
+.toggle-input.disabled:checked {
+    background-color: #000000;
+    border-color: #ffffff;
+}
+
+.toggle-container.disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.toggle-input::before {
+    content: '';
+    position: absolute;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background-color: white;
+    top: 50%;
+    left: 0.125rem;
+    transform: translateY(-50%);
+    transition: transform 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-input:checked::before {
+    transform: translateY(-50%) translateX(1.25rem);
+}
+
+.toggle-input.disabled::before {
+    background-color: #ffffff;
+    opacity: 0.5;
+}
+
+.toggle-label {
+    font-size: 0.875rem;
+    color: #ffffff;
+    font-weight: 500;
+}
+
+/* Custom sliders */
+.slider-container {
+    margin-top: 0.5rem;
+}
+
+.custom-slider {
+    width: 100%;
+    height: 0.375rem;
+    border-radius: 0.1875rem;
+    background: #ffffff;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.custom-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #06b6d4, #0891b2);
+    cursor: pointer;
+    border: 2px solid #000000;
+    box-shadow: 0 2px 6px rgba(6, 182, 212, 0.3);
+    transition: all 0.3s ease;
+}
+
+.custom-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.5);
+}
+
+.custom-slider::-moz-range-thumb {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #06b6d4, #0891b2);
+    cursor: pointer;
+    border: 2px solid #000000;
+    box-shadow: 0 2px 6px rgba(6, 182, 212, 0.3);
+}
+
+/* Color picker */
+.color-picker {
+    width: 2.5rem;
+    height: 2rem;
+    border: 2px solid #ffffff;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    background: none;
+    transition: border-color 0.3s ease;
+}
+
+.color-picker:hover {
+    border-color: #06b6d4;
+}
+
+/* Copy buttons */
+.copy-btn {
+    padding: 0.25rem 0.5rem;
+    background: #000000;
+    color: #06b6d4;
+    border: 1px solid #ffffff;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.copy-btn:hover {
+    background: #ffffff;
+    border-color: #06b6d4;
+    color: #000000;
+}
+
+/* Message styling */
+#message-box {
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#message-box.bg-green-100 {
+    background: rgba(6, 182, 212, 0.1);
+    border-color: #06b6d4;
+    color: #67e8f9;
+}
+
+#message-box.bg-red-100 {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
+    color: #fca5a5;
+}
+
+#message-box.bg-blue-100 {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: #3b82f6;
+    color: #93c5fd;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1280px) {
+    .canvas-container {
+        margin-bottom: 2rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .custom-file-upload {
+        width: 100%;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+
+    .action-btn {
+        flex: 1;
+    }
+}
+
+/* Brush tool buttons */
+.brush-shape-btn, .brush-mode-btn {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid #ffffff;
+    border-radius: 0.375rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #000000;
+    color: #ffffff;
+}
+
+.brush-shape-btn:hover, .brush-mode-btn:hover {
+    background: #4a5568;
+    color: #ffffff;
+}
+
+.brush-shape-btn.active, .brush-mode-btn.active {
+    background: #06b6d4;
+    color: white;
+    border-color: #0891b2;
+    font-weight: 600;
+}

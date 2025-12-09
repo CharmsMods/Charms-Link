@@ -1,0 +1,117 @@
+:root{
+  --bg:#000; --fg:#fff; --panel-max:460px; --muted:#8c8c8c; --accent:#2a9df4;
+}
+*{box-sizing:border-box}
+html,body{height:100%; margin:0; background:var(--bg); color:var(--fg); font-family:monospace}
+body{padding:16px; display:flex; gap:16px; align-items:flex-start; min-height:100vh}
+.container{display:flex; gap:16px; width:100%}
+/* New wrapper for content on the right of controls in desktop view */
+.right-content-wrapper{flex:1 1 auto; min-width:320px; display:flex; flex-direction:column; gap:12px;}
+/* New grid for control categories */
+.controls-grid{display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px; padding-top:10px;}
+/* Left control column */
+.controls-panel{max-width:var(--panel-max); min-width:260px; padding:10px; border-right:1px solid rgba(255,255,255,0.04)}
+.controls-panel h1{font-size:18px; margin:0 0 8px 0; text-align:center}
+.muted{color:var(--muted); font-size:13px}
+details{border:1px solid rgba(255,255,255,0.06); margin-bottom:10px; padding:6px; border-radius:6px; background:transparent}
+summary{cursor:pointer; font-weight:bold; margin:0 0 6px 0; outline:none}
+.control-row{display:flex; gap:8px; align-items:center; margin-bottom:8px; min-height:32px}
+.control-row label{flex:0 0 130px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+input[type=range]{flex:1}
+.control-value{width:86px; padding:4px; text-align:right; background:transparent; color:var(--fg); border:1px solid rgba(255,255,255,0.06); font-family:monospace}
+select.control-value{flex:1; min-width:120px; padding:4px}
+.row-buttons{display:flex; gap:8px; margin-top:8px}
+button{background:transparent; color:var(--fg); border:1px solid rgba(255,255,255,0.08); padding:8px; cursor:pointer}
+button:hover{background:rgba(255,255,255,0.02)}
+
+/* Right preview column */
+.preview-column{display:flex; flex-direction:column; gap:12px}
+.preview-top{display:flex; align-items:center; justify-content:space-between; gap:12px}
+.preview-container{position:relative; border:1px solid rgba(255,255,255,0.06); background:#070707; overflow:visible; padding:8px; display:flex; align-items:center; justify-content:center}
+.main-canvas-wrap{width:100%; display:flex; align-items:center; justify-content:center;}
+
+/* displayCanvas will get style.width set by script to control fitting and aspect */
+#displayCanvas{ display:block; border-radius:2px; background:transparent; }
+
+/* overlay original: absolutely positioned on top of the canvas but not allowed to change layout */
+.overlay-original{ position:absolute; top:8px; left:8px; right:8px; bottom:8px; display:flex; align-items:center; justify-content:center; pointer-events:none;}
+.overlay-original canvas{ width:100%; height:auto; display:block; opacity:0; transition:opacity 180ms ease }
+/* toggle show class to reveal original overlay */
+.overlay-original.show canvas{ opacity:1 }
+
+/* Layers column */
+.layers-column{display:flex; flex-direction:column; gap:12px;}
+
+/* Layer preview window: single container with grid inside */
+.layer-preview-window{ border:1px solid rgba(255,255,255,0.06); background:#050505; padding:10px; overflow:auto; width:100%;}
+.layer-grid{ display:grid; gap:10px; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); align-items:start }
+/* layer item */
+.layer-item{ border:1px solid rgba(255,255,255,0.03); padding:8px; border-radius:6px; display:flex; flex-direction:column; gap:8px; background:transparent}
+.layer-title-row{display:flex; align-items:center; justify-content:space-between}
+.layer-title{ color:var(--muted); font-size:13px; margin:0}
+.layer-canvas{ width:100%; height:auto; border:1px solid rgba(255,255,255,0.03); background:#0a0a0a; display:block }
+
+/* modal */
+.modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 200ms ease; z-index:3000}
+.modal-overlay.show{ opacity:1; pointer-events:auto}
+.modal{ background:#111; border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:12px; max-width:92vw; width:880px; max-height:90vh; overflow:auto}
+
+/* Responsive Layout */
+@media (max-width: 900px) {
+  body {
+    padding: 10px;
+  }
+  .container {
+    flex-direction: column;
+    gap: 24px;
+    /* width: 100%;  This is default for column-direction flex items */
+  }
+  .controls-panel {
+    order: 2; /* Controls after main preview */
+    max-width: none; /* Allow full width */
+    border-right: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    padding-top: 16px;
+  }
+  .controls-grid {
+    grid-template-columns: 1fr; /* Single column for control categories on mobile */
+    padding-top: 0; /* Adjust padding as grid is now single column */
+  }
+  .right-content-wrapper {
+    display: contents; /* Makes children direct children of .container for ordering */
+  }
+  .preview-column {
+    order: 1; /* Main preview first */
+    width: 100%;
+  }
+  .layers-column {
+    order: 3; /* Layers section last */
+    width: 100%;
+  }
+  .preview-top {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 600px) {
+  .control-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .control-row label {
+    flex-basis: auto;
+    white-space: normal;
+    text-align: left; /* Ensure labels align left when stacked */
+  }
+  .row-buttons {
+    flex-wrap: wrap;
+  }
+  .preview-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .preview-top h3 {
+    margin-bottom: 8px;
+  }
+}
