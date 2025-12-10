@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Minimal Dark Mode Image Degrader</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Use a simple monospaced font for a classic terminal/minimal aesthetic */
+  body {
+    font-family: 'Courier New', Courier, monospace;
+  }
+  /* Force all styling to be 000000 or ffffff (Inverted) */
+  .minimal-container {
+    background-color: #000000; /* Black background */
+    color: #ffffff; /* White text */
+    min-height: 100vh;
+    padding: 2rem;
+  }
+  .minimal-border {
+    border: 1px solid #ffffff; /* Minimal white border for separation */
+  }
+  /* Style for inputs and selectors */
+  input[type="file"],
+  input[type="number"],
+  .minimal-input {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid #ffffff; /* Minimal white border */
+    background: #000000; /* Black background for input fields */
+    color: #ffffff; /* White text for input content */
+  }
+  /* Special style for file input button text */
+  input[type="file"]::-webkit-file-upload-button {
+    background: #ffffff; /* White background */
+    color: #000000; /* Black text */
+    border: 1px solid #ffffff;
+    padding: 0.5rem;
+    cursor: pointer;
+  }
+
+  /* --- Dynamic Layout Styles --- */
+
+  /* Default (Stacked) Layout for small screens or Landscape images */
+  #main-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  /* Canvas styling in default/stacked layout */
+  #canvas {
+    max-width: 100%;
+    /* Keep max-height limit when stacked */
+    max-height: calc(100vh - 400px); 
+    height: auto;
+    border: 1px solid #ffffff;
+    display: block;
+    margin-top: 0; /* Managed by main-layout gap */
+    margin-bottom: 0; /* Managed by main-layout gap */
+    background-color: #0f0f0f; 
+    object-fit: contain;
+  }
+  
+  /* Side-by-Side Layout for larger screens and Portrait/Square images */
+  /* This class is added via JavaScript */
+  #main-layout.layout-side {
+    flex-direction: row; /* Controls to the side of the canvas */
+    align-items: flex-start;
+  }
+
+  /* Sidebar configuration when side-by-side */
+  #main-layout.layout-side #sidebar {
+    width: 320px; /* Fixed width for the controls column */
+    flex-shrink: 0;
+  }
+  
+  /* Canvas configuration when side-by-side */
+  #main-layout.layout-side #canvas {
+    max-width: none;
+    max-height: calc(100vh - 200px); /* Maximize vertical space */
+    flex-grow: 1;
+    height: auto;
+  }
+
+  /* Ensure controls block uses correct spacing */
+  #controls-block {
+    margin-bottom: 0;
+  }
+</style>
+</head>
+<body>
+<div class="minimal-container">
+  <h1 class="text-4xl font-bold mb-1 uppercase tracking-tighter">Image Degrader</h1>
+  <p class="text-sm mb-8 uppercase tracking-widest opacity-70">Iterative Compression Tool</p>
+
+  <!-- New main container for adaptive layout -->
+  <div id="main-layout" class="layout-default">
+    
+    <!-- Sidebar for all controls and buttons -->
+    <div id="sidebar">
+        
+      <!-- Controls Block - Simple 1px border around the entire block -->
+      <div id="controls-block" class="minimal-border p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-4 mb-4">
+        
+        <label class="flex flex-col text-xs font-bold uppercase tracking-wider">Image Upload
+          <input id="file" type="file" accept="image/*" class="minimal-input">
+        </label>
+        
+        <label class="flex flex-col text-xs font-bold uppercase tracking-wider">Iterations
+          <input id="iterations" type="number" min="1" max="200" value="5" class="minimal-input">
+        </label>
+        
+        <label class="flex flex-col text-xs font-bold uppercase tracking-wider">JPEG Quality (0–1)
+          <input id="quality" type="number" step="0.01" min="0" max="1" value="0.6" class="minimal-input">
+        </label>
+        
+        <label class="flex flex-col text-xs font-bold uppercase tracking-wider">Downscale Factor
+          <input id="downscale" type="number" step="0.1" min="1" max="4" value="1.5" class="minimal-input">
+        </label>
+        
+        <label class="flex flex-col text-xs font-bold uppercase tracking-wider">Noise (0–1)
+          <input id="noise" type="number" step="0.01" min="0" max="1" value="0.02" class="minimal-input">
+        </label>
+
+        <label class="flex flex-col text-xs font-bold uppercase tracking-wider">Posterize Levels
+          <input id="posterize" type="number" step="1" min="1" max="32" value="32" class="minimal-input">
+        </label>
+      </div>
+
+      <!-- Action Bar -->
+      <div id="action-bar" class="flex flex-wrap gap-3 items-center mb-6">
+        <!-- Button Style: White background, black text, 1px white border (INVERTED) -->
+        <button id="start" class="px-5 py-3 text-sm font-bold uppercase tracking-wider minimal-border bg-white text-black transition-colors duration-150 hover:bg-black hover:text-white disabled:opacity-40 disabled:cursor-not-allowed">
+          Start
+        </button>
+        <button id="stop" disabled class="px-5 py-3 text-sm font-bold uppercase tracking-wider minimal-border bg-white text-black transition-colors duration-150 hover:bg-black hover:text-white disabled:opacity-40 disabled:cursor-not-allowed">
+          Stop
+        </button>
+        
+        <!-- Download Link Style: Black background, white text, 1px white border (INVERTED) -->
+        <a id="download" download="degraded.jpg" class="px-5 py-3 text-sm font-bold uppercase tracking-wider minimal-border bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 inline-block">
+          Download
+        </a>
+        
+        <!-- Status Indicator: White background, black text, 1px white border (INVERTED) -->
+        <div id="status" class="px-4 py-3 text-xs font-bold uppercase tracking-wider minimal-border bg-white text-black">
+          Ready
+        </div>
+      </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+  </div>
+</div>
+
+<script>
+// --- Core JavaScript Logic (Updated to include dynamic layout) ---
+const fileInput = document.getElementById('file');
+const canvas = document.getElementById('canvas');
+const mainLayout = document.getElementById('main-layout');
+// Set willReadFrequently to true for performance in iterative pixel operations
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const startBtn = document.getElementById('start');
+const stopBtn = document.getElementById('stop');
+const downloadLink = document.getElementById('download');
+const status = document.getElementById('status');
+
+let stopRequested = false;
+
+// Function to handle image loading and initial canvas setup
+fileInput.addEventListener('change', async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  
+  // Use createImageBitmap for efficient image loading
+  const imgBitmap = await createImageBitmap(f);
+  
+  // limit working size to reduce CPU load during iteration
+  const maxSide = 2048;
+  const scale = Math.min(1, maxSide / Math.max(imgBitmap.width, imgBitmap.height));
+  canvas.width = Math.round(imgBitmap.width * scale);
+  canvas.height = Math.round(imgBitmap.height * scale);
+  
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(imgBitmap, 0, 0, canvas.width, canvas.height);
+
+  // --- Dynamic Layout Logic ---
+  const aspectRatio = canvas.width / canvas.height;
+  
+  // Threshold: If aspect ratio is 1.1 or less (square or portrait), switch to side layout.
+  // This maximizes vertical space usage which is crucial for tall/square images.
+  if (aspectRatio <= 1.1) { 
+    // Only apply side layout if the screen width is large enough (md breakpoint equivalent)
+    if (window.innerWidth >= 768) {
+        mainLayout.classList.add('layout-side');
+    }
+  } else {
+    mainLayout.classList.remove('layout-side');
+  }
+  // --- End Dynamic Layout Logic ---
+  
+  // prepare download link for original (in case user wants to save it)
+  canvas.toBlob(b => {
+    if(b) {
+        downloadLink.href = URL.createObjectURL(b);
+        downloadLink.download = 'degraded-start.jpg';
+    }
+  }, 'image/jpeg', 0.95);
+  status.textContent = 'Image loaded';
+});
+
+// Applies random noise to the image data
+function applyNoise(imageData, strength) {
+  if (strength <= 0) return;
+  const d = imageData.data;
+  const n = d.length;
+  for (let i = 0; i < n; i += 4) {
+    // Generate noise values for R, G, B channels
+    const r = (Math.random() * 2 - 1) * 255 * strength;
+    const g = (Math.random() * 2 - 1) * 255 * strength;
+    const b = (Math.random() * 2 - 1) * 255 * strength;
+    
+    // Apply noise and clamp the color values between 0 and 255
+    d[i] = Math.max(0, Math.min(255, d[i] + r));
+    d[i+1] = Math.max(0, Math.min(255, d[i+1] + g));
+    d[i+2] = Math.max(0, Math.min(255, d[i+2] + b));
+  }
+}
+
+// Reduces the number of color values to create a posterized effect
+function applyPosterize(imageData, levels) {
+  // 256 levels means no posterization
+  if (levels <= 1 || levels >= 256) return; 
+  const step = 255 / (levels - 1); // Calculate the step size between valid color levels
+  const d = imageData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    // Round to the nearest step value
+    d[i] = Math.round(d[i] / step) * step;
+    d[i+1] = Math.round(d[i+1] / step) * step;
+    d[i+2] = Math.round(d[i+2] / step) * step;
+  }
+}
+
+// Helper to convert canvas content to a Blob asynchronously
+async function canvasToBlobAsync(mime, quality) {
+  return await new Promise(resolve => canvas.toBlob(resolve, mime, quality));
+}
+
+// Main degradation loop
+async function degradeLoop({iterations, quality, downscale, noise, posterize}) {
+  stopRequested = false;
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
+  
+  const mime = 'image/jpeg';
+  const currentWidth = canvas.width;
+  const currentHeight = canvas.height;
+
+  // Check if an image is actually loaded
+  if (currentWidth === 0 || currentHeight === 0) {
+    status.textContent = 'Error: No image loaded.';
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    return;
+  }
+
+  for (let i = 0; i < iterations; ++i) {
+    if (stopRequested) break;
+    status.textContent = `Iteration ${i+1}/${iterations}`;
+
+    // 1. Downscale/Upscale operation for blockiness (Pixelation)
+    if (downscale > 1) {
+      // Create temporary canvas to hold the downscaled image
+      const w = Math.max(1, Math.round(currentWidth / downscale));
+      const h = Math.max(1, Math.round(currentHeight / downscale));
+      const tmp = document.createElement('canvas');
+      tmp.width = w; tmp.height = h;
+      const tctx = tmp.getContext('2d');
+      
+      // Draw current canvas content to small temp canvas
+      tctx.drawImage(canvas, 0, 0, w, h);
+      
+      // Draw temp canvas back to main canvas, forcing nearest-neighbor scaling
+      ctx.clearRect(0, 0, currentWidth, currentHeight);
+      ctx.imageSmoothingEnabled = false; // Disable anti-aliasing for blocky look
+      ctx.drawImage(tmp, 0, 0, currentWidth, currentHeight);
+      ctx.imageSmoothingEnabled = true; // Re-enable for subsequent draw operations
+    }
+
+    // 2. Pixel operations (Noise, Posterize)
+    if (noise > 0 || posterize < 256) {
+      let imageData = ctx.getImageData(0, 0, currentWidth, currentHeight);
+      if (noise > 0) applyNoise(imageData, noise);
+      if (posterize < 256) applyPosterize(imageData, posterize);
+      ctx.putImageData(imageData, 0, 0);
+    }
+
+    // 3. Compression artifact generation (The key step)
+    // Export to JPEG Blob (compression loss occurs here)
+    const blob = await canvasToBlobAsync(mime, quality);
+    if (!blob) break;
+    
+    // Load compressed JPEG Blob back into canvas for the next iteration
+    const bmp = await createImageBitmap(blob);
+    ctx.clearRect(0, 0, currentWidth, currentHeight);
+    ctx.drawImage(bmp, 0, 0, currentWidth, currentHeight);
+
+    // Yield to UI to update the progress status
+    await new Promise(r => setTimeout(r, 8));
+  }
+
+  // Finalize: make final blob and link
+  const finalBlob = await canvasToBlobAsync('image/jpeg', quality);
+  if (finalBlob) {
+    downloadLink.href = URL.createObjectURL(finalBlob);
+    downloadLink.download = `degraded-${Date.now()}.jpg`;
+    status.textContent = stopRequested ? 'Stopped' : 'Done';
+  } else {
+    status.textContent = 'Failed to generate final file';
+  }
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+}
+
+// Event Listeners for controls
+startBtn.addEventListener('click', () => {
+  const iterations = parseInt(document.getElementById('iterations').value, 10) || 1;
+  const quality = parseFloat(document.getElementById('quality').value) || 0.6;
+  // Ensure downscale factor is at least 1 to prevent unexpected behavior
+  const downscale = Math.max(1, parseFloat(document.getElementById('downscale').value) || 1); 
+  const noise = parseFloat(document.getElementById('noise').value) || 0;
+  const posterize = parseInt(document.getElementById('posterize').value, 10) || 256;
+  
+  if (canvas.width === 0 || canvas.height === 0) {
+    status.textContent = 'Error: Please upload an image first.';
+    return;
+  }
+
+  degradeLoop({iterations, quality, downscale, noise, posterize});
+});
+
+stopBtn.addEventListener('click', () => {
+  stopRequested = true;
+});
+</script>
+</body>
+</html>

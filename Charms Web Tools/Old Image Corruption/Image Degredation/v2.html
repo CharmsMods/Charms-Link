@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Iterative Image Degrader — GPU-powered</title>
+<style>
+/* filename: styles (embedded) */
+/* Strict palette: #ffffff and #000000 only */
+:root {
+  --bg: #ffffff;
+  --fg: #000000;
+  --gap: 12px;
+  --radius: 8px;
+  --uiw: 320px;
+  --maxside: 2048;
+}
+*{box-sizing:border-box;margin:0;padding:0;color:var(--fg);background:transparent;font-family:system-ui,Segoe UI,Roboto,Arial}
+html,body{height:100%;background:var(--bg);color:var(--fg)}
+.app{display:grid;grid-template-columns:var(--uiw) 1fr;gap:var(--gap);height:100vh;padding:14px}
+.sidebar{border-right:1px solid var(--fg);padding-right:12px;overflow:auto}
+.header{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--fg);margin-bottom:10px}
+.title{font-size:15px;font-weight:700}
+.status{font-size:12px}
+.control{margin-top:10px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.control.inline{flex-direction:row;align-items:center;gap:8px}
+.control label{font-size:12px}
+input[type="number"],input[type="text"],select{padding:8px;border:1px solid var(--fg);border-radius:6px;background:var(--bg);color:var(--fg);font-size:13px}
+input[type="range"]{width:100%}
+button, .btn {
+  padding:8px 10px;border-radius:6px;background:var(--fg);color:var(--bg);border:1px solid var(--fg);cursor:pointer;font-size:13px;text-align:center
+}
+.btn.ghost{background:transparent;color:var(--fg)}
+.actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.small{font-size:12px}
+.viewer{padding-left:12px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.canvas-wrap{flex:1;border:1px solid var(--fg);border-radius:8px;padding:10px;display:grid;place-items:center;background:var(--bg);overflow:auto}
+canvas{max-width:100%;max-height:100%;display:block;background:#000000}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.thumbs{display:flex;gap:8px;overflow-x:auto;padding-top:6px}
+.thumbs img{width:110px;height:70px;object-fit:cover;border:1px solid var(--fg);border-radius:4px;cursor:pointer}
+.footer{padding-top:8px;border-top:1px solid var(--fg);font-size:12px}
+.row{display:flex;gap:8px;align-items:center}
+.pbar{height:8px;background:#000000;border-radius:6px;overflow:hidden;width:100%}
+.pbar > i{display:block;height:100%;background:#ffffff;width:0%}
+.info{font-size:12px;margin-top:8px}
+.dropzone{border:1px dashed var(--fg);padding:12px;border-radius:6px;text-align:center}
+kbd{border:1px solid var(--fg);padding:2px 6px;border-radius:4px;background:var(--fg);color:var(--bg);font-size:12px}
+.legend{font-size:12px;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar">
+    <div class="header">
+      <div class="title">Iterative Image Degrader</div>
+      <div class="status" id="gpuStatus">GPU: checking...</div>
+    </div>
+
+    <div class="control">
+      <div class="dropzone" id="dropzone">Drag & drop or <label style="display:inline"><a class="btn ghost" id="chooseBtn">choose file</a><input id="file" type="file" accept="image/*" style="display:none"></label></div>
+      <div class="legend">Max working side will be scaled to <span id="maxSideLabel">2048</span>px</div>
+    </div>
+
+    <div class="control">
+      <label>Iterations (total)</label>
+      <input id="iterations" type="number" min="1" max="1000" value="10">
+      <label>Per-iteration quality (0–1) — compression will be applied each iteration if "Apply compression" checked</label>
+      <input id="quality" type="number" step="0.01" min="0" max="1" value="0.6">
+      <label class="inline control">Apply compression<input id="applyCompression" type="checkbox" checked style="margin-left:8px"></label>
+      <label>Codec</label>
+      <select id="codec"><option value="image/jpeg">JPEG</option><option value="image/webp">WebP</option></select>
+    </div>
+
+    <div class="control">
+      <label>Downscale factor (1 = none)</label>
+      <input id="downscale" type="range" min="1" max="8" step="0.1" value="1.5">
+      <div class="row"><span class="small">Value</span><input id="downscaleNum" type="number" step="0.1" min="1" max="8" value="1.5" style="width:90px"></div>
+
+      <label>Noise (0–1)</label>
+      <input id="noise" type="range" min="0" max="1" step="0.01" value="0.03">
+      <div class="row"><input id="noiseNum" type="number" step="0.01" min="0" max="1" value="0.03" style="width:90px"></div>
+
+      <label>Posterize levels (1 = none)</label>
+      <input id="posterize" type="range" min="1" max="64" step="1" value="32">
+      <div class="row"><input id="posterizeNum" type="number" step="1" min="1" max="64" value="32" style="width:90px"></div>
+
+      <label>Hue shift (degrees)</label>
+      <input id="hue" type="range" min="-180" max="180" step="1" value="0">
+      <div class="row"><input id="hueNum" type="number" step="1" min="-180" max="180" value="0" style="width:90px"></div>
+
+      <label>Saturation (multiplier)</label>
+      <input id="saturation" type="range" min="0" max="2" step="0.01" value="1">
+      <div class="row"><input id="saturationNum" type="number" step="0.01" min="0" max="2" value="1" style="width:90px"></div>
+
+      <label class="inline control">Seed (reproducible noise)<input id="seed" type="number" step="1" min="0" max="9999999" value="42" style="width:120px;margin-left:8px"></label>
+    </div>
+
+    <div class="control">
+      <label>Presets</label>
+      <select id="preset">
+        <option value="">— select preset —</option>
+        <option value="heavy-jpeg">Heavy JPEG × 20</option>
+        <option value="glitchy">Glitchy posterize + noise</option>
+        <option value="soft-loss">Soft lossy (small noise, low quality)</option>
+      </select>
+      <div class="actions">
+        <button id="start" class="btn">Start</button>
+        <button id="pause" class="btn ghost" disabled>Pause</button>
+        <button id="stop" class="btn ghost" disabled>Stop</button>
+        <a id="download" class="btn ghost" download="degraded.jpg">Download final</a>
+      </div>
+      <div style="margin-top:8px" class="row">
+        <div style="flex:1">
+          <div class="pbar" aria-hidden="true"><i id="progress"></i></div>
+        </div>
+        <div style="width:64px;text-align:right;font-size:12px" id="progressText">0%</div>
+      </div>
+
+      <div class="info">
+        <div>Thumbnails: click to load iteration. Use <kbd>Space</kbd> to pause/resume, <kbd>Esc</kbd> to stop.</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="small">Features: GPU shader pipeline (WebGL), per-iteration compression, downscale pass, seeded noise, posterize, hue/sat, thumbnails, presets, pause/resume, compare. All UI uses only #000000 & #ffffff.</div>
+    </div>
+  </aside>
+
+  <section class="viewer">
+    <div class="toolbar">
+      <div class="row">
+        <label class="small">Compare</label>
+        <input id="compare" type="range" min="0" max="1" step="0.01" value="1" style="width:220px">
+      </div>
+      <div class="row">
+        <label class="small">Preview per iteration</label>
+        <input id="previewPerIter" type="checkbox" checked style="margin-left:6px">
+      </div>
+      <div class="row" style="margin-left:auto">
+        <label class="small">GPU ctx</label>
+        <select id="glMode"><option value="webgl">WebGL</option><option value="webgl2">WebGL2</option></select>
+      </div>
+    </div>
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="mainCanvas" width="800" height="600" aria-label="Image canvas"></canvas>
+      <!-- overlay for compare -->
+      <canvas id="compareCanvas" width="800" height="600" style="position:absolute;pointer-events:none;mix-blend-mode:normal"></canvas>
+    </div>
+
+    <div class="thumbs" id="thumbs"></div>
+  </section>
+</div>
+
+<script>
+/* filename: index.html (script embedded) */
+/* Single-file GPU-backed iterative degrader.
+   Key design:
+   - WebGL fragment shader applies noise/posterize/hue/sat in GPU.
+   - Downscale implemented by rendering to a smaller framebuffer and then blitting back.
+   - For "true" compression artifacts we use canvas.toBlob per-iteration when enabled and re-load via createImageBitmap.
+   - Thumbnails saved as blobs (object URLs).
+   - Pause/resume/stop implemented.
+*/
+
+/* --- Utilities & DOM --- */
+const $ = id => document.getElementById(id);
+const fileInput = $('file');
+const dropzone = $('dropzone');
+const chooseBtn = $('chooseBtn');
+const mainCanvas = $('mainCanvas');
+const compareCanvas = $('compareCanvas');
+const gpuStatus = $('gpuStatus');
+const startBtn = $('start');
+const pauseBtn = $('pause');
+const stopBtn = $('stop');
+const downloadLink = $('download');
+const thumbs = $('thumbs');
+const progressBar = $('progress');
+const progressText = $('progressText');
+
+const iterationsInput = $('iterations');
+const qualityInput = $('quality');
+const applyCompression = $('applyCompression');
+const codecSel = $('codec');
+const downscaleRange = $('downscale');
+const downscaleNum = $('downscaleNum');
+const noiseRange = $('noise');
+const noiseNum = $('noiseNum');
+const posterizeRange = $('posterize');
+const posterizeNum = $('posterizeNum');
+const hueRange = $('hue');
+const hueNum = $('hueNum');
+const saturationRange = $('saturation');
+const saturationNum = $('saturationNum');
+const seedInput = $('seed');
+const presetSel = $('preset');
+const previewPerIter = $('previewPerIter');
+const previewPerIteration = $('previewPerIter');
+const compareRange = $('compare');
+const maxSideLabel = $('maxSideLabel');
+const glModeSel = $('glMode');
+
+const MAX_SIDE = 2048;
+maxSideLabel.textContent = MAX_SIDE;
+
+/* sync range <-> number inputs */
+function wireRange(rangeEl, numEl){
+  rangeEl.addEventListener('input', ()=> numEl.value = rangeEl.value);
+  numEl.addEventListener('input', ()=> rangeEl.value = numEl.value);
+}
+wireRange(downscaleRange, downscaleNum);
+wireRange(noiseRange, noiseNum);
+wireRange(posterizeRange, posterizeNum);
+wireRange(hueRange, hueNum);
+wireRange(saturationRange, saturationNum);
+
+/* drag & drop */
+chooseBtn.addEventListener('click', ()=> fileInput.click());
+dropzone.addEventListener('dragover', e=>{ e.preventDefault(); dropzone.style.opacity=0.6 });
+dropzone.addEventListener('dragleave', e=>{ e.preventDefault(); dropzone.style.opacity=1 });
+dropzone.addEventListener('drop', e=>{ e.preventDefault(); dropzone.style.opacity=1; const f = e.dataTransfer.files?.[0]; if(f) loadFile(f);});
+
+/* file input */
+fileInput.addEventListener('change', e=> { const f = e.target.files?.[0]; if(f) loadFile(f); });
+
+/* keyboard shortcuts */
+document.addEventListener('keydown', e=>{
+  if (e.code === 'Space'){ e.preventDefault(); togglePause(); }
+  if (e.code === 'Escape'){ stopRequested = true; }
+});
+
+/* presets */
+presetSel.addEventListener('change', ()=>{
+  const v = presetSel.value;
+  if (!v) return;
+  if (v === 'heavy-jpeg'){
+    iterationsInput.value = 20; qualityInput.value = 0.25; downscaleRange.value = 1.2; noiseRange.value = 0.02; posterizeRange.value = 64; applyCompression.checked = true;
+  } else if (v === 'glitchy'){
+    iterationsInput.value = 12; qualityInput.value = 0.6; downscaleRange.value = 2; noiseRange.value = 0.12; posterizeRange.value = 8; applyCompression.checked = false;
+  } else if (v === 'soft-loss'){
+    iterationsInput.value = 8; qualityInput.value = 0.75; downscaleRange.value = 1.1; noiseRange.value = 0.01; posterizeRange.value = 48; applyCompression.checked = true;
+  }
+});
+
+/* compare slider */
+compareRange.addEventListener('input', ()=> {
+  compareCanvas.style.opacity = compareRange.value;
+});
+
+/* small helpers */
+const clamp = (v,a,b)=> Math.max(a,Math.min(b,v));
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+/* --- WebGL setup --- */
+let gl = null;
+let glType = null;
+const glModePriority = () => glModeSel.value || 'webgl2';
+
+/* create WebGL context, try webgl2 then fallback */
+function createGL(canvas){
+  const prefer = glModePriority();
+  let g = null;
+  if (prefer === 'webgl2'){
+    g = canvas.getContext('webgl2', {preserveDrawingBuffer:true});
+    glType = 'webgl2';
+  }
+  if (!g){
+    g = canvas.getContext('webgl', {preserveDrawingBuffer:true}) || canvas.getContext('experimental-webgl', {preserveDrawingBuffer:true});
+    glType = 'webgl';
+  }
+  return g;
+}
+
+/* shader compilation */
+function compileShader(gl, source, type){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, source);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    const err = gl.getShaderInfoLog(s);
+    console.error('Shader compile error', err, source);
+    gl.deleteShader(s);
+    throw new Error('Shader compile failed: ' + err);
+  }
+  return s;
+}
+function linkProgram(gl, vsrc, fsrc){
+  const vs = compileShader(gl, vsrc, gl.VERTEX_SHADER);
+  const fs = compileShader(gl, fsrc, gl.FRAGMENT_SHADER);
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)){
+    const err = gl.getProgramInfoLog(prog);
+    console.error('Program link error', err);
+    throw new Error('Program link failed: ' + err);
+  }
+  return prog;
+}
+
+/* fullscreen quad vertex shader */
+const VERT_SRC = `#version 100
+attribute vec2 a_pos;
+varying vec2 v_uv;
+void main(){ v_uv = (a_pos+1.0)*0.5; gl_Position = vec4(a_pos,0.0,1.0); }`;
+
+/* fragment shader: applies noise, posterize, hue/sat, simple chroma subsampling-like effect */
+const FRAG_SRC = `#version 100
+precision highp float;
+varying vec2 v_uv;
+uniform sampler2D u_tex;
+uniform float u_noise; // 0..1
+uniform float u_posterize; // levels (1..256)
+uniform float u_hue; // degrees
+uniform float u_saturation; // multiplier
+uniform float u_seed;
+uniform vec2 u_resolution;
+float rand(vec2 co){
+  highp float a = 12.9898;
+  highp float b = 78.233;
+  highp float c = 43758.5453;
+  highp float dt= dot(co.xy , vec2(a,b));
+  highp float sn= mod(dt,3.141592);
+  return fract(sin(sn + u_seed) * c);
+}
+vec3 hueRotate(vec3 color, float degrees){
+  float angle = radians(degrees);
+  float s = sin(angle), c = cos(angle);
+  mat3 m = mat3(
+     0.213+ c*0.787 - s*0.213, 0.715 - c*0.715 - s*0.715, 0.072 - c*0.072 + s*0.928,
+     0.213 - c*0.213 + s*0.143, 0.715 + c*0.285 + s*0.140, 0.072 - c*0.072 - s*0.283,
+     0.213 - c*0.213 - s*0.787, 0.715 - c*0.715 + s*0.715, 0.072 + c*0.928 + s*0.072
+  );
+  return clamp(m * color, 0.0, 1.0);
+}
+void main(){
+  vec2 uv = v_uv;
+  vec4 c = texture2D(u_tex, uv);
+  // seeded noise
+  if (u_noise > 0.0001){
+    float n = rand(uv * u_resolution.xy);
+    vec3 noise = (vec3(n) - 0.5) * 2.0 * u_noise;
+    c.rgb += noise;
+  }
+  // posterize
+  if (u_posterize > 1.0){
+    float levels = u_posterize;
+    c.rgb = floor(c.rgb * levels + 0.5) / levels;
+  }
+  // hue rotate
+  if (abs(u_hue) > 0.0001) c.rgb = hueRotate(c.rgb, u_hue);
+  // saturation
+  float l = dot(c.rgb, vec3(0.2126,0.7152,0.0722));
+  c.rgb = mix(vec3(l), c.rgb, u_saturation);
+  gl_FragColor = clamp(c, 0.0, 1.0);
+}`;
+
+/* helper: create textured quad program */
+let quadProg = null;
+let quadBuf = null;
+function initGL(gl){
+  // compile program
+  quadProg = linkProgram(gl, VERT_SRC, FRAG_SRC);
+  quadBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  // two triangles quad
+  const verts = new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]);
+  gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
+  gl.useProgram(quadProg);
+}
+
+/* create texture from image/bitmap */
+function createTextureFromBitmap(gl, bitmap){
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bitmap);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return tex;
+}
+
+/* render a pass: optionally render to framebuffer (for downscale) */
+function renderPass(gl, srcTex, width, height, uniforms, targetFb=null, targetW=null, targetH=null){
+  if (targetFb){
+    gl.bindFramebuffer(gl.FRAMEBUFFER, targetFb);
+    gl.viewport(0,0,targetW,targetH);
+  } else {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0,0,width,height);
+  }
+  gl.clearColor(0,0,0,0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.useProgram(quadProg);
+
+  // attributes
+  const aPos = gl.getAttribLocation(quadProg, 'a_pos');
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  // bind texture unit 0
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, srcTex);
+  const uTex = gl.getUniformLocation(quadProg, 'u_tex');
+  gl.uniform1i(uTex, 0);
+
+  // uniforms
+  const uNoise = gl.getUniformLocation(quadProg, 'u_noise');
+  const uPosterize = gl.getUniformLocation(quadProg, 'u_posterize');
+  const uHue = gl.getUniformLocation(quadProg, 'u_hue');
+  const uSat = gl.getUniformLocation(quadProg, 'u_saturation');
+  const uSeed = gl.getUniformLocation(quadProg, 'u_seed');
+  const uRes = gl.getUniformLocation(quadProg, 'u_resolution');
+
+  gl.uniform1f(uNoise, uniforms.noise);
+  gl.uniform1f(uPosterize, uniforms.posterize);
+  gl.uniform1f(uHue, uniforms.hue);
+  gl.uniform1f(uSat, uniforms.saturation);
+  gl.uniform1f(uSeed, uniforms.seed || 0);
+  gl.uniform2f(uRes, uniforms.resW || width, uniforms.resH || height);
+
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+  gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+/* --- main processing flow --- */
+let originalBitmap = null;
+let workingBitmap = null;
+let currentTexture = null;
+let stopRequested = false;
+let pauseRequested = false;
+let isRunning = false;
+let thumbnails = []; // {url, iter}
+let lastFinalBlobUrl = null;
+
+/* setup contexts */
+function setupContexts(){
+  // main GL for rendering shader output to mainCanvas
+  gl = createGL(mainCanvas);
+  if (!gl) {
+    gpuStatus.textContent = 'GPU: unavailable';
+    alert('WebGL not available in this browser.');
+    return;
+  }
+  gpuStatus.textContent = 'GPU: available (' + glType + ')';
+  initGL(gl);
+}
+setupContexts();
+
+/* load file and prepare image */
+async function loadFile(file){
+  stopRequested = true; // abort any running process
+  await sleep(50);
+  clearThumbs();
+  const imgBitmap = await createImageBitmap(file);
+  const scale = Math.min(1, MAX_SIDE / Math.max(imgBitmap.width, imgBitmap.height));
+  const w = Math.round(imgBitmap.width * scale);
+  const h = Math.round(imgBitmap.height * scale);
+  // resize canvases
+  mainCanvas.width = w; mainCanvas.height = h;
+  compareCanvas.width = w; compareCanvas.height = h;
+  // draw initial to an offscreen 2d canvas to ensure proper orientation
+  const off = document.createElement('canvas');
+  off.width = w; off.height = h;
+  const ctx = off.getContext('2d');
+  ctx.drawImage(imgBitmap, 0, 0, w, h);
+  const bmp = await createImageBitmap(off);
+  originalBitmap = bmp;
+  workingBitmap = bmp;
+  // create texture from bitmap
+  if (gl) {
+    if (currentTexture) gl.deleteTexture(currentTexture);
+    currentTexture = createTextureFromBitmap(gl, workingBitmap);
+    // draw initial
+    renderPass(gl, currentTexture, mainCanvas.width, mainCanvas.height, {
+      noise:0, posterize:1, hue:0, saturation:1, seed:0, resW: mainCanvas.width, resH: mainCanvas.height
+    });
+    // copy to compare canvas (as baseline)
+    copyToCompareCanvas();
+  } else {
+    // fallback 2d draw
+    const ctx2 = mainCanvas.getContext('2d');
+    ctx2.clearRect(0,0,mainCanvas.width,mainCanvas.height);
+    ctx2.drawImage(workingBitmap, 0, 0, mainCanvas.width, mainCanvas.height);
+    copyToCompareCanvas();
+  }
+  statusReset();
+}
+
+/* copy current main canvas into compare canvas (used as 'before' baseline) */
+function copyToCompareCanvas(){
+  // copy the current content as baseline (compare canvas)
+  const ctx = compareCanvas.getContext('2d');
+  ctx.clearRect(0,0,compareCanvas.width, compareCanvas.height);
+  // draw from mainCanvas pixel data
+  ctx.drawImage(mainCanvas, 0, 0);
+}
+
+/* clear thumbnails */
+function clearThumbs(){
+  thumbs.innerHTML = '';
+  thumbnails.forEach(t=> URL.revokeObjectURL(t.url));
+  thumbnails = [];
+}
+
+/* add thumbnail */
+function addThumb(blob, iter){
+  const url = URL.createObjectURL(blob);
+  const img = document.createElement('img');
+  img.src = url;
+  img.title = 'Iteration '+iter;
+  img.dataset.iter = iter;
+  img.addEventListener('click', async ()=> {
+    // load selected iteration into canvas
+    const b = blob;
+    const bmp = await createImageBitmap(b);
+    if (gl) {
+      if (currentTexture) gl.deleteTexture(currentTexture);
+      currentTexture = createTextureFromBitmap(gl, bmp);
+      renderPass(gl, currentTexture, mainCanvas.width, mainCanvas.height, {noise:0,posterize:1,hue:0,saturation:1,seed:0,resW:mainCanvas.width,resH:mainCanvas.height});
+      copyToCompareCanvas();
+    } else {
+      const ctx = mainCanvas.getContext('2d');
+      ctx.clearRect(0,0,mainCanvas.width,mainCanvas.height);
+      ctx.drawImage(bmp,0,0,mainCanvas.width,mainCanvas.height);
+      copyToCompareCanvas();
+    }
+  });
+  thumbs.appendChild(img);
+  thumbnails.push({url, iter, blob});
+}
+
+/* call toBlob on the main canvas to get compressed bytes (used to create real JPEG/WebP artifacts) */
+function canvasToBlobAsync(mime, quality){
+  return new Promise(resolve => {
+    mainCanvas.toBlob(resolve, mime, quality);
+  });
+}
+
+/* main iterative degrader */
+async function degradeLoop(opts){
+  if (!originalBitmap) { alert('No image loaded'); return; }
+  stopRequested = false;
+  pauseRequested = false;
+  isRunning = true;
+  startBtn.disabled = true; pauseBtn.disabled = false; stopBtn.disabled = false;
+  thumbnails = []; clearThumbs();
+  progress(0);
+
+  const total = Number(opts.iterations) || 1;
+  const codec = opts.codec || 'image/jpeg';
+  const applyComp = !!opts.applyCompression;
+  const useGL = !!gl;
+
+  // prepare a texture with the starting bitmap
+  if (useGL){
+    if (currentTexture) gl.deleteTexture(currentTexture);
+    currentTexture = createTextureFromBitmap(gl, workingBitmap);
+  }
+
+  let iter = 0;
+  for (iter = 0; iter < total; ++iter){
+    if (stopRequested) break;
+    // pause if requested
+    while (pauseRequested && !stopRequested){
+      await sleep(100);
+    }
+    // compute uniforms for this iteration
+    const uniforms = {
+      noise: Number(noiseRange.value),
+      posterize: Number(posterizeRange.value),
+      hue: Number(hueRange.value),
+      saturation: Number(saturationRange.value),
+      seed: Number(seedInput.value) + iter * 1.0,
+      resW: mainCanvas.width,
+      resH: mainCanvas.height
+    };
+
+    // DOWNscale pass: render to a smaller framebuffer to produce blockiness (if downscale>1)
+    const ds = Number(downscaleRange.value) || 1;
+    if (useGL){
+      if (ds > 1.01){
+        // framebuffer & texture at smaller size
+        const smallW = Math.max(1, Math.round(mainCanvas.width / ds));
+        const smallH = Math.max(1, Math.round(mainCanvas.height / ds));
+        // create small texture to render into
+        const smallTex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, smallTex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, smallW, smallH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        const fbo = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, smallTex, 0);
+        // render from current texture to the small fbo with uniforms (this shrinks + shader effects)
+        renderPass(gl, currentTexture, mainCanvas.width, mainCanvas.height, uniforms, fbo, smallW, smallH);
+        // now render back from smallTex to default framebuffer (stretch back up)
+        // we want nearest-neighbor-ish blockiness; set filtering to nearest temporarily
+        gl.bindTexture(gl.TEXTURE_2D, smallTex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        renderPass(gl, smallTex, mainCanvas.width, mainCanvas.height, {noise:0, posterize:1, hue:0, saturation:1, seed:0, resW: mainCanvas.width, resH: mainCanvas.height});
+        // cleanup
+        gl.deleteFramebuffer(fbo);
+        gl.deleteTexture(smallTex);
+      } else {
+        // single pass apply shader directly
+        renderPass(gl, currentTexture, mainCanvas.width, mainCanvas.height, uniforms);
+      }
+    } else {
+      // CPU fallback: draw to 2d and apply basic pixel ops (much slower)
+      const ctx = mainCanvas.getContext('2d');
+      ctx.clearRect(0,0,mainCanvas.width, mainCanvas.height);
+      ctx.drawImage(workingBitmap,0,0,mainCanvas.width, mainCanvas.height);
+      // simple posterize/noise can be done here if desired (omitted for brevity)
+    }
+
+    // optionally apply compression: read canvas to blob and re-load it to create "real" artifacts
+    if (applyComp){
+      const q = Number(qualityInput.value);
+      const mime = codec;
+      const blob = await canvasToBlobAsync(mime, q);
+      if (!blob) break;
+      // create thumbnail if requested
+      if (previewPerIteration.checked){
+        addThumb(blob, iter+1);
+      }
+      // load blob back to an ImageBitmap and update currentTexture / workingBitmap
+      const bmp = await createImageBitmap(blob);
+      workingBitmap = bmp;
+      if (useGL){
+        if (currentTexture) gl.deleteTexture(currentTexture);
+        currentTexture = createTextureFromBitmap(gl, workingBitmap);
+      } else {
+        // draw to main canvas
+        const ctx = mainCanvas.getContext('2d');
+        ctx.clearRect(0,0,mainCanvas.width,mainCanvas.height);
+        ctx.drawImage(workingBitmap,0,0,mainCanvas.width,mainCanvas.height);
+      }
+    } else {
+      // no compression step; optionally capture thumbnail by reading pixels via toBlob
+      if (previewPerIteration.checked){
+        const blob = await canvasToBlobAsync('image/png', 1.0);
+        addThumb(blob, iter+1);
+      }
+      // update workingBitmap from current canvas for next iteration (createImageBitmap from canvas)
+      const bmp = await createImageBitmap(mainCanvas);
+      workingBitmap = bmp;
+      if (useGL){
+        if (currentTexture) gl.deleteTexture(currentTexture);
+        currentTexture = createTextureFromBitmap(gl, workingBitmap);
+      }
+    }
+
+    // update progress
+    const pct = Math.round(((iter+1)/total) * 100);
+    progress(pct);
+    await sleep(8); // yield to UI
+  }
+
+  // finalize: create final blob and set download link
+  const finalBlob = await canvasToBlobAsync(codecSel.value, Number(qualityInput.value));
+  if (finalBlob){
+    if (lastFinalBlobUrl) URL.revokeObjectURL(lastFinalBlobUrl);
+    lastFinalBlobUrl = URL.createObjectURL(finalBlob);
+    downloadLink.href = lastFinalBlobUrl;
+    // choose a filename extension from codec
+    const ext = codecSel.value.includes('webp') ? 'webp' : 'jpg';
+    downloadLink.download = `degraded-${Date.now()}.${ext}`;
+    // add final thumbnail
+    addThumb(finalBlob, 'final');
+  }
+
+  // done / aborted
+  isRunning = false;
+  startBtn.disabled = false; pauseBtn.disabled = true; stopBtn.disabled = true;
+  progress(stopRequested ? 0 : 100);
+  if (stopRequested) progressText.textContent = 'stopped';
+}
+
+/* progress UI */
+function progress(pct){
+  progressBar.style.width = pct + '%';
+  progressText.textContent = pct + '%';
+}
+
+/* status reset */
+function statusReset(){ progress(0); progressText.textContent = '0%'; downloadLink.href = ''; }
+
+/* pause/resume/stop handlers */
+function togglePause(){
+  if (!isRunning) return;
+  pauseRequested = !pauseRequested;
+  pauseBtn.textContent = pauseRequested ? 'Resume' : 'Pause';
+}
+function togglePauseUI(){ togglePause(); }
+pauseBtn.addEventListener('click', ()=> togglePauseUI());
+stopBtn.addEventListener('click', ()=> { stopRequested = true; });
+
+/* start button */
+startBtn.addEventListener('click', async ()=>{
+  if (!originalBitmap) { alert('Load an image first'); return; }
+  const opts = {
+    iterations: Number(iterationsInput.value),
+    quality: Number(qualityInput.value),
+    applyCompression: applyCompression.checked,
+    codec: codecSel.value
+  };
+  degradeLoop(opts);
+});
+
+/* helper to set compare baseline to original (on load) */
+(function setupInitialCompareOpacity(){
+  compareCanvas.style.opacity = 1;
+})();
+
+/* copy final/initial canvas onto compare canvas as baseline when images change (already done in loadFile) */
+
+/* initial GPU detection display */
+(function detectGPU(){
+  try {
+    const testCanvas = document.createElement('canvas');
+    const g = createGL(testCanvas);
+    if (g) {
+      gpuStatus.textContent = 'GPU: available (' + glType + ')';
+      // set glMode select default
+      glModeSel.value = glType;
+    } else {
+      gpuStatus.textContent = 'GPU: unavailable';
+    }
+  } catch (e){
+    gpuStatus.textContent = 'GPU: unavailable';
+  }
+})();
+
+/* expose small API for debug in console */
+window._degrader = {
+  loadFile,
+  degradeLoop,
+  stop: ()=> stopRequested = true,
+  pause: ()=> { pauseRequested = true; pauseBtn.textContent = 'Resume'; },
+  resume: ()=> { pauseRequested = false; pauseBtn.textContent = 'Pause'; }
+};
+</script>
+</body>
+</html>

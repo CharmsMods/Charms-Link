@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Glitch Compressor — CPU / GPU</title>
+<style>
+  :root{--bg:#0b0b0b;--fg:#e6e6e6;--muted:#9aa;--accent:#4fe;}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:var(--bg);color:var(--fg)}
+  .wrap{display:flex;gap:16px;padding:16px;box-sizing:border-box;height:100%}
+  .controls{width:360px;padding:12px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border:1px solid rgba(255,255,255,0.04);overflow:auto}
+  label{display:block;font-size:13px;color:var(--muted);margin-top:10px}
+  .row{display:flex;gap:8px;align-items:center}
+  input[type=range]{width:100%}
+  button{margin-top:10px;padding:8px 10px;border-radius:6px;border:0;background:var(--accent);color:#000;font-weight:600;cursor:pointer}
+  .small{font-size:12px;color:var(--muted)}
+  .canvasWrap{flex:1;display:flex;flex-direction:column;align-items:center}
+  canvas{border-radius:6px;background:#111;max-width:100%;height:auto}
+  .presetBtn{padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:var(--fg);cursor:pointer}
+  .modeToggle{display:flex;gap:8px;align-items:center;margin-top:6px}
+  .adv{margin-top:8px;border-top:1px dashed rgba(255,255,255,0.03);padding-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="controls" id="controls">
+    <div class="row">
+      <input id="fileIn" type="file" accept="image/*">
+      <button id="resetBtn" class="small">Reset</button>
+    </div>
+
+    <label>Render mode</label>
+    <div class="modeToggle small">
+      <label><input type="radio" name="mode" value="gpu" checked> GPU (WebGL)</label>
+      <label><input type="radio" name="mode" value="cpu"> CPU (Canvas2D)</label>
+    </div>
+
+    <label>Preset</label>
+    <div class="row">
+      <button class="presetBtn" data-preset="subtle">Subtle</button>
+      <button class="presetBtn" data-preset="medium">Medium</button>
+      <button class="presetBtn" data-preset="extreme">Extreme</button>
+      <button class="presetBtn" data-preset="random">Random</button>
+    </div>
+
+    <label>Iterations <span id="iterVal" class="small">6</span></label>
+    <input id="iterations" type="range" min="1" max="60" value="6">
+
+    <label>Auto mode <span class="small">(applies chosen preset automatically per iteration)</span></label>
+    <div class="row small">
+      <label><input id="autoParams" type="checkbox"> Auto-adjust per iteration</label>
+    </div>
+
+    <div class="adv">
+      <label>JPEG Quality (for recompress)</label>
+      <input id="quality" type="range" min="0.05" max="1" step="0.01" value="0.35">
+      <div class="row small" style="justify-content:space-between"><span>Recompress</span><label><input id="doRecompress" type="checkbox" checked></label></div>
+
+      <label>Byte-corrupt intensity (%) <span id="bcVal" class="small">2</span></label>
+      <input id="byteCorrupt" type="range" min="0" max="20" value="2">
+
+      <label>Pixel-sort threshold <span id="psVal" class="small">128</span></label>
+      <input id="pixelsortThresh" type="range" min="0" max="255" value="128">
+
+      <label>Channel shift (px) <span id="chVal" class="small">6</span></label>
+      <input id="chanShift" type="range" min="0" max="60" value="6">
+
+      <label>Row shift probability (%) <span id="rsVal" class="small">8</span></label>
+      <input id="rowShiftProb" type="range" min="0" max="100" value="8">
+
+      <label>Noise (%) <span id="nVal" class="small">1.5</span></label>
+      <input id="noise" type="range" min="0" max="20" step="0.1" value="1.5">
+
+      <div class="row" style="margin-top:8px">
+        <label class="small"><input id="doPixelSort" type="checkbox" checked> Pixel-sort</label>
+        <label class="small"><input id="doChanShift" type="checkbox" checked> Channel</label>
+        <label class="small"><input id="doRowShift" type="checkbox" checked> Row</label>
+        <label class="small"><input id="doNoise" type="checkbox" checked> Noise</label>
+      </div>
+    </div>
+
+    <div style="margin-top:10px">
+      <button id="runBtn">Run Iterations</button>
+      <button id="autoStopBtn" class="small">Run until visible</button>
+    </div>
+
+    <div style="margin-top:12px">
+      <button id="downloadBtn">Download PNG</button>
+      <button id="downloadJpgBtn">Download JPEG</button>
+    </div>
+
+    <div style="margin-top:10px" class="small" id="log">No image loaded.</div>
+  </div>
+
+  <div class="canvasWrap">
+    <canvas id="canvas"></canvas>
+    <div class="small" style="margin-top:8px">Tip: drag an image onto the page</div>
+  </div>
+</div>
+
+<script>
+/* — Overview —
+ Single-file tool with two render pipelines:
+  - GPU (WebGL) shader pipeline for fast, repeatable effects (channel shift, noise, row distort)
+  - CPU (Canvas2D) fallback implementing pixel-sort and blob-based byte corruption & recompress
+ UI: minimal preset system that still allows full control via advanced sliders.
+*/
+
+const fileIn = document.getElementById('fileIn');
+const canvas = document.getElementById('canvas');
+let ctx2d = canvas.getContext('2d',{willReadFrequently:true});
+let gl = null;
+let originalImage = null;
+let currentBlob = null;
+const log = document.getElementById('log');
+
+const UI = {
+  iterations: document.getElementById('iterations'),
+  iterVal: document.getElementById('iterVal'),
+  quality: document.getElementById('quality'),
+  byteCorrupt: document.getElementById('byteCorrupt'),
+  bcVal: document.getElementById('bcVal'),
+  pixelsortThresh: document.getElementById('pixelsortThresh'),
+  psVal: document.getElementById('psVal'),
+  chanShift: document.getElementById('chanShift'),
+  chVal: document.getElementById('chVal'),
+  rowShiftProb: document.getElementById('rowShiftProb'),
+  rsVal: document.getElementById('rsVal'),
+  noise: document.getElementById('noise'),
+  nVal: document.getElementById('nVal'),
+  modeRadios: document.getElementsByName('mode'),
+  autoParams: document.getElementById('autoParams'),
+  doRecompress: document.getElementById('doRecompress'),
+  doPixelSort: document.getElementById('doPixelSort'),
+  doChanShift: document.getElementById('doChanShift'),
+  doRowShift: document.getElementById('doRowShift'),
+  doNoise: document.getElementById('doNoise'),
+  runBtn: document.getElementById('runBtn'),
+  autoStopBtn: document.getElementById('autoStopBtn'),
+  downloadBtn: document.getElementById('downloadBtn'),
+  downloadJpgBtn: document.getElementById('downloadJpgBtn')
+};
+
+function updateDisplays(){
+  UI.iterVal.textContent = UI.iterations.value;
+  UI.bcVal.textContent = UI.byteCorrupt.value;
+  UI.psVal.textContent = UI.pixelsortThresh.value;
+  UI.chVal.textContent = UI.chanShift.value;
+  UI.rsVal.textContent = UI.rowShiftProb.value;
+  UI.nVal.textContent = UI.noise.value;
+}
+document.querySelectorAll('input[type=range]').forEach(r=>r.addEventListener('input', updateDisplays));
+updateDisplays();
+
+/* — Presets — */
+const presets = {
+  subtle: {iterations:6, quality:0.6, byteCorrupt:0.6, pixelsort:60, chanShift:3, rowProb:4, noise:0.8},
+  medium: {iterations:12, quality:0.4, byteCorrupt:2, pixelsort:128, chanShift:6, rowProb:8, noise:1.6},
+  extreme: {iterations:30, quality:0.18, byteCorrupt:6, pixelsort:180, chanShift:18, rowProb:28, noise:4},
+  random(){ return {iterations: Math.floor(4+Math.random()*40), quality: +(0.08 + Math.random()*0.8).toFixed(2),
+    byteCorrupt: +(Math.random()*12).toFixed(2),
+    pixelsort: Math.floor(Math.random()*255),
+    chanShift: Math.floor(Math.random()*40),
+    rowProb: +(Math.random()*50).toFixed(2),
+    noise: +(Math.random()*8).toFixed(2)
+  };}
+};
+
+document.querySelectorAll('.presetBtn').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    const p = b.dataset.preset;
+    const set = p==='random' ? presets.random() : presets[p];
+    UI.iterations.value = set.iterations;
+    UI.quality.value = set.quality;
+    UI.byteCorrupt.value = set.byteCorrupt;
+    UI.pixelsortThresh.value = set.pixelsort;
+    UI.chanShift.value = set.chanShift;
+    UI.rowShiftProb.value = set.rowProb;
+    UI.noise.value = set.noise;
+    updateDisplays();
+  });
+});
+
+/* — Image loading & canvas sizing — */
+fileIn.addEventListener('change', e=>{ loadFile(e.target.files[0]); });
+document.body.addEventListener('drop', e=>{ e.preventDefault(); const f = e.dataTransfer.files && e.dataTransfer.files[0]; if(f) loadFile(f); });
+document.body.addEventListener('dragover', e=>e.preventDefault());
+
+function fitCanvasToImage(w,h){
+  const maxW = window.innerWidth - 420;
+  const scale = Math.min(1, maxW / w);
+  canvas.width = Math.round(w * scale);
+  canvas.height = Math.round(h * scale);
+  // re-get contexts when size changes
+  ctx2d = canvas.getContext('2d',{willReadFrequently:true});
+  if(gl) {
+    // nothing to recreate for gl here; we'll get rendering framebuffer when needed
+  }
+}
+
+async function loadFile(file){
+  if(!file) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  await new Promise(r=>{ img.onload = r; img.src = url; });
+  originalImage = img;
+  fitCanvasToImage(img.width, img.height);
+  ctx2d.drawImage(img,0,0,canvas.width,canvas.height);
+  currentBlob = null;
+  log.textContent = `Loaded ${file.name} — ${canvas.width}×${canvas.height}`;
+  // init gl lazily
+}
+
+/* — Utility: blob/array buffer helpers — */
+function canvasToBlob(canvasEl, mime='image/jpeg', quality=0.5){
+  return new Promise(res=>canvasEl.toBlob(b=>res(b), mime, quality));
+}
+function blobToArrayBuffer(blob){ return blob.arrayBuffer(); }
+function arrayBufferToBlob(buf, mime='image/jpeg'){ return new Blob([buf], {type:mime}); }
+async function blobToImage(blob){
+  const url = URL.createObjectURL(blob);
+  const i = new Image();
+  await new Promise(r=>{ i.onload = r; i.src = url; });
+  return i;
+}
+
+/* — Byte-corrupt (safe): flip some bytes after a safe offset — */
+async function doByteCorrupt(blob, intensityPercent=1.0){
+  try{
+    const buf = new Uint8Array(await blobToArrayBuffer(blob));
+    const len = buf.length;
+    const start = Math.min(2000, Math.floor(len*0.02));
+    const corruptBytes = Math.max(1, Math.floor((intensityPercent/100) * len));
+    for(let i=0;i<corruptBytes;i++){
+      const idx = start + Math.floor(Math.random()*(len-start));
+      buf[idx] = (buf[idx] ^ (Math.floor(Math.random()*256)));
+    }
+    const newBlob = arrayBufferToBlob(buf.buffer, blob.type || 'image/jpeg');
+    // try to load; if fails return original
+    try{
+      await blobToImage(newBlob);
+      return newBlob;
+    }catch(e){
+      return blob;
+    }
+  }catch(e){
+    return blob;
+  }
+}
+
+/* — CPU pipeline: pixel-sort, channel shift, row shifts, noise — */
+function cpuPixelSort(threshold=128){
+  const w = canvas.width, h = canvas.height;
+  const id = ctx2d.getImageData(0,0,w,h);
+  const data = id.data;
+  for(let y=0;y<h;y++){
+    let x=0;
+    while(x<w){
+      const idx = (y*w+x)*4;
+      const bright = (data[idx]+data[idx+1]+data[idx+2])/3;
+      if(bright > threshold){
+        let sx = x;
+        while(x<w){
+          const i2 = (y*w+x)*4;
+          const b2 = (data[i2]+data[i2+1]+data[i2+2])/3;
+          if(b2 <= threshold) break;
+          x++;
+        }
+        const ex = x;
+        const arr = [];
+        for(let xx=sx; xx<ex; xx++){
+          const i3=(y*w+xx)*4;
+          arr.push([data[i3],data[i3+1],data[i3+2],data[i3+3]]);
+        }
+        arr.sort((a,b)=> (a[0]+a[1]+a[2]) - (b[0]+b[1]+b[2]));
+        let p=0;
+        for(let xx=sx; xx<ex; xx++){
+          const i4=(y*w+xx)*4;
+          const px = arr[p++];
+          data[i4]=px[0]; data[i4+1]=px[1]; data[i4+2]=px[2]; data[i4+3]=px[3];
+        }
+      } else x++;
+    }
+  }
+  ctx2d.putImageData(id,0,0);
+}
+
+function cpuChannelShift(offset=6){
+  const w = canvas.width, h = canvas.height;
+  const src = ctx2d.getImageData(0,0,w,h);
+  const dst = ctx2d.createImageData(w,h);
+  const s = src.data, d = dst.data;
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i=(y*w+x)*4;
+      const xr = Math.min(w-1, Math.max(0, x - offset));
+      const xb = Math.min(w-1, Math.max(0, x + offset));
+      const ir=(y*w+xr)*4, ib=(y*w+xb)*4;
+      d[i] = s[ir]; d[i+1] = s[i+1]; d[i+2] = s[ib+2]; d[i+3]=s[i+3];
+    }
+  }
+  ctx2d.putImageData(dst,0,0);
+}
+
+function cpuRowShifts(prob=8){
+  const w=canvas.width,h=canvas.height;
+  const id = ctx2d.getImageData(0,0,w,h);
+  const data = id.data;
+  for(let y=0;y<h;y++){
+    if(Math.random()*100 < prob){
+      const shift = Math.floor((Math.random()*0.5 + 0.1) * w * (Math.random()<0.5 ? -1:1) * 0.2);
+      const row = new Uint8ClampedArray(data.slice(y*w*4, y*w*4 + w*4));
+      for(let x=0;x<w;x++){
+        let sx = (x - shift) | 0;
+        if(sx < 0) sx = (sx + w) % w;
+        if(sx >= w) sx = sx % w;
+        const si = sx*4;
+        const di = (y*w+x)*4;
+        data[di]=row[si]; data[di+1]=row[si+1]; data[di+2]=row[si+2]; data[di+3]=row[si+3];
+      }
+    }
+  }
+  ctx2d.putImageData(id,0,0);
+}
+
+function cpuNoise(pct=1.0){
+  const w=canvas.width,h=canvas.height;
+  const id=ctx2d.getImageData(0,0,w,h);
+  const data=id.data;
+  const total=w*h;
+  const count=Math.floor(total*(pct/100));
+  for(let i=0;i<count;i++){
+    const x=Math.floor(Math.random()*w), y=Math.floor(Math.random()*h);
+    const idx=(y*w+x)*4;
+    if(Math.random()<0.5){
+      const v=Math.random()<0.5?0:255;
+      data[idx]=data[idx+1]=data[idx+2]=v;
+    } else {
+      data[idx]=Math.floor(Math.random()*256);
+      data[idx+1]=Math.floor(Math.random()*256);
+      data[idx+2]=Math.floor(Math.random()*256);
+    }
+  }
+  ctx2d.putImageData(id,0,0);
+}
+
+/* — GPU pipeline — simple shader pass that supports channel offsets, row distortion, noise.
+   Render to canvas via WebGL. For simplicity we apply effects in a single shader pass each iteration.
+*/
+function ensureGL(){
+  if(gl) return gl;
+  gl = canvas.getContext('webgl', {preserveDrawingBuffer:true});
+  if(!gl){ log.textContent = 'WebGL not available — switching to CPU mode'; return null; }
+  // compile standard passthrough vertex shader and fragment shader template (we will set uniforms)
+  const vsSrc = `
+    attribute vec2 a_pos;
+    varying vec2 v_uv;
+    void main(){ v_uv = (a_pos+1.0)*0.5; gl_Position = vec4(a_pos,0.0,1.0); }
+  `;
+  const fsSrc = `
+    precision mediump float;
+    uniform sampler2D u_tex;
+    uniform float u_chanOffset;
+    uniform float u_rowAmp;
+    uniform float u_rowFreq;
+    uniform float u_noise;
+    uniform float u_time;
+    varying vec2 v_uv;
+    // random hash
+    float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+    void main(){
+      vec2 uv = v_uv;
+      // row distortion: shift x by sin of y
+      float row = uv.y;
+      float shift = sin(row * u_rowFreq + u_time) * u_rowAmp;
+      // sample three channels with offsets
+      float w = 1.0/float(${Math.max(1, 512)});
+      vec2 ro = vec2(shift * u_chanOffset, 0.0);
+      vec4 cr = texture2D(u_tex, uv - ro);
+      vec4 cg = texture2D(u_tex, uv);
+      vec4 cb = texture2D(u_tex, uv + ro);
+      vec3 col = vec3(cr.r, cg.g, cb.b);
+      // noise
+      float n = (hash(uv + u_time) - 0.5) * u_noise;
+      col += n;
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+  // compile
+  function compile(type, src){
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(s));
+      return null;
+    }
+    return s;
+  }
+  const vs = compile(gl.VERTEX_SHADER, vsSrc);
+  const fs = compile(gl.FRAGMENT_SHADER, fsSrc);
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs); gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){ console.error(gl.getProgramInfoLog(prog)); gl = null; return null; }
+  gl.useProgram(prog);
+  gl.program = prog;
+  // full screen quad
+  const posLoc = gl.getAttribLocation(prog, 'a_pos');
+  const buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(posLoc);
+  gl.vertexAttribPointer(posLoc,2,gl.FLOAT,false,0,0);
+  // get uniform locations
+  prog.u_tex = gl.getUniformLocation(prog,'u_tex');
+  prog.u_chanOffset = gl.getUniformLocation(prog,'u_chanOffset');
+  prog.u_rowAmp = gl.getUniformLocation(prog,'u_rowAmp');
+  prog.u_rowFreq = gl.getUniformLocation(prog,'u_rowFreq');
+  prog.u_noise = gl.getUniformLocation(prog,'u_noise');
+  prog.u_time = gl.getUniformLocation(prog,'u_time');
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+  // create texture
+  prog.tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, prog.tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  return gl;
+}
+
+function uploadToGL(imgOrCanvas){
+  ensureGL();
+  const prog = gl.program;
+  gl.viewport(0,0,canvas.width, canvas.height);
+  gl.bindTexture(gl.TEXTURE_2D, prog.tex);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE, imgOrCanvas);
+}
+
+function glRender(params){
+  ensureGL();
+  const prog = gl.program;
+  gl.useProgram(prog);
+  gl.uniform1i(prog.u_tex, 0);
+  gl.uniform1f(prog.u_chanOffset, params.chanShift/Math.max(1,canvas.width));
+  gl.uniform1f(prog.u_rowAmp, params.rowAmp);
+  gl.uniform1f(prog.u_rowFreq, params.rowFreq);
+  gl.uniform1f(prog.u_noise, params.noise*0.02);
+  gl.uniform1f(prog.u_time, params.time || 0.0);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+}
+
+/* — Main iteration runner — */
+function getMode(){ for(const r of UI.modeRadios) if(r.checked) return r.value; return 'gpu'; }
+
+async function runIterations(){
+  if(!originalImage){ log.textContent = 'Load an image first.'; return; }
+  const mode = getMode();
+  let iters = parseInt(UI.iterations.value,10);
+  const doRecompress = UI.doRecompress.checked;
+  const autoParams = UI.autoParams.checked;
+
+  // start from original each run (makes behavior deterministic)
+  ctx2d.drawImage(originalImage,0,0,canvas.width,canvas.height);
+  currentBlob = null;
+
+  for(let i=0;i<iters;i++){
+    log.textContent = `Iteration ${i+1}/${iters} — mode ${mode.toUpperCase()}`;
+    // dynamic param scaling if auto
+    const scale = autoParams ? (1 + i*0.02) : 1.0;
+    // read UI params
+    const params = {
+      pixelsort: parseInt(UI.pixelsortThresh.value,10),
+      chanShift: Math.round(parseInt(UI.chanShift.value,10) * scale),
+      rowProb: parseFloat(UI.rowShiftProb.value),
+      noise: parseFloat(UI.noise.value) * scale,
+      byteCorrupt: parseFloat(UI.byteCorrupt.value) * scale,
+      quality: parseFloat(UI.quality.value),
+      // shader specifics
+      rowAmp: Math.min(0.08, (parseFloat(UI.rowShiftProb.value)/100) * 0.04 * scale),
+      rowFreq: 10.0 + Math.random()*20.0,
+      time: i * 0.9 + Math.random()
+    };
+
+    if(mode === 'gpu'){
+      // ensure gl and upload
+      if(!ensureGL()){ // fallback to cpu
+        await cpuPass(params);
+      } else {
+        uploadToGL(canvas);
+        // run shader pass
+        glRender(params);
+        // read back (no need to readPixels unless we want a blob)
+        // copy gl to canvas is already the canvas drawing
+      }
+    } else {
+      await cpuPass(params);
+    }
+
+    // recompress (JPEG) to intensify artifacts if selected
+    if(doRecompress){
+      currentBlob = await canvasToBlob(canvas,'image/jpeg', params.quality);
+      // draw back the compressed blob to canvas for next pass
+      try{
+        const imgEl = await blobToImage(currentBlob);
+        ctx2d.clearRect(0,0,canvas.width,canvas.height);
+        ctx2d.drawImage(imgEl,0,0,canvas.width,canvas.height);
+      }catch(e){
+        // if compressed blob unreadable, ignore
+      }
+    } else {
+      currentBlob = await canvasToBlob(canvas,'image/png',1.0);
+    }
+
+    // byte-corrupt last blob (safe)
+    if(parseFloat(params.byteCorrupt) > 0.001){
+      currentBlob = await doByteCorrupt(currentBlob, params.byteCorrupt);
+      // draw back
+      try{
+        const imgEl = await blobToImage(currentBlob);
+        ctx2d.clearRect(0,0,canvas.width,canvas.height);
+        ctx2d.drawImage(imgEl,0,0,canvas.width,canvas.height);
+      }catch(e){}
+    }
+
+    // additional CPU-only effects that are hard to do in shader: pixel-sort & row shifts & noise stronger
+    if(mode === 'cpu' || UI.doPixelSort.checked){
+      if(UI.doPixelSort.checked) cpuPixelSort(params.pixelsort);
+      if(UI.doChanShift.checked) cpuChannelShift(params.chanShift);
+      if(UI.doRowShift.checked) cpuRowShifts(params.rowProb);
+      if(UI.doNoise.checked) cpuNoise(params.noise);
+    } else {
+      // when in GPU mode, optionally perform heavier CPU row shifts/pixelsort if toggled on
+      if(UI.doRowShift.checked) cpuRowShifts(params.rowProb * 0.2);
+      if(UI.doPixelSort.checked) cpuPixelSort(Math.round(params.pixelsort * 0.85));
+    }
+    // small delay to keep UI responsive
+    await new Promise(r=>setTimeout(r,30));
+  }
+
+  log.textContent = `Done. Last size: ${currentBlob ? Math.round((currentBlob.size||0)/1024) + ' KB' : 'N/A'}`;
+}
+
+/* CPU pass wrapper (used by runIterations) */
+async function cpuPass(params){
+  // apply operations directly on canvas
+  if(UI.doPixelSort.checked) cpuPixelSort(params.pixelsort);
+  if(UI.doChanShift.checked) cpuChannelShift(params.chanShift);
+  if(UI.doRowShift.checked) cpuRowShifts(params.rowProb);
+  if(UI.doNoise.checked) cpuNoise(params.noise);
+}
+
+/* — Auto stop: run until visible difference (simple mean difference) — */
+async function autoStopRun(){
+  if(!originalImage){ log.textContent = 'Load an image first.'; return; }
+  const maxIters = 120;
+  const threshold = 12; // mean per-channel difference
+  // capture original pixels
+  ctx2d.drawImage(originalImage,0,0,canvas.width,canvas.height);
+  const orig = ctx2d.getImageData(0,0,canvas.width,canvas.height).data.slice ? ctx2d.getImageData(0,0,canvas.width,canvas.height).data : null;
+  for(let i=0;i<maxIters;i++){
+    await runIterationsOnce();
+    const cur = ctx2d.getImageData(0,0,canvas.width,canvas.height).data;
+    let sum=0, count=0;
+    for(let p=0;p<cur.length; p+=64){ // sample only
+      const a = orig[p]||0, b = cur[p]||0;
+      sum += Math.abs(a-b);
+      count++;
+    }
+    const mean = sum / Math.max(1,count);
+    log.textContent = `Auto iter ${i+1}, mean diff ${mean.toFixed(2)}`;
+    if(mean > threshold) { log.textContent = `Auto-stopped at iter ${i+1} (mean ${mean.toFixed(2)})`; break; }
+  }
+
+  async function runIterationsOnce(){
+    // run a single iteration using current UI settings but from current canvas
+    const prevIters = UI.iterations.value;
+    UI.iterations.value = 1;
+    updateDisplays();
+    await runIterations();
+    UI.iterations.value = prevIters;
+    updateDisplays();
+  }
+}
+
+/* — Downloads — */
+UI.downloadBtn.addEventListener('click', ()=>{
+  const a = document.createElement('a');
+  a.download = 'glitched.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+});
+UI.downloadJpgBtn.addEventListener('click', ()=>{
+  const q = UI.quality.value;
+  const a = document.createElement('a');
+  a.download = 'glitched.jpg';
+  a.href = canvas.toDataURL('image/jpeg', q);
+  a.click();
+});
+
+/* — Bind UI actions — */
+UI.runBtn.addEventListener('click', runIterations);
+UI.autoStopBtn.addEventListener('click', autoStopRun);
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  if(!originalImage) return;
+  ctx2d.clearRect(0,0,canvas.width,canvas.height);
+  ctx2d.drawImage(originalImage,0,0,canvas.width,canvas.height);
+  currentBlob = null;
+  log.textContent = 'Reset to original.';
+});
+document.getElementById('fileIn').addEventListener('change', ()=>{});
+window.addEventListener('resize', ()=>{ if(originalImage) fitCanvasToImage(originalImage.width, originalImage.height); });
+
+/* — helper to expose mode radio changes to re-init contexts — */
+document.querySelectorAll('input[name=mode]').forEach(r=>r.addEventListener('change', ()=>{
+  if(getMode() === 'gpu') ensureGL();
+}));
+
+// initial WebGL init attempt
+ensureGL();
+</script>
+</body>
+</html>

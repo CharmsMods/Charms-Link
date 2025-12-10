@@ -1,0 +1,851 @@
+<!-- filename: index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Iterative Image Degrader</title>
+<style>
+  :root{
+    --coffee-dark: #2B1810;
+    --coffee-medium: #4A2C1A;
+    --coffee-light: #8B6F47;
+    --cream: #E8DCC4;
+    --tan: #C9A87C;
+    --gap:16px;
+    font-family: 'Courier New', Courier, monospace;
+  }
+  * { box-sizing: border-box; }
+  body{
+    margin:0;
+    padding:32px;
+    background: var(--cream);
+    color: var(--coffee-dark);
+    min-height:100vh;
+  }
+  h1{
+    font-size:42px;
+    font-weight:900;
+    margin:0 0 8px 0;
+    text-transform:uppercase;
+    letter-spacing:-1px;
+    line-height:1;
+  }
+  .subtitle{
+    font-size:14px;
+    margin:0 0 32px 0;
+    opacity:0.7;
+    text-transform:uppercase;
+    letter-spacing:2px;
+  }
+  .controls{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+    gap:var(--gap);
+    margin-bottom:24px;
+    background: var(--coffee-dark);
+    padding:24px;
+    border:4px solid var(--coffee-dark);
+  }
+  label{
+    display:flex;
+    flex-direction:column;
+    font-size:11px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color: var(--cream);
+  }
+  input[type="file"],
+  input[type="number"],
+  input[type="checkbox"],
+  select,
+  textarea{
+    margin-top:8px;
+    padding:10px;
+    border:3px solid var(--coffee-medium);
+    background: var(--cream);
+    color: var(--coffee-dark);
+    font-family: inherit;
+    font-size:14px;
+    font-weight:700;
+  }
+  input[type="file"]{
+    padding:8px;
+    cursor:pointer;
+  }
+  input[type="number"]:focus,
+  select:focus,
+  textarea:focus{
+    outline:none;
+    border-color: var(--tan);
+  }
+  .image-viewers{
+    display:flex;
+    gap:var(--gap);
+    margin:24px 0;
+  }
+  canvas{
+    background: var(--coffee-medium);
+    max-width:50%;
+    max-height:calc(100vh - 400px);
+    height:auto;
+    border:6px solid var(--coffee-dark);
+    display:block;
+    object-fit:contain;
+  }
+  .action-bar{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-bottom:24px;
+  }
+  button{
+    padding:14px 28px;
+    border:4px solid var(--coffee-dark);
+    background: var(--tan);
+    color: var(--coffee-dark);
+    font-family: inherit;
+    font-size:13px;
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    cursor:pointer;
+    transition: all 0.15s ease;
+  }
+  button:hover:not(:disabled){
+    background: var(--coffee-dark);
+    color: var(--cream);
+    transform:translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--coffee-medium);
+  }
+  button:active:not(:disabled){
+    transform:translate(0, 0);
+    box-shadow: none;
+  }
+  button:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+  }
+  #download, .batch-download{
+    padding:14px 28px;
+    border:4px solid var(--coffee-dark);
+    background: var(--coffee-light);
+    color: var(--cream);
+    text-decoration:none;
+    font-family: inherit;
+    font-size:13px;
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    transition: all 0.15s ease;
+    display:inline-block;
+  }
+  #download:hover, .batch-download:hover{
+    background: var(--coffee-dark);
+    transform:translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--coffee-medium);
+  }
+  #status{
+    font-size:13px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    padding:14px 20px;
+    background: var(--coffee-medium);
+    color: var(--cream);
+    border:3px solid var(--coffee-dark);
+  }
+  #progress{
+    width:200px;
+    height:20px;
+  }
+  #warning, #file_size, #processing_time{
+    font-size:13px;
+    color: var(--coffee-medium);
+  }
+  #downloads{
+    margin-top:16px;
+  }
+</style>
+</head>
+<body>
+<h1>Image Degrader</h1>
+<p class="subtitle">Iterative Compression Tool</p>
+
+<div class="controls">
+  <label title="Upload one or more images to degrade">Image Upload<input id="file" type="file" accept="image/*" multiple></label>
+  <label title="Number of degradation iterations">Iterations<input id="iterations" type="number" min="1" max="200" value="5"></label>
+  <label title="JPEG/WebP quality factor (0-1)">Quality<input id="quality" type="number" step="0.01" min="0" max="1" value="0.6"></label>
+  <label title="Check to vary quality over iterations">Vary Quality<input id="vary_quality" type="checkbox"></label>
+  <label title="Starting quality if varying">Quality Start<input id="quality_start" type="number" step="0.01" min="0" max="1" value="0.6"></label>
+  <label title="Ending quality if varying">Quality End<input id="quality_end" type="number" step="0.01" min="0" max="1" value="0.3"></label>
+  <label title="Downscale factor per iteration">Downscale Factor<input id="downscale" type="number" step="0.1" min="1" max="4" value="1.5"></label>
+  <label title="Check to vary downscale over iterations">Vary Downscale<input id="vary_downscale" type="checkbox"></label>
+  <label title="Starting downscale if varying">Downscale Start<input id="downscale_start" type="number" step="0.1" min="1" max="4" value="1.5"></label>
+  <label title="Ending downscale if varying">Downscale End<input id="downscale_end" type="number" step="0.1" min="1" max="4" value="2.0"></label>
+  <label title="Noise intensity (0-1)">Noise<input id="noise" type="number" step="0.01" min="0" max="1" value="0.02"></label>
+  <label title="Check to vary noise over iterations">Vary Noise<input id="vary_noise" type="checkbox"></label>
+  <label title="Starting noise if varying">Noise Start<input id="noise_start" type="number" step="0.01" min="0" max="1" value="0.02"></label>
+  <label title="Ending noise if varying">Noise End<input id="noise_end" type="number" step="0.01" min="0" max="1" value="0.1"></label>
+  <label title="Number of colors for quantization (2-256, 256 for none)">Color Quantization<input id="colors" type="number" min="2" max="256" value="256"></label>
+  <label title="Dithering algorithm for quantization">Dithering Type<select id="dither"><option value="none">None</option><option value="floyd">Floyd-Steinberg</option><option value="atkinson">Atkinson</option></select></label>
+  <label title="Posterization levels per channel (1-32, 32 for none)">Posterize Levels<input id="posterize" type="number" step="1" min="1" max="32" value="32"></label>
+  <label title="Vignette effect strength (0-1)">Vignette Strength<input id="vignette" type="number" step="0.01" min="0" max="1" value="0"></label>
+  <label title="Lens distortion strength (0-1)">Lens Distortion<input id="distortion" type="number" step="0.01" min="0" max="1" value="0"></label>
+  <label title="Scanline effect strength (0-1)">Scanline Strength<input id="scanline" type="number" step="0.01" min="0" max="1" value="0"></label>
+  <label title="CRT curvature strength (0-1)">CRT Curvature<input id="crt" type="number" step="0.01" min="0" max="1" value="0"></label>
+  <label title="Chromatic aberration strength (0-1)">Chromatic Aberration<input id="aberration" type="number" step="0.01" min="0" max="1" value="0"></label>
+  <label title="Output image format">Output Format<select id="format"><option value="image/jpeg">JPEG</option><option value="image/webp">WebP</option><option value="image/png">PNG</option></select></label>
+  <label title="Crop to aspect ratio before processing">Aspect Ratio<select id="aspect"><option value="original">Original</option><option value="1:1">1:1</option><option value="4:3">4:3</option><option value="16:9">16:9</option></select></label>
+  <label title="Interpolation method for downscaling">Downscaling Interpolation<select id="interpolation"><option value="nearest">Nearest Neighbor</option><option value="bilinear">Bilinear</option></select></label>
+  <label title="5x4 color matrix, one row per line, space-separated">Color Matrix<textarea id="color_matrix" rows="5">1 0 0 0 0
+0 1 0 0 0
+0 0 1 0 0
+0 0 0 1 0
+0 0 0 0 0</textarea></label>
+  <label title="Delay in ms between iterations for glitch effects">Iteration Delay (ms)<input id="delay" type="number" min="0" value="0"></label>
+  <label title="Enable step-by-step mode (manual iteration)">Step Mode<input id="step_mode" type="checkbox"></label>
+  <label title="Select a preset to load parameters">Preset<select id="preset"><option value="">Custom</option><option value="vhs">VHS Effect</option><option value="lofi">Low-Fi Pixel Art</option></select></label>
+  <label title="Name for saving current preset">Preset Name<input id="preset_name" type="text"></label>
+</div>
+
+<div class="action-bar">
+  <button id="start">Start</button>
+  <button id="step" disabled>Step</button>
+  <button id="stop" disabled>Stop</button>
+  <button id="reset">Reset</button>
+  <button id="randomize">Randomize</button>
+  <button id="save_preset">Save Preset</button>
+  <a id="download" download="degraded.jpg">Download</a>
+  <progress id="progress" value="0" max="100"></progress>
+  <div id="status"></div>
+  <div id="warning"></div>
+  <div id="file_size"></div>
+  <div id="processing_time"></div>
+</div>
+
+<div class="image-viewers">
+  <canvas id="original_canvas"></canvas>
+  <canvas id="canvas"></canvas>
+</div>
+
+<div id="downloads"></div>
+
+<script>
+const fileInput = document.getElementById('file');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const originalCanvas = document.getElementById('original_canvas');
+const originalCtx = originalCanvas.getContext('2d', { willReadFrequently: true });
+const startBtn = document.getElementById('start');
+const stepBtn = document.getElementById('step');
+const stopBtn = document.getElementById('stop');
+const resetBtn = document.getElementById('reset');
+const randomizeBtn = document.getElementById('randomize');
+const savePresetBtn = document.getElementById('save_preset');
+const downloadLink = document.getElementById('download');
+const status = document.getElementById('status');
+const progress = document.getElementById('progress');
+const warning = document.getElementById('warning');
+const fileSize = document.getElementById('file_size');
+const processingTime = document.getElementById('processing_time');
+const downloads = document.getElementById('downloads');
+const presetSelect = document.getElementById('preset');
+const presetName = document.getElementById('preset_name');
+
+let stopRequested = false;
+let currentIteration = 0;
+let images = [];
+let worker;
+let presets = {
+  vhs: {
+    iterations: 10,
+    quality: 0.5,
+    downscale: 1.2,
+    noise: 0.05,
+    colors: 256,
+    dither: 'none',
+    posterize: 32,
+    vignette: 0.2,
+    distortion: 0.1,
+    scanline: 0.3,
+    crt: 0.15,
+    aberration: 0.2,
+    format: 'image/jpeg',
+    aspect: 'original',
+    interpolation: 'bilinear',
+    delay: 50,
+  },
+  lofi: {
+    iterations: 5,
+    quality: 0.7,
+    downscale: 2.0,
+    noise: 0.1,
+    colors: 64,
+    dither: 'floyd',
+    posterize: 8,
+    vignette: 0,
+    distortion: 0,
+    scanline: 0,
+    crt: 0,
+    aberration: 0,
+    format: 'image/png',
+    aspect: 'original',
+    interpolation: 'nearest',
+    delay: 0,
+  }
+};
+
+// Load saved presets from localStorage
+const savedPresets = JSON.parse(localStorage.getItem('presets') || '{}');
+Object.assign(presets, savedPresets);
+
+// Populate preset select
+for (const key in presets) {
+  const option = document.createElement('option');
+  option.value = key;
+  option.textContent = key;
+  presetSelect.appendChild(option);
+}
+
+presetSelect.addEventListener('change', () => {
+  const selected = presetSelect.value;
+  if (selected && presets[selected]) {
+    setParams(presets[selected]);
+  }
+});
+
+savePresetBtn.addEventListener('click', () => {
+  const name = presetName.value.trim();
+  if (name) {
+    const params = getParams();
+    presets[name] = params;
+    localStorage.setItem('presets', JSON.stringify(presets));
+    // Add to select if new
+    if (!Array.from(presetSelect.options).some(opt => opt.value === name)) {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      presetSelect.appendChild(option);
+    }
+    status.textContent = `Preset '${name}' saved`;
+  }
+});
+
+function setParams(params) {
+  for (const key in params) {
+    const el = document.getElementById(key);
+    if (el) {
+      if (el.type === 'checkbox') {
+        el.checked = params[key];
+      } else {
+        el.value = params[key];
+      }
+    }
+  }
+}
+
+resetBtn.addEventListener('click', () => {
+  // Set defaults
+  setParams({
+    iterations: 5,
+    quality: 0.6,
+    vary_quality: false,
+    quality_start: 0.6,
+    quality_end: 0.3,
+    downscale: 1.5,
+    vary_downscale: false,
+    downscale_start: 1.5,
+    downscale_end: 2.0,
+    noise: 0.02,
+    vary_noise: false,
+    noise_start: 0.02,
+    noise_end: 0.1,
+    colors: 256,
+    dither: 'none',
+    posterize: 32,
+    vignette: 0,
+    distortion: 0,
+    scanline: 0,
+    crt: 0,
+    aberration: 0,
+    format: 'image/jpeg',
+    aspect: 'original',
+    interpolation: 'bilinear',
+    color_matrix: '1 0 0 0 0\n0 1 0 0 0\n0 0 1 0 0\n0 0 0 1 0\n0 0 0 0 0',
+    delay: 0,
+    step_mode: false,
+  });
+  status.textContent = 'Settings reset';
+});
+
+randomizeBtn.addEventListener('click', () => {
+  document.querySelectorAll('.controls input[type="number"], .controls select').forEach(el => {
+    if (el.type === 'number') {
+      const min = parseFloat(el.min);
+      const max = parseFloat(el.max);
+      const step = parseFloat(el.step || 1);
+      const val = min + Math.round((Math.random() * (max - min)) / step) * step;
+      el.value = val;
+    } else if (el.tagName === 'SELECT') {
+      const opts = Array.from(el.options);
+      el.value = opts[Math.floor(Math.random() * opts.length)].value;
+    }
+  });
+  status.textContent = 'Settings randomized';
+});
+
+fileInput.addEventListener('change', async (e) => {
+  images = [];
+  downloads.innerHTML = '';
+  const files = Array.from(e.target.files);
+  for (const f of files) {
+    const bitmap = await createImageBitmap(f);
+    const maxSide = 2048;
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const w = Math.round(bitmap.width * scale);
+    const h = Math.round(bitmap.height * scale);
+    images.push({bitmap, name: f.name, w, h});
+  }
+  status.textContent = `${files.length} image(s) loaded`;
+  if (images.length > 0) {
+    loadImageToCanvases(0);
+  }
+});
+
+function loadImageToCanvases(index) {
+  const img = images[index];
+  canvas.width = img.w;
+  canvas.height = img.h;
+  originalCanvas.width = img.w;
+  originalCanvas.height = img.h;
+  ctx.drawImage(img.bitmap, 0, 0, img.w, img.h);
+  originalCtx.drawImage(img.bitmap, 0, 0, img.w, img.h);
+  canvas.toBlob(b => {
+    downloadLink.href = URL.createObjectURL(b);
+    downloadLink.download = 'degraded-start-' + img.name;
+  }, 'image/jpeg', 0.95);
+}
+
+function getExtension(mime) {
+  if (mime === 'image/jpeg') return 'jpg';
+  if (mime === 'image/webp') return 'webp';
+  if (mime === 'image/png') return 'png';
+  return 'jpg';
+}
+
+function parseColorMatrix(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length !== 5) return null;
+  const matrix = lines.map(line => line.trim().split(/\s+/).map(parseFloat));
+  if (matrix.some(row => row.length !== 5 || row.some(isNaN))) return null;
+  return matrix;
+}
+
+function getParams(i = 0, iterations = 1) {
+  const params = {
+    iterations: parseInt(document.getElementById('iterations').value, 10) || 1,
+    vary_quality: document.getElementById('vary_quality').checked,
+    quality_start: parseFloat(document.getElementById('quality_start').value) || 0.6,
+    quality_end: parseFloat(document.getElementById('quality_end').value) || 0.3,
+    vary_downscale: document.getElementById('vary_downscale').checked,
+    downscale_start: parseFloat(document.getElementById('downscale_start').value) || 1.5,
+    downscale_end: parseFloat(document.getElementById('downscale_end').value) || 2.0,
+    vary_noise: document.getElementById('vary_noise').checked,
+    noise_start: parseFloat(document.getElementById('noise_start').value) || 0.02,
+    noise_end: parseFloat(document.getElementById('noise_end').value) || 0.1,
+    colors: parseInt(document.getElementById('colors').value, 10) || 256,
+    dither: document.getElementById('dither').value,
+    posterize: parseInt(document.getElementById('posterize').value, 10) || 32,
+    vignette: parseFloat(document.getElementById('vignette').value) || 0,
+    distortion: parseFloat(document.getElementById('distortion').value) || 0,
+    scanline: parseFloat(document.getElementById('scanline').value) || 0,
+    crt: parseFloat(document.getElementById('crt').value) || 0,
+    aberration: parseFloat(document.getElementById('aberration').value) || 0,
+    mime: document.getElementById('format').value,
+    aspect: document.getElementById('aspect').value,
+    interpolation: document.getElementById('interpolation').value,
+    color_matrix: parseColorMatrix(document.getElementById('color_matrix').value),
+    delay: parseInt(document.getElementById('delay').value, 10) || 0,
+    step_mode: document.getElementById('step_mode').checked,
+  };
+  const frac = iterations > 1 ? i / (iterations - 1) : 0;
+  params.quality = params.vary_quality ? params.quality_start + (params.quality_end - params.quality_start) * frac : parseFloat(document.getElementById('quality').value) || 0.6;
+  params.downscale = params.vary_downscale ? params.downscale_start + (params.downscale_end - params.downscale_start) * frac : parseFloat(document.getElementById('downscale').value) || 1.5;
+  params.noise = params.vary_noise ? params.noise_start + (params.noise_end - params.noise_start) * frac : parseFloat(document.getElementById('noise').value) || 0.02;
+  return params;
+}
+
+function validateParams(params) {
+  if (isNaN(params.iterations) || params.iterations < 1 || params.iterations > 200) return false;
+  if (params.quality < 0 || params.quality > 1) return false;
+  // Add similar checks for all numerical params
+  return true;
+}
+
+async function cropToAspect() {
+  const aspect = document.getElementById('aspect').value;
+  if (aspect === 'original') return;
+  const [aw, ah] = aspect.split(':').map(Number);
+  const ratio = aw / ah;
+  const w = canvas.width;
+  const h = canvas.height;
+  const currRatio = w / h;
+  let sx = 0, sy = 0, sw = w, sh = h;
+  if (currRatio > ratio) {
+    sw = h * ratio;
+    sx = (w - sw) / 2;
+  } else {
+    sh = w / ratio;
+    sy = (h - sh) / 2;
+  }
+  const imageData = ctx.getImageData(sx, sy, sw, sh);
+  canvas.width = sw;
+  canvas.height = sh;
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function initWorker() {
+  const workerCode = `
+    self.onmessage = function(e) {
+      const {type, buffer, w, h, params} = e.data;
+      if (type === 'applyEffects') {
+        const data = new Uint8ClampedArray(buffer);
+        if (params.color_matrix) applyColorMatrix(data, w, h, params.color_matrix);
+        if (params.noise > 0) applyNoise(data, w, h, params.noise);
+        if (params.posterize < 32) applyPosterize(data, w, h, params.posterize);
+        if (params.colors < 256) applyQuantization(data, w, h, params.colors, params.dither);
+        if (params.vignette > 0) applyVignette(data, w, h, params.vignette);
+        if (params.aberration > 0) applyAberration(data, w, h, params.aberration);
+        if (params.scanline > 0) applyScanline(data, w, h, params.scanline);
+        if (params.distortion > 0) applyDistortion(data, w, h, params.distortion);
+        if (params.crt > 0) applyCrt(data, w, h, params.crt);
+        self.postMessage({buffer: data.buffer}, [data.buffer]);
+      }
+    };
+
+    function applyNoise(data, w, h, strength) {
+      for (let i = 0; i < data.length; i += 4) {
+        const r = (Math.random() * 2 - 1) * 255 * strength;
+        const g = (Math.random() * 2 - 1) * 255 * strength;
+        const b = (Math.random() * 2 - 1) * 255 * strength;
+        data[i] = Math.max(0, Math.min(255, data[i] + r));
+        data[i+1] = Math.max(0, Math.min(255, data[i+1] + g));
+        data[i+2] = Math.max(0, Math.min(255, data[i+2] + b));
+      }
+    }
+
+    function applyPosterize(data, w, h, levels) {
+      if (levels <= 1 || levels >= 32) return;
+      const step = 255 / (levels - 1);
+      for (let i = 0; i < data.length; i += 4) {
+        data[i] = Math.round(data[i] / step) * step;
+        data[i+1] = Math.round(data[i+1] / step) * step;
+        data[i+2] = Math.round(data[i+2] / step) * step;
+      }
+    }
+
+    function applyQuantization(data, w, h, colors, ditherType) {
+      const levels = Math.ceil(colors ** (1/3));
+      const step = 255 / (levels - 1);
+      if (ditherType === 'none') {
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.round(data[i] / step) * step;
+          data[i+1] = Math.round(data[i+1] / step) * step;
+          data[i+2] = Math.round(data[i+2] / step) * step;
+        }
+        return;
+      }
+      const coeffs = ditherType === 'floyd' ? {right: 7/16, belowLeft: 3/16, below: 5/16, belowRight: 1/16} : {right: 1/8, right2: 1/8, belowLeft: 1/8, below: 1/8, belowRight: 1/8, below2: 1/8};
+      for (let channel = 0; channel < 3; channel++) {
+        const errorRows = Array.from({length: 3}, () => new Float32Array(w).fill(0));
+        for (let y = 0; y < h; y++) {
+          const currError = errorRows[0];
+          const nextError = errorRows[1];
+          const next2Error = errorRows[2];
+          errorRows.push(currError); errorRows.shift();
+          currError.fill(0);
+          nextError.fill(0);
+          if (ditherType === 'atkinson') next2Error.fill(0);
+          for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4 + channel;
+            const old = data[i] + currError[x];
+            const newV = Math.round(old / step) * step;
+            data[i] = newV;
+            const err = old - newV;
+            if (x + 1 < w) currError[x + 1] += err * coeffs.right;
+            if (ditherType === 'floyd') {
+              if (x - 1 >= 0 && y + 1 < h) nextError[x - 1] += err * coeffs.belowLeft;
+              if (y + 1 < h) nextError[x] += err * coeffs.below;
+              if (x + 1 < w && y + 1 < h) nextError[x + 1] += err * coeffs.belowRight;
+            } else {
+              if (x + 2 < w) currError[x + 2] += err * coeffs.right2;
+              if (x - 1 >= 0 && y + 1 < h) nextError[x - 1] += err * coeffs.belowLeft;
+              if (y + 1 < h) nextError[x] += err * coeffs.below;
+              if (x + 1 < w && y + 1 < h) nextError[x + 1] += err * coeffs.belowRight;
+              if (y + 2 < h) next2Error[x] += err * coeffs.below2;
+            }
+          }
+          errorRows[0] = nextError;
+          errorRows[1] = ditherType === 'atkinson' ? next2Error : nextError;
+          errorRows[2] = currError; // cycle
+        }
+      }
+    }
+
+    function applyVignette(data, w, h, strength) {
+      const maxDist = Math.sqrt((w/2)**2 + (h/2)**2);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          const dx = x - w/2;
+          const dy = y - h/2;
+          const dist = Math.sqrt(dx*dx + dy*dy) / maxDist;
+          const vig = 1 - strength * dist * dist;
+          data[i] *= vig;
+          data[i+1] *= vig;
+          data[i+2] *= vig;
+        }
+      }
+    }
+
+    function applyDistortion(data, w, h, strength) {
+      const newData = new Uint8ClampedArray(data.length);
+      const k = strength * 0.5;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const nx = (x / w - 0.5) * 2;
+          const ny = (y / h - 0.5) * 2;
+          const r2 = nx*nx + ny*ny;
+          const nr = 1 + k * r2;
+          const sx = Math.floor((nr * nx / 2 + 0.5) * w);
+          const sy = Math.floor((nr * ny / 2 + 0.5) * h);
+          if (sx >= 0 && sx < w && sy >= 0 && sy < h) {
+            const si = (sy * w + sx) * 4;
+            const i = (y * w + x) * 4;
+            newData[i] = data[si];
+            newData[i+1] = data[si+1];
+            newData[i+2] = data[si+2];
+            newData[i+3] = data[si+3];
+          }
+        }
+      }
+      data.set(newData);
+    }
+
+    function applyCrt(data, w, h, strength) {
+      // Similar to distortion but pincushion or other
+      const newData = new Uint8ClampedArray(data.length);
+      const k = -strength * 0.3; // pincushion for CRT
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const nx = (x / w - 0.5) * 2;
+          const ny = (y / h - 0.5) * 2;
+          const r2 = nx*nx + ny*ny;
+          const nr = 1 + k * r2;
+          const sx = Math.floor((nr * nx / 2 + 0.5) * w);
+          const sy = Math.floor((nr * ny / 2 + 0.5) * h);
+          if (sx >= 0 && sx < w && sy >= 0 && sy < h) {
+            const si = (sy * w + sx) * 4;
+            const i = (y * w + x) * 4;
+            newData[i] = data[si];
+            newData[i+1] = data[si+1];
+            newData[i+2] = data[si+2];
+            newData[i+3] = data[si+3];
+          }
+        }
+      }
+      data.set(newData);
+    }
+
+    function applyAberration(data, w, h, amount) {
+      const offset = Math.round(amount * 10);
+      const newData = new Uint8ClampedArray(data.length);
+      newData.set(data);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          const rx = x + offset;
+          const bx = x - offset;
+          newData[i] = (rx < w) ? data[(y * w + rx) * 4] : 0;
+          newData[i+2] = (bx >= 0) ? data[(y * w + bx) * 4 + 2] : 0;
+        }
+      }
+      data.set(newData);
+    }
+
+    function applyScanline(data, w, h, strength) {
+      for (let y = 0; y < h; y++) {
+        const factor = (y % 2 === 0) ? 1 - strength : 1;
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          data[i] *= factor;
+          data[i+1] *= factor;
+          data[i+2] *= factor;
+        }
+      }
+    }
+
+    function applyColorMatrix(data, w, h, matrix) {
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          const r = data[i];
+          const g = data[i+1];
+          const b = data[i+2];
+          const a = data[i+3];
+          data[i] = Math.max(0, Math.min(255, matrix[0][0]*r + matrix[0][1]*g + matrix[0][2]*b + matrix[0][3]*a + matrix[0][4]*255));
+          data[i+1] = Math.max(0, Math.min(255, matrix[1][0]*r + matrix[1][1]*g + matrix[1][2]*b + matrix[1][3]*a + matrix[1][4]*255));
+          data[i+2] = Math.max(0, Math.min(255, matrix[2][0]*r + matrix[2][1]*g + matrix[2][2]*b + matrix[2][3]*a + matrix[2][4]*255));
+          data[i+3] = Math.max(0, Math.min(255, matrix[3][0]*r + matrix[3][1]*g + matrix[3][2]*b + matrix[3][3]*a + matrix[3][4]*255));
+          data[i+4] = Math.max(0, Math.min(255, matrix[4][0]*r + matrix[4][1]*g + matrix[4][2]*b + matrix[4][3]*a + matrix[4][4]*255));
+        }
+      }
+    }
+  `;
+  const blob = new Blob([workerCode], {type: 'application/javascript'});
+  worker = new Worker(URL.createObjectURL(blob));
+}
+
+initWorker();
+
+async function applyPixelEffects(params) {
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  return new Promise(resolve => {
+    worker.onmessage = e => {
+      const newData = new ImageData(new Uint8ClampedArray(e.data.buffer), canvas.width, canvas.height);
+      ctx.putImageData(newData, 0, 0);
+      resolve();
+    };
+    worker.postMessage({
+      type: 'applyEffects',
+      buffer: imageData.data.buffer,
+      w: canvas.width,
+      h: canvas.height,
+      params
+    }, [imageData.data.buffer]);
+  });
+}
+
+async function degradeOne(i, params, iterations, startTime) {
+  if (stopRequested) return null;
+  status.textContent = \`Iteration \${i+1}/\${iterations}\`;
+  progress.value = ((i + 1) / iterations) * 100;
+
+  if (params.downscale > 1) {
+    const w = Math.max(1, Math.round(canvas.width / params.downscale));
+    const h = Math.max(1, Math.round(canvas.height / params.downscale));
+    const tmp = document.createElement('canvas');
+    tmp.width = w;
+    tmp.height = h;
+    const tctx = tmp.getContext('2d');
+    tctx.drawImage(canvas, 0, 0, w, h);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = params.interpolation === 'nearest' ? false : true;
+    ctx.drawImage(tmp, 0, 0, canvas.width, canvas.height);
+  }
+
+  await applyPixelEffects(params);
+
+  let quality = params.quality;
+  if (params.mime === 'image/png') quality = undefined; // PNG ignores quality
+  const blob = await canvasToBlobAsync(params.mime, quality);
+  if (!blob) return null;
+  const bmp = await createImageBitmap(blob);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+
+  if (params.delay > 0) await new Promise(r => setTimeout(r, params.delay));
+
+  return blob;
+}
+
+async function degradeLoop(index) {
+  const img = images[index];
+  loadImageToCanvases(index);
+  await cropToAspect();
+  const paramsBase = getParams(0, 1); // for validation
+  if (!validateParams(paramsBase)) {
+    status.textContent = 'Invalid parameters';
+    return;
+  }
+  if (paramsBase.iterations > 50 || canvas.width * canvas.height > 4e6) {
+    warning.textContent = 'High settings detected';
+    if (!confirm('May be slow or freeze browser. Continue?')) return;
+  }
+  stopRequested = false;
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
+  stepBtn.disabled = !paramsBase.step_mode;
+  const startTime = performance.now();
+  currentIteration = 0;
+  progress.max = paramsBase.iterations;
+  progress.value = 0;
+  let finalBlob;
+  while (currentIteration < paramsBase.iterations && !stopRequested) {
+    const params = getParams(currentIteration, paramsBase.iterations);
+    finalBlob = await degradeOne(currentIteration, params, paramsBase.iterations, startTime);
+    if (finalBlob === null) break;
+    currentIteration++;
+    if (params.step_mode) {
+      startBtn.disabled = false;
+      break; // Wait for next step click
+    }
+    await new Promise(r => setTimeout(r, 8));
+  }
+  if (!stopRequested && finalBlob) {
+    const ext = getExtension(paramsBase.mime);
+    const name = \`degraded-i\${paramsBase.iterations}-q\${paramsBase.quality.toFixed(2)}-d\${paramsBase.downscale.toFixed(1)}-\${img.name.split('.')[0]}.\${ext}\`;
+    const url = URL.createObjectURL(finalBlob);
+    downloadLink.href = url;
+    downloadLink.download = name;
+    const a = document.createElement('a');
+    a.className = 'batch-download';
+    a.href = url;
+    a.download = name;
+    a.textContent = \`Download \${img.name}\`;
+    downloads.appendChild(a);
+    fileSize.textContent = \`File size: \${(finalBlob.size / 1024).toFixed(2)} KB\`;
+    processingTime.textContent = \`Time: \${((performance.now() - startTime) / 1000).toFixed(2)} s\`;
+    status.textContent = 'Done';
+  } else {
+    status.textContent = stopRequested ? 'Stopped' : 'Error';
+  }
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+  stepBtn.disabled = true;
+}
+
+async function processBatch() {
+  for (let index = 0; index < images.length; index++) {
+    await degradeLoop(index);
+    if (stopRequested) break;
+  }
+}
+
+startBtn.addEventListener('click', () => {
+  processBatch();
+});
+
+stepBtn.addEventListener('click', async () => {
+  if (currentIteration < parseInt(document.getElementById('iterations').value, 10)) {
+    const params = getParams(currentIteration, parseInt(document.getElementById('iterations').value, 10));
+    await degradeOne(currentIteration, params, parseInt(document.getElementById('iterations').value, 10));
+    currentIteration++;
+  } else {
+    stepBtn.disabled = true;
+  }
+});
+
+stopBtn.addEventListener('click', () => {
+  stopRequested = true;
+});
+
+async function canvasToBlobAsync(mime, quality) {
+  return new Promise(resolve => canvas.toBlob(resolve, mime, quality));
+}
+</script>
+</body>
+</html>

@@ -48,7 +48,7 @@ body::before {
     padding: 0;
     text-decoration: none;
     color: inherit;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.3s ease;
     overflow: hidden;
     aspect-ratio: 1;
     display: flex;
@@ -56,10 +56,21 @@ body::before {
     background-color: #1a1a1a;
     width: 100%;
     margin: 0;
+    opacity: 0;
+    animation: fadeInBounce 0.8s ease-out forwards;
+    will-change: transform, opacity;
 }
 
+/* Staggered animation delay for each box */
+.website-box:nth-child(1) { animation-delay: 0.1s; }
+.website-box:nth-child(2) { animation-delay: 0.2s; }
+.website-box:nth-child(3) { animation-delay: 0.3s; }
+.website-box:nth-child(4) { animation-delay: 0.4s; }
+.website-box:nth-child(5) { animation-delay: 0.5s; }
+.website-box:nth-child(6) { animation-delay: 0.6s; }
+
 .website-box:hover {
-    transform: translateY(-2px);
+    transform: translateY(-2px) !important;
     box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
 }
 
@@ -106,6 +117,26 @@ body::before {
     margin-top: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+/* Animations */
+@keyframes fadeInBounce {
+    0% {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    60% {
+        opacity: 1;
+        transform: translateY(-10px);
+    }
+    80% {
+        opacity: 1;
+        transform: translateY(5px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Shake Animation */

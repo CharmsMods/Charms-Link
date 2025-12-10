@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folder Tree Visualizer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font for a cleaner look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align to top */
+            min-height: 100vh; /* Full viewport height */
+            padding: 2rem; /* Padding around the content */
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 1rem; /* Rounded corners for the main container */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            width: 100%;
+            max-width: 900px; /* Max width for readability */
+        }
+        .file-input-wrapper {
+            @apply flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 mb-8 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors duration-200;
+        }
+        .file-input-wrapper input[type="file"] {
+            opacity: 0;
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+        }
+        .file-tree-item {
+            @apply flex items-center py-1 px-2 my-0.5 rounded-md;
+        }
+        .file-tree-item:hover {
+            background-color: #e5e7eb; /* Lighter gray on hover */
+        }
+        .file-tree-item.folder {
+            cursor: pointer;
+        }
+        .file-tree-item.file {
+            @apply text-gray-700;
+        }
+        .file-icon {
+            @apply mr-2 text-lg;
+        }
+        .folder-icon {
+            @apply text-yellow-500;
+        }
+        .file-icon-default {
+            @apply text-blue-500;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #3b82f6; /* Blue */
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Hide content of collapsed folders */
+        .folder-content.collapsed {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Folder Tree Visualizer</h1>
+
+        <!-- File Upload Section -->
+        <label for="folder-upload" class="file-input-wrapper">
+            <svg class="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7m-18 0A2 2 0 015 5h14a2 2 0 012 2m-18 0v10a2 2 0 002 2h14a2 2 0 002-2V7m-18 0L9 5h6l6 2"></path>
+            </svg>
+            <span class="text-gray-600 text-lg">Click to select a folder</span>
+            <input type="file" id="folder-upload" webkitdirectory directory multiple>
+        </label>
+
+        <!-- Loading Indicator -->
+        <div id="loading-indicator" class="hidden flex justify-center items-center py-4">
+            <div class="loading-spinner"></div>
+            <p class="ml-3 text-gray-600">Processing folder...</p>
+        </div>
+
+        <!-- Search Input -->
+        <div class="mb-6">
+            <input type="text" id="search-input" placeholder="Search files and folders..."
+                   class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   disabled> <!-- Disabled until a folder is loaded -->
+        </div>
+
+        <!-- File Tree Display Area -->
+        <div id="file-tree-display" class="mt-8">
+            <p class="text-gray-500 text-center" id="initial-message">Select a folder to see its structure.</p>
+        </div>
+
+        <!-- Error/Message Box -->
+        <div id="message-box" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full text-center">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4" id="message-title"></h3>
+                <p class="text-gray-700 mb-6" id="message-content"></p>
+                <button id="message-box-close" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition-colors duration-200">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const folderUploadInput = document.getElementById('folder-upload');
+            const fileTreeDisplay = document.getElementById('file-tree-display');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const initialMessage = document.getElementById('initial-message');
+            const searchInput = document.getElementById('search-input'); // New: Search input
+            const messageBox = document.getElementById('message-box');
+            const messageBoxTitle = document.getElementById('message-title');
+            const messageBoxContent = document.getElementById('message-content');
+            const messageBoxCloseButton = document.getElementById('message-box-close');
+
+            // Global variable to store the entire tree data
+            let globalTreeData = null;
+
+            // Function to display a custom message box
+            function showMessageBox(title, content) {
+                messageBoxTitle.textContent = title;
+                messageBoxContent.textContent = content;
+                messageBox.classList.remove('hidden');
+            }
+
+            // Function to close the custom message box
+            messageBoxCloseButton.addEventListener('click', () => {
+                messageBox.classList.add('hidden');
+            });
+
+            // Event listener for folder selection
+            folderUploadInput.addEventListener('change', async (event) => {
+                const files = event.target.files;
+
+                if (files.length === 0) {
+                    showMessageBox('No Folder Selected', 'Please select a folder to visualize its contents.');
+                    // Re-enable search if a folder was previously loaded but now cleared
+                    if (globalTreeData) {
+                        searchInput.disabled = false;
+                    }
+                    return;
+                }
+
+                // Clear previous display and show loading indicator
+                fileTreeDisplay.innerHTML = '';
+                initialMessage.classList.add('hidden');
+                loadingIndicator.classList.remove('hidden');
+                searchInput.value = ''; // Clear search input
+                searchInput.disabled = true; // Disable search during processing
+
+                // Process files asynchronously
+                setTimeout(() => {
+                    try {
+                        globalTreeData = buildTreeData(files); // Store the full tree data
+                        renderTree(globalTreeData, fileTreeDisplay, false); // Initial render, not in search mode
+                        searchInput.disabled = false; // Enable search after loading
+                    } catch (error) {
+                        console.error("Error processing folder:", error);
+                        showMessageBox('Error', 'An error occurred while processing the folder. Please try again.');
+                    } finally {
+                        loadingIndicator.classList.add('hidden');
+                    }
+                }, 50); // Small delay to allow UI to update loading state
+            });
+
+            // Event listener for search input
+            searchInput.addEventListener('input', () => {
+                filterAndRenderTree(searchInput.value);
+            });
+
+            /**
+             * Builds a hierarchical tree data structure from a FileList.
+             * Each node includes a 'fullPath' relative to the selected root folder.
+             * @param {FileList} files - The FileList object from the input.
+             * @returns {object} The root node of the tree.
+             */
+            function buildTreeData(files) {
+                // Determine the common root name based on the first file's path
+                let rootName = 'Uploaded Folder';
+                let commonPrefix = ''; // The part of the path that is the root folder itself, including trailing slash
+                if (files.length > 0 && files[0].webkitRelativePath) {
+                    const firstPathParts = files[0].webkitRelativePath.split('/');
+                    if (firstPathParts.length > 0) {
+                        rootName = firstPathParts[0]; // Use the top-level folder name
+                        commonPrefix = firstPathParts[0] + '/'; // e.g., "my_folder/"
+                    }
+                }
+
+                // Initialize the root of our tree
+                const root = {
+                    name: rootName,
+                    type: 'folder',
+                    children: [],
+                    isExpanded: true,
+                    level: 0,
+                    fullPath: rootName + '/', // Full path for the displayed root
+                    isVisible: true // Default to visible
+                };
+
+                for (const file of files) {
+                    // Remove the common prefix (the root folder name) from the path
+                    const relativePath = file.webkitRelativePath.startsWith(commonPrefix) ?
+                                         file.webkitRelativePath.substring(commonPrefix.length) :
+                                         file.webkitRelativePath;
+
+                    // Filter out empty strings from split, which can happen for root-level files
+                    const pathParts = relativePath.split('/').filter(p => p !== '');
+
+                    let currentLevelChildren = root.children;
+                    let currentPathAccumulator = rootName + '/'; // Path being built for the current node
+
+                    for (let i = 0; i < pathParts.length; i++) {
+                        const part = pathParts[i];
+                        let existingNode = currentLevelChildren.find(node => node.name === part);
+
+                        if (!existingNode) {
+                            if (i === pathParts.length - 1) { // It's a file
+                                existingNode = {
+                                    name: part,
+                                    type: 'file',
+                                    size: file.size,
+                                    lastModified: file.lastModified,
+                                    fullPath: currentPathAccumulator + part, // Full path for the file
+                                    level: root.level + 1 + i, // Relative level from the displayed root for indentation
+                                    isVisible: true // Default to visible
+                                };
+                            } else { // It's a folder
+                                existingNode = {
+                                    name: part,
+                                    type: 'folder',
+                                    children: [],
+                                    isExpanded: true, // Default to expanded
+                                    fullPath: currentPathAccumulator + part + '/', // Full path for the folder
+                                    level: root.level + 1 + i, // Relative level from the displayed root for indentation
+                                    isVisible: true // Default to visible
+                                };
+                            }
+                            currentLevelChildren.push(existingNode);
+
+                            // Sort the current level: folders first, then files, then alphabetical by name
+                            currentLevelChildren.sort((a, b) => {
+                                // Folders before files
+                                if (a.type === 'folder' && b.type === 'file') return -1;
+                                if (a.type === 'file' && b.type === 'folder') return 1;
+                                // Alphabetical by name for same type
+                                return a.name.localeCompare(b.name);
+                            });
+                        }
+
+                        // If it's a folder, update currentPathAccumulator and descend into its children for the next part of the path
+                        if (existingNode.type === 'folder') {
+                            currentLevelChildren = existingNode.children;
+                            currentPathAccumulator = existingNode.fullPath;
+                        }
+                    }
+                }
+                return root;
+            }
+
+            /**
+             * Function to filter the tree data based on search query and re-render.
+             * @param {string} query - The search string.
+             */
+            function filterAndRenderTree(query) {
+                fileTreeDisplay.innerHTML = ''; // Clear current display
+                initialMessage.classList.add('hidden'); // Ensure initial message is hidden
+
+                if (!globalTreeData) {
+                    return; // No data to filter yet
+                }
+
+                if (query.trim() === '') {
+                    // If query is empty, reset all expansions and render the original tree
+                    resetExpansionAndVisibility(globalTreeData);
+                    renderTree(globalTreeData, fileTreeDisplay, false); // No search active, don't show full path in name
+                    return;
+                }
+
+                const lowerCaseQuery = query.toLowerCase();
+
+                // Deep copy the globalTreeData to avoid modifying the original data structure's state
+                const filteredTreeData = JSON.parse(JSON.stringify(globalTreeData));
+
+                // Recursively mark nodes for visibility and ensure relevant parents are expanded
+                function markVisibility(node) {
+                    let selfMatches = false;
+                    // Check if node's name or fullPath matches the query
+                    if (node.name.toLowerCase().includes(lowerCaseQuery) ||
+                        (node.fullPath && node.fullPath.toLowerCase().includes(lowerCaseQuery))) {
+                        selfMatches = true;
+                    }
+
+                    let anyChildMatches = false;
+                    if (node.children && node.children.length > 0) {
+                        for (const child of node.children) {
+                            if (markVisibility(child)) { // Recursively check children
+                                anyChildMatches = true;
+                            }
+                        }
+                    }
+
+                    // A node is visible if it matches itself OR any of its children match
+                    node.isVisible = selfMatches || anyChildMatches;
+
+                    // If a node or any of its children are visible, it should be expanded to show the path
+                    // This is crucial for search results to be viewable
+                    if (node.isVisible) {
+                        node.isExpanded = true;
+                    } else {
+                        // If not visible, ensure it's collapsed (though renderTree will skip it anyway)
+                        node.isExpanded = false;
+                    }
+                    return node.isVisible;
+                }
+
+                // Call markVisibility on the filtered tree data's root
+                markVisibility(filteredTreeData);
+                renderTree(filteredTreeData, fileTreeDisplay, true); // Search is active, show full path in name
+            }
+
+            /**
+             * Recursively resets isExpanded to true and isVisible to true for all nodes.
+             * Used when clearing a search query.
+             * @param {object} node - The current node to reset.
+             */
+            function resetExpansionAndVisibility(node) {
+                node.isExpanded = true;
+                node.isVisible = true;
+                if (node.children) {
+                    node.children.forEach(child => resetExpansionAndVisibility(child));
+                }
+            }
+
+            /**
+             * Recursively renders the tree data structure into the DOM.
+             * @param {object} node - The current node to render.
+             * @param {HTMLElement} parentElement - The DOM element to append to.
+             * @param {boolean} isSearchActive - Whether a search is currently active.
+             */
+            function renderTree(node, parentElement, isSearchActive) {
+                // In search mode, only render nodes that are marked as visible
+                if (isSearchActive && !node.isVisible) {
+                    return;
+                }
+
+                // Handle the conceptual root node (level 0) separately for its container
+                if (node.level === 0 && node.type === 'folder' && node.children) {
+                    const rootContainer = document.createElement('div');
+                    rootContainer.classList.add('pl-2'); // Small indent for the root
+                    parentElement.appendChild(rootContainer);
+
+                    // Create the top-level folder element for the displayed root
+                    const rootFolderElement = document.createElement('div');
+                    rootFolderElement.classList.add('file-tree-item', 'folder');
+                    // No padding for actual root; children will have indentation
+                    rootFolderElement.style.paddingLeft = `${node.level * 20}px`;
+
+                    const toggleIcon = document.createElement('span');
+                    toggleIcon.classList.add('file-icon', 'text-gray-500');
+                    toggleIcon.textContent = node.isExpanded ? '▼' : '►';
+                    rootFolderElement.appendChild(toggleIcon);
+
+                    const folderIcon = document.createElement('span');
+                    folderIcon.classList.add('file-icon', 'folder-icon');
+                    folderIcon.innerHTML = '&#128447;'; // Folder emoji icon
+                    rootFolderElement.appendChild(folderIcon);
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = node.name;
+                    // If search is active, append the full path to the name for better context
+                    if (isSearchActive && node.fullPath) {
+                        nameSpan.textContent = `${node.name} (${node.fullPath.endsWith('/') ? node.fullPath.slice(0, -1) : node.fullPath})`;
+                    }
+                    rootFolderElement.appendChild(nameSpan);
+
+                    rootContainer.appendChild(rootFolderElement);
+
+                    // Container for the root's children, which can be collapsed
+                    const folderContent = document.createElement('div');
+                    folderContent.classList.add('folder-content');
+                    if (!node.isExpanded) {
+                        folderContent.classList.add('collapsed');
+                    }
+                    rootContainer.appendChild(folderContent);
+
+                    // Add click listener to toggle expansion, but only if search is NOT active
+                    // In search mode, nodes are automatically expanded if they are part of a match path
+                    if (!isSearchActive) {
+                        rootFolderElement.addEventListener('click', () => {
+                            node.isExpanded = !node.isExpanded;
+                            folderContent.classList.toggle('collapsed', !node.isExpanded);
+                            toggleIcon.textContent = node.isExpanded ? '▼' : '►';
+                        });
+                    }
+
+                    // Recursively render children into the root's content container
+                    if (node.children) {
+                        node.children.forEach(child => renderTree(child, folderContent, isSearchActive));
+                    }
+                    return; // Stop here for the initial root rendering
+                }
+
+
+                // Regular file or folder node (not the conceptual root)
+                const itemElement = document.createElement('div');
+                itemElement.classList.add('file-tree-item');
+                // Add padding for indentation based on level
+                itemElement.style.paddingLeft = `${node.level * 20}px`; // 20px per level
+
+                if (node.type === 'folder') {
+                    itemElement.classList.add('folder');
+                    itemElement.setAttribute('data-path', node.fullPath); // Store full path for reference
+
+                    const toggleIcon = document.createElement('span');
+                    toggleIcon.classList.add('file-icon', 'text-gray-500');
+                    toggleIcon.textContent = node.isExpanded ? '▼' : '►';
+                    itemElement.appendChild(toggleIcon);
+
+                    const folderIcon = document.createElement('span');
+                    folderIcon.classList.add('file-icon', 'folder-icon');
+                    folderIcon.innerHTML = '&#128447;'; // Folder emoji icon
+                    itemElement.appendChild(folderIcon);
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = node.name;
+                    // If search is active, append the full path to the name for better context
+                    if (isSearchActive && node.fullPath) {
+                        nameSpan.textContent = `${node.name} (${node.fullPath.endsWith('/') ? node.fullPath.slice(0, -1) : node.fullPath})`;
+                    }
+                    itemElement.appendChild(nameSpan);
+
+                    parentElement.appendChild(itemElement); // Add the folder item itself
+
+                    // Container for the folder's children, which can be collapsed
+                    const folderContent = document.createElement('div');
+                    folderContent.classList.add('folder-content');
+                    if (!node.isExpanded) {
+                        folderContent.classList.add('collapsed');
+                    }
+                    parentElement.appendChild(folderContent); // Add a container for its children
+
+                    // Add click listener to toggle expansion, but only if search is NOT active
+                    if (!isSearchActive) {
+                        itemElement.addEventListener('click', () => {
+                            node.isExpanded = !node.isExpanded;
+                            folderContent.classList.toggle('collapsed', !node.isExpanded);
+                            toggleIcon.textContent = node.isExpanded ? '▼' : '►';
+                        });
+                    }
+
+                    // Recursively render children into the folder's content container
+                    if (node.children) {
+                        node.children.forEach(child => renderTree(child, folderContent, isSearchActive));
+                    }
+                } else { // It's a file
+                    itemElement.classList.add('file');
+                    itemElement.setAttribute('data-path', node.fullPath); // Store full path for reference
+
+                    // Placeholder for alignment with folder toggle icons
+                    const placeholder = document.createElement('span');
+                    placeholder.classList.add('file-icon');
+                    placeholder.textContent = ' '; // Empty space for alignment
+                    itemElement.appendChild(placeholder);
+
+                    const fileIcon = document.createElement('span');
+                    fileIcon.classList.add('file-icon', 'file-icon-default');
+                    fileIcon.innerHTML = '&#128196;'; // Document emoji icon
+                    itemElement.appendChild(fileIcon);
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = node.name;
+                    // If search is active, append the full path to the name for better context
+                    if (isSearchActive && node.fullPath) {
+                        nameSpan.textContent = `${node.name} (${node.fullPath})`;
+                    }
+                    itemElement.appendChild(nameSpan);
+
+                    parentElement.appendChild(itemElement);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

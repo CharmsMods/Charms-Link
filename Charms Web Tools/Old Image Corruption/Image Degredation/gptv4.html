@@ -1,0 +1,429 @@
+<!-- filename: glitch-compressor.html -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Glitch Compressor — damaged look</title>
+<style>
+  :root{--bg:#0b0b0b;--fg:#ddd;--muted:#9aa;--accent:#4fe;}
+  body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:var(--bg);color:var(--fg);display:flex;gap:16px;padding:18px;box-sizing:border-box;}
+  .controls{width:360px;max-height:90vh;overflow:auto;padding:14px;border:1px solid rgba(255,255,255,0.04);border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);}
+  label{display:block;font-size:13px;color:var(--muted);margin-top:12px}
+  input[type=range]{width:100%}
+  button{margin-top:12px;padding:8px 10px;border-radius:6px;border:0;background:var(--accent);color:#000;font-weight:600;cursor:pointer}
+  canvas{background:#222;border-radius:6px;max-width:calc(100vw - 420px);height:auto;display:block}
+  .row{display:flex;gap:8px;align-items:center}
+  .small{font-size:12px;color:var(--muted)}
+  .file{display:flex;gap:8px;align-items:center}
+  .checkbox{display:inline-flex;gap:6px;align-items:center;margin-right:8px}
+</style>
+</head>
+<body>
+  <div class="controls">
+    <div class="file">
+      <input id="fileIn" type="file" accept="image/*">
+      <button id="resetBtn">Reset</button>
+    </div>
+
+    <label>Iterations <span id="iterVal" class="small">3</span></label>
+    <input id="iterations" type="range" min="1" max="40" value="3">
+
+    <label>JPEG Quality (for recompress) <span id="qualityVal" class="small">0.35</span></label>
+    <input id="quality" type="range" min="0.05" max="1" step="0.01" value="0.35">
+
+    <label>Pixel-sort threshold (0-255) <span id="psVal" class="small">128</span></label>
+    <input id="pixelsortThresh" type="range" min="0" max="255" value="128">
+
+    <label>Channel shift (px) <span id="chVal" class="small">6</span></label>
+    <input id="chanShift" type="range" min="0" max="40" value="6">
+
+    <label>Row shift probability (%) <span id="rsVal" class="small">8</span></label>
+    <input id="rowShiftProb" type="range" min="0" max="100" value="8">
+
+    <label>Byte-corrupt intensity (%) <span id="bcVal" class="small">2</span></label>
+    <input id="byteCorrupt" type="range" min="0" max="20" value="2">
+
+    <label>Noise / Salt & Pepper (%) <span id="nVal" class="small">1.5</span></label>
+    <input id="noise" type="range" min="0" max="10" step="0.1" value="1.5">
+
+    <div style="margin-top:12px">
+      <div class="row">
+        <label class="checkbox"><input id="doRecompress" type="checkbox" checked>Recompress (JPEG)</label>
+        <label class="checkbox"><input id="doByte" type="checkbox" checked>Byte-corrupt</label>
+      </div>
+      <div class="row">
+        <label class="checkbox"><input id="doPixelSort" type="checkbox" checked>Pixel-sort</label>
+        <label class="checkbox"><input id="doChanShift" type="checkbox" checked>Channel shift</label>
+      </div>
+      <div class="row">
+        <label class="checkbox"><input id="doRowShift" type="checkbox" checked>Row shifts</label>
+        <label class="checkbox"><input id="doNoise" type="checkbox" checked>Noise</label>
+      </div>
+    </div>
+
+    <button id="runBtn">Run Iterations</button>
+    <button id="autoStopBtn">Run until visibly different (SSIM demo)</button>
+    <div style="margin-top:10px" class="small">Preview shows current result; click download to save last output as PNG/JPEG.</div>
+    <div style="margin-top:12px">
+      <button id="downloadBtn">Download result (PNG)</button>
+      <button id="downloadJpgBtn">Download result (JPEG)</button>
+    </div>
+  </div>
+
+  <div style="flex:1;display:flex;flex-direction:column">
+    <canvas id="canvas"></canvas>
+    <div style="height:12px"></div>
+    <div class="small" id="log">No image loaded.</div>
+  </div>
+
+<script>
+/* Core idea:
+ - Provide multiple in-browser "damage" operations.
+ - Repeated JPEG recompression uses canvas.toBlob with low quality.
+ - Byte-corrupt reads the generated JPEG/PNG ArrayBuffer, flips random bytes after header.
+ - Pixel sort sorts runs of pixels by brightness on horizontal scanlines.
+ - Channel shift offsets R/G/B horizontally to create color tear.
+ - Row shift randomly shifts whole rows by offsets.
+ - All operations are applied per-iteration. */
+const fileIn = document.getElementById('fileIn');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d',{willReadFrequently:true});
+const log = document.getElementById('log');
+
+let img = new Image();
+let workingBlob = null; // last result blob
+let lastDataURL = null;
+
+function fitCanvasToImage(w,h){
+  const maxW = window.innerWidth - 420;
+  const scale = Math.min(1, maxW / w);
+  canvas.width = Math.round(w * scale);
+  canvas.height = Math.round(h * scale);
+}
+
+fileIn.addEventListener('change', e=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const url = URL.createObjectURL(f);
+  img = new Image();
+  img.onload = ()=>{
+    fitCanvasToImage(img.width,img.height);
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    lastDataURL = canvas.toDataURL();
+    log.textContent = `Loaded ${f.name} — ${canvas.width}×${canvas.height}`;
+    workingBlob = null;
+  };
+  img.src = url;
+});
+
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  if(!img.src) return;
+  ctx.drawImage(img,0,0,canvas.width,canvas.height);
+  workingBlob = null;
+  log.textContent = 'Reset to original.';
+});
+
+function updateLabels(){
+  document.getElementById('iterVal').textContent = document.getElementById('iterations').value;
+  document.getElementById('qualityVal').textContent = document.getElementById('quality').value;
+  document.getElementById('psVal').textContent = document.getElementById('pixelsortThresh').value;
+  document.getElementById('chVal').textContent = document.getElementById('chanShift').value;
+  document.getElementById('rsVal').textContent = document.getElementById('rowShiftProb').value;
+  document.getElementById('bcVal').textContent = document.getElementById('byteCorrupt').value;
+  document.getElementById('nVal').textContent = document.getElementById('noise').value;
+}
+document.querySelectorAll('input[type=range]').forEach(r=>r.addEventListener('input', updateLabels));
+updateLabels();
+
+/* Helpers */
+function canvasToBlob(canvas, mime='image/jpeg', quality=0.5){
+  return new Promise(res=>canvas.toBlob(b=>res(b), mime, quality));
+}
+function blobToArrayBuffer(blob){return blob.arrayBuffer();}
+function arrayBufferToBlob(buf, mime='image/jpeg'){ return new Blob([buf], {type:mime}); }
+async function blobToImage(blob){
+  const url = URL.createObjectURL(blob);
+  const i = new Image();
+  await new Promise(r=>{ i.onload = r; i.src = url; });
+  return i;
+}
+
+/* Effect: jpeg recompress */
+async function doRecompress(canvas,quality=0.35){
+  const blob = await canvasToBlob(canvas,'image/jpeg',quality);
+  const imgEl = await blobToImage(blob);
+  // draw back to canvas scaled to current canvas size
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(imgEl,0,0,canvas.width,canvas.height);
+  return blob;
+}
+
+/* Effect: safe byte corruption
+   - Convert blob to arrayBuffer, flip small percentage of bytes after a safe offset (e.g., skip first 2000 bytes)
+   - Recreate blob and attempt to load as image; if fails, reduce corruption and retry.
+*/
+async function doByteCorrupt(blob, intensityPercent=1.0){
+  try{
+    const buf = new Uint8Array(await blobToArrayBuffer(blob));
+    const len = buf.length;
+    const start = Math.min(2000, Math.floor(len*0.02)); // skip header area
+    const corruptBytes = Math.max(1, Math.floor((intensityPercent/100) * len));
+    for(let i=0;i<corruptBytes;i++){
+      const idx = start + Math.floor(Math.random()*(len-start));
+      buf[idx] = (buf[idx] ^ (Math.floor(Math.random()*256))); // xor random byte
+    }
+    const newBlob = arrayBufferToBlob(buf.buffer, blob.type || 'image/jpeg');
+    // test load
+    const imgEl = new Image();
+    const url = URL.createObjectURL(newBlob);
+    await new Promise((res,rej)=>{
+      imgEl.onload = ()=>res(true);
+      imgEl.onerror = ()=>rej(false);
+      imgEl.src = url;
+    }).catch(_=>{
+      // fallback: if corrupted beyond use, return original blob
+      return blob;
+    });
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(imgEl,0,0,canvas.width,canvas.height);
+    return newBlob;
+  }catch(e){
+    return blob;
+  }
+}
+
+/* Effect: Pixel sort (horizontal)
+   - For each row, find runs where brightness above threshold and sort pixels within run by brightness.
+*/
+function doPixelSort(canvas, threshold=128){
+  const w = canvas.width, h = canvas.height;
+  const imageData = ctx.getImageData(0,0,w,h);
+  const data = imageData.data;
+  for(let y=0;y<h;y++){
+    let x=0;
+    while(x<w){
+      // compute brightness
+      const idx = (y*w + x)*4;
+      const r = data[idx], g = data[idx+1], b = data[idx+2];
+      const bright = (r+g+b)/3;
+      if(bright > threshold){ // start run
+        let runStart = x;
+        while(x<w){
+          const i2 = (y*w + x)*4;
+          const br2 = (data[i2]+data[i2+1]+data[i2+2])/3;
+          if(br2 <= threshold) break;
+          x++;
+        }
+        const runEnd = x;
+        // extract pixels
+        const pixels = [];
+        for(let xx=runStart; xx<runEnd; xx++){
+          const i3 = (y*w + xx)*4;
+          pixels.push([data[i3], data[i3+1], data[i3+2], data[i3+3]]);
+        }
+        // sort by brightness
+        pixels.sort((a,b)=>((a[0]+a[1]+a[2]) - (b[0]+b[1]+b[2])));
+        // write back
+        let pidx = 0;
+        for(let xx=runStart; xx<runEnd; xx++){
+          const i4 = (y*w + xx)*4;
+          const px = pixels[pidx++];
+          data[i4]=px[0]; data[i4+1]=px[1]; data[i4+2]=px[2]; data[i4+3]=px[3];
+        }
+      } else x++;
+    }
+  }
+  ctx.putImageData(imageData,0,0);
+}
+
+/* Effect: channel shift (separate and offset R/G/B horizontally) */
+function doChannelShift(canvas, offsetPx=6){
+  const w = canvas.width, h = canvas.height;
+  const src = ctx.getImageData(0,0,w,h);
+  const dst = ctx.createImageData(w,h);
+  const s = src.data, d = dst.data;
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i = (y*w+x)*4;
+      // source indexes with offsets per channel
+      const xr = Math.min(w-1, Math.max(0, x - offsetPx));
+      const xg = Math.min(w-1, Math.max(0, x));
+      const xb = Math.min(w-1, Math.max(0, x + offsetPx));
+      const ir = (y*w + xr)*4;
+      const ig = (y*w + xg)*4;
+      const ib = (y*w + xb)*4;
+      d[i]   = s[ir];    // R from left
+      d[i+1] = s[ig+1];  // G same
+      d[i+2] = s[ib+2];  // B from right
+      d[i+3] = s[i+3];
+    }
+  }
+  ctx.putImageData(dst,0,0);
+}
+
+/* Effect: row shifts */
+function doRowShifts(canvas, prob=8){
+  const w=canvas.width,h=canvas.height;
+  const imageData = ctx.getImageData(0,0,w,h);
+  const data = imageData.data;
+  for(let y=0;y<h;y++){
+    if(Math.random()*100 < prob){
+      const shift = Math.floor((Math.random()*0.5 + 0.1) * w * (Math.random()<0.5 ? -1 : 1) * 0.2);
+      const row = new Uint8ClampedArray(w*4);
+      const srcStart = y*w*4;
+      row.set(data.slice(srcStart, srcStart + w*4));
+      for(let x=0;x<w;x++){
+        let sx = (x - shift) | 0;
+        if(sx < 0) sx = (sx + w) % w;
+        if(sx >= w) sx = sx % w;
+        const si = sx*4;
+        const di = (y*w + x)*4;
+        data[di]   = row[si];
+        data[di+1] = row[si+1];
+        data[di+2] = row[si+2];
+        data[di+3] = row[si+3];
+      }
+    }
+  }
+  ctx.putImageData(imageData,0,0);
+}
+
+/* Effect: noise */
+function doNoise(canvas, pct=1.0){
+  const w=canvas.width,h=canvas.height;
+  const imageData = ctx.getImageData(0,0,w,h);
+  const data = imageData.data;
+  const total = w*h;
+  const count = Math.floor(total*(pct/100));
+  for(let i=0;i<count;i++){
+    const x = Math.floor(Math.random()*w);
+    const y = Math.floor(Math.random()*h);
+    const idx = (y*w + x)*4;
+    if(Math.random()<0.5){
+      const v = Math.random()<0.5?0:255;
+      data[idx]=data[idx+1]=data[idx+2]=v;
+    } else {
+      data[idx]   = Math.floor(Math.random()*256);
+      data[idx+1] = Math.floor(Math.random()*256);
+      data[idx+2] = Math.floor(Math.random()*256);
+    }
+  }
+  ctx.putImageData(imageData,0,0);
+}
+
+/* run iterations */
+document.getElementById('runBtn').addEventListener('click', async ()=>{
+  if(!img.src){ log.textContent = 'Load an image first.'; return; }
+  let iters = parseInt(document.getElementById('iterations').value,10);
+  const quality = parseFloat(document.getElementById('quality').value);
+  const doRecompress = document.getElementById('doRecompress').checked;
+  const doByte = document.getElementById('doByte').checked;
+  const doPixelSort = document.getElementById('doPixelSort').checked;
+  const doChanShift = document.getElementById('doChanShift').checked;
+  const doRowShift = document.getElementById('doRowShift').checked;
+  const doNoise = document.getElementById('doNoise').checked;
+
+  // start from current canvas (if reset pressed earlier)
+  for(let i=0;i<iters;i++){
+    log.textContent = `Iteration ${i+1}/${iters} ...`;
+    // pixel sort
+    if(doPixelSort){
+      const thresh = parseInt(document.getElementById('pixelsortThresh').value,10);
+      doPixelSort ? window && await ( ()=>{ doPixelSort(canvas, thresh); } )() : null;
+    }
+    // channel shift
+    if(doChanShift){
+      const off = parseInt(document.getElementById('chanShift').value,10);
+      doChannelShift(canvas, off);
+    }
+    // row shifts
+    if(doRowShift){
+      const prob = parseFloat(document.getElementById('rowShiftProb').value);
+      doRowShifts(canvas, prob);
+    }
+    // noise
+    if(doNoise){
+      const pct = parseFloat(document.getElementById('noise').value);
+      doNoise ? window && await ( ()=>{ doNoise(canvas, pct); } )() : null;
+    }
+
+    // recompress
+    if(doRecompress){
+      const blob = await doRecompress(canvas, quality);
+      workingBlob = blob;
+    } else {
+      // capture current canvas as blob for byte-corrupt stage
+      workingBlob = await canvasToBlob(canvas,'image/png',1.0);
+    }
+
+    // byte corrupt
+    if(doByte){
+      const intensity = parseFloat(document.getElementById('byteCorrupt').value);
+      workingBlob = await doByteCorrupt(workingBlob, intensity);
+    }
+    // ensure canvas shows workingBlob's image
+    try{
+      const imgEl = await blobToImage(workingBlob);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(imgEl,0,0,canvas.width,canvas.height);
+    }catch(e){ /* ignore */ }
+  }
+  log.textContent = `Done. Last blob size: ${workingBlob ? Math.round((workingBlob.size||0)/1024) + ' KB' : 'N/A'}`;
+});
+
+/* download */
+document.getElementById('downloadBtn').addEventListener('click', ()=>{
+  const a = document.createElement('a');
+  a.download = 'glitched.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+});
+document.getElementById('downloadJpgBtn').addEventListener('click', ()=>{
+  const q = parseFloat(document.getElementById('quality').value);
+  const a = document.createElement('a');
+  a.download = 'glitched.jpg';
+  a.href = canvas.toDataURL('image/jpeg', q);
+  a.click();
+});
+
+/* simple auto-stop demo (very approximate): run until SSIM-like difference threshold exceeded.
+   For speed, use mean absolute error on downsampled thumbnails as proxy. */
+document.getElementById('autoStopBtn').addEventListener('click', async ()=>{
+  if(!img.src){ log.textContent = 'Load an image first.'; return; }
+  const maxIters = 60;
+  const targetDiff = 8.0; // mean per-channel diff threshold
+  const start = ctx.getImageData(0,0,canvas.width,canvas.height).data.slice ? ctx.getImageData(0,0,canvas.width,canvas.height).data : null;
+  for(let i=0;i<maxIters;i++){
+    document.getElementById('iterations').value = 1;
+    document.getElementById('runBtn').click();
+    await new Promise(r=>setTimeout(r,80)); // allow processing (coarse)
+    const cur = ctx.getImageData(0,0,canvas.width,canvas.height);
+    // compute mean absolute diff to original
+    const step = 4;
+    let sum=0,count=0;
+    for(let p=0;p<cur.data.length; p+=step*16){ // sample
+      const orig = start[p]||0;
+      const now = cur.data[p]||0;
+      sum += Math.abs(orig - now);
+      count++;
+    }
+    const mean = sum / Math.max(1,count);
+    log.textContent = `Auto-run iter ${i+1}, mean diff ${mean.toFixed(2)}`;
+    if(mean > targetDiff) { log.textContent = `Auto-stop at iter ${i+1}, mean diff ${mean.toFixed(2)}`; break; }
+  }
+});
+
+/* utility: allow drag & drop */
+document.body.addEventListener('dragover', e=>e.preventDefault());
+document.body.addEventListener('drop', e=>{
+  e.preventDefault();
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if(f){
+    fileIn.files = e.dataTransfer.files;
+    fileIn.dispatchEvent(new Event('change'));
+  }
+});
+</script>
+</body>
+</html>

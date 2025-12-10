@@ -43,70 +43,73 @@
         /* ✨ FIXED BACKGROUND STYLES (FINAL CORRECTION) ✨ */
         /* ------------------------------------------------ */
 
-        /* 1. Body is now responsible only for the initial black color */
+        /* 1. Body starts with solid black */
         body {
-            /* 💡 CRUCIAL FIX: Body is now ONLY black initially */
-            background-color: #000000; 
+            background-color: #000000;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
         }
 
-        /* 2. The overlay element now holds the image, the darkness, and the fade-in */
+        /* 2. Background image with fade-in effect and darkening */
         #background-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: -1; 
-            
-            /* Initial state: Fully transparent (hidden) */
+            z-index: -1;
             opacity: 0;
-            transition: opacity 4s ease-in-out; 
-            
-            /* 💡 CRUCIAL FIX: Combining the image and the 50% darkness here! */
-            background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('background.svg');
+            transition: opacity 2s ease-in-out;
+            background: linear-gradient(
+                rgba(0, 0, 0, 0.5), /* 50% black overlay */
+                rgba(0, 0, 0, 0.5)  /* 50% black overlay */
+            ), url('background.svg');
             background-size: cover;
             background-position: center center;
             background-repeat: no-repeat;
-            background-attachment: fixed; /* Parallax effect is back! */
+            background-attachment: fixed;
+            filter: blur(8px);
+            transform: scale(1.1); /* Slight zoom for better blur effect */
         }
         
         /* The class added by JavaScript to trigger the fade-in */
         #background-overlay.loaded {
-            opacity: 1;
+            opacity: 1; /* Full opacity with the dark overlay */
         }
 
         /* ------------------------------------------------ */
         /* CONTENT WRAPPER STYLES */
         /* ------------------------------------------------ */
         .content-wrapper {
-            padding: 2rem;
+            padding: 1rem;
             width: 100%;
-            height: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            position: relative; 
-            /* Ensure content fits on mobile and uses available height */
+            justify-content: flex-start;
+            position: relative;
             min-height: 100vh;
+            z-index: 1;
         }
 
 
         /* Container for the search bar and status text */
         .header-container {
-            width: 100%;
+            width: 90%;
             max-width: 800px;
-            margin-bottom: 1rem;
+            margin: 1rem 0;
             text-align: center;
-            
-            padding: 1rem 2rem; 
+            padding: 1rem;
+            position: relative;
             border-radius: 12px;
-            background-color: rgba(0, 0, 0, 0.1);
+            background-color: rgba(0, 0, 0, 0.4);
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            /* Fluid width on small screens */
-            max-width: 90%; 
         }
 
         .header-container p {
@@ -117,15 +120,18 @@
 
         /* Search bar styling */
         .search-bar {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            font-size: 1rem;
-            background-color: transparent;
+            width: 90%;
+            max-width: 400px;
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
             border: 1px solid var(--border-color);
-            border-radius: 8px; /* Slightly more rounded for touch targets */
+            border-radius: 20px;
+            background-color: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
             color: var(--text-color);
-            outline: none;
             margin-bottom: 0.5rem;
+            outline: none;
+            transition: all 0.3s ease;
         }
 
         .search-bar::placeholder {
@@ -134,69 +140,52 @@
 
         /* Container for all the tool boxes */
         .tools-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-            gap: 1rem;
-            max-width: 1200px;
-            
-            /* STYLES FOR THE TRANSLUCENT PANEL */
-            padding: 2rem; 
-            border-radius: 12px; 
-            background-color: rgba(0, 0, 0, 0.1);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); 
-            backdrop-filter: blur(8px); 
-            border: 1px solid rgba(255, 255, 255, 0.1); 
-            width: 100%; /* Important for mobile */
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 0.8rem;
+            max-width: 1000px;
+            padding: 1rem 0.5rem;
+            width: 100%;
         }
 
-        /* Styling for secondary tool boxes */
-        .tool-box.secondary-tool {
-            width: 200px;
-            height: 140px;
-        }
-        
-        .tool-box.secondary-tool h2 {
-            font-size: 1.1rem;
-        }
-        
-        .tool-box.secondary-tool .info-popup h2 {
-            font-size: 1.1rem;
-        }
-        
-        .tool-box.secondary-tool .info-popup p {
-            font-size: 0.8rem;
-        }
-
-        /* Styling for each tool box */
+        /* Styling for all tool boxes */
         .tool-box {
+            width: 100%;
+            height: 120px;
+            aspect-ratio: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            width: 300px;
-            height: 200px;
-            background-color: var(--box-bg-color);
+            background: rgba(20, 20, 20, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             text-align: center;
             position: relative;
             cursor: pointer;
             transition: all 0.3s ease;
-            border: 1px solid var(--border-color);
             overflow: hidden;
             text-decoration: none;
-            color: inherit;
-            margin: 0.5rem;
-            backdrop-filter: blur(5px);
-            border-radius: 8px; /* More rounded corners */
-            
-            /* Improved active state feedback for touch */
-            -webkit-tap-highlight-color: transparent;
+            color: #ffffff;
+            padding: 0.8rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .tool-box h2 {
+            font-size: 1rem;
+            margin: 0;
+            z-index: 2;
         }
 
         .tool-box:hover {
-            transform: translateY(-5px);
-            background-color: rgba(255, 255, 255, 0.05);
+            transform: translateY(-3px) scale(1.03);
+            background: rgba(60, 60, 60, 0.6);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
+
+        /* Info popup styles */
+
 
         .tool-box:active {
             transform: scale(0.98) translateY(0);
@@ -263,26 +252,13 @@
         /* ------------------------------------------------ */
         @media (max-width: 768px) {
             .content-wrapper {
-                padding: 1rem 0.5rem; /* Less vertical padding, more horizontal space */
+                padding: 0.5rem;
             }
             
-            .header-container {
-                /* Use full width on mobile devices */
-                max-width: 100%;
-                padding: 1rem;
-                margin-bottom: 0.5rem;
-            }
-
             .tools-container {
-                flex-direction: column;
-                padding: 1rem 0; /* Padding handled by wrapper */
-                gap: 0.75rem; /* Slightly tighter gap */
-                width: 100%;
-                max-width: 100%;
-                background-color: transparent; /* Remove container background */
-                box-shadow: none;
-                backdrop-filter: none;
-                border: none;
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 0.6rem;
+                padding: 0.5rem;
             }
             
             /* Force tool boxes to full width (minus padding) on small screens */
@@ -311,6 +287,7 @@
 </head>
 <body>
 
+
     <div id="background-overlay"></div>
 
     <div class="content-wrapper">
@@ -321,30 +298,6 @@
         </div>
 
         <div class="tools-container">
-            <!-- Image-related tools -->
-            <a href="./Chat GPT - Grok Noise editor/v9imageLayerUpdates.html" class="tool-box" data-id="noise-studio">
-                <h2>Noise Studio</h2>
-                <div class="info-popup">
-                    <h2>Noise Studio</h2>
-                    <p>Create and customize noise patterns with various parameters to generate unique textures and effects for your designs.</p>
-                </div>
-            </a>
-
-            <a href="./Background%20Remover/index.html" class="tool-box" data-id="background-remover">
-                <h2>Background Remover</h2>
-                <div class="info-popup">
-                    <h2>Background Remover</h2>
-                    <p>Remove backgrounds from images with this easy-to-use tool. Perfect for product photos or creating transparent PNGs.</p>
-                </div>
-            </a>
-
-            <a href="./image-converter.html" class="tool-box" data-id="image-converter">
-                <h2>Image Converter</h2>
-                <div class="info-popup">
-                    <h2>Multi-File Image Converter</h2>
-                    <p>Batch convert multiple images with options for format conversion, scaling, color adjustments, and folder structure preservation.</p>
-                </div>
-            </a>
 
             <a href="./image%20border%20sizer.html" class="tool-box" data-id="border-sizer">
                 <h2>Image Border Sizer</h2>
@@ -448,16 +401,12 @@
 
             // --- BACKGROUND LOADING LOGIC ---
             const bgImage = new Image();
-            // Note: 'background.svg' is an external file dependency. 
-            // In this single-file context, we rely on it being available in the target environment.
-            bgImage.src = 'background.svg'; 
+            bgImage.src = 'background.svg';
 
             // Once the image is fully loaded, we trigger the opacity transition
             bgImage.onload = () => {
-                // Wait 1 second (1000ms) before starting the 4-second fade
-                setTimeout(() => {
-                    backgroundOverlay.classList.add('loaded');
-                }, 1000);
+                // Apply the loaded class to fade in the background
+                backgroundOverlay.classList.add('loaded');
             };
 
             // Handle search bar functionality

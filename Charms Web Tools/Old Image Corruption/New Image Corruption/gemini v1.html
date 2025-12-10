@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Decay Generator</title>
+    <style>
+        :root {
+            --bg: #121212;
+            --panel: #1e1e1e;
+            --text: #e0e0e0;
+            --accent: #ff4757;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        h1 {
+            font-family: var(--font-mono);
+            letter-spacing: -2px;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 0.5rem;
+        }
+
+        /* Container for the image and the hidden SVG filters */
+        .viewport {
+            position: relative;
+            margin: 2rem 0;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            border: 1px solid #333;
+            max-width: 100%;
+        }
+
+        img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            /* Connects the image to the SVG filter defined below */
+            filter: url('#analog-noise') sepia(var(--sepia)) contrast(var(--contrast));
+        }
+
+        /* The Control Panel UI */
+        .controls {
+            background: var(--panel);
+            padding: 1.5rem;
+            border-radius: 8px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 800px;
+            border: 1px solid #333;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+            color: #888;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .value-display {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* Hide the canvas used for processing */
+        #processCanvas {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <svg style="display: none;">
+        <defs>
+            <filter id="analog-noise">
+                <feTurbulence type="fractalNoise" baseFrequency="0.80" numOctaves="3" stitchTiles="stitch" result="noise"/>
+                <feColorMatrix type="saturate" values="0" in="noise" result="grayNoise"/>
+                <feBlend in="SourceGraphic" in2="grayNoise" mode="overlay" id="noiseBlend"/>
+            </filter>
+        </defs>
+    </svg>
+
+    <h1>Artifact_Generator_v1.0</h1>
+
+    <div class="viewport">
+        <img id="displayImage" src="" crossorigin="anonymous" alt="Processed Image">
+    </div>
+
+    <div class="controls">
+        
+        <div class="control-group">
+            <label>JPEG Quality (Compression) <span id="val-qual" class="value-display">10%</span></label>
+            <input type="range" id="quality" min="0" max="100" value="10">
+        </div>
+
+        <div class="control-group">
+            <label>Resolution Crush <span id="val-res" class="value-display">0.3x</span></label>
+            <input type="range" id="resolution" min="1" max="100" value="30">
+        </div>
+
+        <div class="control-group">
+            <label>Film Grain (SVG) <span id="val-grain" class="value-display">High</span></label>
+            <input type="range" id="grain" min="0" max="100" value="80">
+        </div>
+
+        <div class="control-group">
+            <label>Age & Decay <span id="val-age" class="value-display">50%</span></label>
+            <input type="range" id="age" min="0" max="100" value="50">
+        </div>
+
+    </div>
+    
+    <p style="font-family: var(--font-mono); font-size: 0.8rem; opacity: 0.5;">
+        Note: If image does not load, refresh. Uses Cross-Origin Canvas which requires a server or permissible browser settings.
+    </p>
+
+    <canvas id="processCanvas"></canvas>
+
+    <script>
+        // Setup Elements
+        const canvas = document.getElementById('processCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false }); // optimizing for speed
+        const displayImg = document.getElementById('displayImage');
+        
+        // State
+        let sourceImage = new Image();
+        sourceImage.crossOrigin = "Anonymous";
+        // Load a dramatic, high contrast image for best effect
+        sourceImage.src = "https://images.unsplash.com/photo-1511367461989-f85a21fda167?q=80&w=1000&auto=format&fit=crop";
+
+        // UI References
+        const controls = {
+            quality: document.getElementById('quality'),
+            resolution: document.getElementById('resolution'),
+            grain: document.getElementById('grain'),
+            age: document.getElementById('age')
+        };
+
+        const displays = {
+            quality: document.getElementById('val-qual'),
+            resolution: document.getElementById('val-res'),
+            grain: document.getElementById('val-grain'),
+            age: document.getElementById('val-age')
+        };
+
+        // 1. THE RENDER ENGINE
+        function render() {
+            if (!sourceImage.complete) return;
+
+            // --- A. DATA CORRUPTION (CANVAS) ---
+            
+            // 1. Determine scaling (Resolution Crush)
+            // Lower scale = bigger pixels (e.g., 0.1 is 10% original size)
+            const scaleFactor = controls.resolution.value / 100;
+            const w = sourceImage.naturalWidth * scaleFactor;
+            const h = sourceImage.naturalHeight * scaleFactor;
+
+            // 2. Resize Canvas to the "crushed" size
+            canvas.width = w;
+            canvas.height = h;
+
+            // 3. Disable smoothing to get "Digital Blocks" not "Blur"
+            ctx.imageSmoothingEnabled = false;
+
+            // 4. Draw image small
+            ctx.drawImage(sourceImage, 0, 0, w, h);
+
+            // 5. THE MAGIC: Export as JPEG with low quality
+            // Quality is 0.0 to 1.0. 
+            // We map slider 0-100 to 0.0-0.9 (avoiding 1.0 perfect quality)
+            let jpegQuality = controls.quality.value / 100;
+            // Prevent it from breaking entirely at 0
+            if (jpegQuality <= 0) jpegQuality = 0.01; 
+
+            // This string contains the "compressed" artifacts
+            const crushedDataURL = canvas.toDataURL('image/jpeg', jpegQuality);
+
+            // Set the visible image to this low-quality version
+            displayImg.src = crushedDataURL;
+
+
+            // --- B. CSS & SVG UPDATES ---
+
+            // 1. Update SVG Noise Frequency (Grain size)
+            // We need to access the <feTurbulence> tag inside the SVG
+            const turbulence = document.querySelector('feTurbulence');
+            // baseFrequency: higher number = finer grain, lower = blobbier noise
+            const grainLevel = controls.grain.value / 100; // 0 to 1
+            // Mapping to a good range (0.5 to 2.5)
+            // We only change opacity via CSS mix-blend usually, but here we change frequency
+            turbulence.setAttribute('baseFrequency', 0.5 + (grainLevel * 2));
+            
+            // 2. Update CSS Filters (Age/Decay)
+            const ageVal = controls.age.value;
+            const sepia = ageVal + '%';
+            const contrast = 100 + (ageVal * 0.5) + '%'; // Boost contrast as it ages
+            
+            // Apply CSS variables for the image style
+            displayImg.style.setProperty('--sepia', sepia);
+            displayImg.style.setProperty('--contrast', contrast);
+
+            // Update Text Displays
+            displays.quality.innerText = (jpegQuality * 100).toFixed(0) + '%';
+            displays.resolution.innerText = scaleFactor.toFixed(2) + 'x';
+            displays.grain.innerText = grainLevel.toFixed(1);
+            displays.age.innerText = ageVal + '%';
+        }
+
+        // Event Listeners
+        sourceImage.onload = () => {
+            render();
+        };
+
+        // Attach listeners to all inputs
+        Object.values(controls).forEach(input => {
+            input.addEventListener('input', render);
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Source→Pixel Rebuilder — Black & White UI</title>
+  <style>
+    :root{--bg:#0b0b0b;--panel:#0b0b0b;--fg:#f7f7f7;--muted:#cfcfcf;--accent:#ffffff}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--fg)}
+    .app{display:grid;grid-template-columns:360px 1fr;gap:18px;height:100vh;padding:18px;box-sizing:border-box}
+    .panel{background:linear-gradient(#070707,#0d0d0d);border:1px solid #111;padding:14px;border-radius:10px;display:flex;flex-direction:column;gap:12px}
+    h1{margin:0;font-size:16px;color:var(--fg)}
+    label{font-size:12px;color:var(--muted)}
+    input[type=file]{width:100%}
+    .controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    select,input[type=range],input[type=number]{width:100%;background:transparent;color:var(--fg);border:1px solid #222;padding:6px;border-radius:6px}
+    .row{display:flex;gap:8px}
+    button{background:#000;border:1px solid #222;color:var(--fg);padding:8px 10px;border-radius:6px;cursor:pointer}
+    .small{font-size:12px}
+    .canvas-wrap{display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center}
+    canvas{background:#000;border:1px solid #111;max-width:100%;height:auto}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+    .muted{color:var(--muted);font-size:12px}
+    .preview-row{display:flex;gap:8px;align-items:center}
+    .chip{padding:6px 8px;border-radius:6px;border:1px solid #222;background:#060606;font-size:12px}
+    .footer{display:flex;justify-content:space-between;align-items:center;gap:8px}
+    .range-row{display:flex;align-items:center;gap:8px}
+    .range-row > span{width:80px;text-align:right;color:var(--muted);font-size:12px}
+    .full-width{grid-column:1/-1}
+    .help{font-size:11px;color:var(--muted);line-height:1.2}
+    input[type=checkbox]{accent-color:#fff}
+    .controls-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="panel">
+      <h1>Source → Pixel Rebuilder</h1>
+      <div class="muted">Controls are black & white. Use Preview for quick results, Render for full-size output.</div>
+
+      <div>
+        <label>Source image</label>
+        <input id="srcFile" type="file" accept="image/*">
+      </div>
+      <div>
+        <label>Target image</label>
+        <input id="tgtFile" type="file" accept="image/*">
+      </div>
+
+      <div class="controls">
+        <div>
+          <label>Mode</label>
+          <select id="mode">
+            <option value="photomosaic">Photomosaic (tile)</option>
+            <option value="pixel-swap">Pixel replacement (map)</option>
+            <option value="color-remap">Color remap (palette)</option>
+            <option value="stippling">Stippling (points)</option>
+          </select>
+        </div>
+        <div>
+          <label>Use GPU (WebGL fast path)</label>
+          <input id="useGPU" type="checkbox">
+        </div>
+      </div>
+
+      <div class="controls-grid">
+        <div>
+          <label>Tile / Patch size</label>
+          <input id="tileSize" type="range" min="1" max="128" value="16">
+        </div>
+        <div>
+          <label>Density / Points</label>
+          <input id="density" type="range" min="1" max="20000" value="2000">
+        </div>
+
+        <div>
+          <label>Palette size</label>
+          <input id="paletteSize" type="range" min="2" max="256" value="64">
+        </div>
+        <div>
+          <label>Jitter (px)</label>
+          <input id="jitter" type="range" min="0" max="64" value="4">
+        </div>
+
+        <div>
+          <label>Rotation jitter (&deg;)</label>
+          <input id="rotJitter" type="range" min="0" max="180" value="0">
+        </div>
+        <div>
+          <label>Opacity (0–1)</label>
+          <input id="opacity" type="range" min="0" max="1" step="0.01" value="1">
+        </div>
+
+        <div>
+          <label>Sampling</label>
+          <select id="sampling">
+            <option value="single">Single pixel</option>
+            <option value="avg">Averaged patch</option>
+            <option value="best">Best-match patch</option>
+            <option value="random">Random from source</option>
+          </select>
+        </div>
+        <div>
+          <label>Color distance</label>
+          <select id="distMetric">
+            <option value="rgb">RGB Euclidean</option>
+            <option value="lab">CIE LAB (approx)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <button id="previewBtn">Preview</button>
+        <button id="renderBtn">Render</button>
+        <button id="exportBtn">Export PNG</button>
+      </div>
+
+      <div class="help">Presets: change values then click "Randomize" to try combinations. "Use GPU" enables WebGL fast path for tile and pixel-swap modes (best-effort).</div>
+      <div class="row">
+        <button id="randomize">Randomize</button>
+        <button id="reset">Reset</button>
+      </div>
+
+      <div class="footer">
+        <div class="muted small">Preview respects canvas size. Render uses target resolution.</div>
+        <div class="muted small">Black & white UI • single-file</div>
+      </div>
+    </div>
+
+    <div class="panel canvas-wrap">
+      <div class="preview-row">
+        <div class="chip" id="srcInfo">Source: —</div>
+        <div class="chip" id="tgtInfo">Target: —</div>
+        <div class="chip" id="timeInfo">Ready</div>
+      </div>
+
+      <canvas id="mainCanvas" width="1024" height="640"></canvas>
+
+      <div class="row" style="width:100%;justify-content:center">
+        <button id="zoomFit">Fit</button>
+        <button id="zoom100">100%</button>
+        <button id="clearBtn">Clear</button>
+      </div>
+
+      <div class="muted small" style="max-width:880px;text-align:left">Notes: The tool draws tiles/points using pixels sampled from the source image (drawImage of 1×1 source pixels). Some heavy modes may take time on large images; use Preview first.</div>
+    </div>
+  </div>
+
+  <script>
+  // Minimal utilities
+  const el = id=>document.getElementById(id);
+  const srcFile = el('srcFile');
+  const tgtFile = el('tgtFile');
+  const mainCanvas = el('mainCanvas');
+  const ctx = mainCanvas.getContext('2d');
+
+  let srcImg = new Image();
+  let tgtImg = new Image();
+  let srcCanvas = document.createElement('canvas');
+  let tgtCanvas = document.createElement('canvas');
+  let srcCtx = srcCanvas.getContext('2d');
+  let tgtCtx = tgtCanvas.getContext('2d');
+
+  function readFileAsURL(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})}
+
+  srcFile.addEventListener('change',async e=>{if(!e.target.files[0])return;srcImg.src = await readFileAsURL(e.target.files[0]);srcImg.onload = ()=>{srcCanvas.width=srcImg.width;srcCanvas.height=srcImg.height;srcCtx.drawImage(srcImg,0,0);el('srcInfo').textContent = `Source: ${srcImg.width}×${srcImg.height}`}})
+  tgtFile.addEventListener('change',async e=>{if(!e.target.files[0])return;tgtImg.src = await readFileAsURL(e.target.files[0]);tgtImg.onload = ()=>{tgtCanvas.width=tgtImg.width;tgtCanvas.height=tgtImg.height;tgtCtx.drawImage(tgtImg,0,0);el('tgtInfo').textContent = `Target: ${tgtImg.width}×${tgtImg.height}`; // auto fit canvas
+    mainCanvas.width = Math.min(1400,tgtImg.width);mainCanvas.height = Math.min(900,tgtImg.height);ctx.clearRect(0,0,mainCanvas.width,mainCanvas.height);ctx.drawImage(tgtImg,0,0,mainCanvas.width,mainCanvas.height)}})
+
+  // Controls
+  const modeEl = el('mode');
+  const useGPU = el('useGPU');
+  const tileSizeEl = el('tileSize');
+  const densityEl = el('density');
+  const paletteSizeEl = el('paletteSize');
+  const jitterEl = el('jitter');
+  const rotJitterEl = el('rotJitter');
+  const opacityEl = el('opacity');
+  const samplingEl = el('sampling');
+  const distMetricEl = el('distMetric');
+
+  const previewBtn = el('previewBtn');
+  const renderBtn = el('renderBtn');
+  const exportBtn = el('exportBtn');
+  const clearBtn = el('clearBtn');
+  const timeInfo = el('timeInfo');
+  const randomize = el('randomize');
+  const reset = el('reset');
+
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+
+  // Color conversions (approx LAB conversion)
+  function rgb2xyz(r,g,b){r/=255;g/=255;b/=255; r = r>0.04045?Math.pow((r+0.055)/1.055,2.4):r/12.92; g = g>0.04045?Math.pow((g+0.055)/1.055,2.4):g/12.92; b = b>0.04045?Math.pow((b+0.055)/1.055,2.4):b/12.92; const x = r*0.4124 + g*0.3576 + b*0.1805; const y = r*0.2126 + g*0.7152 + b*0.0722; const z = r*0.0193 + g*0.1192 + b*0.9505; return [x,y,z]}
+  function xyz2lab(x,y,z){const refX=0.95047,refY=1.00000,refZ=1.08883; x/=refX; y/=refY; z/=refZ; const f = v=>v>0.008856?Math.pow(v,1/3):(7.787*v)+(16/116); const fx=f(x),fy=f(y),fz=f(z); return [116*fy-16,500*(fx-fy),200*(fy-fz)]}
+  function rgb2lab(r,g,b){return xyz2lab(...rgb2xyz(r,g,b))}
+
+  function colorDist(a,b,metric='rgb'){if(metric==='lab'){const la=rgb2lab(a[0],a[1],a[2]);const lb=rgb2lab(b[0],b[1],b[2]);const dx=la[0]-lb[0],dy=la[1]-lb[1],dz=la[2]-lb[2];return Math.sqrt(dx*dx+dy*dy+dz*dz)}else{const dr=a[0]-b[0],dg=a[1]-b[1],db=a[2]-b[2];return Math.sqrt(dr*dr+dg*dg+db*db)}}
+
+  // Build source palette: sample random pixels then k-means
+  function sampleSourcePixels(n=5000){const w=srcCanvas.width,h=srcCanvas.height;const data=srcCtx.getImageData(0,0,w,h).data;const out=[];for(let i=0;i<n;i++){const x=Math.floor(Math.random()*w);const y=Math.floor(Math.random()*h);const idx=(y*w+x)*4;out.push([data[idx],data[idx+1],data[idx+2],x,y])}return out}
+
+  function kmeans(pixels,k=64,iter=8){if(pixels.length===0)return[];k=Math.min(k,pixels.length);const centers=[];for(let i=0;i<k;i++){const p=pixels[Math.floor(Math.random()*pixels.length)];centers.push([p[0],p[1],p[2]])}
+    for(let it=0;it<iter;it++){const sums=Array(k).fill(0).map(()=>[0,0,0,0]);const counts=Array(k).fill(0);for(const p of pixels){let best=0,bd=1e9;for(let c=0;c<k;c++){const d=colorDist(p,centers[c],'rgb');if(d<bd){bd=d;best=c}}sums[best][0]+=p[0];sums[best][1]+=p[1];sums[best][2]+=p[2];counts[best]++}
+      for(let c=0;c<k;c++){if(counts[c]>0){centers[c][0]=Math.round(sums[c][0]/counts[c]);centers[c][1]=Math.round(sums[c][1]/counts[c]);centers[c][2]=Math.round(sums[c][2]/counts[c])}}
+    }
+    return centers}
+
+  // Find nearest pixel in source for a color by scanning a sampled list
+  function findNearestSourcePixel(color,samples,metric){let best=null;let bd=1e9;for(const s of samples){const d=colorDist(color,[s[0],s[1],s[2]],metric);if(d<bd){bd=d;best=s}}return best}
+
+  // Core render functions
+  async function renderPreview(){if(!srcImg.src||!tgtImg.src){timeInfo.textContent='Load both images';return}timeInfo.textContent='Processing...';await sleep(10);
+    const mode=modeEl.value;const tileSize=parseInt(tileSizeEl.value);const density=parseInt(densityEl.value);const paletteSize=parseInt(paletteSizeEl.value);const jitter=parseInt(jitterEl.value);const rotJ=parseInt(rotJitterEl.value);const opacity=parseFloat(opacityEl.value);const sampling=samplingEl.value;const dist=distMetricEl.value;
+    // draw target scaled to preview canvas size
+    const pw = mainCanvas.width; const ph = mainCanvas.height; ctx.clearRect(0,0,pw,ph);
+    // create temp target preview scaled
+    const tempCanvas = document.createElement('canvas'); tempCanvas.width=pw; tempCanvas.height=ph; const tctx=tempCanvas.getContext('2d'); tctx.drawImage(tgtImg,0,0,pw,ph);
+
+    if(mode==='photomosaic'){
+      // build palette and samples
+      const samples = sampleSourcePixels( Math.min(8000,Math.max(2000, paletteSize*50)) );
+      const centers = kmeans(samples,paletteSize,6);
+      // for each tile compute avg color and pick nearest sample
+      for(let y=0;y<ph;y+=tileSize){for(let x=0;x<pw;x+=tileSize){const cx=x+tileSize/2, cy=y+tileSize/2;const d = tctx.getImageData(Math.max(0,Math.floor(cx)),Math.max(0,Math.floor(cy)),1,1).data;const avg=[d[0],d[1],d[2]];const pick = findNearestSourcePixel(avg,samples,dist); if(!pick) continue; const sx=pick[3], sy=pick[4]; const dx = x + (Math.random()*2-1)*jitter; const dy = y + (Math.random()*2-1)*jitter; ctx.globalAlpha = opacity; ctx.imageSmoothingEnabled=false; ctx.drawImage(srcCanvas, sx, sy,1,1, dx, dy, tileSize, tileSize); ctx.globalAlpha=1}}
+      timeInfo.textContent='Preview: photomosaic';
+    } else if(mode==='pixel-swap'){
+      // map each target pixel to a source pixel according to a mapping
+      const sW=srcCanvas.width, sH=srcCanvas.height; const tW=pw,tH=ph;
+      const tdata = tctx.getImageData(0,0,tW,tH).data;
+      const sxRatio = sW/tW, syRatio = sH/tH;
+      const randSeed = Math.random();
+      const order = [];
+      for(let i=0;i<tW*tH;i++) order.push(i);
+      if(sampling==='random') shuffle(order);
+      for(let idx=0;idx<order.length;idx++){const i=order[idx];const tx=i%tW, ty=Math.floor(i/tW);const px = Math.floor(tx*sxRatio + (Math.random()*2-1)* (jitter/10));const py = Math.floor(ty*syRatio + (Math.random()*2-1)* (jitter/10)); const sx = clamp(px,0,sW-1); const sy = clamp(py,0,sH-1); ctx.imageSmoothingEnabled=false; ctx.globalAlpha=opacity; ctx.drawImage(srcCanvas,sx,sy,1,1,tx,ty,1,1); ctx.globalAlpha=1}
+      timeInfo.textContent='Preview: pixel-swap';
+    } else if(mode==='color-remap'){
+      const samples = sampleSourcePixels( Math.min(6000,Math.max(1000,paletteSize*30)) );
+      const centers = kmeans(samples,paletteSize,6);
+      const tW=pw,tH=ph; const tdata = tctx.getImageData(0,0,tW,tH).data;
+      for(let y=0;y<tH;y++){for(let x=0;x<tW;x++){const idx=(y*tW+x)*4;const color=[tdata[idx],tdata[idx+1],tdata[idx+2]];const pick = findNearestSourcePixel(color,samples,dist); if(!pick) continue; const sx=pick[3], sy=pick[4]; ctx.globalAlpha=opacity; ctx.imageSmoothingEnabled=false; ctx.drawImage(srcCanvas,sx,sy,1,1,x,y,1,1); ctx.globalAlpha=1}}
+      timeInfo.textContent='Preview: color-remap';
+    } else if(mode==='stippling'){
+      // place points weighted by target luminance
+      const samples = sampleSourcePixels( Math.min(4000,Math.max(500,paletteSize*20)) );
+      const tW=pw,tH=ph; const tdata = tctx.getImageData(0,0,tW,tH).data;
+      // build cumulative luminance map
+      const lum = new Float32Array(tW*tH); let tot=0; for(let y=0;y<tH;y++){for(let x=0;x<tW;x++){const idx=(y*tW+x)*4;const l = 0.2126*tdata[idx]+0.7152*tdata[idx+1]+0.0722*tdata[idx+2]; const w = 255 - l; // darker gets more weight
+        lum[y*tW+x]=w; tot+=w}}
+      // normalize to cumulative
+      for(let i=1;i<lum.length;i++) lum[i]+=lum[i-1];
+      for(let i=0;i<density;i++){const r=Math.random()*lum[lum.length-1]; // binary search
+        let lo=0,hi=lum.length-1;while(lo<hi){const mid=(lo+hi)>>1; if(lum[mid]<r) lo=mid+1; else hi=mid} const pos = lo; const tx = pos % tW; const ty = Math.floor(pos/tW); const pick = samples[Math.floor(Math.random()*samples.length)]; const sx=pick[3], sy=pick[4]; const size = Math.max(1, Math.round((Math.random()*2+0.2))); ctx.globalAlpha=opacity; ctx.imageSmoothingEnabled=false; ctx.drawImage(srcCanvas,sx,sy,1,1,tx-size/2,ty-size/2,size,size); ctx.globalAlpha=1 }
+      timeInfo.textContent='Preview: stippling';
+    }
+  }
+
+  function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+  previewBtn.addEventListener('click',()=>{renderPreview()})
+  renderBtn.addEventListener('click',async ()=>{
+    if(!srcImg.src||!tgtImg.src){timeInfo.textContent='Load both images';return}
+    timeInfo.textContent='Rendering full resolution...';
+    // set main canvas to target size
+    mainCanvas.width = tgtImg.width; mainCanvas.height = tgtImg.height; await renderPreviewFull(); timeInfo.textContent='Render complete';
+  })
+
+  async function renderPreviewFull(){// similar to preview but using target resolution
+    const mode=modeEl.value;const tileSize=parseInt(tileSizeEl.value);const density=parseInt(densityEl.value);const paletteSize=parseInt(paletteSizeEl.value);const jitter=parseInt(jitterEl.value);const rotJ=parseInt(rotJitterEl.value);const opacity=parseFloat(opacityEl.value);const sampling=samplingEl.value;const dist=distMetricEl.value;
+    const pw = mainCanvas.width; const ph = mainCanvas.height; ctx.clearRect(0,0,pw,ph);
+    const tctxFull = tgtCtx; // target is already at full res
+
+    if(mode==='photomosaic'){
+      const samples = sampleSourcePixels( Math.min(30000,Math.max(2000, paletteSize*200)) );
+      // for stability, reduce kmeans iterations on huge images
+      const centers = kmeans(samples,paletteSize,8);
+      for(let y=0;y<ph;y+=tileSize){for(let x=0;x<pw;x+=tileSize){const cx=x+tileSize/2, cy=y+tileSize/2;const d = tctxFull.getImageData(Math.max(0,Math.floor(cx)),Math.max(0,Math.floor(cy)),1,1).data;const avg=[d[0],d[1],d[2]];const pick = findNearestSourcePixel(avg,samples,dist); if(!pick) continue; const sx=pick[3], sy=pick[4]; const dx = x + (Math.random()*2-1)*jitter; const dy = y + (Math.random()*2-1)*jitter; ctx.globalAlpha = opacity; ctx.imageSmoothingEnabled=false; ctx.drawImage(srcCanvas, sx, sy,1,1, dx, dy, tileSize, tileSize); ctx.globalAlpha=1}}
+    } else if(mode==='pixel-swap'){
+      const sW=srcCanvas.width, sH=srcCanvas.height; const tW=pw,tH=ph;
+      const sxRatio = sW/tW, syRatio = sH/tH;
+      // faster loop with typed array transfer
+      for(let y=0;y<tH;y++){for(let x=0;x<tW;x++){const px = Math.floor(x*sxRatio + (Math.random()*2-1)* (jitter/10));const py = Math.floor(y*syRatio + (Math.random()*2-1)* (jitter/10)); const sx=clamp(px,0,sW-1), sy=clamp(py,0,sH-1); ctx.imageSmoothingEnabled=false; ctx.globalAlpha=opacity; ctx.drawImage(srcCanvas,sx,sy,1,1,x,y,1,1); ctx.globalAlpha=1}}    
+    } else if(mode==='color-remap'){
+      const samples = sampleSourcePixels( Math.min(20000,Math.max(2000,paletteSize*200)) );
+      for(let y=0;y<ph;y++){for(let x=0;x<pw;x++){const d = tctxFull.getImageData(x,y,1,1).data; const color=[d[0],d[1],d[2]]; const pick = findNearestSourcePixel(color,samples,dist); if(!pick) continue; const sx=pick[3], sy=pick[4]; ctx.globalAlpha=opacity; ctx.imageSmoothingEnabled=false; ctx.drawImage(srcCanvas,sx,sy,1,1,x,y,1,1); ctx.globalAlpha=1}}
+    } else if(mode==='stippling'){
+      const samples = sampleSourcePixels( Math.min(8000,Math.max(500,paletteSize*60)) );
+      const tW=pw,tH=ph; const tdata = tctxFull.getImageData(0,0,tW,tH).data; const lum = new Float32Array(tW*tH); let tot=0; for(let y=0;y<tH;y++){for(let x=0;x<tW;x++){const idx=(y*tW+x)*4;const l = 0.2126*tdata[idx]+0.7152*tdata[idx+1]+0.0722*tdata[idx+2]; const w = 255 - l; lum[y*tW+x]=w; tot+=w}} for(let i=1;i<lum.length;i++) lum[i]+=lum[i-1]; for(let i=0;i<density;i++){const r=Math.random()*lum[lum.length-1];let lo=0,hi=lum.length-1;while(lo<hi){const mid=(lo+hi)>>1; if(lum[mid]<r) lo=mid+1; else hi=mid} const pos=lo; const tx=pos%tW, ty=Math.floor(pos/tW); const pick=samples[Math.floor(Math.random()*samples.length)]; const sx=pick[3], sy=pick[4]; const size = Math.max(1, Math.round((Math.random()*3+0.5))); ctx.globalAlpha=opacity; ctx.imageSmoothingEnabled=false; ctx.drawImage(srcCanvas,sx,sy,1,1,tx-size/2,ty-size/2,size,size); ctx.globalAlpha=1 }
+    }
+  }
+
+  exportBtn.addEventListener('click',()=>{const url=mainCanvas.toDataURL('image/png'); const a=document.createElement('a'); a.href=url; a.download='rebuilt.png'; a.click()})
+  clearBtn.addEventListener('click',()=>{ctx.clearRect(0,0,mainCanvas.width,mainCanvas.height);timeInfo.textContent='Cleared'})
+  document.getElementById('zoomFit').addEventListener('click',()=>{mainCanvas.style.width='100%';mainCanvas.style.height='auto'})
+  document.getElementById('zoom100').addEventListener('click',()=>{mainCanvas.style.width='';mainCanvas.style.height='';})
+
+  randomize.addEventListener('click',()=>{tileSizeEl.value = Math.floor(Math.random()*64)+2; densityEl.value = Math.floor(Math.random()*5000)+200; paletteSizeEl.value = Math.floor(Math.random()*200)+8; jitterEl.value = Math.floor(Math.random()*12); opacityEl.value = (Math.random()*0.6+0.4).toFixed(2); samplingEl.selectedIndex = Math.floor(Math.random()*samplingEl.options.length); distMetricEl.selectedIndex = Math.floor(Math.random()*distMetricEl.options.length); timeInfo.textContent='Randomized'})
+  reset.addEventListener('click',()=>{tileSizeEl.value=16;densityEl.value=2000;paletteSizeEl.value=64;jitterEl.value=4;rotJitterEl.value=0;opacityEl.value=1;samplingEl.value='single';distMetricEl.value='rgb';timeInfo.textContent='Reset'})
+
+  function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}
+
+  // initial state
+  reset.click();
+
+  </script>
+</body>
+</html>
