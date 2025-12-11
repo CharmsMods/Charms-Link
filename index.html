@@ -158,35 +158,68 @@
         </div>
     </section>
     
-    <!-- Vanta.js Globe Background -->
+    <!-- Background Elements -->
     <div id="vanta-bg"></div>
+    <div id="mobile-bg"></div>
     
     <!-- Vanta.js Scripts -->
     <script src="three.r134.min.js"></script>
     <script src="vanta.clouds.min.js"></script>
     
     <script>
-        // Initialize Vanta.js Clouds
-        const vantaEffect = VANTA.CLOUDS({
-            el: "#vanta-bg",
-            mouseControls: true,
-            touchControls: true,
-            gyroControls: false,
-            minHeight: 200.00,
-            minWidth: 200.00,
-            backgroundColor: 0xffffff,
-            skyColor: 0x68b8d7,
-            cloudColor: 0xadc1de,
-            cloudShadowColor: 0x183550,
-            sunColor: 0xff9919,
-            sunGlareColor: 0xff6633,
-            sunlightColor: 0xff9933,
-        });
+        // Function to initialize Vanta.js (for desktop)
+        function initVanta() {
+            // Only initialize if screen is wider than 1024px (typical tablet landscape and up)
+            if (window.innerWidth > 1024) {
+                return VANTA.CLOUDS({
+                    el: "#vanta-bg",
+                    mouseControls: true,
+                    touchControls: true,
+                    gyroControls: false,
+                    minHeight: 200.00,
+                    minWidth: 200.00,
+                    backgroundColor: 0xffffff,
+                    skyColor: 0x68b8d7,
+                    cloudColor: 0xadc1de,
+                    cloudShadowColor: 0x183550,
+                    sunColor: 0xff9919,
+                    sunGlareColor: 0xff6633,
+                    sunlightColor: 0xff9933,
+                });
+            }
+            return null;
+        }
+
+        // Initialize Vanta.js if on desktop
+        let vantaEffect = initVanta();
         
         // Handle window resize
-        window.addEventListener('resize', function() {
-            vantaEffect.resize();
-        });
+        function handleResize() {
+            const mobileBg = document.getElementById('mobile-bg');
+            
+            if (window.innerWidth <= 1024) {
+                // On mobile/tablet
+                if (vantaEffect) {
+                    vantaEffect.destroy();
+                    vantaEffect = null;
+                }
+                mobileBg.style.display = 'block';
+            } else {
+                // On desktop
+                mobileBg.style.display = 'none';
+                if (!vantaEffect) {
+                    vantaEffect = initVanta();
+                } else {
+                    vantaEffect.resize();
+                }
+            }
+        }
+        
+        // Initial check
+        handleResize();
+        
+        // Add resize event listener
+        window.addEventListener('resize', handleResize);
     </script>
     
     <!-- Add scroll functionality -->
