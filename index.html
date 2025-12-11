@@ -6,13 +6,15 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Profile Picture -->
-        <div class="profile-container">
-            <img src="pfp.png" alt="Profile Picture" class="profile-pic">
-        </div>
-        
-        <div class="grid">
+    <!-- Section 1: Tools Grid -->
+    <section class="section-top">
+        <div class="container">
+            <!-- Profile Picture -->
+            <div class="profile-container">
+                <img src="pfp.png" alt="Profile Picture" class="profile-pic">
+            </div>
+            
+            <div class="grid">
             <!-- Charm's Landing Page 
             <a href="https://charmsmods.github.io/Landing-Charm/" class="website-box" target="_blank">
                 <div class="image-container">
@@ -78,27 +80,28 @@
                     <div class="website-title">Venge Modding</div>
                 </div>
             </a>
-
+            </div>
         </div>
-    </div>
 
-    
-    <!-- Scroll Down Arrow -->
-    <div class="scroll-down">
-        <div class="scroll-circle">
-            <svg class="arrow-down" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M19 9L12 16L5 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+        <!-- Scroll Down Arrow -->
+        <div class="scroll-down">
+            <div class="scroll-circle">
+                <svg class="arrow-down" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 9L12 16L5 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
         </div>
-    </div>
+    </section>
     
-    <div class="bio-content">
-                <div class="bio-text">
+    <!-- Section 2: Bio + Setup + Coming Soon -->
+    <section class="section-bio">
+        <div class="bio-content">
+            <div class="bio-text">
                     <p>Hey, I'm Darynn, but I go by Charm? online. You might have seen me on YouTube
                          playing some games or making edits of those games.</p>
                     
-                    <div class="bio-image-right">
-                        <img src="2nd Section Images/1.png" alt="1" class="bio-image">
+                    <div class="bio-image-left">
+                        <img src="2nd Section Images/1.png" alt="1" class="bio-image hover-zoom" data-fullsrc="2nd Section Images/1.png">
                     </div>
                     
                     <p>My journey started around a year ago when I discovered Venge.io,
@@ -113,8 +116,8 @@
                         These games have kept me busy over the past few weeks as I hope to become skilled at a competitive level in The Finals.
                     </p>
                     
-                    <div class="bio-image-left">
-                        <img src="2nd Section Images/2.png" alt="2" class="bio-image">
+                    <div class="bio-image-right">
+                        <img src="2nd Section Images/2.png" alt="2" class="bio-image hover-zoom" data-fullsrc="2nd Section Images/2.png">
                     </div>
                     
                     <p>Meanwhile, while playing shooter games, I have begun to grow an online community 
@@ -128,9 +131,23 @@
                 </div>
             </div>
 
-            
-            <!-- Social Media Links -->
-            <div class="social-links">
+            <div class="setup-section">
+                <div class="setup-title">Setup</div>
+                <div class="setup-image-wrapper">
+                    <img src="2nd Section Images/3.png" alt="3" class="setup-image hover-zoom" data-fullsrc="2nd Section Images/3.png">
+                </div>
+            </div>
+
+            <div class="coming-soon-section">
+                <p class="coming-soon-text">New Section Coming Soon</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 3: Social Links / Footer -->
+    <section class="section-footer">
+        <!-- Social Media Links -->
+        <div class="social-links">
                 <a href="https://discord.com/users/1198452446456983605" class="social-link" target="_blank" rel="noopener noreferrer" aria-label="Discord">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36" fill="currentColor">
                         <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.86.66,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
@@ -222,8 +239,46 @@
         window.addEventListener('resize', handleResize);
     </script>
     
+    <!-- Fullscreen Image Modal -->
+    <div id="fullscreen-modal" class="fullscreen-modal">
+        <button id="fullscreen-close" class="fullscreen-close">&times;</button>
+        <img id="fullscreen-img" class="fullscreen-img" src="" alt="">
+    </div>
+
     <!-- Add scroll functionality -->
     <script src="js/scroll.js"></script>
-    
+
+    <script>
+        // Fullscreen image modal
+        const modal = document.getElementById('fullscreen-modal');
+        const modalImg = document.getElementById('fullscreen-img');
+        const closeBtn = document.getElementById('fullscreen-close');
+
+        // Open modal on click for images with hover-zoom class
+        document.querySelectorAll('.hover-zoom').forEach(img => {
+            img.addEventListener('click', () => {
+                modal.style.display = 'flex';
+                modalImg.src = img.dataset.fullsrc || img.src;
+                document.body.style.overflow = 'hidden';
+            });
+        });
+
+        // Close modal on X click or background click
+        const closeModal = () => {
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+        };
+
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', e => {
+            if (e.target === modal) closeModal();
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
+        });
+    </script>
+
 </body>
 </html>
