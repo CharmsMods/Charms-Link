@@ -178,6 +178,15 @@
     <!-- Background Elements -->
     <div id="vanta-bg"></div>
     <div id="mobile-bg"></div>
+    <div id="desktop-fallback-bg"></div>
+
+    <!-- Desktop background mode toggle (animation vs image) -->
+    <div class="bg-toggle" id="bg-toggle" aria-hidden="true">
+        <button type="button" class="bg-toggle-button" id="bg-toggle-button">
+            <span class="bg-toggle-indicator"></span>
+            <span class="bg-toggle-label">Image</span>
+        </button>
+    </div>
     
     <!-- Vanta.js Scripts -->
     <script src="three.r134.min.js"></script>
@@ -207,27 +216,157 @@
             return null;
         }
 
-        // Initialize Vanta.js if on desktop
-        let vantaEffect = initVanta();
-        
+        const mobileBg = document.getElementById('mobile-bg');
+        const desktopFallbackBg = document.getElementById('desktop-fallback-bg');
+        const vantaContainer = document.getElementById('vanta-bg');
+        const bgToggle = document.getElementById('bg-toggle');
+        const bgToggleButton = document.getElementById('bg-toggle-button');
+        const bgToggleLabel = document.querySelector('#bg-toggle .bg-toggle-label');
+
+        let vantaEffect = null;
+        let fpsMonitoring = false;
+        let vantaDisabledForPerf = false; // auto-disabled due to low FPS
+        let userForcedMode = null; // 'animation' | 'image' | null (auto)
+
+        function updateToggleUI(mode) {
+            if (!bgToggleButton || !bgToggleLabel) return;
+            // mode: 'animation' or 'image'
+            if (mode === 'image') {
+                bgToggleButton.classList.add('bg-mode-image');
+                bgToggleLabel.textContent = 'Animation';
+            } else {
+                bgToggleButton.classList.remove('bg-mode-image');
+                bgToggleLabel.textContent = 'Image';
+            }
+        }
+
+        function startFpsMonitor() {
+            if (fpsMonitoring || vantaDisabledForPerf) return;
+            fpsMonitoring = true;
+
+            let frameCount = 0;
+            let startTime = performance.now();
+            const sampleWindow = 1000; // 1 second window
+
+            function sample(now) {
+                if (!fpsMonitoring || vantaDisabledForPerf) return;
+
+                frameCount++;
+                const elapsed = now - startTime;
+
+                if (elapsed >= sampleWindow) {
+                    const fps = (frameCount * 1000) / elapsed;
+
+                    if (fps < 25 && window.innerWidth > 1024 && !userForcedMode) {
+                        // Disable Vanta for low-performance desktops
+                        if (vantaEffect) {
+                            vantaEffect.destroy();
+                            vantaEffect = null;
+                        }
+                        vantaContainer.style.display = 'none';
+                        desktopFallbackBg.style.display = 'block';
+
+                        // Start desktop parallax fallback if helper exists
+                        if (window.startDesktopParallaxFallback) {
+                            window.startDesktopParallaxFallback();
+                        }
+
+                        vantaDisabledForPerf = true;
+                        updateToggleUI('image');
+                        fpsMonitoring = false;
+                        return;
+                    }
+
+                    // Reset counters and continue sampling
+                    frameCount = 0;
+                    startTime = now;
+
+                    // If FPS is healthy (>= 30) we just keep monitoring
+                }
+
+                requestAnimationFrame(sample);
+            }
+
+            requestAnimationFrame(sample);
+        }
+
+        function useAnimationBackground() {
+            // Called when user/manual or auto wants animation on desktop
+            vantaDisabledForPerf = false;
+            desktopFallbackBg.style.display = 'none';
+            vantaContainer.style.display = '';
+
+            if (!vantaEffect) {
+                vantaEffect = initVanta();
+            } else {
+                vantaEffect.resize();
+            }
+
+            startFpsMonitor();
+            updateToggleUI('animation');
+        }
+
+        function useImageBackground() {
+            // Called when we want the static desktop image on desktop
+            if (vantaEffect) {
+                vantaEffect.destroy();
+                vantaEffect = null;
+            }
+            vantaContainer.style.display = 'none';
+            desktopFallbackBg.style.display = 'block';
+            fpsMonitoring = false;
+            updateToggleUI('image');
+
+            if (window.startDesktopParallaxFallback) {
+                window.startDesktopParallaxFallback();
+            }
+        }
+
+        // Toggle click handler (desktop only)
+        if (bgToggleButton) {
+            bgToggleButton.addEventListener('click', function() {
+                if (window.innerWidth <= 1024) return; // ignore on mobile
+
+                if (desktopFallbackBg.style.display === 'block') {
+                    // Switch to animation
+                    userForcedMode = 'animation';
+                    useAnimationBackground();
+                } else {
+                    // Switch to image
+                    userForcedMode = 'image';
+                    useImageBackground();
+                }
+            });
+        }
+
         // Handle window resize
         function handleResize() {
-            const mobileBg = document.getElementById('mobile-bg');
-            
             if (window.innerWidth <= 1024) {
-                // On mobile/tablet
+                // On mobile/tablet: mobile has highest priority
                 if (vantaEffect) {
                     vantaEffect.destroy();
                     vantaEffect = null;
                 }
+                vantaContainer.style.display = '';
+                desktopFallbackBg.style.display = 'none';
                 mobileBg.style.display = 'block';
+                fpsMonitoring = false;
+                userForcedMode = null; // reset to auto when going to mobile
             } else {
                 // On desktop
                 mobileBg.style.display = 'none';
-                if (!vantaEffect) {
-                    vantaEffect = initVanta();
+
+                // Show toggle on desktop (CSS also guards this)
+                if (bgToggle) {
+                    bgToggle.setAttribute('aria-hidden', 'false');
+                }
+
+                // Decide which background to use
+                if (userForcedMode === 'image' || vantaDisabledForPerf) {
+                    useImageBackground();
                 } else {
-                    vantaEffect.resize();
+                    // Auto or userForcedMode === 'animation'
+                    useAnimationBackground();
                 }
             }
         }

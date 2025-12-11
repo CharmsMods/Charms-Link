@@ -1,0 +1,418 @@
+<!-- filename: tile_image_realtime.html -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Image Tiler — Real-time</title>
+<style>
+  :root{--bg:#0f1720;--panel:#0b1220;--muted:#9aa7b2;--accent:#66c2ff;--mono:12px/1 monospace}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#071021 0%, #08131b 100%);color:#e6eef6;font-family:Inter,system-ui,ui-sans-serif,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1150px;margin:18px auto;padding:18px;background:rgba(255,255,255,0.02);border-radius:12px;display:grid;grid-template-columns:360px 1fr;gap:18px}
+  .panel{background:var(--panel);padding:14px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.6)}
+  h1{margin:0 0 10px 0;font-size:18px}
+  label{display:block;font-size:12px;color:var(--muted);margin-top:8px}
+  input[type="file"]{width:100%}
+  .row{display:flex;gap:8px;align-items:center;margin-top:8px}
+  input[type="number"],select,input[type="text"]{width:100%;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit;font-size:13px}
+  .small{width:86px}
+  button{background:linear-gradient(180deg,var(--accent),#4aa6dd);border:none;color:#022;padding:8px 10px;border-radius:8px;font-weight:700;cursor:pointer}
+  canvas{width:100%;height:auto;border-radius:8px;background:#000;display:block}
+  .meta{font-size:12px;color:var(--muted);margin-top:8px}
+  .downloads{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  a.dl{background:#0b2433;padding:8px 10px;border-radius:8px;color:#bfe9ff;text-decoration:none;font-size:13px}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  .controls{display:flex;flex-direction:column}
+  .inline{display:flex;gap:8px}
+  .preview-wrap{display:flex;flex-direction:column;gap:8px}
+  .preview-canvas{width:100%;height:600px;display:flex;align-items:center;justify-content:center;background:#000;border-radius:8px;overflow:hidden}
+  .note{font-size:12px;color:var(--muted)}
+  footer{grid-column:1/-1;margin-top:8px;color:var(--muted);font-size:12px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel controls">
+    <h1>Image Tiler — real-time</h1>
+
+    <label>Choose image (PNG / JPG)</label>
+    <input id="file" type="file" accept="image/png,image/jpeg" />
+
+    <div class="inline" style="margin-top:8px">
+      <div style="flex:1">
+        <label>Tiles (N or W x H)</label>
+        <input id="tiles" type="text" placeholder="e.g. 3  or  4x2" />
+      </div>
+      <div style="width:86px">
+        <label>Fit</label>
+        <select id="target">
+          <option value="full">full</option>
+          <option value="1024">1k</option>
+          <option value="2048">2k</option>
+          <option value="4096">4k</option>
+          <option value="8192">8k</option>
+          <option value="all">all</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="inline" style="margin-top:8px">
+      <div style="flex:1">
+        <label>Horizontal spacing (px)</label>
+        <input id="sx" type="number" value="0" min="0" />
+      </div>
+      <div style="width:120px">
+        <label>Vertical spacing (px)</label>
+        <input id="sy" type="number" value="0" min="0" />
+      </div>
+    </div>
+
+    <div style="margin-top:10px">
+      <label>Preview quality</label>
+      <select id="previewScale">
+        <option value="auto">fit to panel</option>
+        <option value="1">100%</option>
+        <option value="0.75">75%</option>
+        <option value="0.5" selected>50%</option>
+        <option value="0.25">25%</option>
+      </select>
+    </div>
+
+    <div class="row" style="margin-top:12px">
+      <button id="render">Render now</button>
+      <button id="downloadAll">Download selected</button>
+      <button id="clear">Clear</button>
+    </div>
+
+    <div class="meta" id="meta">No image loaded.</div>
+    <div class="hint">Spacing gaps are filled by stretching the image's right/bottom edge and bottom-right corner pixels.</div>
+
+    <div style="margin-top:8px" class="downloads" id="downloads"></div>
+  </div>
+
+  <div class="panel preview-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <strong>Preview</strong>
+        <div class="note">Realtime preview of the chosen output (resized to fit)</div>
+      </div>
+      <div class="note" id="sizeNote"></div>
+    </div>
+
+    <div class="preview-canvas">
+      <canvas id="preview" width="1200" height="800"></canvas>
+    </div>
+
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+      <label style="margin:0">Show grid lines</label>
+      <input id="grid" type="checkbox" />
+      <label style="margin:0">Show tile borders</label>
+      <input id="borders" type="checkbox" />
+    </div>
+  </div>
+
+  <footer>Outputs are generated in-memory and offered for download as PNG files. Large targets (4k/8k) may be slow or memory intensive depending on your browser.</footer>
+</div>
+
+<script>
+/* Tile Image Real-time
+   - Single self-contained HTML + JS
+   - Upload an image, choose tile counts, spacing, and target resolution presets
+   - Real-time preview updates automatically on changes
+   - Downloads for chosen target(s)
+*/
+
+const fileInput = document.getElementById('file');
+const tilesInput = document.getElementById('tiles');
+const sxInput = document.getElementById('sx');
+const syInput = document.getElementById('sy');
+const targetSelect = document.getElementById('target');
+const previewCanvas = document.getElementById('preview');
+const previewCtx = previewCanvas.getContext('2d', {alpha:true});
+const renderBtn = document.getElementById('render');
+const downloadsDiv = document.getElementById('downloads');
+const meta = document.getElementById('meta');
+const previewScaleSel = document.getElementById('previewScale');
+const downloadAllBtn = document.getElementById('downloadAll');
+const clearBtn = document.getElementById('clear');
+const sizeNote = document.getElementById('sizeNote');
+const gridCheckbox = document.getElementById('grid');
+const bordersCheckbox = document.getElementById('borders');
+
+let srcImage = null;
+let srcCanvas = null; // holds original as canvas for fast cropping
+let lastState = {};
+
+function parseTiles(s){
+  s = (s||'').trim();
+  if(!s) return [3,3];
+  if(s.includes('x')){
+    const parts = s.split('x').map(p => parseInt(p.trim(),10));
+    if(parts.length===2 && Number.isInteger(parts[0]) && Number.isInteger(parts[1])) return [Math.max(1,parts[0]),Math.max(1,parts[1])];
+  }
+  const n = parseInt(s,10);
+  if(Number.isInteger(n)) return [Math.max(1,n),Math.max(1,n)];
+  return [3,3];
+}
+
+function createCanvas(w,h){ const c = document.createElement('canvas'); c.width=w; c.height=h; return c; }
+
+function loadImageFromFile(file){
+  return new Promise((res,rej)=>{
+    const img = new Image();
+    img.onload = ()=>res(img);
+    img.onerror = (e)=>rej(e);
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function handleFileChange(e){
+  const f = e.target.files && e.target.files[0];
+  if(!f) return;
+  try{
+    const img = await loadImageFromFile(f);
+    // draw into srcCanvas for pixel operations
+    srcCanvas = createCanvas(img.width, img.height);
+    const ctx = srcCanvas.getContext('2d', {willReadFrequently:true});
+    ctx.clearRect(0,0,srcCanvas.width, srcCanvas.height);
+    ctx.drawImage(img,0,0);
+    srcImage = img;
+    meta.textContent = `Loaded: ${f.name} — ${img.width} x ${img.height} px`;
+    renderPreviewDebounced();
+  }catch(err){
+    meta.textContent = 'Error loading image';
+    console.error(err);
+  }
+}
+
+// build tiled canvas with spacing filled by edge pixels
+function buildTiledCanvas(srcCanvas, tilesX, tilesY, sx, sy){
+  const w = srcCanvas.width, h = srcCanvas.height;
+  const outW = tilesX * w + Math.max(0, tilesX-1) * sx;
+  const outH = tilesY * h + Math.max(0, tilesY-1) * sy;
+  // safety limits: browsers can't handle absurdly huge canvases; still attempt
+  const out = createCanvas(outW, outH);
+  const ctx = out.getContext('2d');
+  // pre-crop 1px column, 1px row, and corner pixel for fast draws
+  const col = createCanvas(1, h); col.getContext('2d').drawImage(srcCanvas, w-1, 0, 1, h, 0, 0, 1, h);
+  const row = createCanvas(w, 1); row.getContext('2d').drawImage(srcCanvas, 0, h-1, w, 1, 0, 0, w, 1);
+  const corner = createCanvas(1,1); corner.getContext('2d').drawImage(srcCanvas, w-1, h-1, 1,1, 0,0,1,1);
+
+  for(let ry=0; ry<tilesY; ry++){
+    for(let rx=0; rx<tilesX; rx++){
+      const x = rx * (w + sx);
+      const y = ry * (h + sy);
+      ctx.drawImage(srcCanvas, x, y);
+      // vertical gap
+      if(rx < tilesX - 1 && sx > 0){
+        // stretch 1px column to width sx and full tile height
+        ctx.drawImage(col, 0, 0, 1, h, x + w, y, sx, h);
+      }
+      // horizontal gap
+      if(ry < tilesY - 1 && sy > 0){
+        ctx.drawImage(row, 0, 0, w, 1, x, y + h, w, sy);
+      }
+      // corner gap
+      if(rx < tilesX - 1 && ry < tilesY - 1 && sx > 0 && sy > 0){
+        ctx.drawImage(corner, 0, 0, 1,1, x + w, y + h, sx, sy);
+      }
+    }
+  }
+  return out;
+}
+
+function resizeToTarget(canvas, target){ // target: "full" or int
+  if(target === 'full') return canvas;
+  const t = parseInt(target,10);
+  if(!t || t<=0) return canvas;
+  const w = canvas.width, h = canvas.height;
+  const maxSide = Math.max(w,h);
+  if(maxSide === t) return canvas;
+  const scale = t / maxSide;
+  const newW = Math.max(1, Math.round(w * scale));
+  const newH = Math.max(1, Math.round(h * scale));
+  const c = createCanvas(newW, newH);
+  c.getContext('2d').imageSmoothingEnabled = true;
+  c.getContext('2d').imageSmoothingQuality = 'high';
+  c.getContext('2d').drawImage(canvas, 0,0, newW, newH);
+  return c;
+}
+
+function drawPreview(tiledCanvas){
+  // fit tiledCanvas into previewCanvas according to previewScale
+  const ps = previewScaleSel.value;
+  let scale = 1;
+  if(ps === 'auto'){
+    // fit to previewCanvas size
+    const pw = previewCanvas.clientWidth;
+    const ph = previewCanvas.clientHeight;
+    const maxW = pw - 20;
+    const maxH = ph - 20;
+    scale = Math.min(1, maxW / tiledCanvas.width, maxH / tiledCanvas.height);
+  } else {
+    scale = parseFloat(ps);
+  }
+  // draw a scaled preview into previewCanvas, but keep canvas physical size big enough for clarity
+  const displayW = Math.max(200, Math.round(tiledCanvas.width * scale));
+  const displayH = Math.max(200, Math.round(tiledCanvas.height * scale));
+  // keep previewCanvas within a reasonable pixel size to avoid huge memory use
+  const capW = 2000, capH = 1200;
+  const finalW = Math.min(displayW, capW);
+  const finalH = Math.min(displayH, capH);
+  previewCanvas.width = finalW;
+  previewCanvas.height = finalH;
+  // clear
+  previewCtx.clearRect(0,0,finalW,finalH);
+  previewCtx.imageSmoothingEnabled = true;
+  previewCtx.imageSmoothingQuality = 'high';
+  // center
+  const dx = Math.max(0, (finalW - displayW)/2);
+  const dy = Math.max(0, (finalH - displayH)/2);
+  previewCtx.fillStyle = '#000';
+  previewCtx.fillRect(0,0,finalW,finalH);
+  previewCtx.drawImage(tiledCanvas, 0,0, tiledCanvas.width, tiledCanvas.height, dx, dy, displayW, displayH);
+  // optional overlays
+  if(gridCheckbox.checked || bordersCheckbox.checked){
+    previewCtx.save();
+    previewCtx.globalCompositeOperation = 'source-over';
+    previewCtx.lineWidth = 1;
+    previewCtx.strokeStyle = 'rgba(255,255,255,0.08)';
+    const [tilesX, tilesY] = parseTiles(tilesInput.value);
+    const sx = parseInt(sxInput.value || '0',10);
+    const sy = parseInt(syInput.value || '0',10);
+    const w = srcCanvas.width, h = srcCanvas.height;
+    // compute scaled tile size
+    const sW = Math.round(w * scale);
+    const sH = Math.round(h * scale);
+    const sSx = Math.round(sx * scale);
+    const sSy = Math.round(sy * scale);
+    for(let i=1;i<tilesX;i++){
+      const x = dx + i * (sW + sSx) - sSx/2;
+      previewCtx.beginPath();
+      previewCtx.moveTo(x,0); previewCtx.lineTo(x,finalH); previewCtx.stroke();
+    }
+    for(let j=1;j<tilesY;j++){
+      const y = dy + j * (sH + sSy) - sSy/2;
+      previewCtx.beginPath();
+      previewCtx.moveTo(0,y); previewCtx.lineTo(finalW,y); previewCtx.stroke();
+    }
+    if(bordersCheckbox.checked){
+      previewCtx.strokeStyle = 'rgba(255,255,255,0.14)';
+      previewCtx.lineWidth = 1.5;
+      // outer border
+      previewCtx.strokeRect(dx+0.5, dy+0.5, displayW-1, displayH-1);
+    }
+    previewCtx.restore();
+  }
+}
+
+function makeDownloadLink(canvas, filename){
+  return new Promise((res)=>{
+    canvas.toBlob(blob=>{
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.textContent = 'Save ' + filename;
+      a.className = 'dl';
+      res({el:a, url});
+    }, 'image/png');
+  });
+}
+
+async function generateOutputs(){
+  if(!srcCanvas) { meta.textContent = 'No image loaded.'; return; }
+  const [tilesX, tilesY] = parseTiles(tilesInput.value);
+  const sx = Math.max(0, parseInt(sxInput.value||'0',10));
+  const sy = Math.max(0, parseInt(syInput.value||'0',10));
+  const target = targetSelect.value;
+  meta.textContent = 'Rendering...';
+  // build full tiled canvas
+  let tiled;
+  try{
+    tiled = buildTiledCanvas(srcCanvas, tilesX, tilesY, sx, sy);
+  } catch(err){
+    meta.textContent = 'Error building tiled canvas (possible out-of-memory or very large size).';
+    console.error(err);
+    return;
+  }
+  sizeNote.textContent = `${tiled.width} x ${tiled.height} px (full)`;
+  // prepare targets list
+  let targets = [];
+  if(target === 'all') targets = ['full','1024','2048','4096','8192'];
+  else targets = [target];
+  downloadsDiv.innerHTML = '';
+  const created = [];
+  for(const t of targets){
+    let outCanvas;
+    try{
+      outCanvas = resizeToTarget(tiled, t);
+    } catch(err){
+      console.error('Error resizing to target',t,err);
+      continue;
+    }
+    const suffix = `${tilesX}x${tilesY}` + ((sx||sy)? `_sp${sx}x${sy}` : '') + `_${t}`;
+    const fname = `tiled_${suffix}.png`;
+    const dl = await makeDownloadLink(outCanvas, fname);
+    downloadsDiv.appendChild(dl.el);
+    created.push({target:t,canvas:outCanvas,link:dl});
+  }
+  meta.textContent = `Rendered ${created.length} output(s). Click to save.`;
+  // for preview, show the first produced (or full if produced)
+  const previewSource = created.find(c=>c.target==='full') || created[0];
+  if(previewSource) drawPreview(previewSource.canvas);
+}
+
+let renderTimer = null;
+function renderPreviewDebounced(){
+  if(renderTimer) clearTimeout(renderTimer);
+  renderTimer = setTimeout(()=>{ generateOutputs(); renderTimer=null; }, 150);
+}
+
+// initial defaults
+tilesInput.value = '3';
+sxInput.value = '0';
+syInput.value = '0';
+
+fileInput.addEventListener('change', handleFileChange);
+tilesInput.addEventListener('input', renderPreviewDebounced);
+sxInput.addEventListener('input', renderPreviewDebounced);
+syInput.addEventListener('input', renderPreviewDebounced);
+targetSelect.addEventListener('change', renderPreviewDebounced);
+previewScaleSel.addEventListener('change', ()=>{ if(srcCanvas) renderPreviewDebounced(); });
+gridCheckbox.addEventListener('change', ()=>{ if(srcCanvas) renderPreviewDebounced(); });
+bordersCheckbox.addEventListener('change', ()=>{ if(srcCanvas) renderPreviewDebounced(); });
+
+renderBtn.addEventListener('click', ()=>{ generateOutputs(); });
+downloadAllBtn.addEventListener('click', async ()=>{
+  // invoke downloads for each created link
+  const anchors = downloadsDiv.querySelectorAll('a.dl');
+  if(!anchors.length){ meta.textContent = 'No outputs ready to download.'; return; }
+  anchors.forEach(a=>a.click());
+});
+clearBtn.addEventListener('click', ()=>{
+  srcCanvas = null; srcImage = null; fileInput.value = ''; downloadsDiv.innerHTML=''; meta.textContent='Cleared.'; previewCtx.clearRect(0,0,previewCanvas.width, previewCanvas.height); sizeNote.textContent='';
+});
+
+// small helper: create full tiled + return resized if needed
+function resizeToTarget(canvas, target){
+  if(target === 'full') return canvas;
+  const t = parseInt(target,10);
+  if(!t || t<=0) return canvas;
+  const w = canvas.width, h = canvas.height;
+  const maxSide = Math.max(w,h);
+  if(maxSide === t) return canvas;
+  const scale = t / maxSide;
+  const newW = Math.max(1, Math.round(w * scale));
+  const newH = Math.max(1, Math.round(h * scale));
+  const c = createCanvas(newW, newH);
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(canvas, 0,0, newW, newH);
+  return c;
+}
+
+</script>
+</body>
+</html>
