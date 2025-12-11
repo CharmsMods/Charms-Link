@@ -550,15 +550,17 @@ body.scrolled .social-bar {
     color: rgba(255, 255, 255, 0.85);
     line-height: 1.8;
     font-size: 1.1rem;
-    max-width: 800px;
+    max-width: 1000px;
     margin: 0 auto;
     position: relative;
+    text-align: justify;
 }
 
 .bio-text p {
     margin-bottom: 1.5em;
     position: relative;
     z-index: 1;
+    text-align: justify;
 }
 
 .bio-image {

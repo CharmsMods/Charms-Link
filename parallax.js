@@ -1,38 +1,46 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const container = document.querySelector('.container');
-    const intensity = 8; // Lower number = more movement
-    const smoothness = 0.1; // Lower number = smoother movement
+    const intensity = 6; // Lower number = more movement
+    const smoothness = 0.15; // Lower number = smoother movement
     let targetX = 0;
     let targetY = 0;
     let currentX = 0;
     let currentY = 0;
 
-    // Initialize the background container if it doesn't exist
-    let backgroundContainer = document.querySelector('.background-container');
-    if (!backgroundContainer) {
-        backgroundContainer = document.createElement('div');
-        backgroundContainer.className = 'background-container';
-        backgroundContainer.innerHTML = '<div class="background-image"></div>';
-        document.body.insertBefore(backgroundContainer, container);
+    // Check if we're on mobile/tablet
+    function isMobileDevice() {
+        return window.innerWidth <= 1024;
     }
 
-    // Get the background image element
-    const backgroundImage = document.querySelector('.background-image');
+    // Get the mobile background element
+    const mobileBg = document.getElementById('mobile-bg');
+    
+    // Only initialize parallax on mobile devices with mobile background
+    if (!isMobileDevice() || !mobileBg) {
+        return; // Exit if not mobile or no mobile background element
+    }
 
     // Make the background larger to allow for more movement
-    backgroundImage.style.width = '150%';
-    backgroundImage.style.height = '150%';
-    backgroundImage.style.top = '-25%';
-    backgroundImage.style.left = '-25%';
+    mobileBg.style.backgroundSize = '150%';
+    mobileBg.style.backgroundPosition = 'center';
+    
+    // Store original background size
+    const originalBgSize = mobileBg.style.backgroundSize;
 
-    // Handle mouse movement with requestAnimationFrame for smoother animation
+    // Handle mouse/touch movement with requestAnimationFrame for smoother animation
     function updateBackground() {
         // Smooth the movement
         currentX += (targetX - currentX) * smoothness;
         currentY += (targetY - currentY) * smoothness;
         
-        // Apply the transform with perspective for a more dynamic effect
-        backgroundImage.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+        // Apply the background position shift for parallax effect
+        const centerX = 50; // Center position percentage
+        const centerY = 50; // Center position percentage
+        
+        // Calculate new background position
+        const newX = centerX + currentX;
+        const newY = centerY + currentY;
+        
+        mobileBg.style.backgroundPosition = `${newX}% ${newY}%`;
         
         requestAnimationFrame(updateBackground);
     }
@@ -42,26 +50,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update target position on mouse move
     document.addEventListener('mousemove', function(e) {
+        if (!isMobileDevice()) return; // Only work on mobile devices
+        
         // Calculate position from -1 to 1
         const mouseX = (e.clientX / window.innerWidth) * 2 - 1;
         const mouseY = (e.clientY / window.innerHeight) * 2 - 1;
         
-        // Calculate movement (increased range)
-        targetX = mouseX * intensity * 2;
-        targetY = mouseY * intensity * 2;
+        // Calculate movement
+        targetX = mouseX * intensity;
+        targetY = mouseY * intensity;
     });
 
     // Update target position on touch move
     document.addEventListener('touchmove', function(e) {
-        if (e.touches.length > 0) {
-            const touch = e.touches[0];
-            const mouseX = (touch.clientX / window.innerWidth) * 2 - 1;
-            const mouseY = (touch.clientY / window.innerHeight) * 2 - 1;
-            
-            // Slightly reduced movement for touch devices
-            targetX = mouseX * intensity * 1.5;
-            targetY = mouseY * intensity * 1.5;
-        }
+        if (!isMobileDevice() || e.touches.length === 0) return;
+        
+        const touch = e.touches[0];
+        const touchX = (touch.clientX / window.innerWidth) * 2 - 1;
+        const touchY = (touch.clientY / window.innerHeight) * 2 - 1;
+        
+        // Slightly reduced movement for touch devices
+        targetX = touchX * intensity * 0.8;
+        targetY = touchY * intensity * 0.8;
     }, { passive: true });
 
     // Reset position when mouse/touch leaves the window
@@ -72,4 +82,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.addEventListener('mouseleave', resetPosition);
     document.addEventListener('touchend', resetPosition);
+
+    // Handle window resize - check if still mobile
+    window.addEventListener('resize', function() {
+        if (!isMobileDevice()) {
+            // Reset background if no longer mobile
+            mobileBg.style.backgroundSize = originalBgSize;
+            mobileBg.style.backgroundPosition = 'center';
+        }
+    });
 });
