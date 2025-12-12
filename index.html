@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="images/fav.png">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -213,6 +214,7 @@
                     sunlightColor: 0xff9933,
                 });
             }
+
             return null;
         }
 
@@ -227,6 +229,14 @@
         let fpsMonitoring = false;
         let vantaDisabledForPerf = false; // auto-disabled due to low FPS
         let userForcedMode = null; // 'animation' | 'image' | null (auto)
+        const IDLE_TIMEOUT_MS = 60000; // 1 minute
+        let lastInteractionTime = Date.now();
+        let idleIntervalId = null;
+        let switchedToImageDueToIdle = false;
+
+        // Track user interaction for idle detection (desktop + mobile)
+        document.addEventListener('mousemove', recordInteraction);
+        document.addEventListener('keydown', recordInteraction);
 
         function updateToggleUI(mode) {
             if (!bgToggleButton || !bgToggleLabel) return;
@@ -290,6 +300,48 @@
             requestAnimationFrame(sample);
         }
 
+        function startIdleMonitor() {
+            // Only relevant on desktop when animation is active
+            if (idleIntervalId) return;
+            lastInteractionTime = Date.now();
+
+            idleIntervalId = setInterval(function() {
+                if (window.innerWidth <= 1024) return; // ignore mobile
+                if (!vantaEffect) {
+                    clearInterval(idleIntervalId);
+                    idleIntervalId = null;
+                    return;
+                }
+
+                const idleFor = Date.now() - lastInteractionTime;
+                if (idleFor >= IDLE_TIMEOUT_MS) {
+                    // No interaction for a minute while animation is running: switch to image
+                    switchedToImageDueToIdle = true;
+                    useImageBackground();
+                    clearInterval(idleIntervalId);
+                    idleIntervalId = null;
+                }
+            }, 5000); // check every 5 seconds
+        }
+
+        function stopIdleMonitor() {
+            if (idleIntervalId) {
+                clearInterval(idleIntervalId);
+                idleIntervalId = null;
+            }
+        }
+
+        function recordInteraction() {
+            lastInteractionTime = Date.now();
+
+            // If we previously disabled animation due to idle, and we're back on desktop,
+            // automatically restore the animation unless the user or low-FPS logic said otherwise.
+            if (window.innerWidth > 1024 && switchedToImageDueToIdle && !vantaDisabledForPerf && userForcedMode !== 'image') {
+                switchedToImageDueToIdle = false;
+                useAnimationBackground();
+            }
+        }
+
         function useAnimationBackground() {
             // Called when user/manual or auto wants animation on desktop
             vantaDisabledForPerf = false;
@@ -303,6 +355,7 @@
             }
 
             startFpsMonitor();
+            startIdleMonitor();
             updateToggleUI('animation');
         }
 
@@ -315,6 +368,7 @@
             vantaContainer.style.display = 'none';
             desktopFallbackBg.style.display = 'block';
             fpsMonitoring = false;
+            stopIdleMonitor();
             updateToggleUI('image');
 
             if (window.startDesktopParallaxFallback) {
@@ -351,6 +405,7 @@
                 desktopFallbackBg.style.display = 'none';
                 mobileBg.style.display = 'block';
                 fpsMonitoring = false;
+                stopIdleMonitor();
                 userForcedMode = null; // reset to auto when going to mobile
             } else {
                 // On desktop
