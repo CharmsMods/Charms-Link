@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="images/fav.png">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="section3.css">
 </head>
 <body>
-    <!-- Section 1: Tools Grid -->
-    <section class="section-top">
+    <!-- Section 1 -->
+    <section class="section-top section-1" id="section-1">
         <div class="container">
             <!-- Profile Picture -->
             <div class="profile-container">
@@ -94,8 +95,8 @@
         </div>
     </section>
     
-    <!-- Section 2: Bio + Setup + Coming Soon -->
-    <section class="section-bio">
+    <!-- Section 2 -->
+    <section class="section-bio section-2" id="section-2">
         <div class="bio-content">
             <div class="bio-text">
                     <p>Hey, I'm Darynn, but I go by Charm? online. You might have seen me on YouTube
@@ -131,24 +132,60 @@
                     Please feel free to explore!</p>
                 </div>
             </div>
-
-            <div class="setup-section">
-                <div class="setup-title">Setup</div>
-                <div class="setup-image-wrapper">
-                    <img src="2nd Section Images/3.png" alt="3" class="setup-image hover-zoom" data-fullsrc="2nd Section Images/3.png">
-                </div>
-            </div>
-
-            <div class="coming-soon-section">
-                <p class="coming-soon-text">New Section Coming Soon</p>
-            </div>
         </div>
     </section>
 
-    <!-- Section 3: Social Links / Footer -->
-    <section class="section-footer">
-        <!-- Social Media Links -->
-        <div class="social-links">
+    <!-- Section 3 -->
+    <section class="section-footer section-3" id="section-3">
+        <div class="section-3-inner">
+            <div class="section-3-header">
+                <div class="section-3-header-title">Noise Studio Examples</div>
+            </div>
+
+            <div class="noise-text">
+                <p>Some images are visually striking but can appear flat. In certain situations, adding a subtle amount of randomness can enhance them. In the examples below, each image was adjusted and layered with light noise to break up large areas of uniform color. Additional tweaks to saturation, contrast, and brightness were made to complement the noise and improve overall depth. Ultimately, what matters is how the image makes your audience feel.</p>
+            </div>
+
+            <div class="noise-collage">
+                <div class="example-card" data-example="1" data-before="3rdSectionImages/Examples/1/before.png" data-after="3rdSectionImages/Examples/1/after.png" role="button" tabindex="0">
+                    <canvas class="example-canvas"></canvas>
+                </div>
+
+                <div class="example-card" data-example="2" data-before="3rdSectionImages/Examples/2/before.png" data-after="3rdSectionImages/Examples/2/after.png" role="button" tabindex="0">
+                    <canvas class="example-canvas"></canvas>
+                </div>
+
+                <div class="example-card" data-example="3" data-before="3rdSectionImages/Examples/3/before.png" data-after="3rdSectionImages/Examples/3/after.png" role="button" tabindex="0">
+                    <canvas class="example-canvas"></canvas>
+                </div>
+            </div>
+
+            <div class="bgremover-block">
+                <div class="section-3-header">
+                    <div class="section-3-header-title">Background Remover Examples</div>
+                </div>
+
+                <div class="bgremover-text">
+                    What good is a logo if its edges clash with your site colors or video? Using the background remover tool, you can make specific colors transparent within a defined tolerance, allowing underlying content to show through seamlessly. If needed, you can also patch areas of an image to remove watermarks or other unwanted elements, as shown with the watermark on the Starbucks logo.
+                </div>
+
+                <div class="bgremover-gallery">
+                    <div class="example-card bgremover-card" data-example="bg-1" data-before="3rdSectionImages/Background Remover Examples/1/before.png" data-after="3rdSectionImages/Background Remover Examples/1/after.png" role="button" tabindex="0">
+                        <canvas class="example-canvas"></canvas>
+                    </div>
+
+                    <div class="example-card bgremover-card" data-example="bg-2" data-before="3rdSectionImages/Background Remover Examples/2/before.png" data-after="3rdSectionImages/Background Remover Examples/2/after.png" role="button" tabindex="0">
+                        <canvas class="example-canvas"></canvas>
+                    </div>
+
+                    <div class="example-card bgremover-card" data-example="bg-3" data-before="3rdSectionImages/Background Remover Examples/3/before.png" data-after="3rdSectionImages/Background Remover Examples/3/after.png" role="button" tabindex="0">
+                        <canvas class="example-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social Media Links -->
+            <div class="social-links">
                 <a href="https://discord.com/users/1198452446456983605" class="social-link" target="_blank" rel="noopener noreferrer" aria-label="Discord">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36" fill="currentColor">
                         <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.86.66,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
@@ -169,7 +206,7 @@
                 
                 <a href="https://www.instagram.com/itscharmfr?igsh=MTAwMDBobjFxazlkYQ==" class="social-link" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor">
-                        <path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z"/>
+                        <path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7-29.5 9-99.5 9-132.1s2.7 102.7-9 132.1z"/>
                     </svg>
                 </a>
             </div>
@@ -185,7 +222,7 @@
     <div class="bg-toggle" id="bg-toggle" aria-hidden="true">
         <button type="button" class="bg-toggle-button" id="bg-toggle-button">
             <span class="bg-toggle-indicator"></span>
-            <span class="bg-toggle-label">Image</span>
+            <span class="bg-toggle-label">Charm?</span>
         </button>
     </div>
     
@@ -243,10 +280,10 @@
             // mode: 'animation' or 'image'
             if (mode === 'image') {
                 bgToggleButton.classList.add('bg-mode-image');
-                bgToggleLabel.textContent = 'Animation';
+                bgToggleLabel.textContent = 'Clouds';
             } else {
                 bgToggleButton.classList.remove('bg-mode-image');
-                bgToggleLabel.textContent = 'Image';
+                bgToggleLabel.textContent = 'Charm?';
             }
         }
 
@@ -256,7 +293,7 @@
 
             let frameCount = 0;
             let startTime = performance.now();
-            const sampleWindow = 1000; // 1 second window
+            const sampleWindow = 3000; // 3 second window
 
             function sample(now) {
                 if (!fpsMonitoring || vantaDisabledForPerf) return;
@@ -439,11 +476,22 @@
         <img id="fullscreen-img" class="fullscreen-img" src="" alt="">
     </div>
 
+    <!-- Fullscreen Example Canvas Modal -->
+    <div id="example-modal">
+        <button id="example-modal-close" class="example-modal-close">&times;</button>
+        <div class="example-modal-inner">
+            <canvas id="example-modal-canvas" class="example-modal-canvas"></canvas>
+        </div>
+    </div>
+
     <!-- Add scroll functionality -->
     <script src="js/scroll.js"></script>
     
     <!-- Add parallax functionality for mobile background -->
     <script src="parallax.js"></script>
+
+    <!-- Section 3 examples -->
+    <script src="js/section3.js"></script>
 
     <script>
         // Fullscreen image modal
