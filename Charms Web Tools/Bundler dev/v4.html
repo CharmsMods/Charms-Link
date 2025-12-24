@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Static Asset Minifier & Bundler</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --bg-dark: #0a0a0c;
+    --card-bg: #141417;
+    --border: #2d2d32;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --text-muted: #94a3b8;
+  }
+
+  body {
+    background-color: var(--bg-dark);
+    color: #e2e8f0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  .glass-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .editor-area {
+    background: #000;
+    color: #d1d5db;
+    border: 1px solid var(--border);
+    transition: all 0.2s ease;
+    font-family: 'Fira Code', 'Courier New', monospace;
+  }
+
+  .editor-area:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .drop-zone-active {
+    border: 2px dashed var(--accent) !important;
+    background: rgba(59, 130, 246, 0.08) !important;
+  }
+
+  .tab-btn {
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+  }
+
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(59, 130, 246, 0.05);
+  }
+
+  .asset-item {
+    transition: all 0.2s;
+    border-left: 2px solid transparent;
+  }
+
+  .asset-item.active {
+    background: #1e293b;
+    border-left-color: var(--accent);
+  }
+
+  .log-line {
+    border-left: 1px solid var(--border);
+    padding-left: 12px;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #4b5563;
+    text-align: center;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-dark); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body class="p-4 md:p-8" id="dropBoundary">
+
+<div class="max-w-6xl mx-auto">
+  <header class="mb-10 border-b border-zinc-800 pb-6">
+    <div class="flex items-center gap-3">
+        <div class="w-2 h-8 bg-blue-600 rounded"></div>
+        <h1 class="text-xl font-bold tracking-tight text-white uppercase">
+          Static Asset Minifier & Bundler
+        </h1>
+    </div>
+    <p class="text-sm text-slate-400 mt-2 max-w-2xl">
+      High-performance frontend asset pipeline. Supports bulk file imports, path normalization, and automatic Base64 inlining for single-file distribution.
+    </p>
+  </header>
+
+  <div class="glass-card overflow-hidden">
+    <nav class="flex border-b border-zinc-800 bg-zinc-900/30">
+      <button class="tab-btn active px-6 py-4 text-[10px] font-bold uppercase tracking-widest" data-tab="workspace">Workspace</button>
+      <button class="tab-btn px-6 py-4 text-[10px] font-bold uppercase tracking-widest" data-tab="output">Build Output</button>
+      <button class="tab-btn px-6 py-4 text-[10px] font-bold uppercase tracking-widest" data-tab="log">Process Logs</button>
+    </nav>
+
+    <main class="p-0">
+      
+      <!-- Workspace Section -->
+      <section id="workspace" class="tab-content block h-[600px] flex">
+        <!-- Sidebar -->
+        <div class="w-64 border-r border-zinc-800 flex flex-col bg-zinc-900/10">
+          <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
+            <span class="text-[10px] font-bold uppercase text-zinc-500 tracking-widest">Assets</span>
+            <div class="flex gap-2">
+               <button id="addHtml" class="text-[9px] text-zinc-400 hover:text-blue-400 font-bold px-1">+HTML</button>
+               <button id="addCss" class="text-[9px] text-zinc-400 hover:text-blue-400 font-bold px-1">+CSS</button>
+               <button id="addJs" class="text-[9px] text-zinc-400 hover:text-blue-400 font-bold px-1">+JS</button>
+            </div>
+          </div>
+          <div id="assetList" class="flex-1 overflow-y-auto"></div>
+        </div>
+
+        <!-- Editor Viewport -->
+        <div class="flex-1 flex flex-col relative">
+          
+          <!-- Empty State -->
+          <div id="noAssetPrompt" class="absolute inset-0 z-10 bg-zinc-900/90 flex flex-col items-center justify-center p-12 text-center">
+             <svg class="w-12 h-12 text-zinc-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+             <h3 class="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-2">No Assets Loaded</h3>
+             <p class="text-xs text-zinc-600 max-w-xs leading-relaxed">Drag and drop your HTML, CSS, JS, or images here to begin your build process.</p>
+          </div>
+
+          <div id="editorHeader" class="hidden p-3 border-b border-zinc-800 bg-zinc-900/20 flex items-center justify-between">
+            <span id="currentFileName" class="text-xs font-mono text-blue-400">Select an asset</span>
+            <button id="removeAsset" class="text-[10px] font-bold text-red-900 hover:text-red-500 uppercase">Delete File</button>
+          </div>
+          
+          <textarea id="mainEditor" class="editor-area hidden flex-1 w-full p-6 text-sm resize-none" placeholder="Paste or drop code here..."></textarea>
+          
+          <div id="mediaView" class="hidden flex-1 flex flex-col items-center justify-center bg-black p-10 overflow-hidden">
+             <div class="text-[10px] font-bold text-zinc-500 mb-4 uppercase tracking-widest">Binary Asset Preview</div>
+             <img id="imgPreview" class="max-w-full max-h-[300px] rounded border border-zinc-800 shadow-2xl mb-4" src="" alt="">
+             <div id="base64Summary" class="text-[10px] font-mono text-zinc-600 break-all max-w-md text-center"></div>
+          </div>
+
+          <!-- Drop Overlay (Visual Cue Only) -->
+          <div id="dropOverlay" class="absolute inset-0 pointer-events-none border-4 border-transparent flex items-center justify-center transition-all">
+             <div class="bg-blue-600 text-white px-8 py-4 rounded-full text-xs font-bold opacity-0 transition-opacity uppercase tracking-widest shadow-2xl scale-95 transform">Drop to Import</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Output Section -->
+      <section id="output" class="tab-content hidden p-6 space-y-6">
+        <div class="flex flex-wrap items-center gap-6 bg-zinc-900/50 p-5 rounded border border-zinc-800">
+          <div class="flex flex-col gap-1">
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Build Configuration</span>
+            <select id="mode" class="bg-black border border-zinc-700 text-xs rounded px-3 py-2 outline-none focus:border-blue-500">
+              <option value="inline">Single HTML Bundle (Inline Assets)</option>
+              <option value="separate">Multi-file Minification (Standard)</option>
+            </select>
+          </div>
+          <button id="build" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2.5 px-10 rounded transition-all active:scale-95 uppercase tracking-widest">
+            Run Build
+          </button>
+          <div id="build-status" class="hidden text-blue-400 text-[10px] font-bold uppercase tracking-widest">
+            Optimizing...
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <button id="togglePreview" class="w-full flex items-center justify-between p-3 bg-zinc-800/20 border border-zinc-700 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-800/40">
+            <span>Toggle Live Preview</span>
+            <span class="text-zinc-500">View</span>
+          </button>
+          <div id="previewBox" class="hidden overflow-hidden rounded border border-zinc-800 h-[400px] bg-white shadow-inner">
+            <iframe id="previewFrame" class="w-full h-full border-none" sandbox="allow-scripts"></iframe>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button id="downH" class="p-4 bg-zinc-900 border border-zinc-800 rounded hover:border-zinc-500 text-[10px] font-bold uppercase">HTML</button>
+            <button id="downC" class="p-4 bg-zinc-900 border border-zinc-800 rounded hover:border-zinc-500 text-[10px] font-bold uppercase">CSS</button>
+            <button id="downJ" class="p-4 bg-zinc-900 border border-zinc-800 rounded hover:border-zinc-500 text-[10px] font-bold uppercase">JS</button>
+            <button id="downA" class="p-4 bg-blue-900/20 border border-blue-800/50 rounded hover:bg-blue-900/30 text-[10px] font-bold uppercase text-blue-400">Bundle All</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Log Section -->
+      <section id="log" class="tab-content hidden p-6">
+        <div id="logBox" class="editor-area w-full h-96 p-4 rounded overflow-y-auto text-[11px] font-mono leading-relaxed">
+          <div class="text-zinc-600 italic">No logs recorded yet.</div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { minify as minifyHTML } from "https://esm.sh/html-minifier-terser";
+import CleanCSS from "https://esm.sh/clean-css";
+import { minify as minifyJS } from "https://esm.sh/terser";
+
+// --- State Management ---
+// Initializing with an empty array so the user isn't confused by a blank "index.html"
+let assets = [];
+let activeAssetId = null;
+let outputs = { html: "", css: "", js: "" };
+
+const logBox = document.getElementById("logBox");
+const assetList = document.getElementById("assetList");
+const mainEditor = document.getElementById("mainEditor");
+const mediaView = document.getElementById("mediaView");
+const imgPreview = document.getElementById("imgPreview");
+const base64Summary = document.getElementById("base64Summary");
+const currentFileName = document.getElementById("currentFileName");
+const buildStatus = document.getElementById("build-status");
+const noAssetPrompt = document.getElementById("noAssetPrompt");
+const editorHeader = document.getElementById("editorHeader");
+
+const log = (msg) => {
+  if (logBox.children.length === 1 && logBox.querySelector('.italic')) logBox.innerHTML = '';
+  const entry = document.createElement("div");
+  entry.className = `log-line text-zinc-400 py-1 mb-1`;
+  const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  entry.innerHTML = `<span class="text-zinc-600 font-mono mr-3">${time}</span> ${msg}`;
+  logBox.appendChild(entry);
+  logBox.scrollTop = logBox.scrollHeight;
+};
+
+const renderAssetList = () => {
+  assetList.innerHTML = '';
+  if (assets.length === 0) {
+    noAssetPrompt.classList.remove('hidden');
+    editorHeader.classList.add('hidden');
+    mainEditor.classList.add('hidden');
+    mediaView.classList.add('hidden');
+    return;
+  }
+  
+  noAssetPrompt.classList.add('hidden');
+  editorHeader.classList.remove('hidden');
+
+  assets.forEach(asset => {
+    const div = document.createElement('div');
+    div.className = `asset-item px-4 py-3 cursor-pointer border-b border-zinc-800/50 flex justify-between items-center ${asset.id === activeAssetId ? 'active' : ''}`;
+    div.innerHTML = `
+      <span class="text-xs font-mono truncate mr-2 ${asset.id === activeAssetId ? 'text-white' : 'text-zinc-500'}">${asset.name}</span>
+      <span class="text-[8px] px-1 bg-zinc-800 rounded font-bold uppercase text-zinc-400">${asset.type}</span>
+    `;
+    div.onclick = () => selectAsset(asset.id);
+    assetList.appendChild(div);
+  });
+};
+
+const selectAsset = (id) => {
+  if (!id) {
+    activeAssetId = null;
+    renderAssetList();
+    return;
+  }
+
+  // Save current progress before switching
+  const prev = assets.find(a => a.id === activeAssetId);
+  if (prev && prev.type !== 'media') prev.content = mainEditor.value;
+
+  activeAssetId = id;
+  const next = assets.find(a => a.id === id);
+  if (!next) return;
+
+  currentFileName.innerText = next.name;
+
+  if (next.type === 'media') {
+     mainEditor.classList.add('hidden');
+     mediaView.classList.remove('hidden');
+     imgPreview.src = next.content;
+     base64Summary.innerText = next.content.substring(0, 80) + "...";
+  } else {
+     mainEditor.classList.remove('hidden');
+     mediaView.classList.add('hidden');
+     mainEditor.value = next.content;
+  }
+  
+  renderAssetList();
+};
+
+const addAsset = (type, name, content) => {
+  const id = crypto.randomUUID();
+  assets.push({ id, type, name, content });
+  log(`Successfully imported: <span class="text-blue-400">${name}</span>`);
+  selectAsset(id);
+};
+
+// Interface Bindings
+document.getElementById("addHtml").onclick = () => addAsset('html', `page-${assets.filter(a => a.type === 'html').length + 1}.html`, '');
+document.getElementById("addCss").onclick = () => addAsset('css', `style-${assets.filter(a => a.type === 'css').length + 1}.css`, '');
+document.getElementById("addJs").onclick = () => addAsset('js', `script-${assets.filter(a => a.type === 'js').length + 1}.js`, '');
+
+document.getElementById("removeAsset").onclick = () => {
+  assets = assets.filter(a => a.id !== activeAssetId);
+  if (assets.length > 0) {
+    selectAsset(assets[assets.length - 1].id);
+  } else {
+    selectAsset(null);
+  }
+};
+
+// Navigation
+document.querySelectorAll(".tab-btn").forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll(".tab-btn").forEach(e => e.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(e => e.classList.add("hidden"));
+    tab.classList.add("active");
+    document.getElementById(tab.dataset.tab).classList.remove("hidden");
+  };
+});
+
+// --- High Accuracy Drag & Drop Pipeline ---
+const dropBoundary = document.getElementById("dropBoundary");
+const dropOverlay = document.getElementById("dropOverlay");
+
+dropBoundary.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropOverlay.classList.add('drop-zone-active');
+  dropOverlay.firstElementChild.style.opacity = '1';
+  dropOverlay.firstElementChild.style.transform = 'scale(1)';
+});
+
+dropBoundary.addEventListener('dragleave', (e) => {
+  if (e.relatedTarget === null || e.relatedTarget === dropBoundary) {
+     dropOverlay.classList.remove('drop-zone-active');
+     dropOverlay.firstElementChild.style.opacity = '0';
+     dropOverlay.firstElementChild.style.transform = 'scale(0.95)';
+  }
+});
+
+dropBoundary.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  dropOverlay.classList.remove('drop-zone-active');
+  dropOverlay.firstElementChild.style.opacity = '0';
+  
+  const files = Array.from(e.dataTransfer.files);
+  if (files.length === 0) return;
+
+  log(`Processing bundle of ${files.length} file(s)...`);
+
+  for (const file of files) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    
+    // Binary Handling
+    if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'].includes(ext)) {
+       const reader = new FileReader();
+       reader.onload = (ev) => addAsset('media', file.name, ev.target.result);
+       reader.readAsDataURL(file);
+       continue;
+    }
+
+    // Text Handling (Fixed HTML Logic)
+    try {
+        const text = await file.text();
+        if (ext === 'html' || ext === 'htm') {
+            addAsset('html', file.name, text);
+        } else if (ext === 'css') {
+            addAsset('css', file.name, text);
+        } else if (ext === 'js') {
+            addAsset('js', file.name, text);
+        } else {
+            log(`Skipping unsupported file type: ${file.name}`);
+        }
+    } catch (err) {
+        log(`Error reading ${file.name}: ${err.message}`);
+    }
+  }
+});
+
+// --- Build & Path Resolution ---
+document.getElementById("build").onclick = async () => {
+  const current = assets.find(a => a.id === activeAssetId);
+  if (current && current.type !== 'media') current.content = mainEditor.value;
+
+  const htmlSource = assets.find(a => a.type === 'html');
+  if (!htmlSource) {
+    log("<span class='text-red-500'>Error:</span> No HTML file found in workspace.");
+    return;
+  }
+
+  buildStatus.classList.remove('hidden');
+  log("Initializing build sequence...");
+  
+  const mode = document.getElementById("mode").value;
+  let finalHTML = htmlSource.content;
+  let combinedCSS = assets.filter(a => a.type === 'css').map(a => a.content).join('\n');
+  let combinedJS = assets.filter(a => a.type === 'js').map(a => a.content).join('\n');
+  const mediaAssets = assets.filter(a => a.type === 'media');
+
+  try {
+    if (combinedCSS) {
+        log("Minifying stylesheets...");
+        combinedCSS = new CleanCSS().minify(combinedCSS).styles;
+    }
+    if (combinedJS) {
+        log("Optimizing scripts...");
+        combinedJS = (await minifyJS(combinedJS)).code;
+    }
+
+    // High Accuracy Path Normalization
+    if (mode === 'inline' && mediaAssets.length > 0) {
+      log(`Inlining ${mediaAssets.length} binary assets...`);
+      mediaAssets.forEach(media => {
+        const escapedName = media.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Match path variations: src="img.png", src="./assets/img.png", etc.
+        const pathRegex = new RegExp(`(['"\\(])(?:[^'"\\(\\)]*?\\/)?${escapedName}(['"\\)])`, 'g');
+        
+        const replaceFn = (match, p1, p2) => `${p1}${media.content}${p2}`;
+
+        finalHTML = finalHTML.replace(pathRegex, replaceFn);
+        if (combinedCSS) combinedCSS = combinedCSS.replace(pathRegex, replaceFn);
+        if (combinedJS) combinedJS = combinedJS.replace(pathRegex, replaceFn);
+      });
+    }
+
+    if (mode === 'inline') {
+      if (combinedCSS) finalHTML = finalHTML.replace('</head>', `<style>${combinedCSS}</style></head>`);
+      if (combinedJS) finalHTML = finalHTML.replace('</body>', `<script>${combinedJS}<\/script></body>`);
+    }
+
+    log("Performing final HTML compression...");
+    finalHTML = await minifyHTML(finalHTML, {
+      collapseWhitespace: true,
+      removeComments: true,
+      minifyCSS: true,
+      minifyJS: true,
+      processConditionalComments: true
+    });
+
+    outputs = { html: finalHTML, css: combinedCSS, js: combinedJS };
+    document.getElementById("previewFrame").srcdoc = finalHTML;
+    
+    log("<span class='text-green-500 font-bold'>Build Complete.</span> Preview updated.");
+    document.querySelector('[data-tab="output"]').click();
+
+  } catch (err) {
+    log(`<span class="text-red-500">Build Exception:</span> ${err.message}`);
+    console.error(err);
+  } finally {
+    buildStatus.classList.add('hidden');
+  }
+};
+
+// Utilities
+const dl = (n, c) => {
+  if (!c) {
+    log("Download blocked: Source is empty. Run build first.");
+    return;
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([c], { type: "text/plain" }));
+  a.download = n;
+  a.click();
+};
+
+document.getElementById("downH").onclick = () => dl("index.min.html", outputs.html);
+document.getElementById("downC").onclick = () => dl("styles.min.css", outputs.css);
+document.getElementById("downJ").onclick = () => dl("scripts.min.js", outputs.js);
+document.getElementById("downA").onclick = () => {
+  if (!outputs.html) return;
+  dl("index.min.html", outputs.html);
+  if (outputs.css) dl("styles.min.css", outputs.css);
+  if (outputs.js) dl("scripts.min.js", outputs.js);
+};
+
+document.getElementById("togglePreview").onclick = () => {
+  document.getElementById("previewBox").classList.toggle('hidden');
+};
+
+// Init UI
+renderAssetList();
+</script>
+
+</body>
+</html>

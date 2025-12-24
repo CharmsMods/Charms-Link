@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Static Asset Minifier & Bundler</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --bg-dark: #0a0a0c;
+    --card-bg: #141417;
+    --border: #2d2d32;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --text-muted: #94a3b8;
+  }
+
+  body {
+    background-color: var(--bg-dark);
+    color: #e2e8f0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  .glass-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .editor-area {
+    background: #000;
+    color: #d1d5db;
+    border: 2px dashed var(--border);
+    transition: all 0.2s ease;
+    font-family: 'Fira Code', 'Courier New', monospace;
+  }
+
+  .editor-area:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .editor-area.drag-over {
+    border-color: var(--accent);
+    background: #1e293b;
+  }
+
+  .tab-btn {
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+  }
+
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(59, 130, 246, 0.05);
+  }
+
+  .log-line {
+    border-left: 2px solid var(--border);
+    padding-left: 8px;
+    margin-bottom: 4px;
+  }
+
+  .custom-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-dark); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body class="p-4 md:p-8">
+
+<!-- Confirmation Modal (Replacing alert) -->
+<div id="confirmModal" class="custom-modal">
+  <div class="glass-card p-6 max-w-sm w-full mx-4 border-zinc-700">
+    <h3 class="text-lg font-bold mb-2">Overwrite Content?</h3>
+    <p class="text-sm text-slate-400 mb-6">The current text area is not empty. Would you like to replace the existing code with the contents of this file?</p>
+    <div class="flex justify-end gap-3">
+      <button id="cancelDrop" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white">Cancel</button>
+      <button id="confirmDrop" class="px-4 py-2 text-sm font-bold bg-blue-600 rounded text-white hover:bg-blue-500">Replace</button>
+    </div>
+  </div>
+</div>
+
+<div class="max-w-5xl mx-auto">
+  <header class="mb-10 border-b border-zinc-800 pb-6">
+    <h1 class="text-xl font-bold tracking-tight text-white uppercase">
+      Static Asset Minifier & Bundler
+    </h1>
+    <p class="text-sm text-slate-400 mt-1 max-w-2xl">
+      A client-side utility for compressing HTML, CSS, and JavaScript. Combine assets into a single portable file or minify them individually. Drop files directly into the inputs to begin.
+    </p>
+  </header>
+
+  <div class="glass-card overflow-hidden">
+    <!-- Tabs -->
+    <nav class="flex border-b border-zinc-800 bg-zinc-900/30">
+      <button class="tab-btn active px-6 py-4 text-xs font-bold uppercase tracking-wider" data-tab="multi">Multi-Part Source</button>
+      <button class="tab-btn px-6 py-4 text-xs font-bold uppercase tracking-wider" data-tab="single">Single Document</button>
+      <button class="tab-btn px-6 py-4 text-xs font-bold uppercase tracking-wider" data-tab="output">Build Output</button>
+      <button class="tab-btn px-6 py-4 text-xs font-bold uppercase tracking-wider" data-tab="log">Process Logs</button>
+    </nav>
+
+    <main class="p-6">
+      
+      <!-- Multi-File -->
+      <section id="multi" class="tab-content block space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-2">
+            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">HTML</label>
+            <textarea id="htmlInput" class="editor-area w-full h-72 p-4 rounded text-sm" placeholder="Paste or drop HTML content..."></textarea>
+          </div>
+          <div class="space-y-6">
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">CSS</label>
+              <textarea id="cssInput" class="editor-area w-full h-32 p-4 rounded text-sm" placeholder="Paste or drop CSS content..."></textarea>
+            </div>
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">JavaScript</label>
+              <textarea id="jsInput" class="editor-area w-full h-32 p-4 rounded text-sm" placeholder="Paste or drop JS content..."></textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Single File -->
+      <section id="single" class="tab-content hidden">
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Full HTML Document</label>
+          <textarea id="singleHTML" class="editor-area w-full h-96 p-4 rounded text-sm" placeholder="Paste or drop a standalone HTML file containing its own styles/scripts..."></textarea>
+        </div>
+      </section>
+
+      <!-- Output -->
+      <section id="output" class="tab-content hidden space-y-6">
+        <div class="flex flex-wrap items-center gap-6 bg-zinc-900/50 p-5 rounded border border-zinc-800">
+          <div class="flex flex-col gap-1">
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Bundling Method</span>
+            <select id="mode" class="bg-black border border-zinc-700 text-xs rounded px-3 py-2 outline-none focus:border-blue-500">
+              <option value="inline">Combine into single HTML file</option>
+              <option value="separate">Maintain separate minified files</option>
+            </select>
+          </div>
+          <button id="build" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2.5 px-10 rounded transition-all active:scale-95 shadow-lg shadow-blue-900/10">
+            START BUILD PROCESS
+          </button>
+          <div id="build-status" class="hidden items-center gap-2 text-blue-400 text-[10px] font-bold uppercase tracking-widest">
+            Processing Assets...
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <button id="togglePreview" class="w-full flex items-center justify-between p-3 bg-zinc-800/20 border border-zinc-700 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-800/40 transition-colors">
+            <span>Toggle Live Preview</span>
+            <span class="text-zinc-500">View Result</span>
+          </button>
+          
+          <div id="previewBox" class="hidden overflow-hidden rounded border border-zinc-800 h-[450px] bg-white">
+            <iframe id="previewFrame" class="w-full h-full border-none" sandbox="allow-scripts"></iframe>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button id="downloadHTML" class="flex flex-col items-center justify-center p-4 bg-zinc-900 border border-zinc-800 rounded hover:border-zinc-500 transition-all">
+              <span class="text-[10px] font-bold text-slate-500 mb-1">DOWNLOAD</span>
+              <span class="text-xs font-bold">HTML</span>
+            </button>
+            <button id="downloadCSS" class="flex flex-col items-center justify-center p-4 bg-zinc-900 border border-zinc-800 rounded hover:border-zinc-500 transition-all">
+              <span class="text-[10px] font-bold text-slate-500 mb-1">DOWNLOAD</span>
+              <span class="text-xs font-bold">CSS</span>
+            </button>
+            <button id="downloadJS" class="flex flex-col items-center justify-center p-4 bg-zinc-900 border border-zinc-800 rounded hover:border-zinc-500 transition-all">
+              <span class="text-[10px] font-bold text-slate-500 mb-1">DOWNLOAD</span>
+              <span class="text-xs font-bold">JS</span>
+            </button>
+            <button id="downloadAll" class="flex flex-col items-center justify-center p-4 bg-zinc-800/50 border border-zinc-700 rounded hover:bg-zinc-800 transition-all">
+              <span class="text-[10px] font-bold text-blue-400 mb-1">DOWNLOAD</span>
+              <span class="text-xs font-bold">FULL BUNDLE</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Log -->
+      <section id="log" class="tab-content hidden">
+        <div id="logBox" class="editor-area w-full h-80 p-4 rounded overflow-y-auto text-[11px] leading-relaxed">
+          <div class="text-zinc-600">Waiting for user input...</div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+  
+  <footer class="mt-8 text-center text-[9px] text-slate-600 uppercase tracking-widest font-bold">
+    All minification occurs locally. No data leaves your machine.
+  </footer>
+</div>
+
+<script type="module">
+import { minify as minifyHTML } from "https://esm.sh/html-minifier-terser";
+import CleanCSS from "https://esm.sh/clean-css";
+import { minify as minifyJS } from "https://esm.sh/terser";
+
+const logBox = document.getElementById("logBox");
+const buildStatus = document.getElementById("build-status");
+const modal = document.getElementById("confirmModal");
+const confirmBtn = document.getElementById("confirmDrop");
+const cancelBtn = document.getElementById("cancelDrop");
+
+let pendingFileAction = null;
+
+const log = (msg) => {
+  if (logBox.children.length === 1 && logBox.children[0].classList.contains('text-zinc-600')) {
+    logBox.innerHTML = '';
+  }
+  const entry = document.createElement("div");
+  entry.className = `log-line text-zinc-400 py-1`;
+  const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  entry.innerHTML = `<span class="text-zinc-600 font-mono mr-3">${time}</span> ${msg}`;
+  logBox.appendChild(entry);
+  logBox.scrollTop = logBox.scrollHeight;
+};
+
+let outputs = { html: "", css: "", js: "" };
+
+// Tabs
+document.querySelectorAll(".tab-btn").forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll(".tab-btn").forEach(e => e.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(e => e.classList.add("hidden"));
+    tab.classList.add("active");
+    document.getElementById(tab.dataset.tab).classList.remove("hidden");
+  };
+});
+
+// Drag & Drop
+const setupDropZone = (textarea) => {
+  textarea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    textarea.classList.add('drag-over');
+  });
+
+  textarea.addEventListener('dragleave', () => {
+    textarea.classList.remove('drag-over');
+  });
+
+  textarea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    textarea.classList.remove('drag-over');
+    
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+
+    const performRead = () => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        textarea.value = event.target.result;
+        log(`Imported file: ${file.name}`);
+      };
+      reader.readAsText(file);
+    };
+
+    if (textarea.value.trim().length > 0) {
+      modal.style.display = 'flex';
+      pendingFileAction = performRead;
+    } else {
+      performRead();
+    }
+  });
+};
+
+confirmBtn.onclick = () => {
+  if (pendingFileAction) pendingFileAction();
+  modal.style.display = 'none';
+  pendingFileAction = null;
+};
+
+cancelBtn.onclick = () => {
+  modal.style.display = 'none';
+  pendingFileAction = null;
+};
+
+document.querySelectorAll('textarea').forEach(setupDropZone);
+
+// Build
+document.getElementById("togglePreview").onclick = () => {
+  const box = document.getElementById("previewBox");
+  box.classList.toggle('hidden');
+};
+
+document.getElementById("build").onclick = async () => {
+  buildStatus.classList.remove('hidden');
+  log("Initializing build sequence...");
+  
+  const mode = document.getElementById("mode").value;
+  const singleHTMLContent = document.getElementById("singleHTML").value.trim();
+  const html = document.getElementById("htmlInput").value;
+  const css = document.getElementById("cssInput").value;
+  const js = document.getElementById("jsInput").value;
+
+  let finalHTML = html || singleHTMLContent;
+  let finalCSS = css;
+  let finalJS = js;
+
+  if (!finalHTML) {
+    log("Build Error: No HTML content found in source.");
+    buildStatus.classList.add('hidden');
+    return;
+  }
+
+  try {
+    if (finalCSS) {
+        log("Executing CSS optimization...");
+        const cssResult = new CleanCSS().minify(finalCSS);
+        finalCSS = cssResult.styles;
+    }
+
+    if (finalJS) {
+        log("Executing JavaScript minification...");
+        const jsResult = await minifyJS(finalJS);
+        finalJS = jsResult.code;
+    }
+
+    if (mode === "inline") {
+      log("Injecting assets into document body...");
+      if (finalCSS) finalHTML += `\n<style>${finalCSS}</style>`;
+      if (finalJS) finalHTML += `\n<script>${finalJS}<\/script>`;
+    }
+
+    log("Finalizing HTML document...");
+    finalHTML = await minifyHTML(finalHTML, {
+      collapseWhitespace: true,
+      removeComments: true,
+      minifyCSS: true,
+      minifyJS: true
+    });
+
+    outputs = { html: finalHTML, css: finalCSS, js: finalJS };
+    document.getElementById("previewFrame").srcdoc = finalHTML;
+
+    log("Build success. Files generated.");
+    document.querySelector('[data-tab="output"]').click();
+
+  } catch (err) {
+    log(`Build interrupted: ${err.message}`);
+  } finally {
+    buildStatus.classList.add('hidden');
+  }
+};
+
+const downloadFile = (name, content) => {
+  if (!content) return;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([content], { type: "text/plain" }));
+  a.download = name;
+  a.click();
+  log(`Exported: ${name}`);
+};
+
+document.getElementById("downloadHTML").onclick = () => downloadFile("index.min.html", outputs.html);
+document.getElementById("downloadCSS").onclick = () => downloadFile("styles.min.css", outputs.css);
+document.getElementById("downloadJS").onclick = () => downloadFile("script.min.js", outputs.js);
+document.getElementById("downloadAll").onclick = () => {
+  if(outputs.html) downloadFile("index.min.html", outputs.html);
+  if(outputs.css) downloadFile("styles.min.css", outputs.css);
+  if(outputs.js) downloadFile("script.min.js", outputs.js);
+};
+</script>
+
+</body>
+</html>
