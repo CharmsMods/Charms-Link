@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Minimalist Text Chat</title>
+  <style>
+    :root{--bg:#000000;--fg:#ffffff}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;font-weight:400}
+    *{box-sizing:border-box}
+    .wrap{height:100vh;overflow:hidden;position:relative}
+
+    /* Palette swap (optional) */
+    .swap{position:fixed;left:10px;top:10px;width:36px;height:36px;border-radius:6px;display:grid;place-items:center;cursor:pointer;background:transparent;border:1px solid var(--fg);z-index:2}
+    .swap svg{width:20px;height:20px;display:block;fill:none;stroke:var(--fg);stroke-width:2}
+
+    /* Chat area */
+    .chat{
+      height:100%;
+      overflow:hidden;
+      padding:80px 40px 64px;
+      display:flex;
+      flex-direction:column;
+      justify-content:flex-end;
+      gap:48px;
+      scroll-behavior:auto;
+      will-change: transform;
+      backface-visibility: hidden;
+    }
+    .msg{
+      max-width:75%;
+      word-break:break-word;
+      line-height:1.3;
+      opacity:0;
+      transition:opacity 240ms ease;
+      will-change: opacity, transform;
+    }
+    .msg.visible{opacity:1;}
+    .left{align-self:flex-start;text-align:left}
+    .right{align-self:flex-end;text-align:right}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <button class="swap" id="swapBtn" title="swap palette" aria-label="swap palette">
+      <!-- minimal swap icon (inline SVG) -->
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 7V3h8v4"/>
+        <path d="M17 17v4H9v-4"/>
+        <path d="M21 7l-4 4"/>
+        <path d="M3 17l4-4"/>
+      </svg>
+    </button>
+    <main class="chat" id="chat" aria-live="polite" aria-atomic="false"></main>
+  </div>
+
+  <script>
+    // Strict palette: only #000000 and #ffffff
+    const root = document.documentElement;
+    const swapBtn = document.getElementById('swapBtn');
+    const chat = document.getElementById('chat');
+
+    let running = false;
+    let timer = null; // no longer used for scheduling, kept for compatibility
+    let sideToggle = false;  // Controls which side sends the next message
+    let lastSender = null;   // Track the last sender for message flow
+
+    // Ensure only black/white
+    function setPalette(isInverted){
+      if(isInverted){root.style.setProperty('--bg','#ffffff');root.style.setProperty('--fg','#000000');}
+      else {root.style.setProperty('--bg','#000000');root.style.setProperty('--fg','#ffffff');}
+    }
+    let inverted = false;
+    setPalette(inverted);
+
+    swapBtn.addEventListener('click',()=>{inverted=!inverted;setPalette(inverted)});
+
+    function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min}
+
+    function generateRandomString(len,opts){
+      const letters = 'abcdefghijklmnopqrstuvwxyz';
+      const numbers = '0123456789';
+      const symbols = "!@#$%^&*()-_=+[]{};:,.<>/?\\|";
+      let pool = '';
+      
+      if (opts.lettersOnly) {
+        pool = letters;
+      } else {
+        pool = letters;
+        if (opts.useNumbers) pool += numbers;
+        pool += symbols; // include symbols if not letters only
+      }
+      
+      let out = '';
+      for(let i=0;i<len;i++){
+        if (!opts.lettersOnly && opts.useSpaces && Math.random() < 0.12 && i>1 && i<len-1) { 
+          out += ' '; 
+          continue; 
+        }
+        const ch = pool.charAt(Math.floor(Math.random()*pool.length));
+        out += ch;
+      }
+      // apply case rules
+      if(opts.caseMode === 'upper') return out.toUpperCase();
+      if(opts.caseMode === 'lower') return out.toLowerCase();
+      if(opts.caseMode === 'random'){
+        return out.split('').map(c=>Math.random()>0.5?c.toUpperCase():c.toLowerCase()).join('');
+      }
+      // mixed: keep mostly as-is but randomly uppercase some
+      return out.split('').map(c=>Math.random()>0.7?c.toUpperCase():c).join('');
+    }
+
+    function randomMessageConfig(){
+      // Randomize all formerly user-controlled knobs per message
+      const length = randInt(6, Math.random()>0.35 ? 42 : 78);
+      const fontSize = randInt(16, 36);
+      const modeRoll = Math.random();
+      const lettersOnly = modeRoll < 0.32;
+      const useSpaces = !lettersOnly && Math.random() > 0.4;
+      const useNumbers = !lettersOnly && Math.random() > 0.35;
+      const caseOptions = ['mixed','upper','lower','random'];
+      const caseMode = caseOptions[randInt(0, caseOptions.length-1)];
+      const delayRoll = Math.random();
+      const delay = delayRoll < 0.25 ? randInt(180, 520) : delayRoll < 0.75 ? randInt(520, 1600) : randInt(1600, 2600);
+      return {length,fontSize,lettersOnly,useSpaces,useNumbers,caseMode,delay};
+    }
+
+    const MOVE_DURATION = 280; // ms
+    const FADE_DELAY = 350; // ms after move completes
+    const FADE_DURATION = 240; // matches CSS transition
+
+    function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
+
+    async function createMessage(text, fontSize){
+      const el = document.createElement('div');
+      el.className = 'msg ' + (sideToggle ? 'right' : 'left');
+      el.textContent = text;
+      el.style.fontSize = `${fontSize}px`;
+      // reserve space immediately
+      chat.appendChild(el);
+      // animate the stack upward, then fade message in with a pause
+      const anim = chat.animate(
+        [
+          { transform: 'translate3d(0, 32px, 0)', easing: 'cubic-bezier(0.55, 0.055, 0.675, 0.19)' }, // slow start -> accelerate
+          { offset: 0.7, transform: 'translate3d(0, 6px, 0)', easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }, // faster mid
+          { transform: 'translate3d(0, 0px, 0)', easing: 'cubic-bezier(0.215, 0.61, 0.355, 1)' } // slight slow before end
+        ],
+        { duration: MOVE_DURATION, fill: 'none' }
+      );
+      // Ensure the move finishes
+      if (anim && anim.finished) {
+        try { await anim.finished; } catch(_){}
+      } else {
+        await sleep(MOVE_DURATION);
+      }
+      // Wait additional delay before revealing text
+      await sleep(FADE_DELAY);
+      el.classList.add('visible');
+      // Wait for fade transition to complete
+      await sleep(FADE_DURATION);
+      // cap message count to avoid long pages
+      if(chat.children.length > 100){
+        chat.removeChild(chat.children[0]);
+      }
+    }
+
+    async function loop(){
+      while (running) {
+        const cfg = randomMessageConfig();
+        await processNextMessage(cfg);
+        if (!running) break;
+        await sleep(cfg.delay);
+      }
+    }
+    
+    async function processNextMessage(cfg) {
+      try {
+        if (Math.random() > 0.35) {
+          sideToggle = !sideToggle;
+        }
+        const msg = generateRandomString(cfg.length, cfg);
+        await createMessage(msg, cfg.fontSize);
+      } catch (error) {
+        console.error('Error generating message:', error);
+        await createMessage('...', 20);
+      }
+    }
+
+    // start immediately
+    running = true;
+    loop();
+  </script>
+</body>
+</html>

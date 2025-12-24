@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Frequency Lab v2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            background-color: #000;
+        }
+        #experiment-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+        }
+        .control-panel {
+            position: relative;
+            z-index: 10;
+            background: rgba(15, 15, 15, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            width: 380px;
+            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .hidden-ui {
+            opacity: 0 !important;
+            pointer-events: none;
+            cursor: none;
+        }
+        input[type="range"] {
+            cursor: pointer;
+            height: 8px;
+            border-radius: 4px;
+        }
+        .stat-badge {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body class="text-white">
+
+    <div id="experiment-canvas"></div>
+
+    <div id="ui-container" class="p-8">
+        <div id="controls" class="control-panel p-8 rounded-3xl shadow-2xl">
+            <header class="mb-8">
+                <h1 class="text-2xl font-black tracking-tighter mb-1 uppercase italic text-blue-400">Lab Terminal</h1>
+                <p class="text-[10px] uppercase tracking-[0.2em] opacity-40">Frequency & Waveform Analysis</p>
+            </header>
+
+            <div class="space-y-8">
+                <!-- Color Section -->
+                <section>
+                    <label class="block text-[10px] uppercase tracking-widest opacity-50 mb-3">Color Modulation Points</label>
+                    <div class="grid grid-cols-2 gap-4">
+                        <input type="color" id="colorA" value="#ffffff" class="w-full h-12 bg-transparent border border-white/10 rounded-lg cursor-pointer">
+                        <input type="color" id="colorB" value="#000000" class="w-full h-12 bg-transparent border border-white/10 rounded-lg cursor-pointer">
+                    </div>
+                </section>
+
+                <!-- Frequency Section -->
+                <section>
+                    <header class="flex justify-between items-end mb-4">
+                        <label class="text-[10px] uppercase tracking-widest opacity-50">Interval Timing</label>
+                        <div class="flex gap-2">
+                            <span id="hz-display" class="stat-badge text-blue-300">-- Hz</span>
+                            <span id="fps-display" class="stat-badge text-emerald-300">-- FPS</span>
+                        </div>
+                    </header>
+                    
+                    <input type="range" id="frequencySlider" min="0" max="1000" value="500" class="w-full accent-blue-500 mb-2">
+                    
+                    <div class="flex justify-between items-center text-xs font-bold text-white/80">
+                        <span class="opacity-40">Fast (1ms)</span>
+                        <span id="ms-label" class="text-lg text-blue-400">500ms</span>
+                        <span class="opacity-40">Slow (5s)</span>
+                    </div>
+                    <p class="text-[9px] mt-2 opacity-30 leading-tight">Slider utilizes logarithmic scaling for sub-millisecond precision at high speeds.</p>
+                </section>
+
+                <!-- Waveform Mode -->
+                <section>
+                    <label class="block text-[10px] uppercase tracking-widest opacity-50 mb-3">Waveform Profile</label>
+                    <div class="flex p-1 bg-white/5 rounded-xl border border-white/10">
+                        <button id="modeFlash" class="flex-1 py-2 rounded-lg bg-blue-600 font-black text-xs transition-all">SQUARE (FLASH)</button>
+                        <button id="modeFade" class="flex-1 py-2 rounded-lg hover:bg-white/5 font-black text-xs transition-all">SINE (FADE)</button>
+                    </div>
+                </section>
+
+                <footer class="pt-6 border-t border-white/10 text-[10px] opacity-40 flex justify-between">
+                    <span>[H] HIDE INTERFACE</span>
+                    <span>[SPACE] RESET CLOCK</span>
+                </footer>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('experiment-canvas');
+        const colorAInput = document.getElementById('colorA');
+        const colorBInput = document.getElementById('colorB');
+        const slider = document.getElementById('frequencySlider');
+        const msLabel = document.getElementById('ms-label');
+        const hzDisplay = document.getElementById('hz-display');
+        const fpsDisplay = document.getElementById('fps-display');
+        const modeFlashBtn = document.getElementById('modeFlash');
+        const modeFadeBtn = document.getElementById('modeFade');
+        const uiContainer = document.getElementById('ui-container');
+
+        let mode = 'flash';
+        let startTime = performance.now();
+        let isUIVisible = true;
+        let lastUpdateTime = 0;
+
+        // Logarithmic Slider Logic
+        // We want a range from 1ms to 5000ms
+        const MIN_MS = 1;
+        const MAX_MS = 5000;
+        const minLog = Math.log(MIN_MS);
+        const maxLog = Math.log(MAX_MS);
+        const logScale = (maxLog - minLog) / 1000;
+
+        function getIntervalFromSlider(value) {
+            // Converts 0-1000 slider range to 1-5000ms logarithmically
+            return Math.exp(minLog + logScale * value);
+        }
+
+        function hexToRgb(hex) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return { r, g, b };
+        }
+
+        function updateLoop() {
+            const now = performance.now();
+            const interval = getIntervalFromSlider(parseInt(slider.value));
+            
+            // Update display less frequently to reduce overhead (max 20fps for UI updates)
+            if (now - lastUpdateTime > 50) {
+                msLabel.innerText = `${Math.round(interval)}ms`;
+                const hz = (1000 / interval).toFixed(2);
+                hzDisplay.innerText = `${hz} Hz`;
+                fpsDisplay.innerText = `${Math.min(1000 / interval, 60).toFixed(0)} FPS`;
+                lastUpdateTime = now;
+            }
+
+            const colorA = hexToRgb(colorAInput.value);
+            const colorB = hexToRgb(colorBInput.value);
+
+            if (mode === 'flash') {
+                // Use performance.now() for more precise timing
+                const step = Math.floor(performance.now() / interval) % 2;
+                canvas.style.backgroundColor = step === 0 ? colorAInput.value : colorBInput.value;
+            } else {
+                // Smoother animation using performance.now()
+                const phase = (performance.now() / interval) * Math.PI * 2;
+                const ratio = (Math.sin(phase) + 1) / 2;
+
+                const r = Math.round(colorA.r + (colorB.r - colorA.r) * ratio);
+                const g = Math.round(colorA.g + (colorB.g - colorA.g) * ratio);
+                const b = Math.round(colorA.b + (colorB.b - colorA.b) * ratio);
+                
+                canvas.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+            }
+
+            requestAnimationFrame(updateLoop);
+        }
+
+        // Event Listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'h') {
+                isUIVisible = !isUIVisible;
+                uiContainer.classList.toggle('hidden-ui', !isUIVisible);
+            }
+            if (e.code === 'Space') {
+                startTime = performance.now();
+            }
+        });
+
+        modeFlashBtn.onclick = () => {
+            mode = 'flash';
+            modeFlashBtn.className = "flex-1 py-2 rounded-lg bg-blue-600 font-black text-xs";
+            modeFadeBtn.className = "flex-1 py-2 rounded-lg hover:bg-white/5 font-black text-xs";
+        };
+
+        modeFadeBtn.onclick = () => {
+            mode = 'fade';
+            modeFadeBtn.className = "flex-1 py-2 rounded-lg bg-blue-600 font-black text-xs";
+            modeFlashBtn.className = "flex-1 py-2 rounded-lg hover:bg-white/5 font-black text-xs";
+        };
+
+        updateLoop();
+    </script>
+</body>
+</html>
