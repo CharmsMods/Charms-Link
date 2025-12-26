@@ -1,0 +1,965 @@
+<!-- Filename: web-bundler-minifier.html -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Client-side Bundler & Minifier — Prototype</title>
+<style>
+  :root{font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;font-size:14px;color:#111}
+  body{margin:0;padding:18px;background:#f7f8fb}
+  header{display:flex;gap:12px;align-items:center}
+  h1{font-size:18px;margin:0}
+  .panel{background:#fff;border:1px solid #e2e6ef;padding:12px;border-radius:8px;margin-top:12px;box-shadow:0 1px 3px rgba(16,24,40,.04)}
+  label{display:block;margin:8px 0 4px;font-weight:600}
+  input[type="file"]{display:block}
+  .row{display:flex;gap:12px;align-items:center}
+  .col{flex:1}
+  .small{font-size:12px;color:#666}
+  .options{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+  select,input[type=checkbox],input[type=number]{padding:6px;border:1px solid #cfd8e3;border-radius:6px}
+  button{padding:8px 12px;border-radius:8px;border:0;background:#2563eb;color:#fff;cursor:pointer}
+  button.secondary{background:#6b7280}
+  .outputs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .log{white-space:pre-wrap;background:#0f1724;color:#e6eef8;padding:10px;border-radius:6px;height:160px;overflow:auto;font-family:monospace;font-size:12px}
+  .file-list{max-height:150px;overflow:auto;border:1px solid #eef2ff;padding:6px;border-radius:6px;background:#fcfdff}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:6px;border-bottom:1px solid #eef2ff;text-align:left;font-size:13px}
+  .warning{color:#b45309;font-weight:700}
+  .badge{padding:3px 6px;border-radius:6px;background:#eef2ff;font-size:12px}
+  footer{margin-top:12px;font-size:12px;color:#666}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Client-side Bundler & Minifier — Prototype</h1>
+    <div class="small">Upload a project folder or files and produce single inlined HTML or a ZIP of minified files. Runs entirely in-browser.</div>
+  </div>
+</header>
+
+<section class="panel" id="uploader">
+  <label>Upload files / folder (use "Choose folder" or multiple files). The folder structure will be preserved where supported.</label>
+  <input id="fileInput" type="file" webkitdirectory multiple />
+  <div class="row" style="margin-top:8px">
+    <div class="col">
+      <label>Main HTML (auto-detected)</label>
+      <select id="mainHtmlSelect"></select>
+      <div class="small">Auto-selects index.html if present. You can override.</div>
+    </div>
+    <div style="min-width:260px">
+      <label>Large-file threshold (MB)</label>
+      <input type="number" id="largeThreshold" value="5" min="1" step="1" />
+      <div class="small">Files larger than this will be flagged for large-file handling.</div>
+    </div>
+  </div>
+
+  <label style="margin-top:8px">Processing options</label>
+  <div class="options">
+    <div>
+      <label>Image handling</label>
+      <select id="imageOption">
+        <option value="none">No compression (keep original)</option>
+        <option value="compress">Compress images (user-specified quality)</option>
+      </select>
+      <div class="small">Compression uses canvas; only useful for raster images (jpg/png/webp).</div>
+      <div style="margin-top:6px">
+        <label>Quality (0.1 - 1.0)</label>
+        <input id="imgQuality" type="number" min="0.1" max="1" step="0.05" value="0.8" />
+      </div>
+    </div>
+
+    <div>
+      <label>Output mode</label>
+      <select id="outputMode">
+        <option value="single-min">Single HTML — combined &amp; minified</option>
+        <option value="single">Single HTML — combined, not minified</option>
+        <option value="zip-min">ZIP — minified files, preserved structure</option>
+        <option value="zip-nomin">ZIP — original structure, no minify</option>
+      </select>
+      <div class="small">Choose whether bundling and/or minification are applied and whether output is single-file or ZIP.</div>
+    </div>
+
+    <div>
+      <label>Bundling options (JS)</label>
+      <select id="bundleOption">
+        <option value="auto">Auto: use esbuild when modules detected</option>
+        <option value="concat">Concatenate scripts (preserve HTML order)</option>
+      </select>
+      <div class="small">Use module-aware bundling for projects with ES modules (recommended).</div>
+    </div>
+
+    <div>
+      <label>Misc</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="keepUnreferenced" type="checkbox" /> <label class="small" style="margin:0">Include unreferenced files in ZIP</label>
+      </div>
+      <div class="small" style="margin-top:6px">When creating a ZIP, include files that were present but not referenced.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:10px;display:flex;gap:8px">
+    <button id="analyzeBtn">Analyze &amp; Preview</button>
+    <button class="secondary" id="processBtn">Process &amp; Generate Output</button>
+  </div>
+
+  <div style="margin-top:10px">
+    <label>Files uploaded</label>
+    <div id="fileList" class="file-list small">No files loaded.</div>
+  </div>
+</section>
+
+<section class="panel" id="analysisPanel" style="display:none">
+  <label>Project analysis / dependency graph</label>
+  <div id="analysisSummary" class="small">...</div>
+
+  <div style="margin-top:8px">
+    <label>Large files detected (choose action)</label>
+    <div id="largeFiles"></div>
+  </div>
+
+  <div style="margin-top:10px">
+    <label>Referenced files (scanned from entry HTML)</label>
+    <div id="referencedList" class="file-list small"></div>
+  </div>
+
+  <div style="margin-top:10px">
+    <label>Logs</label>
+    <div id="log" class="log"></div>
+  </div>
+
+  <div style="margin-top:10px" class="outputs">
+    <button id="downloadSingleBtn" style="display:none">Download single HTML</button>
+    <button id="downloadZipBtn" style="display:none">Download ZIP</button>
+  </div>
+</section>
+
+<footer class="small">
+  Notes: This is a client-side prototype. For large projects or many large files, browsers may become slow or run out of memory. The UI will warn about large files and allow externalizing them into a ZIP rather than inlining them into a single HTML.
+</footer>
+
+<!-- External libraries via CDN -->
+<script src="https://unpkg.com/esbuild-wasm@0.18.11/esbuild.wasm.js"></script>
+<script src="https://unpkg.com/esbuild-wasm@0.18.11/esm/browser.js" type="module"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/csso@5.0.5/dist/csso.browser.js"></script>
+
+<script type="module">
+/*
+  Main app logic.
+  - Maintains an in-memory file map: {path: {file:File, arrayBuffer, text, mime}}
+  - Analyzes main HTML for references.
+  - Uses esbuild-wasm via a virtual plugin to bundle JS (module-aware).
+  - Inlines assets to data URLs when requested; compresses images via canvas when requested.
+  - Generates single HTML or ZIP output using JSZip.
+*/
+
+import * as esbuild from "https://unpkg.com/esbuild-wasm@0.18.11/esm/browser.js";
+
+const fileInput = document.getElementById('fileInput');
+const mainHtmlSelect = document.getElementById('mainHtmlSelect');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const processBtn = document.getElementById('processBtn');
+const fileListEl = document.getElementById('fileList');
+const analysisPanel = document.getElementById('analysisPanel');
+const analysisSummary = document.getElementById('analysisSummary');
+const referencedList = document.getElementById('referencedList');
+const logEl = document.getElementById('log');
+const largeFilesDiv = document.getElementById('largeFiles');
+const downloadSingleBtn = document.getElementById('downloadSingleBtn');
+const downloadZipBtn = document.getElementById('downloadZipBtn');
+const outputMode = document.getElementById('outputMode');
+const imageOption = document.getElementById('imageOption');
+const imgQuality = document.getElementById('imgQuality');
+const largeThreshold = document.getElementById('largeThreshold');
+const bundleOption = document.getElementById('bundleOption');
+const keepUnreferenced = document.getElementById('keepUnreferenced');
+
+let fileMap = new Map(); // key: normalized path (no leading slash), value: {file, arrayBuffer, text, mime}
+let referencedFiles = new Set();
+let mainHtmlPath = null;
+let esbuildInitialized = false;
+
+/* Utility helpers */
+const log = (...args) => { logEl.textContent += args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ') + '\n'; logEl.scrollTop = logEl.scrollHeight; };
+const bytesToMB = (b) => (b/1024/1024);
+const normalizePath = (p) => p.replace(/\\/g,'/').replace(/^\/+/,'');
+const guessMime = (name) => {
+  const ext = (name.split('.').pop()||'').toLowerCase();
+  const map = {html:'text/html',js:'application/javascript',css:'text/css',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',svg:'image/svg+xml',webp:'image/webp',mp4:'video/mp4',mp3:'audio/mpeg',woff:'font/woff',woff2:'font/woff2',ttf:'font/ttf',otf:'font/otf',json:'application/json',txt:'text/plain'};
+  return map[ext]||'application/octet-stream';
+};
+
+fileInput.addEventListener('change', async (ev) => {
+  fileMap.clear();
+  logEl.textContent = '';
+  analysisPanel.style.display = 'none';
+  const files = Array.from(ev.target.files || []);
+  if (!files.length) { fileListEl.textContent = 'No files loaded.'; return; }
+  for (const f of files) {
+    const path = normalizePath(f.webkitRelativePath || f.name);
+    const arrayBuffer = await f.arrayBuffer();
+    const text = f.type && f.type.startsWith('text') ? new TextDecoder().decode(arrayBuffer) : null;
+    fileMap.set(path, { file: f, arrayBuffer, text, mime: f.type || guessMime(path), size: f.size });
+  }
+  populateFileList();
+  populateMainHtmlSelect();
+});
+
+function populateFileList(){
+  const rows = [];
+  for (const [p,info] of fileMap.entries()){
+    rows.push(`${p} — ${(bytesToMB(info.size)).toFixed(2)} MB`);
+  }
+  fileListEl.textContent = rows.join('\n');
+}
+
+function populateMainHtmlSelect(){
+  mainHtmlSelect.innerHTML = '';
+  const htmlFiles = Array.from(fileMap.keys()).filter(k => k.toLowerCase().endsWith('.html'));
+  if (!htmlFiles.length){
+    mainHtmlSelect.innerHTML = `<option value="">(no html files found)</option>`;
+    return;
+  }
+  // prefer index.html
+  const idx = htmlFiles.find(f=>f.toLowerCase().endsWith('index.html'));
+  const defaultMain = idx || htmlFiles[0];
+  for (const f of htmlFiles) {
+    const opt = document.createElement('option'); opt.value = f; opt.textContent = f;
+    if (f === defaultMain) opt.selected = true;
+    mainHtmlSelect.appendChild(opt);
+  }
+  mainHtmlPath = mainHtmlSelect.value;
+  mainHtmlSelect.addEventListener('change', () => mainHtmlPath = mainHtmlSelect.value);
+}
+
+/* Small HTML parser to extract references (works for typical cases) */
+function parseHtmlForReferences(htmlText, basePath = '') {
+  const refs = {scripts:[], links:[], imgs:[], sources:[], inlineStyles:[], inlineScripts:[]};
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlText, 'text/html');
+    // scripts
+    doc.querySelectorAll('script').forEach(s=>{
+      const src = s.getAttribute('src');
+      const type = s.getAttribute('type') || '';
+      if (src) refs.scripts.push(resolvePath(basePath, src));
+      else {
+        refs.inlineScripts.push({content: s.textContent, type});
+      }
+    });
+    // link rel=stylesheet
+    doc.querySelectorAll('link[rel="stylesheet"]').forEach(l=>{
+      const href = l.getAttribute('href'); if (href) refs.links.push(resolvePath(basePath, href));
+    });
+    // images
+    doc.querySelectorAll('img').forEach(i=>{
+      const src = i.getAttribute('src'); if (src) refs.imgs.push(resolvePath(basePath, src));
+      // srcset
+      const ss = i.getAttribute('srcset'); if (ss) {
+        ss.split(',').map(s=>s.trim().split(/\s+/)[0]).forEach(u => u && refs.imgs.push(resolvePath(basePath, u)));
+      }
+    });
+    // video/audio/source tags
+    doc.querySelectorAll('source,video,audio').forEach(s=>{
+      const src = s.getAttribute('src'); if (src) refs.sources.push(resolvePath(basePath, src));
+      const srcset = s.getAttribute('srcset'); if (srcset) srcset.split(',').map(s=>s.trim().split(/\s+/)[0]).forEach(u=>u && refs.sources.push(resolvePath(basePath, u)));
+    });
+    // style tags
+    doc.querySelectorAll('style').forEach(st => refs.inlineStyles.push(st.textContent));
+    // inline style attributes
+    doc.querySelectorAll('[style]').forEach(el => {
+      refs.inlineStyles.push(el.getAttribute('style'));
+    });
+    // also look for <link rel="preload" as="font">
+    doc.querySelectorAll('link[rel="preload"],link[rel="prefetch"],link[rel="modulepreload"]').forEach(l=>{
+      const href = l.getAttribute('href'); if (href) refs.links.push(resolvePath(basePath, href));
+    });
+  } catch(e){ log('parseHtmlForReferences error', e); }
+  return refs;
+}
+
+function resolvePath(basePath, ref){
+  if (!ref) return null;
+  // handle data: and absolute http(s:)
+  if (ref.startsWith('data:') || ref.match(/^https?:\/\//i)) return ref;
+  // if ref is absolute filesystem path starting with /, drop leading slash
+  ref = ref.replace(/^\/+/,'');
+  if (!basePath) return normalizePath(ref);
+  // basePath is path to html file; remove last segment
+  const dir = basePath.split('/').slice(0,-1).join('/');
+  const merged = normalizePath((dir?dir + '/':'') + ref);
+  // normalize ../ and ./
+  const parts = merged.split('/');
+  const stack = [];
+  for (const p of parts){
+    if (p === '..') stack.pop();
+    else if (p === '.' || p === '') continue;
+    else stack.push(p);
+  }
+  return stack.join('/');
+}
+
+/* CSS parser (naive) to find url(...) references and @import */
+function extractUrlsFromCss(cssText, basePath='') {
+  const urls = [];
+  // url(...) patterns
+  const urlRegex = /url\(\s*(['"]?)([^'")]+)\1\s*\)/g;
+  let m;
+  while ((m = urlRegex.exec(cssText)) !== null) {
+    const resolved = resolvePath(basePath, m[2]);
+    if (resolved) urls.push(resolved);
+  }
+  // @import "..."
+  const impRegex = /@import\s+(?:url\()?['"]?([^'")]+)['"]?\)?/g;
+  while ((m = impRegex.exec(cssText)) !== null) {
+    const resolved = resolvePath(basePath, m[1]);
+    if (resolved) urls.push(resolved);
+  }
+  return urls;
+}
+
+/* Build dependency set by scanning HTML and CSS/JS recursively */
+async function buildDependencySet(entryHtmlPath) {
+  referencedFiles.clear();
+  const queue = [entryHtmlPath];
+  const seen = new Set();
+  while (queue.length){
+    const p = queue.shift();
+    if (!p || seen.has(p)) continue;
+    seen.add(p);
+    referencedFiles.add(p);
+    const info = fileMap.get(p);
+    if (!info) continue;
+    const text = info.text || await arrayBufferToText(info.arrayBuffer);
+    if (p.toLowerCase().endsWith('.html')){
+      const refs = parseHtmlForReferences(text, p);
+      // add scripts and links and images and sources
+      for (const s of [...refs.scripts, ...refs.links, ...refs.imgs, ...refs.sources]) {
+        if (s && !s.startsWith('data:') && !s.match(/^https?:\/\//i)) { queue.push(s); }
+      }
+      // inline CSS in style tags
+      for (const css of refs.inlineStyles) {
+        const cssUrls = extractUrlsFromCss(css, p);
+        for (const u of cssUrls) if (!u.startsWith('data:') && !u.match(/^https?:\/\//i)) queue.push(u);
+      }
+    } else if (p.toLowerCase().endsWith('.css')) {
+      const cssUrls = extractUrlsFromCss(text, p);
+      for (const u of cssUrls) if (!u.startsWith('data:') && !u.match(/^https?:\/\//i)) queue.push(u);
+    } else if (p.toLowerCase().endsWith('.js')) {
+      // look for import/export (naive)
+      const importRegex = /import\s+(?:[\s\S]+?)\s+from\s+['"]([^'"]+)['"]/g;
+      let m;
+      while ((m = importRegex.exec(text)) !== null) {
+        const ref = resolvePath(p, m[1]);
+        if (ref && !ref.startsWith('data:') && !ref.match(/^https?:\/\//i)) queue.push(ref);
+      }
+      // dynamic import
+      const dynRegex = /import\(['"]([^'"]+)['"]\)/g;
+      while ((m = dynRegex.exec(text)) !== null) {
+        const ref = resolvePath(p, m[1]);
+        if (ref && !ref.startsWith('data:') && !ref.match(/^https?:\/\//i)) queue.push(ref);
+      }
+    }
+  }
+  return Array.from(referencedFiles);
+}
+
+/* arrayBuffer -> text helper */
+async function arrayBufferToText(ab) {
+  return new TextDecoder().decode(ab);
+}
+
+/* Convert ArrayBuffer to data URL (base64) */
+function arrayBufferToDataURL(ab, mime) {
+  const u8 = new Uint8Array(ab);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i=0; i<u8.length; i+=chunk) {
+    binary += String.fromCharCode.apply(null, u8.subarray(i, i+chunk));
+  }
+  const b64 = btoa(binary);
+  return `data:${mime};base64,${b64}`;
+}
+
+/* Image compression using canvas — returns Promise<ArrayBuffer/Blob> */
+async function compressImage(ab, mime, quality) {
+  // only for image types supported by canvas
+  const supported = ['image/jpeg','image/png','image/webp'];
+  if (!supported.includes(mime)) return ab;
+  try {
+    const blob = new Blob([ab], {type: mime});
+    const url = URL.createObjectURL(blob);
+    const img = await new Promise((res,rej)=>{
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = (e) => rej(e);
+      i.src = url;
+    });
+    // scale if extremely large? For now keep same size, just re-encode with quality
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img,0,0);
+    const outType = 'image/jpeg';
+    const dataUrl = canvas.toDataURL(outType, quality);
+    URL.revokeObjectURL(url);
+    // convert dataURL to arrayBuffer
+    const b64 = dataUrl.split(',',2)[1];
+    const bin = atob(b64);
+    const len = bin.length;
+    const bytes = new Uint8Array(len);
+    for (let i=0;i<len;i++) bytes[i]=bin.charCodeAt(i);
+    return bytes.buffer;
+  } catch(e){
+    log('compressImage failed:', e);
+    return ab;
+  }
+}
+
+/* esbuild plugin to provide virtual files from fileMap */
+function makeEsbuildPlugin(map) {
+  return {
+    name: 'virtual-file-plugin',
+    setup(build) {
+      // Resolve imports
+      build.onResolve({ filter: /.*/ }, args => {
+        const importer = args.importer || '';
+        const path = args.path;
+        // Ignore external URLs
+        if (path.match(/^https?:\/\//i)) return { external: true };
+        if (path.startsWith('data:')) return { path: path, namespace: 'data' };
+        // Resolve relative to importer
+        let resolved;
+        if (!importer) {
+          // top-level entry; path may be like './app.js' or 'file.js'
+          resolved = normalizePath(path);
+        } else {
+          // importer is a full virtual path
+          const base = importer.split('/').slice(0,-1).join('/');
+          resolved = resolvePath(importer, path);
+        }
+        // if file exists in map, return namespace
+        if (map.has(resolved)) return { path: resolved, namespace: 'virtual' };
+        // maybe extensionless import: try add .js/.ts/.jsx/.json
+        const exts = ['.js','.jsx','.ts','.json','.mjs'];
+        for (const e of exts) {
+          if (map.has(resolved+e)) return { path: resolved+e, namespace: 'virtual' };
+        }
+        // else mark external (will try to fetch? but we disallow http earlier)
+        return { path: resolved, external: true };
+      });
+
+      // Load virtual files
+      build.onLoad({ filter: /.*/, namespace: 'virtual' }, async (args) => {
+        const path = args.path;
+        const entry = map.get(path);
+        if (!entry) return null;
+        const text = entry.text || await arrayBufferToText(entry.arrayBuffer);
+        const ext = path.split('.').pop().toLowerCase();
+        let loader = 'js';
+        if (ext === 'css') loader = 'css';
+        if (ext === 'json') loader = 'json';
+        if (['png','jpg','jpeg','gif','svg','webp'].includes(ext)) {
+          // images are loaded as data-url strings
+          const dataUrl = arrayBufferToDataURL(entry.arrayBuffer, entry.mime);
+          return { contents: `export default ${JSON.stringify(dataUrl)}`, loader: 'js' };
+        }
+        return { contents: text, loader };
+      });
+    }
+  };
+}
+
+/* init esbuild wasm */
+async function ensureEsbuildInit() {
+  if (esbuildInitialized) return;
+  try {
+    log('Initializing esbuild-wasm (this may take a second)...');
+    await esbuild.initialize({
+      wasmURL: 'https://unpkg.com/esbuild-wasm@0.18.11/esbuild.wasm'
+    });
+    esbuildInitialized = true;
+    log('esbuild ready.');
+  } catch(e){ log('esbuild init error', e); throw e; }
+}
+
+/* Bundle JS using esbuild + virtual plugin */
+async function bundleJS(entryPaths, map, minify=true) {
+  await ensureEsbuildInit();
+  // entryPaths: array of virtual paths in map to use as entry; esbuild supports single entry or multiple
+  const plugin = makeEsbuildPlugin(map);
+  try {
+    const result = await esbuild.build({
+      entryPoints: entryPaths,
+      bundle: true,
+      minify: Boolean(minify),
+      write: false,
+      plugins: [plugin],
+      format: 'iife',
+      globalName: 'bundle',
+      sourcemap: false,
+    });
+    // result.outputFiles[0].text
+    return result.outputFiles[0].text;
+  } catch(e){
+    log('esbuild bundle error', e && e.message ? e.message : e);
+    throw e;
+  }
+}
+
+/* Minify CSS using csso */
+function minifyCss(cssText) {
+  try {
+    const result = csso.minify(cssText).css;
+    return result;
+  } catch(e) {
+    log('css minify error', e);
+    return cssText;
+  }
+}
+
+/* Basic HTML minifier (safe-ish): remove comments, collapse multiple spaces, remove leading/trailing)
+   Note: avoid aggressive minification that changes pre/code whitespace. */
+function minifyHtmlSimple(html) {
+  try {
+    // remove html comments except conditional comments
+    html = html.replace(/<!--(?!\[if).*?-->/gs,'');
+    // collapse whitespace between tags
+    html = html.replace(/>\s+</g, '><');
+    // trim
+    return html.trim();
+  } catch(e){
+    log('html minify error', e);
+    return html;
+  }
+}
+
+/* Inline assets: replace references in HTML and CSS with data URLs, using options for image compression.
+   Returns new HTML text. */
+async function inlineAssetsIntoHtml(htmlText, basePath, map, options) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlText, 'text/html');
+
+  // Helper to turn path -> data URL (compressing images if requested)
+  async function pathToDataUrl(p) {
+    const entry = map.get(p);
+    if (!entry) return null;
+    let ab = entry.arrayBuffer;
+    if (options.imageCompress && entry.mime && entry.mime.startsWith('image/')) {
+      ab = await compressImage(ab, entry.mime, options.imgQuality);
+    }
+    return arrayBufferToDataURL(ab, entry.mime || guessMime(p));
+  }
+
+  // Replace <link rel=stylesheet href=> => inline style with modified CSS
+  const linkElems = Array.from(doc.querySelectorAll('link[rel="stylesheet"]'));
+  for (const link of linkElems) {
+    const href = link.getAttribute('href');
+    if (!href || href.startsWith('data:') || href.match(/^https?:\/\//i)) continue;
+    const path = resolvePath(basePath, href);
+    const entry = map.get(path);
+    if (!entry) { log('Missing stylesheet', path); continue; }
+    let cssText = entry.text || await arrayBufferToText(entry.arrayBuffer);
+    // replace url(...) references in css
+    const cssUrls = extractUrlsFromCss(cssText, path);
+    for (const u of cssUrls) {
+      if (u.startsWith('data:')||u.match(/^https?:\/\//i)) continue;
+      const dataUrl = await pathToDataUrl(u);
+      if (dataUrl) {
+        // replace all occurrences
+        const re = new RegExp(u.replace(/[-\/\\^$*+?.()|[\]{}]/g,'\\$&'), 'g');
+        cssText = cssText.split(u).join(dataUrl);
+      }
+    }
+    const styleEl = doc.createElement('style');
+    styleEl.textContent = cssText;
+    link.replaceWith(styleEl);
+  }
+
+  // Replace <img src=> and srcset
+  const imgElems = Array.from(doc.querySelectorAll('img,video,audio,source'));
+  for (const el of imgElems) {
+    const attributes = ['src','srcset','poster'];
+    for (const attr of attributes) {
+      const val = el.getAttribute(attr);
+      if (!val) continue;
+      // handle srcset multiple urls
+      if (attr==='srcset') {
+        const parts = val.split(',').map(p=>p.trim());
+        const newParts = [];
+        for (const part of parts) {
+          const url = part.split(/\s+/)[0];
+          const rest = part.slice(url.length);
+          if (url.startsWith('data:')||url.match(/^https?:\/\//i)) { newParts.push(part); continue; }
+          const resolved = resolvePath(basePath, url);
+          const dataUrl = await pathToDataUrl(resolved);
+          if (dataUrl) newParts.push(dataUrl + rest);
+          else newParts.push(part);
+        }
+        el.setAttribute(attr, newParts.join(', '));
+      } else {
+        if (val.startsWith('data:')||val.match(/^https?:\/\//i)) continue;
+        const resolved = resolvePath(basePath, val);
+        const dataUrl = await pathToDataUrl(resolved);
+        if (dataUrl) el.setAttribute(attr, dataUrl);
+      }
+    }
+  }
+
+  // Inline external scripts: replace <script src> with <script> containing contents
+  const scriptElems = Array.from(doc.querySelectorAll('script'));
+  for (const s of scriptElems) {
+    const src = s.getAttribute('src');
+    if (!src) continue;
+    if (src.startsWith('data:')||src.match(/^https?:\/\//i)) continue;
+    const p = resolvePath(basePath, src);
+    const entry = map.get(p);
+    if (!entry) { log('Missing script', p); continue; }
+    const txt = entry.text || await arrayBufferToText(entry.arrayBuffer);
+    const newScript = doc.createElement('script');
+    // preserve type attribute (e.g., module)
+    if (s.type) newScript.type = s.type;
+    newScript.textContent = txt;
+    s.replaceWith(newScript);
+  }
+
+  // inline style tags: replace any url(...) references
+  const styleTags = Array.from(doc.querySelectorAll('style'));
+  for (const st of styleTags) {
+    let cssText = st.textContent;
+    const cssUrls = extractUrlsFromCss(cssText, basePath);
+    for (const u of cssUrls) {
+      if (u.startsWith('data:')||u.match(/^https?:\/\//i)) continue;
+      const dataUrl = await pathToDataUrl(u);
+      if (dataUrl) cssText = cssText.split(u).join(dataUrl);
+    }
+    st.textContent = cssText;
+  }
+
+  // return serialized HTML
+  return '<!doctype html>\n' + doc.documentElement.outerHTML;
+}
+
+/* High-level analyze function */
+analyzeBtn.addEventListener('click', async () => {
+  logEl.textContent = '';
+  analysisPanel.style.display = 'block';
+  downloadZipBtn.style.display = 'none';
+  downloadSingleBtn.style.display = 'none';
+  if (!fileMap.size) { alert('No files uploaded.'); return; }
+  mainHtmlPath = mainHtmlSelect.value || mainHtmlPath;
+  if (!mainHtmlPath) { alert('No main HTML selected.'); return; }
+  log('Analyzing project with entry:', mainHtmlPath);
+  const deps = await buildDependencySet(mainHtmlPath);
+  analysisSummary.textContent = `Found ${deps.length} referenced files (scanned from ${mainHtmlPath}).`;
+  referencedList.textContent = deps.join('\n');
+  // large files
+  const thresholdBytes = Number(largeThreshold.value || 5) * 1024 * 1024;
+  const large = [];
+  for (const [p,info] of fileMap.entries()){
+    if (info.size >= thresholdBytes) large.push({path:p,size:info.size});
+  }
+  largeFilesDiv.innerHTML = '';
+  if (large.length) {
+    const tbl = document.createElement('table');
+    const thead = document.createElement('thead');
+    thead.innerHTML = '<tr><th>File</th><th>Size (MB)</th><th>Action</th></tr>';
+    tbl.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    large.forEach(l => {
+      const tr = document.createElement('tr');
+      const a = document.createElement('td'); a.textContent = l.path;
+      const b = document.createElement('td'); b.textContent = (bytesToMB(l.size)).toFixed(2);
+      const c = document.createElement('td');
+      const sel = document.createElement('select');
+      sel.innerHTML = `<option value="process">Process/inline like others</option>
+        <option value="external">Externalize into ZIP (will produce ZIP output)</option>
+        <option value="omit">Omit from outputs</option>`;
+      sel.dataset.path = l.path;
+      c.appendChild(sel);
+      tr.appendChild(a); tr.appendChild(b); tr.appendChild(c);
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);
+    largeFilesDiv.appendChild(tbl);
+  } else {
+    largeFilesDiv.textContent = 'No large files detected.';
+  }
+  log('Analysis complete.');
+});
+
+/* Process & generate output */
+processBtn.addEventListener('click', async () => {
+  logEl.textContent = '';
+  if (!fileMap.size) { alert('No files uploaded.'); return; }
+  mainHtmlPath = mainHtmlSelect.value || mainHtmlPath;
+  if (!mainHtmlPath) { alert('No main HTML selected.'); return; }
+  analysisPanel.style.display = 'block';
+  log('Starting build for', mainHtmlPath);
+  const deps = await buildDependencySet(mainHtmlPath);
+  log(`Referenced files: ${deps.length}`);
+
+  // determine actions for large files
+  const largeActions = new Map();
+  Array.from(largeFilesDiv.querySelectorAll('select')).forEach(s => { largeActions.set(s.dataset.path, s.value); });
+
+  const mode = outputMode.value;
+  const doBundle = bundleOption.value;
+  const doImageCompress = imageOption.value === 'compress';
+  const imgQ = parseFloat(imgQuality.value) || 0.8;
+  const includeUnref = keepUnreferenced.checked;
+  const minify = mode.includes('min');
+
+  // Build a working copy map for files we will inline or work with
+  const workingMap = new Map();
+  for (const [p,info] of fileMap.entries()) {
+    // if large and action==omit, skip
+    const action = largeActions.get(p);
+    if (action === 'omit') continue;
+    // if large and action==external and user chose single HTML output, we'll still keep file in map for ZIP use, but not inline later
+    workingMap.set(p, info);
+  }
+
+  // if bundling JS with esbuild, prepare entry points: find scripts in entry HTML in document order
+  const entryHtmlText = (fileMap.get(mainHtmlPath).text) || await arrayBufferToText(fileMap.get(mainHtmlPath).arrayBuffer);
+  const parsedRefs = parseHtmlForReferences(entryHtmlText, mainHtmlPath);
+  const scriptPaths = parsedRefs.scripts.filter(s => s && !s.startsWith('data:') && !s.match(/^https?:\/\//i));
+  // determine which scripts to bundle (module detection) if auto
+  let shouldUseEsbuild = false;
+  if (doBundle === 'concat') shouldUseEsbuild = false;
+  else {
+    // if any script tag has type="module" or any js content contains import/export, use esbuild
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(entryHtmlText, 'text/html');
+    if (doc.querySelector('script[type="module"]')) shouldUseEsbuild = true;
+    else {
+      // check file contents for import/export
+      for (const sp of scriptPaths) {
+        const info = fileMap.get(sp);
+        if (!info) continue;
+        const txt = info.text || await arrayBufferToText(info.arrayBuffer);
+        if (/^\s*import\s+|export\s+/m.test(txt) || /import\(/.test(txt)) { shouldUseEsbuild = true; break; }
+      }
+    }
+  }
+
+  // If mode is single HTML and any large file is marked external, we need to produce a ZIP containing single HTML + external large files
+  let willProduceZipAlongside = false;
+  if (mode.startsWith('single')) {
+    for (const [p,action] of largeActions.entries()) {
+      if (action === 'external') willProduceZipAlongside = true;
+    }
+  }
+
+  // Prepare inlining map: for files that will be inlined into single HTML
+  const inlineMap = new Map();
+  if (mode.startsWith('single')) {
+    // we will inline referenced files except those marked external or omitted
+    for (const p of deps) {
+      if (!fileMap.has(p)) continue;
+      const action = largeActions.get(p);
+      if (action === 'omit') continue;
+      if (action === 'external') continue;
+      inlineMap.set(p, fileMap.get(p));
+    }
+  }
+
+  // For bundling: if using esbuild, create a plugin map that includes only workingMap entries
+  if (shouldUseEsbuild && (mode !== 'zip-nomin')) {
+    // note: esbuild bundling will be used to produce a single JS bundle; if output is zip-min we will also create per-file minified outputs
+    try {
+      const entryPoints = scriptPaths.length ? scriptPaths : [];
+      if (entryPoints.length === 0) {
+        log('No script entry points detected for bundling; skipping esbuild.');
+      } else {
+        log('Bundling JavaScript with esbuild for entries:', entryPoints.join(', '));
+        // build a subset map for esbuild (we may want to include only referenced files)
+        const mapForEsbuild = new Map();
+        for (const [k,v] of workingMap.entries()) {
+          mapForEsbuild.set(k, v);
+        }
+        // run bundleJS
+        const bundledJs = await bundleJS(entryPoints, mapForEsbuild, minify);
+        // Replace scripts in entryHtmlText: remove external script tags and add single bundle
+        // We'll create an inlined script later when composing single html; for zip mode we will save as .bundle.js
+        // store in workingMap as virtual file
+        workingMap.set('__bundle__.js', { file: null, arrayBuffer: new TextEncoder().encode(bundledJs).buffer, text: bundledJs, mime: 'application/javascript', size: bundledJs.length });
+        log('esbuild bundling complete, bundle size:', (bundledJs.length/1024).toFixed(2),'KB');
+      }
+    } catch(e){
+      log('esbuild bundling failed:', e && e.message ? e.message : e);
+    }
+  } else {
+    log('Using concatenation strategy for JS (preserve script order).');
+    // create concatenated script
+    let concat = '';
+    for (const sp of scriptPaths) {
+      const info = fileMap.get(sp);
+      if (!info) continue;
+      const action = largeActions.get(sp);
+      if (action === 'omit') continue;
+      if (action === 'external' && mode.startsWith('single')) continue; // externalize
+      const txt = info.text || await arrayBufferToText(info.arrayBuffer);
+      concat += '\n/* ---- ' + sp + ' ---- */\n' + txt;
+    }
+    if (concat) {
+      // optionally minify using esbuild with stdin (quick)
+      if (minify) {
+        try {
+          await ensureEsbuildInit();
+          const res = await esbuild.build({ stdin: { contents: concat, resolveDir: '/', loader: 'js' }, bundle: false, minify: true, write: false });
+          const out = res.outputFiles[0].text;
+          workingMap.set('__bundle__.js', { file:null, arrayBuffer: new TextEncoder().encode(out).buffer, text: out, mime: 'application/javascript', size: out.length });
+        } catch(e) { log('esbuild minify failed, using raw concat'); workingMap.set('__bundle__.js', { file:null, arrayBuffer: new TextEncoder().encode(concat).buffer, text: concat, mime: 'application/javascript', size: concat.length }); }
+      } else {
+        workingMap.set('__bundle__.js', { file:null, arrayBuffer: new TextEncoder().encode(concat).buffer, text: concat, mime: 'application/javascript', size: concat.length });
+      }
+    }
+  }
+
+  // Compose single HTML output (if requested)
+  if (mode.startsWith('single')) {
+    log('Composing single HTML (inlining assets and bundle)...');
+    // For simplicity, create a mutable DOM from original entry HTML, then process inlining via inlineAssetsIntoHtml but with inlineMap
+    // Build a temp map used by inline function
+    const inliningMap = new Map();
+    for (const [k,v] of inlineMap.entries()) inliningMap.set(k, v);
+    // If we have __bundle__.js in workingMap, add it and replace script tags
+    if (workingMap.has('__bundle__.js')) {
+      // replace script tags in the entry HTML: remove external scripts and add one placeholder script id
+      let docText = (fileMap.get(mainHtmlPath).text) || await arrayBufferToText(fileMap.get(mainHtmlPath).arrayBuffer);
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(docText, 'text/html');
+      // remove all script[src] that are not data/http and that are in scriptPaths
+      const scriptEls = Array.from(doc.querySelectorAll('script'));
+      for (const s of scriptEls) {
+        const src = s.getAttribute('src');
+        if (!src) continue;
+        if (src.startsWith('data:')||src.match(/^https?:\/\//i)) continue;
+        const resolved = resolvePath(mainHtmlPath, src);
+        const action = largeActions.get(resolved);
+        if (action === 'omit' || action === 'external') {
+          s.remove();
+          continue;
+        }
+        s.remove(); // we'll replace with bundle
+      }
+      // insert bundle script before closing body
+      const bundleScript = doc.createElement('script');
+      bundleScript.textContent = workingMap.get('__bundle__.js').text;
+      doc.body.appendChild(bundleScript);
+      docText = '<!doctype html>\n' + doc.documentElement.outerHTML;
+      // Now inline assets into this docText using inliningMap
+      const inlined = await inlineAssetsIntoHtml(docText, mainHtmlPath, inliningMap, { imageCompress: doImageCompress, imgQuality: imgQ });
+      const finalHtml = minify ? minifyHtmlSimple(inlined) : inlined;
+      // Download or provide for save
+      const blob = new Blob([finalHtml], {type:'text/html'});
+      const singleName = mainHtmlPath.split('/').pop().replace('.html','') + '-bundled.html';
+      // if user chose single-min but also some large files are external, create a ZIP with the single html and external files
+      if (willProduceZipAlongside) {
+        log('Some files marked external: producing ZIP containing single HTML plus external files.');
+        const zip = new JSZip();
+        zip.file(singleName, finalHtml);
+        // add external files
+        for (const [p,info] of fileMap.entries()) {
+          const action = largeActions.get(p);
+          if (action === 'external') {
+            const folderName = 'external_files';
+            zip.file(folderName + '/' + p.split('/').pop(), info.arrayBuffer);
+          }
+        }
+        const content = await zip.generateAsync({type:'blob'});
+        downloadZipBtn.style.display = 'inline-block';
+        downloadSingleBtn.style.display = 'none';
+        downloadZipBtn.onclick = () => saveAs(content, 'bundle-with-external.zip');
+        log('ZIP ready for download.');
+      } else {
+        downloadSingleBtn.style.display = 'inline-block';
+        downloadZipBtn.style.display = 'none';
+        downloadSingleBtn.onclick = () => saveAs(blob, singleName);
+        log('Single HTML ready for download:', singleName);
+      }
+    } else {
+      // no bundle (no scripts), just inline assets into original HTML
+      const docText = (fileMap.get(mainHtmlPath).text) || await arrayBufferToText(fileMap.get(mainHtmlPath).arrayBuffer);
+      const inlined = await inlineAssetsIntoHtml(docText, mainHtmlPath, inlineMap, { imageCompress: doImageCompress, imgQuality: imgQ });
+      const finalHtml = minify ? minifyHtmlSimple(inlined) : inlined;
+      const blob = new Blob([finalHtml], {type:'text/html'});
+      const singleName = mainHtmlPath.split('/').pop().replace('.html','') + '-inlined.html';
+      // handle external large files case (will produce zip)
+      if (willProduceZipAlongside) {
+        const zip = new JSZip();
+        zip.file(singleName, finalHtml);
+        for (const [p,info] of fileMap.entries()) {
+          const action = largeActions.get(p);
+          if (action === 'external') zip.file('external_files/' + p.split('/').pop(), info.arrayBuffer);
+        }
+        const content = await zip.generateAsync({type:'blob'});
+        downloadZipBtn.style.display = 'inline-block';
+        downloadZipBtn.onclick = () => saveAs(content, 'bundle-with-external.zip');
+        log('ZIP ready for download with external files.');
+      } else {
+        downloadSingleBtn.style.display = 'inline-block';
+        downloadSingleBtn.onclick = () => saveAs(blob, singleName);
+        log('Single HTML ready for download:', singleName);
+      }
+    }
+  } // end single mode
+
+  // ZIP outputs
+  if (mode.startsWith('zip')) {
+    log('Building ZIP output (preserve structure)');
+    const zip = new JSZip();
+    // for each file in workingMap, add minified or original
+    for (const [p,info] of fileMap.entries()) {
+      const action = largeActions.get(p);
+      if (action === 'omit') continue;
+      // if not referenced and includeUnref=false, skip
+      if (!referencedFiles.has(p) && !includeUnref && mode !== 'zip-nomin' && mode !== 'zip-min') continue;
+      // if minify requested and file is js/css/html, minify/transform
+      if (minify && p.toLowerCase().endsWith('.js')) {
+        // if we created __bundle__.js and this p was one of the original scripts, skip; instead include bundle at top-level
+        if (workingMap.has('__bundle__.js')) {
+          // only add once
+          if (!zip.file('bundle.js')) {
+            zip.file('bundle.js', await arrayBufferToText(workingMap.get('__bundle__.js').arrayBuffer));
+          }
+          continue;
+        }
+        // otherwise minify with esbuild
+        try {
+          await ensureEsbuildInit();
+          const code = info.text || await arrayBufferToText(info.arrayBuffer);
+          const res = await esbuild.transform(code, { minify: true, loader: 'js' });
+          zip.file(p, res.code);
+        } catch(e){ zip.file(p, info.arrayBuffer); }
+      } else if (minify && p.toLowerCase().endsWith('.css')) {
+        try {
+          const css = info.text || await arrayBufferToText(info.arrayBuffer);
+          const min = minifyCss(css);
+          zip.file(p, min);
+        } catch(e){ zip.file(p, info.arrayBuffer); }
+      } else {
+        // binary or html or other
+        zip.file(p, info.arrayBuffer);
+      }
+    }
+    // ensure bundle.js included if exists and not yet added
+    if (workingMap.has('__bundle__.js') && !zip.file('bundle.js')) {
+      zip.file('bundle.js', await arrayBufferToText(workingMap.get('__bundle__.js').arrayBuffer));
+    }
+    const content = await zip.generateAsync({type:'blob'});
+    downloadZipBtn.style.display = 'inline-block';
+    downloadZipBtn.onclick = () => saveAs(content, 'project-minified.zip');
+    log('ZIP ready for download.');
+  }
+
+  log('Build complete.');
+});
+
+</script>
+</body>
+</html>

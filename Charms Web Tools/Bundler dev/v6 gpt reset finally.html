@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Static Asset Minifier & Bundler — Fixed</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --bg-dark: #0a0a0c;
+    --card-bg: #141417;
+    --border: #2d2d32;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --text-muted: #94a3b8;
+  }
+  html,body{height:100%;margin:0}
+  body {
+    background-color: var(--bg-dark);
+    color: #e2e8f0;
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+  }
+  .glass-card { background: var(--card-bg); border:1px solid var(--border); border-radius:8px; }
+  .editor-area { background:#000; color:#d1d5db; border:1px solid var(--border); transition:all .2s; font-family:'Fira Code', monospace; }
+  .drop-zone-active { border:2px dashed var(--accent) !important; background:rgba(59,130,246,.06) !important; }
+  .tab-btn { transition:all .15s; border-bottom:2px solid transparent; }
+  .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); background:rgba(59,130,246,.04); }
+  .asset-item { transition:all .12s; border-left:2px solid transparent; cursor:pointer; }
+  .asset-item.active { background:#0f1724; border-left-color:var(--accent); }
+  .log-line { border-left:1px solid var(--border); padding-left:12px; }
+  .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; color:#4b5563; text-align:center; }
+  .thumbnail { width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid var(--border); background:#000; }
+  ::-webkit-scrollbar{width:6px;height:6px} ::-webkit-scrollbar-track{background:var(--bg-dark)} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  /* Modal */
+  .modal-backdrop { position:fixed; inset:0; background:rgba(2,6,23,0.6); display:flex; align-items:center; justify-content:center; z-index:60; }
+  .modal-card { width: min(900px, 96%); max-height:90vh; overflow:auto; background: #0b0b0d; border:1px solid var(--border); padding:16px; border-radius:10px; }
+  .grid-files { display:grid; grid-template-columns: repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
+  .file-row { display:flex; gap:.75rem; align-items:center; padding:.5rem; border-radius:6px; background:#071024; border:1px solid rgba(255,255,255,0.02) }
+  .btn { padding:.45rem .75rem; font-size:.75rem; border-radius:6px; font-weight:700; }
+</style>
+</head>
+<body id="dropBoundary" class="p-4 md:p-8">
+
+<div class="max-w-6xl mx-auto">
+  <header class="mb-6 border-b border-zinc-800 pb-4">
+    <div class="flex items-center gap-3">
+      <div class="w-2 h-8 bg-blue-600 rounded"></div>
+      <h1 class="text-lg font-bold tracking-tight text-white uppercase">Static Asset Minifier & Bundler</h1>
+    </div>
+    <p class="text-sm text-slate-400 mt-2 max-w-2xl">Client-side asset pipeline. Now: safe image inlining (HTML/CSS only), unused-image detection UI, build safety checks, and zero-JS mutation policy.</p>
+  </header>
+
+  <div class="glass-card overflow-hidden">
+    <nav class="flex border-b border-zinc-800 bg-zinc-900/30">
+      <button class="tab-btn active px-6 py-4 text-[10px] font-bold uppercase tracking-widest" data-tab="workspace">Workspace</button>
+      <button class="tab-btn px-6 py-4 text-[10px] font-bold uppercase tracking-widest" data-tab="output">Build Output</button>
+      <button class="tab-btn px-6 py-4 text-[10px] font-bold uppercase tracking-widest" data-tab="log">Process Logs</button>
+    </nav>
+
+    <main class="p-0">
+      <!-- Workspace -->
+      <section id="workspace" class="tab-content block h-[620px] flex">
+        <div class="w-64 border-r border-zinc-800 flex flex-col bg-zinc-900/10">
+          <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
+            <span class="text-[10px] font-bold uppercase text-zinc-500 tracking-widest">Assets</span>
+            <div class="flex gap-2">
+              <button id="addHtml" class="text-[9px] text-zinc-400 hover:text-blue-400 font-bold px-1">+HTML</button>
+              <button id="addCss" class="text-[9px] text-zinc-400 hover:text-blue-400 font-bold px-1">+CSS</button>
+              <button id="addJs" class="text-[9px] text-zinc-400 hover:text-blue-400 font-bold px-1">+JS</button>
+            </div>
+          </div>
+          <div id="assetList" class="flex-1 overflow-y-auto p-2"></div>
+        </div>
+
+        <div class="flex-1 flex flex-col relative">
+          <div id="noAssetPrompt" class="absolute inset-0 z-10 bg-zinc-900/90 flex flex-col items-center justify-center p-12 text-center">
+            <h3 class="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-2">No Assets Loaded</h3>
+            <p class="text-xs text-zinc-600 max-w-xs leading-relaxed">Drag and drop files (HTML, CSS, JS, images) here to begin. Images will be analyzed for usage before inlining.</p>
+          </div>
+
+          <div id="editorHeader" class="hidden p-3 border-b border-zinc-800 bg-zinc-900/20 flex items-center justify-between">
+            <span id="currentFileName" class="text-xs font-mono text-blue-400">Select an asset</span>
+            <button id="removeAsset" class="text-[10px] font-bold text-red-900 hover:text-red-500 uppercase">Delete File</button>
+          </div>
+
+          <textarea id="mainEditor" class="editor-area hidden flex-1 w-full p-6 text-sm resize-none" placeholder="Paste or drop code here..."></textarea>
+
+          <div id="mediaView" class="hidden flex-1 flex flex-col items-center justify-center bg-black p-10 overflow-hidden">
+            <div class="text-[10px] font-bold text-zinc-500 mb-4 uppercase tracking-widest">Binary Asset Preview</div>
+            <img id="imgPreview" class="max-w-full max-h-[300px] rounded border border-zinc-800 shadow-2xl mb-4" src="" alt="">
+            <div id="base64Summary" class="text-[10px] font-mono text-zinc-600 break-all max-w-md text-center"></div>
+          </div>
+
+          <div id="dropOverlay" class="absolute inset-0 pointer-events-none border-4 border-transparent flex items-center justify-center transition-all">
+            <div class="bg-blue-600 text-white px-8 py-4 rounded-full text-xs font-bold opacity-0 transition-opacity uppercase tracking-widest shadow-2xl scale-95 transform">Drop to Import</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Output Section -->
+      <section id="output" class="tab-content hidden p-6 space-y-6">
+        <div class="flex flex-wrap items-center gap-6 bg-zinc-900/50 p-5 rounded border border-zinc-800">
+          <div class="flex flex-col gap-1">
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Build Configuration</span>
+            <select id="mode" class="bg-black border border-zinc-700 text-xs rounded px-3 py-2 outline-none focus:border-blue-500">
+              <option value="inline">Single HTML Bundle (Inline Assets)</option>
+              <option value="separate">Multi-file Minification (Standard)</option>
+            </select>
+          </div>
+          <button id="build" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2.5 px-10 rounded transition-all active:scale-95 uppercase tracking-widest">Run Build</button>
+          <div id="build-status" class="hidden text-blue-400 text-[10px] font-bold uppercase tracking-widest">Optimizing...</div>
+          <div id="pendingReads" class="text-zinc-400 text-[10px] font-mono hidden">Reading files...</div>
+        </div>
+
+        <div class="space-y-4">
+          <button id="togglePreview" class="w-full flex items-center justify-between p-3 bg-zinc-800/20 border border-zinc-700 rounded text-[10px] font-bold uppercase tracking-widest">
+            <span>Toggle Live Preview</span>
+            <span class="text-zinc-500">View</span>
+          </button>
+          <div id="previewBox" class="hidden overflow-hidden rounded border border-zinc-800 h-[400px] bg-white shadow-inner">
+            <iframe id="previewFrame" class="w-full h-full border-none" sandbox="allow-scripts"></iframe>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button id="downH" class="p-4 bg-zinc-900 border border-zinc-800 rounded hover:border-zinc-500 text-[10px] font-bold uppercase">HTML</button>
+            <button id="downC" class="p-4 bg-zinc-900 border border-zinc-800 rounded hover:border-zinc-500 text-[10px] font-bold uppercase">CSS</button>
+            <button id="downJ" class="p-4 bg-zinc-900 border border-zinc-800 rounded hover:border-zinc-500 text-[10px] font-bold uppercase">JS</button>
+            <button id="downA" class="p-4 bg-blue-900/20 border border-blue-800/50 rounded hover:bg-blue-900/30 text-[10px] font-bold uppercase text-blue-400">Bundle All</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Log -->
+      <section id="log" class="tab-content hidden p-6">
+        <div id="logBox" class="editor-area w-full h-96 p-4 rounded overflow-y-auto text-[11px] font-mono leading-relaxed">
+          <div class="text-zinc-600 italic">No logs recorded yet.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- Modal container (created/used dynamically) -->
+<div id="modalRoot"></div>
+
+<script type="module">
+/* ========= Utilities ========= */
+const $ = (s) => document.querySelector(s);
+const logBox = document.getElementById("logBox");
+const assetList = document.getElementById("assetList");
+const mainEditor = document.getElementById("mainEditor");
+const mediaView = document.getElementById("mediaView");
+const imgPreview = document.getElementById("imgPreview");
+const base64Summary = document.getElementById("base64Summary");
+const currentFileName = document.getElementById("currentFileName");
+const buildStatus = document.getElementById("build-status");
+const noAssetPrompt = document.getElementById("noAssetPrompt");
+const editorHeader = document.getElementById("editorHeader");
+const buildBtn = document.getElementById("build");
+const pendingReadsEl = document.getElementById("pendingReads");
+
+const escapeRegExp = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const nowTime = () => {
+  const t = new Date();
+  return t.toLocaleTimeString([], { hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
+};
+
+const log = (msg) => {
+  if (logBox.children.length === 1 && logBox.querySelector('.italic')) logBox.innerHTML = '';
+  const entry = document.createElement('div');
+  entry.className = 'log-line text-zinc-400 py-1 mb-1';
+  entry.innerHTML = `<span class="text-zinc-600 font-mono mr-3">${nowTime()}</span>${msg}`;
+  logBox.appendChild(entry);
+  logBox.scrollTop = logBox.scrollHeight;
+};
+
+/* ========= State ========= */
+let assets = []; // {id,type,name,content,loaded}
+let activeAssetId = null;
+let outputs = { html:'', css:'', js:'' };
+let pendingReads = 0;
+
+const uuid = (() => {
+  if (crypto && crypto.randomUUID) return () => crypto.randomUUID();
+  return () => 'id-' + Math.random().toString(36).slice(2, 9);
+})();
+
+/* ========= UI helpers ========= */
+const renderAssetList = () => {
+  assetList.innerHTML = '';
+  if (assets.length === 0) {
+    noAssetPrompt.classList.remove('hidden');
+    editorHeader.classList.add('hidden');
+    mainEditor.classList.add('hidden');
+    mediaView.classList.add('hidden');
+    return;
+  }
+
+  noAssetPrompt.classList.add('hidden');
+  editorHeader.classList.remove('hidden');
+
+  assets.forEach(asset => {
+    const div = document.createElement('div');
+    div.className = `asset-item px-3 py-3 flex items-center justify-between ${asset.id === activeAssetId ? 'active' : ''}`;
+    const left = document.createElement('div');
+    left.style.display = 'flex'; left.style.gap = '.6rem'; left.style.alignItems = 'center';
+    if (asset.type === 'media') {
+      const tn = document.createElement('img');
+      tn.src = asset.content || '';
+      tn.className = 'thumbnail';
+      left.appendChild(tn);
+    }
+    const name = document.createElement('div');
+    name.className = `text-xs font-mono truncate ${asset.id === activeAssetId ? 'text-white' : 'text-zinc-400'}`;
+    name.style.maxWidth = '120px';
+    name.textContent = asset.name;
+    left.appendChild(name);
+
+    const right = document.createElement('div');
+    right.innerHTML = `<span class="text-[8px] px-1 bg-zinc-800 rounded font-bold uppercase text-zinc-400">${asset.type}</span>`;
+    div.appendChild(left);
+    div.appendChild(right);
+    div.onclick = () => selectAsset(asset.id);
+    assetList.appendChild(div);
+  });
+};
+
+const selectAsset = (id) => {
+  // Save edit in progress
+  const prev = assets.find(a => a.id === activeAssetId);
+  if (prev && prev.type !== 'media') prev.content = mainEditor.value;
+
+  activeAssetId = id;
+  const next = assets.find(a => a.id === id);
+  if (!next) return;
+
+  currentFileName.innerText = next.name;
+  if (next.type === 'media') {
+    mainEditor.classList.add('hidden');
+    mediaView.classList.remove('hidden');
+    imgPreview.src = next.content || '';
+    base64Summary.innerText = (next.content || '').slice(0, 120) + (next.content && next.content.length>120 ? '...' : '');
+  } else {
+    mainEditor.classList.remove('hidden');
+    mediaView.classList.add('hidden');
+    mainEditor.value = next.content || '';
+  }
+  renderAssetList();
+};
+
+/* ========= Add helpers ========= */
+const addAsset = (type,name,content,loaded=true) => {
+  const id = uuid();
+  assets.push({ id, type, name, content, loaded });
+  log(`Imported: <span class="text-blue-400">${name}</span> (${type})`);
+  selectAsset(id);
+  renderAssetList();
+};
+
+/* Buttons to create blank assets */
+document.getElementById("addHtml").onclick = () => addAsset('html', `page-${assets.filter(a=>a.type==='html').length+1}.html`, '<!doctype html>\n<html>\n<head>\n<meta charset="utf-8">\n<title>page</title>\n</head>\n<body>\n</body>\n</html>');
+document.getElementById("addCss").onclick = () => addAsset('css', `style-${assets.filter(a=>a.type==='css').length+1}.css`, '/* styles */\n');
+document.getElementById("addJs").onclick = () => addAsset('js', `script-${assets.filter(a=>a.type==='js').length+1}.js`, '// script\n');
+
+/* Remove asset */
+document.getElementById("removeAsset").onclick = () => {
+  assets = assets.filter(a => a.id !== activeAssetId);
+  if (assets.length > 0) selectAsset(assets[assets.length-1].id);
+  else selectAsset(null);
+  renderAssetList();
+};
+
+/* Tab navigation */
+document.querySelectorAll('.tab-btn').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(e => e.classList.add('hidden'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.remove('hidden');
+  };
+});
+
+/* ========= Drag & Drop with read tracking ========= */
+const dropBoundary = document.getElementById("dropBoundary");
+const dropOverlay = document.getElementById("dropOverlay");
+
+const setPending = (n) => {
+  pendingReads = n;
+  if (pendingReads > 0) {
+    pendingReadsEl.classList.remove('hidden');
+    pendingReadsEl.textContent = `Reading files: ${pendingReads}`;
+    buildBtn.disabled = true;
+  } else {
+    pendingReadsEl.classList.add('hidden');
+    buildBtn.disabled = false;
+  }
+};
+
+dropBoundary.addEventListener('dragover', (e) => { e.preventDefault(); dropOverlay.classList.add('drop-zone-active'); dropOverlay.firstElementChild.style.opacity='1'; dropOverlay.firstElementChild.style.transform='scale(1)'; });
+dropBoundary.addEventListener('dragleave', (e) => { dropOverlay.classList.remove('drop-zone-active'); dropOverlay.firstElementChild.style.opacity='0'; dropOverlay.firstElementChild.style.transform='scale(.95)'; });
+dropBoundary.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  dropOverlay.classList.remove('drop-zone-active');
+  dropOverlay.firstElementChild.style.opacity='0';
+  const files = Array.from(e.dataTransfer.files || []);
+  if (!files.length) return;
+  log(`Processing bundle of ${files.length} file(s)...`);
+  setPending(pendingReads + files.length);
+
+  for (const file of files) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (['png','jpg','jpeg','gif','svg','webp','ico','avif'].includes(ext)) {
+      // read as dataurl
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        addAsset('media', file.name, ev.target.result, true);
+        setPending(Math.max(0, pendingReads - 1));
+      };
+      reader.onerror = () => {
+        log(`Error reading ${file.name}`);
+        setPending(Math.max(0, pendingReads - 1));
+      };
+      reader.readAsDataURL(file);
+      continue;
+    }
+    try {
+      const text = await file.text();
+      if (ext === 'html' || ext === 'htm') addAsset('html', file.name, text, true);
+      else if (ext === 'css') addAsset('css', file.name, text, true);
+      else if (ext === 'js') addAsset('js', file.name, text, true);
+      else {
+        log(`Skipping unsupported file type: ${file.name}`);
+      }
+    } catch (err) {
+      log(`Error reading ${file.name}: ${err.message}`);
+    } finally {
+      setPending(Math.max(0, pendingReads - 1));
+    }
+  }
+});
+
+/* ========= Image usage detection (HTML + CSS only) ========= */
+/* Scans HTML and CSS strings and classifies images by filename */
+function detectImageUsage(htmlText, cssText, mediaList) {
+  const referenced = new Set();
+  const files = mediaList.map(m => m.name);
+  const htmlAttrRegex = /(\b(?:src|href)\s*=\s*)(["'])(.*?)\2/gi;
+  const cssUrlRegex = /url\(\s*(['"]?)(.*?)\1\s*\)/gi;
+
+  // scan attributes
+  let m;
+  while ((m = htmlAttrRegex.exec(htmlText)) !== null) {
+    const val = m[3] || '';
+    const basename = val.split('/').pop().split('?')[0].split('#')[0];
+    files.forEach(f => { if (basename === f) referenced.add(f); });
+  }
+
+  // scan CSS url()
+  while ((m = cssUrlRegex.exec(cssText)) !== null) {
+    const val = m[2] || '';
+    const basename = val.split('/').pop().split('?')[0].split('#')[0];
+    files.forEach(f => { if (basename === f) referenced.add(f); });
+  }
+
+  const referencedImages = mediaList.filter(m => referenced.has(m.name));
+  const unreferencedImages = mediaList.filter(m => !referenced.has(m.name));
+  return { referencedImages, unreferencedImages };
+}
+
+/* ========= UI Modal for image usage ========= */
+const modalRoot = document.getElementById('modalRoot');
+
+function openUsageModal(referenced, unreferenced, onProceedRemove, onKeepAll, onCancel) {
+  // clear
+  modalRoot.innerHTML = '';
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  const card = document.createElement('div');
+  card.className = 'modal-card';
+  card.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div>
+        <div style="font-weight:800;font-size:14px">Image Usage Review</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:6px">Images referenced in HTML/CSS are safe to inline. JS is never auto-mutated.</div>
+      </div>
+      <div style="font-size:12px;color:#94a3b8">Referenced: ${referenced.length} • Unused: ${unreferenced.length}</div>
+    </div>
+    <div style="margin-top:8px">
+      <div style="font-weight:700;margin-bottom:6px;color:#7ee787">Referenced images</div>
+      <div id="refGrid" class="grid-files"></div>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-weight:700;margin-bottom:6px;color:#f6c177">Not referenced in code</div>
+      <div id="unrefGrid" class="grid-files"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button id="keepAllBtn" class="btn" style="background:#111827;color:#fff;border:1px solid rgba(255,255,255,0.04)">Keep All</button>
+      <button id="cancelBtn" class="btn" style="background:#1f2937;color:#fff;border:1px solid rgba(255,255,255,0.04)">Cancel</button>
+      <button id="proceedBtn" class="btn" style="background:var(--accent);color:#fff;border:1px solid rgba(0,0,0,0.08)">Proceed & Remove Unused</button>
+    </div>
+  `;
+  backdrop.appendChild(card);
+  modalRoot.appendChild(backdrop);
+
+  const refGrid = card.querySelector('#refGrid');
+  const unrefGrid = card.querySelector('#unrefGrid');
+
+  referenced.forEach(m => {
+    const r = document.createElement('div'); r.className='file-row';
+    r.innerHTML = `<img src="${m.content}" class="thumbnail"><div style="flex:1"><div style="font-weight:700">${m.name}</div><div style="font-size:12px;color:#94a3b8">Used in HTML/CSS</div></div>`;
+    refGrid.appendChild(r);
+  });
+
+  unreferenced.forEach(m => {
+    const r = document.createElement('div'); r.className='file-row';
+    r.innerHTML = `<img src="${m.content}" class="thumbnail"><div style="flex:1"><div style="font-weight:700">${m.name}</div><div style="font-size:12px;color:#94a3b8">Not referenced</div></div>`;
+    unrefGrid.appendChild(r);
+  });
+
+  card.querySelector('#proceedBtn').onclick = () => { modalRoot.innerHTML=''; onProceedRemove(); };
+  card.querySelector('#cancelBtn').onclick = () => { modalRoot.innerHTML=''; onCancel(); };
+  card.querySelector('#keepAllBtn').onclick = () => { modalRoot.innerHTML=''; onKeepAll(); };
+}
+
+/* ========= Safe inlining helpers ========= */
+/* Replace only inside HTML attributes (src/href) and CSS url() — never touch JS */
+function inlineMediaIntoHTML(htmlText, mediaMap) {
+  // Replace attributes: src/href="...filename..."
+  return htmlText.replace(/(\b(?:src|href)\s*=\s*)(["'])(.*?)\2/gi, (m, pref, quote, val) => {
+    const basename = val.split('/').pop().split('?')[0].split('#')[0];
+    const media = mediaMap[basename];
+    if (media) {
+      return `${pref}${quote}${media}${quote}`;
+    }
+    return m;
+  });
+}
+
+function inlineMediaIntoCSS(cssText, mediaMap) {
+  return cssText.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (m, q, val) => {
+    const basename = val.split('/').pop().split('?')[0].split('#')[0];
+    const media = mediaMap[basename];
+    if (media) return `url("${media}")`;
+    return m;
+  });
+}
+
+/* ========= Simple local minifiers (safe fallbacks) ========= */
+function simpleCssMinify(css) {
+  return css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ').replace(/\s*([{}:;,])\s*/g, '$1').trim();
+}
+function simpleHtmlMinify(html) {
+  // remove comments, collapse spaces between tags, but keep pre/code whitespace simple.
+  return html.replace(/<!--[\s\S]*?-->/g, '')
+             .replace(/\n+/g, ' ')
+             .replace(/>\s+</g, '><')
+             .replace(/\s{2,}/g, ' ')
+             .trim();
+}
+function simpleJsMinify(js) {
+  // naive: remove /* */ and // comments and collapse blank lines — intentionally conservative
+  return js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n\r]*/g, '').replace(/\n{2,}/g, '\n').trim();
+}
+
+/* ========= Build ========= */
+async function buildAction() {
+  // Save current editor
+  const cur = assets.find(a => a.id === activeAssetId);
+  if (cur && cur.type !== 'media') cur.content = mainEditor.value;
+
+  const htmlSource = assets.find(a => a.type === 'html');
+  if (!htmlSource) { log("<span class='text-red-500'>Error:</span> No HTML file found in workspace."); return; }
+
+  if (pendingReads > 0) { log("Waiting for file reads to finish before building..."); return; }
+
+  buildStatus.classList.remove('hidden');
+  log("Initializing build sequence...");
+
+  const mode = document.getElementById("mode").value;
+  let finalHTML = htmlSource.content;
+  let combinedCSS = assets.filter(a => a.type === 'css').map(a => a.content || '').join('\n');
+  let combinedJS = assets.filter(a => a.type === 'js').map(a => a.content || '').join('\n');
+  const mediaAssets = assets.filter(a => a.type === 'media');
+
+  try {
+    // Phase 1 detection (first pass)
+    const { referencedImages, unreferencedImages } = detectImageUsage(finalHTML || '', combinedCSS || '', mediaAssets);
+    log(`Detected ${referencedImages.length} referenced image(s), ${unreferencedImages.length} unreferenced image(s).`);
+
+    // If inline mode and unreferenced images exist -> show modal before mutating assets
+    if (mode === 'inline' && unreferencedImages.length > 0) {
+      // show modal and wait for user decision (promise)
+      const decision = await new Promise((resolve) => {
+        openUsageModal(referencedImages, unreferencedImages,
+          // onProceedRemove
+          () => resolve({ action: 'remove' }),
+          // onKeepAll
+          () => resolve({ action: 'keep' }),
+          // onCancel
+          () => resolve({ action: 'cancel' })
+        );
+      });
+
+      if (decision.action === 'cancel') {
+        log('Build canceled by user (image removal modal).');
+        return;
+      } else if (decision.action === 'remove') {
+        const toRemove = new Set(unreferencedImages.map(i => i.name));
+        assets = assets.filter(a => !(a.type==='media' && toRemove.has(a.name)));
+        log(`Removed ${unreferencedImages.length} unreferenced image(s) from workspace.`);
+      } else {
+        log('Proceeding with all images kept.');
+      }
+    }
+
+    // Second validation (guarantee)
+    const mediaAfter = assets.filter(a => a.type === 'media');
+    const detection2 = detectImageUsage(finalHTML || '', combinedCSS || '', mediaAfter);
+    const referencedAfter = detection2.referencedImages;
+    const unreferencedAfter = detection2.unreferencedImages;
+    if (unreferencedAfter.length > 0) {
+      log(`Warning: ${unreferencedAfter.length} image(s) still unreferenced and will be skipped inlining.`);
+    }
+
+    // Minify CSS (safe)
+    if (combinedCSS) {
+      log('Minifying stylesheets (safe fallback)...');
+      combinedCSS = simpleCssMinify(combinedCSS);
+    }
+    // Minify JS (safe)
+    if (combinedJS) {
+      log('Preparing scripts (minify fallback)...');
+      // do not attempt to inline images into JS — NEVER mutate JS for media inlining
+      combinedJS = simpleJsMinify(combinedJS);
+    }
+
+    // Build map for referenced images (name -> dataURI)
+    const mediaMap = {};
+    referencedAfter.forEach(m => mediaMap[m.name] = m.content);
+
+    // Inline into HTML and CSS only
+    if (mode === 'inline') {
+      if (referencedAfter.length > 0) {
+        log(`Inlining ${referencedAfter.length} referenced image(s) into HTML/CSS.`);
+      }
+      finalHTML = inlineMediaIntoHTML(finalHTML || '', mediaMap);
+      if (combinedCSS) combinedCSS = inlineMediaIntoCSS(combinedCSS || '', mediaMap);
+
+      // Inject CSS/JS into finalHTML (preserve original insertion points)
+      if (combinedCSS) {
+        if (finalHTML.includes('</head>')) finalHTML = finalHTML.replace('</head>', `<style>${combinedCSS}</style></head>`);
+        else finalHTML = `<style>${combinedCSS}</style>\n` + finalHTML;
+      }
+      if (combinedJS) {
+        if (finalHTML.includes('</body>')) finalHTML = finalHTML.replace('</body>', `<script>${combinedJS}<\/script></body>`);
+        else finalHTML = finalHTML + `\n<script>${combinedJS}<\/script>`;
+      }
+    } else {
+      // separate mode: leave assets separate and only minified in outputs
+    }
+
+    // Final HTML minify (safe fallback)
+    log('Performing final HTML compression (safe fallback)...');
+    finalHTML = simpleHtmlMinify(finalHTML || '');
+
+    outputs = { html: finalHTML, css: combinedCSS, js: combinedJS };
+    document.getElementById("previewFrame").srcdoc = finalHTML;
+    log("<span class='text-green-500 font-bold'>Build Complete.</span> Preview updated.");
+    document.querySelector('[data-tab="output"]').click();
+
+  } catch (err) {
+    log(`<span class="text-red-500">Build Exception:</span> ${err && err.message ? err.message : String(err)}`);
+    console.error(err);
+  } finally {
+    buildStatus.classList.add('hidden');
+  }
+}
+
+/* ========= Downloads ========= */
+const dl = (n, c, type='text/plain') => {
+  if (!c) { log("Download blocked: Source is empty. Run build first."); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([c], { type }));
+  a.download = n;
+  a.click();
+};
+
+document.getElementById('downH').onclick = () => dl('index.min.html', outputs.html, 'text/html');
+document.getElementById('downC').onclick = () => dl('styles.min.css', outputs.css, 'text/css');
+document.getElementById('downJ').onclick = () => dl('scripts.min.js', outputs.js, 'application/javascript');
+document.getElementById('downA').onclick = () => {
+  if (!outputs.html) return;
+  dl('index.min.html', outputs.html, 'text/html');
+  if (outputs.css) dl('styles.min.css', outputs.css, 'text/css');
+  if (outputs.js) dl('scripts.min.js', outputs.js, 'application/javascript');
+};
+
+document.getElementById('togglePreview').onclick = () => document.getElementById('previewBox').classList.toggle('hidden');
+document.getElementById('build').onclick = buildAction;
+
+/* ========= Initial render ========= */
+renderAssetList();
+setPending(0);
+
+/* ========= Optional: keyboard save (Ctrl+S) while editing ========= */
+window.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    const curA = assets.find(a => a.id === activeAssetId);
+    if (curA && curA.type !== 'media') {
+      curA.content = mainEditor.value;
+      log(`Saved: ${curA.name}`);
+      renderAssetList();
+    }
+  }
+});
+</script>
+</body>
+</html>

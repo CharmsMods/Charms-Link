@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Static Asset Minifier & Bundler — Folder Mode (Full)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<style>
+  :root{
+    --bg:#0a0a0c; --card:#141417; --border:#2d2d32; --accent:#3b82f6; --muted:#94a3b8;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:#e6eef8;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px}
+  .editor-area{background:#020204;color:#d1d5db;border:1px solid var(--border);font-family: 'Fira Code', monospace}
+  .thumb{width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:#000}
+  .file-row{display:flex;gap:.75rem;align-items:center;padding:.5rem;border-radius:6px;background:#081019;border:1px solid rgba(255,255,255,0.02);margin-bottom:6px}
+  .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.7);display:flex;align-items:center;justify-content:center;z-index:60}
+  .modal-card{width:min(1000px,96%);max-height:90vh;overflow:auto;padding:16px;border-radius:10px;border:1px solid var(--border);background:#071027}
+  button { cursor: pointer; }
+  ::-webkit-scrollbar{width:8px;height:8px} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+  .small { font-size:12px; color:var(--muted); }
+  .muted { color: var(--muted); font-size:12px; }
+</style>
+</head>
+<body id="appRoot" class="p-4 md:p-8">
+
+<div class="max-w-7xl mx-auto">
+  <header class="mb-6">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+      <div style="width:12px;height:40px;background:var(--accent);border-radius:4px"></div>
+      <h1 style="margin:0;font-weight:800;font-size:18px;letter-spacing:.6px">Static Asset Minifier & Bundler — Folder Mode (Full)</h1>
+    </div>
+    <p class="small" style="margin:0 0 12px 0">Drop folders or use the folder picker. Produces per-HTML self-contained bundles or preserved-structure ZIPs. Scans HTML, CSS, and JS for image references.</p>
+  </header>
+
+  <div style="display:grid;grid-template-columns:1fr 420px;gap:18px">
+    <!-- Left: controls + tree -->
+    <div>
+      <div class="card p-4 mb-6">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div><div style="font-weight:700">Folder Import</div><div class="muted">Preserve structure + dependency scanning</div></div>
+          <div class="muted">Client-side only</div>
+        </div>
+
+        <div id="folderDrop" style="border:1px dashed var(--border);padding:12px;border-radius:8px;background:rgba(255,255,255,0.01);min-height:120px">
+          <input id="folderPicker" type="file" webkitdirectory multiple style="display:none">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;gap:8px">
+              <button id="pickFolderBtn" style="background:var(--accent);color:#fff;padding:8px 12px;border-radius:6px;border:none;font-weight:700">Choose Folder</button>
+              <button id="clearBtn" style="background:#111;padding:8px 12px;border-radius:6px;border:1px solid var(--border);color:#cbd5e1">Clear</button>
+            </div>
+            <div class="small">Or drag & drop a folder here (browser with folder support required). Files will be read and indexed.</div>
+            <div id="dropHint" class="muted">No folder loaded.</div>
+            <div id="readProgress" class="muted"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <div style="flex:1">
+            <div class="muted" style="margin-bottom:6px;font-weight:700">Entry HTML</div>
+            <select id="entrySelect" style="width:100%;padding:8px;border-radius:6px;background:#020204;border:1px solid var(--border);color:#cbd5e1"></select>
+            <div class="small" style="margin-top:6px">If multiple HTML files exist, pick the main entry for per-HTML bundles.</div>
+          </div>
+          <div style="width:220px">
+            <div class="muted" style="margin-bottom:6px;font-weight:700">Output</div>
+            <select id="outputMode" style="width:100%;padding:8px;border-radius:6px;background:#020204;border:1px solid var(--border);color:#cbd5e1">
+              <option value="single-if-one">Single-file HTML (only if folder has 1 HTML; otherwise ZIP modes)</option>
+              <option value="per-html-zip">ZIP — per-HTML self-contained bundles</option>
+              <option value="preserve-zip">ZIP — preserved structure (minified)</option>
+              <option value="individual">Individual minified files</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button id="analyzeBtn" style="background:#f59e0b;color:#000;padding:8px 12px;border-radius:6px;border:none;font-weight:700">Analyze</button>
+          <button id="buildBtn" style="background:var(--accent);color:#fff;padding:8px 12px;border-radius:6px;border:none;font-weight:700">Build</button>
+          <button id="removeUnusedBtn" style="background:#b91c1c;color:#fff;padding:8px 12px;border-radius:6px;border:none;font-weight:700">Remove Unused</button>
+          <button id="keepAllBtn" style="background:#111;padding:8px 12px;border-radius:6px;border:1px solid var(--border);color:#cbd5e1">Keep All</button>
+        </div>
+
+        <div id="statusLog" class="muted" style="margin-top:12px">Idle.</div>
+      </div>
+
+      <div class="card p-4">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-weight:700">Folder Structure & Files</div>
+          <div id="fileCounts" class="muted">0 files</div>
+        </div>
+        <div id="fileTreeWrap" style="height:520px;overflow:auto;border:1px solid var(--border);padding:10px;border-radius:8px;background:#020204">
+          <div id="fileTree" class="muted">No files.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right side: analysis / preview / downloads -->
+    <div>
+      <div class="card p-4 mb-6">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-weight:700">Analysis</div>
+          <div id="refCounts" class="muted">Referenced: 0 • Unused: 0</div>
+        </div>
+        <div style="display:flex;gap:12px">
+          <div style="flex:1">
+            <div style="font-weight:700;margin-bottom:6px">Referenced</div>
+            <div id="referencedList" style="height:200px;overflow:auto;padding:8px;border-radius:6px;background:#071021;border:1px solid var(--border)"><div class="muted">No analysis run.</div></div>
+          </div>
+          <div style="width:220px">
+            <div style="font-weight:700;margin-bottom:6px">Unreferenced</div>
+            <div id="unreferencedList" style="height:200px;overflow:auto;padding:8px;border-radius:6px;background:#071021;border:1px solid var(--border)"><div class="muted">No analysis run.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-4 mb-6">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-weight:700">Preview / Console</div>
+          <div id="previewMode" class="muted">no preview</div>
+        </div>
+        <div id="buildPreview" style="height:280px;border:1px solid var(--border);border-radius:8px;overflow:hidden;display:none;background:#fff">
+          <iframe id="previewIframe" style="width:100%;height:100%;border:none" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+        <pre id="buildConsole" style="height:280px;overflow:auto;padding:8px;background:#020204;border-radius:6px;border:1px solid var(--border);color:#cbd5e1;font-size:12px"></pre>
+      </div>
+
+      <div class="card p-4">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-weight:700">Downloads</div>
+          <div id="downloadInfo" class="muted">No build</div>
+        </div>
+        <div id="downloadList" style="max-height:220px;overflow:auto;padding:8px;border-radius:6px;background:#071021;border:1px solid var(--border)">
+          <div class="muted">Build outputs will appear here.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal root -->
+<div id="modalRoot"></div>
+
+<script>
+/* Full single-file implementation per user's spec.
+   Key features:
+   - Folder ingest via webkitdirectory or drag-drop entries
+   - Index files, preserve structure
+   - Resolve references from HTML, CSS, and JS (including image refs inside JS)
+   - For single-HTML folders -> option to inline all referenced assets into one HTML
+   - For multiple HTMLs -> per-HTML self-contained ZIP option and preserve-structure ZIP option
+   - No size/time safeguards; long operations allowed
+   - Detect unused files and allow removal
+   - No Linux-specific case-insensitive fallbacks (exact path and decodeURI; basename fallback limited)
+*/
+
+/* ===== Utilities & State ===== */
+const logEl = document.getElementById('buildConsole');
+const setStatus = (s) => { document.getElementById('statusLog').textContent = s; log(s); };
+function log(s){ const now = new Date().toLocaleTimeString(); logEl.textContent += `[${now}] ${s}\n`; logEl.scrollTop = logEl.scrollHeight; }
+const ext = (p) => (p.split('.').pop()||'').toLowerCase();
+const isImageExt = (e) => ['png','jpg','jpeg','gif','svg','webp','ico','avif','bmp'].includes(e);
+const isBinaryExt = (e) => ['png','jpg','jpeg','gif','svg','webp','ico','avif','bmp','woff','woff2','ttf','otf','mp4','webm','ogg'].includes(e);
+
+/* State containers */
+let files = []; // list of file objects { path, name, ext, content, rawFile, isBinary, size }
+let filesByPath = new Map(); // normalized path -> file
+let filesByBasename = new Map(); // basename -> array of paths
+let entryPath = null;
+let dependencyGraph = new Map(); // path -> Set(resolvedPaths)
+let referencedSet = new Set();
+let unreferencedSet = new Set();
+
+/* DOM refs */
+const folderPicker = document.getElementById('folderPicker');
+const pickFolderBtn = document.getElementById('pickFolderBtn');
+const folderDrop = document.getElementById('folderDrop');
+const dropHint = document.getElementById('dropHint');
+const fileTree = document.getElementById('fileTree');
+const fileCounts = document.getElementById('fileCounts');
+const entrySelect = document.getElementById('entrySelect');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const buildBtn = document.getElementById('buildBtn');
+const clearBtn = document.getElementById('clearBtn');
+const referencedListEl = document.getElementById('referencedList');
+const unreferencedListEl = document.getElementById('unreferencedList');
+const refCounts = document.getElementById('refCounts');
+const removeUnusedBtn = document.getElementById('removeUnusedBtn');
+const keepAllBtn = document.getElementById('keepAllBtn');
+const downloadList = document.getElementById('downloadList');
+const downloadInfo = document.getElementById('downloadInfo');
+const outputModeEl = document.getElementById('outputMode');
+const readProgress = document.getElementById('readProgress');
+const previewIframe = document.getElementById('previewIframe');
+const buildPreview = document.getElementById('buildPreview');
+const previewMode = document.getElementById('previewMode');
+const modalRoot = document.getElementById('modalRoot');
+
+/* Path utilities */
+function normalizePath(p){ return p.replace(/\\/g,'/').replace(/^\.\//,'').replace(/\/+/g,'/').trim(); }
+function basename(p){ const parts = p.split('/'); return parts[parts.length-1]; }
+function dirname(p){ const n = normalizePath(p); return n.includes('/') ? n.slice(0,n.lastIndexOf('/')) : ''; }
+function resolveRelative(fromPath, relative){ 
+  if(!relative) return null;
+  // ignore absolute URL schemes
+  if (/^(https?:|\/\/|data:|mailto:|tel:)/i.test(relative)) return null;
+  const base = dirname(fromPath);
+  if (relative.startsWith('/')) return normalizePath(relative.replace(/^\//,'')); // root within uploaded folder
+  const joined = (base ? base + '/' + relative : relative);
+  const parts = normalizePath(joined).split('/');
+  const out = [];
+  for (const p of parts){
+    if (p === '' || p === '.') continue;
+    if (p === '..') out.pop();
+    else out.push(p);
+  }
+  return out.join('/');
+}
+
+/* ===== Folder ingestion ===== */
+pickFolderBtn.onclick = () => folderPicker.click();
+folderPicker.addEventListener('change', async (e) => {
+  const fList = Array.from(e.target.files || []);
+  if (!fList.length) return;
+  await ingestFileList(fList.map(f=>({ file: f, relativePath: f.webkitRelativePath || f.name })));
+  folderPicker.value = '';
+});
+
+folderDrop.addEventListener('dragover', (e) => { e.preventDefault(); folderDrop.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.15)'; });
+folderDrop.addEventListener('dragleave', (e) => { folderDrop.style.boxShadow = 'none'; });
+folderDrop.addEventListener('drop', async (e) => {
+  e.preventDefault(); folderDrop.style.boxShadow = 'none';
+  const items = e.dataTransfer.items;
+  if (!items) {
+    const filesArray = Array.from(e.dataTransfer.files || []);
+    await ingestFileList(filesArray.map(f=>({ file: f, relativePath: f.name })));
+    return;
+  }
+  // attempt entry traversal via webkitGetAsEntry
+  const collected = [];
+  const entries = [];
+  for (const it of items) {
+    if (it.webkitGetAsEntry) entries.push(it.webkitGetAsEntry());
+    else {
+      const f = it.getAsFile();
+      if (f) collected.push({ file: f, relativePath: f.name });
+    }
+  }
+  if (entries.length === 0) {
+    if (collected.length) await ingestFileList(collected);
+    return;
+  }
+  // walk entries
+  const walk = (entry, pathPrefix='') => new Promise((resolve) => {
+    if (entry.isFile) {
+      entry.file((file)=> { collected.push({ file, relativePath: pathPrefix + file.name }); resolve(); }, ()=>resolve());
+    } else if (entry.isDirectory){
+      const reader = entry.createReader();
+      const readAll = () => reader.readEntries(async (results) => {
+        if (!results.length) return resolve();
+        for (const r of results) await walk(r, pathPrefix + entry.name + '/');
+        readAll();
+      });
+      readAll();
+    } else resolve();
+  });
+  for (const en of entries) await walk(en, '');
+  if (collected.length) await ingestFileList(collected);
+});
+
+/* ingest helper */
+async function ingestFileList(items) {
+  // items: [{file, relativePath}]
+  readProgress.textContent = `Reading ${items.length} file(s)...`;
+  let readCount = 0;
+  for (const it of items) {
+    const f = it.file;
+    const rel = normalizePath(it.relativePath || f.name);
+    const s = f.size || 0;
+    const e = ext(rel);
+    const isBin = isBinaryExt(e);
+    try {
+      if (isBin) {
+        const dataURL = await new Promise((res) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result);
+          r.onerror = () => res(null);
+          r.readAsDataURL(f);
+        });
+        addOrReplaceFile({ path: rel, name: basename(rel), ext: e, content: dataURL, rawFile: f, isBinary: true, size: s });
+      } else {
+        const txt = await f.text();
+        addOrReplaceFile({ path: rel, name: basename(rel), ext: e, content: txt, rawFile: f, isBinary: false, size: s });
+      }
+    } catch (err) {
+      log(`Error reading ${rel}: ${err && err.message || err}`);
+    }
+    readCount++;
+    readProgress.textContent = `Read ${readCount}/${items.length} files...`;
+  }
+  rebuildIndexes();
+  readProgress.textContent = '';
+  setStatus(`Ingest complete: ${files.length} files.`);
+}
+
+/* add or replace */
+function addOrReplaceFile(f){
+  const p = normalizePath(f.path);
+  if (filesByPath.has(p)) {
+    const ex = filesByPath.get(p);
+    ex.content = f.content; ex.rawFile = f.rawFile; ex.isBinary = f.isBinary; ex.size = f.size;
+  } else {
+    const node = { path: p, name: f.name, ext: f.ext, content: f.content, rawFile: f.rawFile, isBinary: f.isBinary, size: f.size };
+    files.push(node);
+    filesByPath.set(p, node);
+    const bn = basename(p);
+    if (!filesByBasename.has(bn)) filesByBasename.set(bn, []);
+    filesByBasename.get(bn).push(p);
+  }
+}
+
+/* clear */
+clearBtn.onclick = () => {
+  files = []; filesByPath.clear(); filesByBasename.clear(); entryPath = null; dependencyGraph.clear(); referencedSet.clear(); unreferencedSet.clear();
+  fileTree.innerHTML = 'No files.'; entrySelect.innerHTML = ''; referencedListEl.innerHTML = '<div class="muted">No analysis run.</div>'; unreferencedListEl.innerHTML = '<div class="muted">No analysis run.</div>';
+  dropHint.textContent = 'No folder loaded.'; fileCounts.textContent = '0 files'; setStatus('Cleared workspace.'); downloadList.innerHTML = '<div class="muted">Build outputs will appear here.</div>'; downloadInfo.textContent = 'No build';
+  buildPreview.style.display = 'none'; previewIframe.srcdoc = '';
+};
+
+/* rebuild UI indexes */
+function rebuildIndexes(){
+  files.sort((a,b)=> a.path.localeCompare(b.path));
+  // build simple tree list as clickable rows
+  const html = files.map(f=>`<div data-path="${f.path}" style="padding:6px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:transparent"><div style="font-size:13px;color:#cbd5e1">${f.path}</div><div style="font-size:12px;color:var(--muted)">${f.ext}</div></div>`).join('');
+  fileTree.innerHTML = html || '<div class="muted">No files.</div>';
+  fileCounts.textContent = `${files.length} files`;
+  // entry select
+  const htmlFiles = files.filter(f=> f.ext==='html' || f.ext==='htm');
+  entrySelect.innerHTML = '';
+  if (htmlFiles.length === 0){
+    const opt = document.createElement('option'); opt.value=''; opt.textContent='(no HTML files)';
+    entrySelect.appendChild(opt);
+    entryPath = null;
+    dropHint.textContent = `${files.length} files loaded — no HTML found.`;
+  } else {
+    htmlFiles.forEach((h,i) => { const opt = document.createElement('option'); opt.value = h.path; opt.textContent = h.path; entrySelect.appendChild(opt); if(i===0) entryPath = h.path; });
+    entrySelect.value = entryPath || htmlFiles[0].path;
+    entryPath = entrySelect.value;
+    dropHint.textContent = `Loaded ${files.length} files — ${htmlFiles.length} HTML file(s).`;
+  }
+  // attach click handlers
+  document.querySelectorAll('[data-path]').forEach(el => el.onclick = ()=> selectFileForPreview(el.dataset.path));
+}
+
+/* preview file */
+function selectFileForPreview(path){
+  const f = filesByPath.get(path);
+  if (!f) return;
+  // show preview in console area and in a simple modal? We'll show small inline preview in console and set preview iframe hidden
+  log(`Preview: ${f.path}`);
+  if (f.isBinary && /^data:image\//.test(f.content || '')) {
+    buildPreview.style.display = 'block';
+    previewMode.textContent = 'image preview';
+    previewIframe.srcdoc = `<html><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center"><img src="${f.content}" style="max-width:100%;height:auto"></body></html>`;
+  } else if (!f.isBinary) {
+    buildPreview.style.display = 'block';
+    previewMode.textContent = 'text preview';
+    previewIframe.srcdoc = `<html><body style="margin:0;background:#111;color:#ddd;font-family:monospace;padding:8px"><pre>${escapeHtml(f.content || '')}</pre></body></html>`;
+  } else {
+    buildPreview.style.display = 'none';
+    previewIframe.srcdoc = '';
+  }
+}
+
+/* escape for inline preview */
+function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ===== Reference parsing ===== */
+
+/* parse HTML references */
+function parseHtmlRefs(htmlText){
+  const refs = [];
+  try {
+    const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+    const attrElems = [
+      { sel: 'script[src]', attr: 'src' },
+      { sel: 'link[rel="stylesheet"][href]', attr: 'href' },
+      { sel: 'img[src]', attr: 'src' },
+      { sel: 'source[src]', attr: 'src' },
+      { sel: 'video[src]', attr: 'src' },
+      { sel: 'audio[src]', attr: 'src' },
+      { sel: 'object[data]', attr: 'data' },
+      { sel: 'iframe[src]', attr: 'src' },
+      { sel: 'a[href]', attr: 'href' }
+    ];
+    for (const e of attrElems) {
+      const nodes = Array.from(doc.querySelectorAll(e.sel || ''));
+      for (const n of nodes) {
+        const v = n.getAttribute(e.attr);
+        if (!v) continue;
+        refs.push({ raw: v, type: e.attr });
+      }
+    }
+    // inline styles
+    const inlineStyles = Array.from(doc.querySelectorAll('[style]')).map(n=>n.getAttribute('style'));
+    inlineStyles.forEach(s => {
+      for (const m of s.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/gi)) refs.push({ raw: m[1], type: 'css-url' });
+    });
+    // style blocks
+    const styleBlocks = Array.from(doc.querySelectorAll('style')).map(s=>s.textContent||'');
+    for (const sb of styleBlocks) {
+      for (const m of sb.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/gi)) refs.push({ raw: m[1], type: 'css-url' });
+      for (const m of sb.matchAll(/@import\s+(?:url\()?['"]?([^'")]+)['"]?\)?/gi)) refs.push({ raw: m[1], type: 'css-import' });
+    }
+  } catch (e) {
+    for (const m of htmlText.matchAll(/(?:src|href)=["']([^"']+)["']/gi)) refs.push({ raw: m[1], type:'attr' });
+  }
+  return refs;
+}
+
+/* parse CSS references */
+function parseCssRefs(cssText){
+  const refs = [];
+  for (const m of cssText.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/gi)) refs.push(m[1]);
+  for (const m of cssText.matchAll(/@import\s+(?:url\()?['"]?([^'")]+)['"]?\)?/gi)) refs.push(m[1]);
+  return refs;
+}
+
+/* parse JS references for images and assets (best-effort) */
+function parseJsRefs(jsText){
+  const refs = [];
+  // static imports
+  for (const m of jsText.matchAll(/import\s+(?:[^'"]+from\s+)?['"]([^'"]+)['"]/gi)) refs.push(m[1]);
+  for (const m of jsText.matchAll(/require\(\s*['"]([^'"]+)['"]\s*\)/gi)) refs.push(m[1]);
+  for (const m of jsText.matchAll(/fetch\(\s*['"]([^'"]+)['"]/gi)) refs.push(m[1]);
+  for (const m of jsText.matchAll(/new\s+URL\(\s*['"]([^'"]+)['"]/gi)) refs.push(m[1]);
+  // image paths inside strings or template literals (heuristic)
+  for (const m of jsText.matchAll(/['"`]([^'"`]+?\.(?:png|jpg|jpeg|gif|svg|webp|ico|avif|bmp)(?:\?[^'"`]*)?)[ '"`]/gi)) {
+    refs.push(m[1]);
+  }
+  // url(...) pattern inside JS strings
+  for (const m of jsText.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/gi)) refs.push(m[1]);
+  return refs;
+}
+
+/* ===== Dependency graph build ===== */
+function buildDependencyGraph(entry){
+  dependencyGraph.clear();
+  const visited = new Set();
+  const referenced = new Set();
+  const queue = [entry];
+  while (queue.length){
+    const cur = queue.shift();
+    if (!cur || visited.has(cur)) continue;
+    visited.add(cur);
+    const node = filesByPath.get(cur);
+    if (!node) continue;
+    referenced.add(cur);
+    dependencyGraph.set(cur, new Set());
+    const t = node.ext;
+    let refs = [];
+    if (t === 'html' || t === 'htm') refs = parseHtmlRefs(node.content || '').map(r=>r.raw || r);
+    else if (t === 'css') refs = parseCssRefs(node.content || '');
+    else if (t === 'js') refs = parseJsRefs(node.content || '');
+    else refs = [];
+    for (let r of refs){
+      if (!r) continue;
+      if (/^(https?:|\/\/|data:|mailto:|tel:)/i.test(r)) continue;
+      const resolved = resolveRelative(cur, r);
+      if (!resolved) continue;
+      let target = null;
+      if (filesByPath.has(resolved)) target = resolved;
+      else {
+        // try decodeURI
+        try { const dec = decodeURI(resolved); if (filesByPath.has(dec)) target = dec; } catch(e){}
+      }
+      if (!target){
+        // basename fallback (only when reference contains no path or doesn't resolve)
+        const bn = r.split('/').pop().split('?')[0].split('#')[0];
+        const candidates = filesByBasename.get(bn) || [];
+        if (candidates.length === 1) target = candidates[0]; // unambiguous
+        else if (candidates.length > 1) {
+          // prefer same directory candidate if exists
+          const sameDirCandidate = candidates.find(p => dirname(p) === dirname(cur));
+          if (sameDirCandidate) target = sameDirCandidate;
+          else target = candidates[0]; // pick first if ambiguous (no case-insensitive logic)
+        }
+      }
+      if (target && filesByPath.has(target)) {
+        dependencyGraph.get(cur).add(target);
+        if (!visited.has(target)) queue.push(target);
+      } else {
+        // log unresolved; add to diagnostics if needed
+        // no blocking behavior
+        log(`Unresolved reference in ${cur}: ${r}`);
+      }
+    }
+  }
+  return { referencedPaths: referenced, graph: dependencyGraph };
+}
+
+/* ===== Analysis UI ===== */
+analyzeBtn.onclick = () => {
+  if (!entrySelect.value) { setStatus('No entry HTML selected.'); return; }
+  entryPath = entrySelect.value;
+  setStatus(`Analyzing dependencies from ${entryPath}...`);
+  const { referencedPaths } = buildDependencyGraph(entryPath);
+  referencedSet = new Set(referencedPaths);
+  unreferencedSet = new Set(Array.from(filesByPath.keys()).filter(p=> !referencedSet.has(p)));
+  renderAnalysis();
+  setStatus(`Analysis complete. Referenced: ${referencedSet.size} • Unused: ${unreferencedSet.size}`);
+};
+
+function renderAnalysis(){
+  referencedListEl.innerHTML = '';
+  if (!referencedSet.size) referencedListEl.innerHTML = '<div class="muted">No referenced files.</div>';
+  else {
+    const arr = Array.from(referencedSet).sort();
+    arr.forEach(p => {
+      const f = filesByPath.get(p);
+      const div = document.createElement('div'); div.className='file-row';
+      div.innerHTML = `<div style="flex:1"><div style="font-weight:700">${p}</div><div class="muted">${f.ext} • ${Math.round((f.size||0)/1024)} KB</div></div><div><button data-path="${p}" style="background:#0b7df0;color:#fff;padding:6px;border-radius:6px;border:none">Preview</button></div>`;
+      div.querySelector('button').onclick = ()=> selectFileForPreview(p);
+      referencedListEl.appendChild(div);
+    });
+  }
+
+  unreferencedListEl.innerHTML = '';
+  if (!unreferencedSet.size) unreferencedListEl.innerHTML = '<div class="muted">No unused files.</div>';
+  else {
+    const arr = Array.from(unreferencedSet).sort();
+    arr.forEach(p => {
+      const f = filesByPath.get(p);
+      const div = document.createElement('div'); div.className='file-row';
+      div.innerHTML = `<div style="flex:1"><div style="font-weight:700">${p}</div><div class="muted">${f.ext} • ${Math.round((f.size||0)/1024)} KB</div></div><div style="display:flex;flex-direction:column;gap:6px"><button data-remove="${p}" style="background:#ef4444;color:#fff;padding:6px;border-radius:6px;border:none">Remove</button><button data-preview="${p}" style="background:#111;color:#cbd5e1;padding:6px;border-radius:6px;border:1px solid var(--border)">Preview</button></div>`;
+      div.querySelector('[data-remove]').onclick = ()=> { removeFile(p); renderAnalysis(); };
+      div.querySelector('[data-preview]').onclick = ()=> selectFileForPreview(p);
+      unreferencedListEl.appendChild(div);
+    });
+  }
+  refCounts.textContent = `Referenced: ${referencedSet.size} • Unused: ${unreferencedSet.size}`;
+}
+
+/* remove single file */
+function removeFile(path){
+  files = files.filter(f => f.path !== path);
+  filesByPath.delete(path);
+  const bn = basename(path);
+  if (filesByBasename.has(bn)) filesByBasename.set(bn, filesByBasename.get(bn).filter(p=> p !== path));
+  rebuildIndexes();
+  setStatus(`Removed ${path}`);
+}
+
+/* remove all unused */
+removeUnusedBtn.onclick = ()=> {
+  if (!unreferencedSet.size) { setStatus('No unreferenced files to remove.'); return; }
+  for (const p of Array.from(unreferencedSet)) {
+    filesByPath.delete(p);
+    files = files.filter(f => f.path !== p);
+    const bn = basename(p);
+    if (filesByBasename.has(bn)) filesByBasename.set(bn, filesByBasename.get(bn).filter(x=> x !== p));
+  }
+  unreferencedSet.clear();
+  rebuildIndexes();
+  renderAnalysis();
+  setStatus('Removed all unreferenced files.');
+};
+keepAllBtn.onclick = ()=> { unreferencedSet.clear(); renderAnalysis(); setStatus('Keeping all files (no removals).'); };
+
+/* ===== Build logic ===== */
+buildBtn.onclick = async () => {
+  if (!entrySelect.value) { setStatus('No entry HTML selected.'); return; }
+  entryPath = entrySelect.value;
+  if (!filesByPath.size) { setStatus('No files loaded.'); return; }
+  setStatus(`Starting build from ${entryPath}...`);
+  const mode = outputModeEl.value;
+  // compute referenced set for build
+  const fullRef = buildDependencyGraph(entryPath).referencedPaths;
+  const unused = Array.from(filesByPath.keys()).filter(p => !fullRef.has(p));
+  setStatus(`Referenced: ${fullRef.size} • Unreferenced: ${unused.length}`);
+
+  // For modes:
+  // - single-if-one: if only one html in folder -> inline single-file; else fallback to per-html-zip
+  // - per-html-zip: create per-html self-contained bundles for all HTMLs (or only selected main? We'll generate for all HTMLs to satisfy "up to as many as there are")
+  // - preserve-zip: minified files preserved structure
+  // - individual: minified files for referenced set
+
+  if (mode === 'single-if-one') {
+    const htmlFiles = Array.from(filesByPath.values()).filter(f => f.ext === 'html' || f.ext === 'htm');
+    if (htmlFiles.length === 1) {
+      await buildSingleFile(entryPath, fullRef);
+    } else {
+      // fallback to per-html-zip
+      setStatus('Multiple HTMLs detected — generating per-HTML ZIP set.');
+      await buildPerHtmlZip(Array.from(filesByPath.keys()).filter(k => (k.endsWith('.html') || k.endsWith('.htm'))));
+    }
+  } else if (mode === 'per-html-zip') {
+    const htmlFiles = Array.from(filesByPath.keys()).filter(k => k.endsWith('.html') || k.endsWith('.htm'));
+    await buildPerHtmlZip(htmlFiles);
+  } else if (mode === 'preserve-zip') {
+    await buildPreserveZip(fullRef);
+  } else if (mode === 'individual') {
+    await buildIndividual(fullRef);
+  } else {
+    setStatus('Unknown build mode.');
+  }
+};
+
+/* ===== Minifiers (conservative) ===== */
+function minifyCss(css){ return (css||'').replace(/\/\*[\s\S]*?\*\//g,'').replace(/\s+/g,' ').replace(/\s*([{}:;,])\s*/g,'$1').trim(); }
+function minifyHtml(html){ return (html||'').replace(/<!--[\s\S]*?-->/g,'').replace(/\n+/g,' ').replace(/>\s+</g,'><').replace(/\s{2,}/g,' ').trim(); }
+// Extremely conservative JS minifier: do not strip comments or alter content to avoid breaking code.
+// Only trim leading/trailing whitespace to keep behavior identical to original files when combined.
+function minifyJs(js){ return (js==null ? '' : String(js)); }
+
+/* ===== Inlining helpers ===== */
+
+/* Inline into HTML attributes and CSS url() only for target files map.
+   Also replace string literals in JS that exactly match referenced file paths or basenames (careful).
+   We do NOT perform case-insensitive fallbacks.
+*/
+function inlineMediaIntoHtmlDoc(doc, entry, mediaByPath){
+  // process attributes
+  const attrs = ['src','href','data','poster'];
+  for (const a of attrs){
+    const elems = Array.from(doc.querySelectorAll('['+a+']'));
+    for (const el of elems){
+      const v = el.getAttribute(a);
+      if (!v) continue;
+      if (/^(https?:|\/\/|data:|mailto:|tel:)/i.test(v)) continue;
+      const resolved = resolveRelative(entry, v);
+      let replacement = null;
+      if (resolved && mediaByPath[resolved]) replacement = mediaByPath[resolved];
+      else {
+        const bn = v.split('/').pop().split('?')[0].split('#')[0];
+        // if exact basename exists in media map and unambiguous, use it
+        const candidates = Object.keys(mediaByPath).filter(k => k.split('/').pop() === bn);
+        if (candidates.length === 1) replacement = mediaByPath[candidates[0]];
+      }
+      if (replacement) el.setAttribute(a, replacement);
+    }
+  }
+}
+
+/* Inline CSS url(...) by replacing referenced values with data URIs where available */
+function inlineMediaIntoCssText(cssText, cssPath, mediaByPath){
+  return cssText.replace(/url\(\s*(['"])?([^'")]+)\1\s*\)/gi, (m, q, val) => {
+    if (/^(https?:|\/\/|data:)/i.test(val)) return `url("${val}")`;
+    const resolved = resolveRelative(cssPath, val);
+    let fcontent = null;
+    if (resolved && mediaByPath[resolved]) fcontent = mediaByPath[resolved];
+    else {
+      const bn = val.split('/').pop().split('?')[0].split('#')[0];
+      const candidates = Object.keys(mediaByPath).filter(k => k.split('/').pop() === bn);
+      if (candidates.length === 1) fcontent = mediaByPath[candidates[0]];
+    }
+    return fcontent ? `url("${fcontent}")` : `url("${val}")`;
+  });
+}
+
+/* Replace quoted string literals in JS that exactly match a local referenced path or basename.
+   This is conservative: only replace if the string content resolves to a file in mediaByPath.
+   It respects single, double, and simple template literals (without ${}).
+*/
+function inlineMediaIntoJsText(jsText, jsPath, mediaByPath){
+  // replace '...' and "..." occurrences
+  const replacer = (m, quote, inner) => {
+    if (!inner) return m;
+    if (/^(https?:|\/\/|data:)/i.test(inner)) return m;
+    const resolved = resolveRelative(jsPath, inner);
+    let fcontent = null;
+    if (resolved && mediaByPath[resolved]) fcontent = mediaByPath[resolved];
+    else {
+      const bn = inner.split('/').pop().split('?')[0].split('#')[0];
+      const candidates = Object.keys(mediaByPath).filter(k => k.split('/').pop() === bn);
+      if (candidates.length === 1) fcontent = mediaByPath[candidates[0]];
+    }
+    if (fcontent) return quote + fcontent + quote;
+    return m;
+  };
+  // single/double quotes
+  jsText = jsText.replace(/(['"])([^'"]+?\.(?:png|jpg|jpeg|gif|svg|webp|ico|avif|bmp)(?:\?[^'"]*)?)\1/gi, replacer);
+  // template literals without ${} (safe)
+  jsText = jsText.replace(/`([^${`]*\.(?:png|jpg|jpeg|gif|svg|webp|ico|avif|bmp)[^`]*)`/gi, (m, inner) => {
+    if (inner.includes('${')) return m;
+    const resolved = resolveRelative(jsPath, inner);
+    let fcontent = null;
+    if (resolved && mediaByPath[resolved]) fcontent = mediaByPath[resolved];
+    else {
+      const bn = inner.split('/').pop().split('?')[0].split('#')[0];
+      const candidates = Object.keys(mediaByPath).filter(k => k.split('/').pop() === bn);
+      if (candidates.length === 1) fcontent = mediaByPath[candidates[0]];
+    }
+    if (fcontent) return '`' + fcontent + '`';
+    return m;
+  });
+  return jsText;
+}
+
+/* Build map of media Data URIs for referenced binary files */
+function buildMediaMap(referencedPaths){
+  const media = {};
+  for (const p of referencedPaths){
+    const f = filesByPath.get(p);
+    if (!f) continue;
+    if (f.isBinary) media[p] = f.content; // data URL
+  }
+  return media;
+}
+
+/* ===== Build Single-file (inline) ===== */
+async function buildSingleFile(entry, referencedPathsSet){
+  setStatus('Building single-file HTML (inline) ...');
+  // gather entry content
+  const entryFile = filesByPath.get(entry);
+  let docHtml = entryFile ? entryFile.content || '' : '';
+  const doc = new DOMParser().parseFromString(docHtml, 'text/html');
+
+  // collect CSS and JS references in document order
+  const cssEntries = [];
+  const scriptEntries = [];
+
+  // collect <link rel=stylesheet>
+  Array.from(doc.querySelectorAll('link[rel="stylesheet"][href]')).forEach(ln => {
+    const href = ln.getAttribute('href');
+    const resolved = resolveRelative(entry, href);
+    if (resolved && filesByPath.has(resolved) && referencedPathsSet.has(resolved)) {
+      const f = filesByPath.get(resolved);
+      const media = ln.getAttribute('media') || '';
+      cssEntries.push({ path: resolved, content: f.content || '', media });
+    }
+    ln.remove();
+  });
+
+  // collect inline <style>
+  Array.from(doc.querySelectorAll('style')).forEach(sn => {
+    cssEntries.push({ path: entry + '::inline-style', content: sn.textContent || '', media: '' });
+    sn.remove();
+  });
+
+  // collect scripts in order (both external and inline), preserving type
+  Array.from(doc.querySelectorAll('script')).forEach(sn => {
+    const src = sn.getAttribute && sn.getAttribute('src');
+    const stype = sn.getAttribute && sn.getAttribute('type');
+    if (src) {
+      const resolved = resolveRelative(entry, src);
+      if (resolved && filesByPath.has(resolved) && referencedPathsSet.has(resolved)) {
+        const f = filesByPath.get(resolved);
+        scriptEntries.push({ path: resolved, content: f.content || '', type: stype || '' });
+      }
+      sn.remove();
+    } else {
+      scriptEntries.push({ path: entry + '::inline-script', content: sn.textContent || '', type: stype || '' });
+      sn.remove();
+    }
+  });
+
+  // Build media map for inlining (binary files only)
+  const mediaMap = buildMediaMap(referencedPathsSet);
+
+  // Inline attributes in HTML
+  inlineMediaIntoHtmlDoc(doc, entry, mediaMap);
+
+  // Process CSS: replace url(...) using mediaMap and combine
+  const combinedCss = cssEntries.map(c=> {
+    let txt = inlineMediaIntoCssText(c.content || '', c.path, mediaMap);
+    if (c.media && c.media.trim()) txt = `@media ${c.media}{${txt}}`;
+    return txt;
+  }).join('\n');
+  const inlinedCss = minifyCss(combinedCss || '');
+  if (inlinedCss) {
+    const styleEl = doc.createElement('style'); styleEl.textContent = inlinedCss; doc.head.appendChild(styleEl);
+  }
+
+  // Process JS: for inline build, replace string literals referencing media with data URIs (conservative)
+  // Preserve order and type by emitting each script as its own tag
+  for (const s of scriptEntries){
+    const processed = inlineMediaIntoJsText(s.content || '', s.path || entry, mediaMap);
+    const finalJs = minifyJs(processed || '');
+    const scriptEl = doc.createElement('script');
+    if (s.type) scriptEl.type = s.type;
+    scriptEl.textContent = finalJs;
+    doc.body.appendChild(scriptEl);
+  }
+
+  let finalHtml = new XMLSerializer().serializeToString(doc);
+  finalHtml = minifyHtml(finalHtml || '');
+
+  // output
+  const blob = new Blob([finalHtml], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  downloadList.innerHTML = '';
+  const node = document.createElement('div'); node.className='file-row';
+  node.innerHTML = `<div style="flex:1"><div style="font-weight:700">index.inline.html</div><div class="muted">${(finalHtml.length/1024).toFixed(1)} KB</div></div><div><button id="dlInline" style="background:var(--accent);color:#fff;padding:6px;border-radius:6px;border:none">Download</button><button id="previewInline" style="margin-left:8px;background:#111;color:#cbd5e1;padding:6px;border-radius:6px;border:1px solid var(--border)">Preview</button></div>`;
+  downloadList.appendChild(node);
+  node.querySelector('#dlInline').onclick = ()=> { const a = document.createElement('a'); a.href = url; a.download = 'index.inline.html'; a.click(); };
+  node.querySelector('#previewInline').onclick = ()=> { buildPreview.style.display = 'block'; previewIframe.srcdoc = finalHtml; previewMode.textContent = 'single inline'; };
+  downloadInfo.textContent = 'Single-file inline ready';
+  setStatus('Single-file inline build complete.');
+}
+
+/* ===== Build Per-HTML self-contained ZIP =====
+   For each HTML file, build a self-contained HTML with CSS/JS inlined and images inlined where referenced.
+   Each HTML bundle is independent; shared assets will be duplicated across bundles.
+*/
+async function buildPerHtmlZip(htmlPaths){
+  setStatus('Building per-HTML self-contained ZIP (may take time)...');
+  const zip = new JSZip();
+  const htmls = htmlPaths.slice();
+  for (const hp of htmls){
+    if (!filesByPath.has(hp)) continue;
+    // compute referenced set for this html
+    const refSet = buildDependencyGraph(hp).referencedPaths;
+    // assemble doc
+    const entryFile = filesByPath.get(hp);
+    const docHtml = entryFile.content || '';
+    const doc = new DOMParser().parseFromString(docHtml, 'text/html');
+
+    // collect css and scripts similar to single-file
+    const cssEntries = [];
+    const scriptEntries = [];
+    Array.from(doc.querySelectorAll('link[rel="stylesheet"][href]')).forEach(ln => {
+      const href = ln.getAttribute('href');
+      const resolved = resolveRelative(hp, href);
+      if (resolved && refSet.has(resolved) && filesByPath.has(resolved)) {
+        const media = ln.getAttribute('media') || '';
+        cssEntries.push({ path: resolved, content: filesByPath.get(resolved).content || '', media });
+      }
+      ln.remove();
+    });
+    Array.from(doc.querySelectorAll('style')).forEach(sn => { cssEntries.push({ path: hp + '::inline-style', content: sn.textContent || '', media: '' }); sn.remove(); });
+    Array.from(doc.querySelectorAll('script')).forEach(sn => {
+      const src = sn.getAttribute && sn.getAttribute('src');
+      const stype = sn.getAttribute && sn.getAttribute('type');
+      if (src) {
+        const resolved = resolveRelative(hp, src);
+        if (resolved && refSet.has(resolved) && filesByPath.has(resolved)) scriptEntries.push({ path: resolved, content: filesByPath.get(resolved).content || '', type: stype || '' });
+        sn.remove();
+      } else {
+        scriptEntries.push({ path: hp + '::inline-script', content: sn.textContent || '', type: stype || '' });
+        sn.remove();
+      }
+    });
+
+    // media map
+    const mediaMap = buildMediaMap(refSet);
+
+    // inline into HTML attributes
+    inlineMediaIntoHtmlDoc(doc, hp, mediaMap);
+
+    // inline CSS assets
+    const combinedCss = cssEntries.map(c => {
+      let txt = inlineMediaIntoCssText(c.content || '', c.path, mediaMap);
+      if (c.media && c.media.trim()) txt = `@media ${c.media}{${txt}}`;
+      return txt;
+    }).join('\n');
+    const inlinedCss = minifyCss(combinedCss || '');
+    if (inlinedCss) { const styleEl = doc.createElement('style'); styleEl.textContent = inlinedCss; doc.head.appendChild(styleEl); }
+
+    // inline JS string literals that reference media (conservative), preserve order and type
+    for (const s of scriptEntries){
+      const processed = inlineMediaIntoJsText(s.content || '', s.path || hp, mediaMap);
+      const finalJs = minifyJs(processed || '');
+      const scriptEl = doc.createElement('script');
+      if (s.type) scriptEl.type = s.type;
+      scriptEl.textContent = finalJs;
+      doc.body.appendChild(scriptEl);
+    }
+
+    // final HTML
+    let final = new XMLSerializer().serializeToString(doc);
+    final = minifyHtml(final);
+    // add to zip at same relative path
+    zip.file(hp, final);
+    log(`Bundled ${hp} (size ${(final.length/1024).toFixed(1)} KB)`);
+  }
+
+  // Generate zip
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  downloadList.innerHTML = '';
+  const node = document.createElement('div'); node.className='file-row';
+  node.innerHTML = `<div style="flex:1"><div style="font-weight:700">site_per_html_bundles.zip</div><div class="muted">${(blob.size/1024).toFixed(1)} KB</div></div><div><button id="dlPerZip" style="background:var(--accent);color:#fff;padding:6px;border-radius:6px;border:none">Download</button></div>`;
+  downloadList.appendChild(node);
+  node.querySelector('#dlPerZip').onclick = ()=> { saveAs(blob, 'site_per_html_bundles.zip'); };
+  downloadInfo.textContent = 'Per-HTML bundles ZIP ready';
+  setStatus('Per-HTML bundles ZIP complete.');
+}
+
+/* ===== Build Preserve-structure ZIP (minified) ===== */
+async function buildPreserveZip(referencedPathsSet){
+  setStatus('Building preserved-structure ZIP (minified) ...');
+  const zip = new JSZip();
+  for (const p of Array.from(referencedPathsSet)) {
+    const f = filesByPath.get(p);
+    if (!f) continue;
+    if (f.isBinary && f.rawFile) {
+      zip.file(p, f.rawFile);
+    } else if (f.isBinary && f.content) {
+      const arr = dataURLtoUint8Array(f.content);
+      zip.file(p, arr);
+    } else {
+      let content = f.content || '';
+      if (f.ext === 'css') content = minifyCss(content);
+      else if (f.ext === 'js') content = minifyJs(content);
+      else if (f.ext === 'html') content = minifyHtml(content);
+      zip.file(p, content);
+    }
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  downloadList.innerHTML = '';
+  const node = document.createElement('div'); node.className='file-row';
+  node.innerHTML = `<div style="flex:1"><div style="font-weight:700">site_preserved_minified.zip</div><div class="muted">${(blob.size/1024).toFixed(1)} KB</div></div><div><button id="dlPresZip" style="background:var(--accent);color:#fff;padding:6px;border-radius:6px;border:none">Download</button></div>`;
+  downloadList.appendChild(node);
+  node.querySelector('#dlPresZip').onclick = ()=> { saveAs(blob, 'site_preserved_minified.zip'); };
+  downloadInfo.textContent = 'Preserved ZIP ready';
+  setStatus('Preserved-structure ZIP complete.');
+}
+
+/* ===== Build Individual files (minified) ===== */
+async function buildIndividual(referencedPathsSet){
+  setStatus('Preparing individual minified files...');
+  downloadList.innerHTML = '';
+  for (const p of Array.from(referencedPathsSet).sort()){
+    const f = filesByPath.get(p);
+    if (!f) continue;
+    if (f.isBinary) {
+      let blob;
+      if (f.rawFile) blob = f.rawFile;
+      else blob = new Blob([dataURLtoUint8Array(f.content)], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const div = document.createElement('div'); div.className='file-row';
+      div.innerHTML = `<div style="flex:1"><div style="font-weight:700">${p}</div><div class="muted">${f.ext} • ${(blob.size/1024).toFixed(1)} KB</div></div><div><button style="background:var(--accent);color:#fff;padding:6px;border-radius:6px;border:none">Download</button></div>`;
+      div.querySelector('button').onclick = ()=> { const a = document.createElement('a'); a.href = url; a.download = p.split('/').pop(); a.click(); };
+      downloadList.appendChild(div);
+    } else {
+      let content = f.content || '';
+      if (f.ext === 'css') content = minifyCss(content);
+      else if (f.ext === 'js') content = minifyJs(content);
+      else if (f.ext === 'html') content = minifyHtml(content);
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const div = document.createElement('div'); div.className='file-row';
+      div.innerHTML = `<div style="flex:1"><div style="font-weight:700">${p}</div><div class="muted">${f.ext} • ${(blob.size/1024).toFixed(1)} KB</div></div><div><button style="background:var(--accent);color:#fff;padding:6px;border-radius:6px;border:none">Download</button></div>`;
+      div.querySelector('button').onclick = ()=> { const a = document.createElement('a'); a.href = url; a.download = p.split('/').pop(); a.click(); };
+      downloadList.appendChild(div);
+    }
+  }
+  downloadInfo.textContent = 'Individual files prepared';
+  setStatus('Individual downloads prepared.');
+}
+
+/* convert dataURL to Uint8Array */
+function dataURLtoUint8Array(dataURL){
+  const arr = dataURL.split(',');
+  const meta = arr[0];
+  const b64 = arr[1] || '';
+  const binary = atob(b64);
+  const len = binary.length;
+  const u8 = new Uint8Array(len);
+  for (let i=0;i<len;i++) u8[i] = binary.charCodeAt(i);
+  return u8;
+}
+
+/* ===== Modal usage for review ===== */
+function showUsageModal(referencedFiles, unreferencedFiles){
+  return new Promise((resolve) => {
+    modalRoot.innerHTML = '';
+    const backdrop = document.createElement('div'); backdrop.className = 'modal-backdrop';
+    const card = document.createElement('div'); card.className = 'modal-card';
+    card.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div><div style="font-weight:800">Folder Usage Review</div><div class="muted" style="margin-top:6px">Referenced files vs unreferenced candidates</div></div><div class="muted">Referenced: ${referencedFiles.length} • Unused: ${unreferencedFiles.length}</div></div><div style="margin-top:8px"><div style="font-weight:700;color:#7ee787">Referenced</div><div id="mref" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;margin-top:6px"></div></div><div style="margin-top:12px"><div style="font-weight:700;color:#f6c177">Unreferenced</div><div id="munref" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;margin-top:6px"></div></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button id="mCancel" style="padding:8px;background:#111;color:#fff;border-radius:6px">Cancel</button><button id="mKeep" style="padding:8px;background:#1f2937;color:#fff;border-radius:6px">Keep All</button><button id="mProceed" style="padding:8px;background:var(--accent);color:#fff;border-radius:6px">Proceed & Remove Unused</button></div>`;
+    backdrop.appendChild(card); modalRoot.appendChild(backdrop);
+
+    const refGrid = card.querySelector('#mref'); const unrefGrid = card.querySelector('#munref');
+    referencedFiles.forEach(f => {
+      const r = document.createElement('div'); r.className='file-row'; r.innerHTML = `<div style="flex:1"><div style="font-weight:700">${f.path}</div><div class="muted">${f.ext} • ${Math.round((f.size||0)/1024)} KB</div></div>`; refGrid.appendChild(r);
+    });
+    unreferencedFiles.forEach(f => {
+      const r = document.createElement('div'); r.className='file-row'; r.innerHTML = `<div style="flex:1"><div style="font-weight:700">${f.path}</div><div class="muted">${f.ext} • ${Math.round((f.size||0)/1024)} KB</div></div>`; unrefGrid.appendChild(r);
+    });
+
+    card.querySelector('#mProceed').onclick = ()=> { modalRoot.innerHTML=''; resolve('remove'); };
+    card.querySelector('#mKeep').onclick = ()=> { modalRoot.innerHTML=''; resolve('keep'); };
+    card.querySelector('#mCancel').onclick = ()=> { modalRoot.innerHTML=''; resolve('cancel'); };
+  });
+}
+
+/* ===== Misc ===== */
+/* file click preview wiring */
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-path]');
+  if (el) selectFileForPreview(el.dataset.path);
+});
+
+/* expose functions for debugging */
+window.__SAM_DEBUG = { filesByPath, filesByBasename, rebuildIndexes, buildDependencyGraph };
+
+/* initial status */
+setStatus('Ready. Choose a folder or drop a folder into the area.');
+
+</script>
+</body>
+</html>

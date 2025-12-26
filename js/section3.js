@@ -84,14 +84,74 @@ document.addEventListener('DOMContentLoaded', function () {
 
         function setSplitFromEvent(e) {
             const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / rect.width;
-            split = clamp(x, 0, 1);
+            const targetX = (e.clientX - rect.left) / rect.width;
+            const targetSplit = clamp(targetX, 0, 1);
+            
+            // Cancel any ongoing animation
+            if (canvas.animationFrameId) {
+                cancelAnimationFrame(canvas.animationFrameId);
+            }
+            
+            // Immediate response to position
+            split = targetSplit;
             render();
+            
+            // Set a small delay before starting the smooth animation
+            // to make the initial movement feel more responsive
+            canvas.animationFrameId = requestAnimationFrame(() => {
+                const startTime = performance.now();
+                const startSplit = split;
+                const duration = 100; // Shorter duration for smoother feel
+                
+                function animate(currentTime) {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    // Ease in-out function
+                    const easeInOutQuad = t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+                    
+                    split = startSplit + (targetSplit - startSplit) * easeInOutQuad(progress);
+                    render();
+                    
+                    if (progress < 1) {
+                        canvas.animationFrameId = requestAnimationFrame(animate);
+                    } else {
+                        canvas.animationFrameId = null;
+                    }
+                }
+                
+                canvas.animationFrameId = requestAnimationFrame(animate);
+            });
         }
 
         function resetToDefault() {
-            split = defaultSplit;
-            render();
+            // Cancel any ongoing animation
+            if (canvas.animationFrameId) {
+                cancelAnimationFrame(canvas.animationFrameId);
+            }
+            
+            const startTime = performance.now();
+            const startSplit = split;
+            const duration = 150; // Animation duration in ms
+            
+            function animate(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Ease out function for smooth deceleration
+                const easeOutQuad = t => t * (2 - t);
+                
+                split = startSplit + (defaultSplit - startSplit) * easeOutQuad(progress);
+                render();
+                
+                if (progress < 1) {
+                    canvas.animationFrameId = requestAnimationFrame(animate);
+                } else {
+                    canvas.animationFrameId = null;
+                }
+            }
+            
+            canvas.animationFrameId = requestAnimationFrame(animate);
         }
 
         Promise.all([loadImage(beforeSrc), loadImage(afterSrc)])
@@ -118,9 +178,41 @@ document.addEventListener('DOMContentLoaded', function () {
         // fallback behavior on touch: tap cycles split
         card.addEventListener('touchstart', function (e) {
             if (!beforeImg || !afterImg) return;
-            split = split >= 0.99 ? 0.01 : split + 0.33;
-            split = clamp(split, 0.01, 0.99);
-            render();
+            
+            // Cancel any ongoing animation
+            if (canvas.animationFrameId) {
+                cancelAnimationFrame(canvas.animationFrameId);
+            }
+            
+            const targetSplit = split >= 0.99 ? 0.01 : split + 0.33;
+            const startTime = performance.now();
+            const startSplit = split;
+            const duration = 150; // Animation duration in ms
+            
+            function animate(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Ease out back function for a slight bounce effect
+                const easeOutBack = t => {
+                    const c1 = 1.7;
+                    const c3 = c1 + 1;
+                    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+                };
+                
+                split = startSplit + (targetSplit - startSplit) * easeOutBack(progress);
+                render();
+                
+                if (progress < 1) {
+                    canvas.animationFrameId = requestAnimationFrame(animate);
+                } else {
+                    split = clamp(targetSplit, 0.01, 0.99); // Ensure final value is exact
+                    render();
+                    canvas.animationFrameId = null;
+                }
+            }
+            
+            canvas.animationFrameId = requestAnimationFrame(animate);
         }, { passive: true });
 
         window.addEventListener('resize', render);

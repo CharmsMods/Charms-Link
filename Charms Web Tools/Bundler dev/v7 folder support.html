@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Static Asset Minifier & Bundler — Folder Mode</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- JSZip for ZIP output -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+  :root{
+    --bg:#0a0a0c; --card:#141417; --border:#2d2d32; --accent:#3b82f6; --muted:#94a3b8;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:#e6eef8;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px}
+  .editor-area{background:#020204;color:#d1d5db;border:1px solid var(--border);font-family: 'Fira Code', monospace}
+  .thumb{width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:#000}
+  .file-row{display:flex;gap:.75rem;align-items:center;padding:.5rem;border-radius:6px;background:#081019;border:1px solid rgba(255,255,255,0.02)}
+  .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.7);display:flex;align-items:center;justify-content:center;z-index:60}
+  .modal-card{width:min(1000px,96%);max-height:90vh;overflow:auto;padding:16px;border-radius:10px;border:1px solid var(--border);background:#071027}
+  ::-webkit-scrollbar{width:8px;height:8px} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+</style>
+</head>
+<body class="p-4 md:p-8" id="appRoot">
+
+<div class="max-w-7xl mx-auto">
+  <header class="mb-6">
+    <div class="flex items-center gap-3 mb-2">
+      <div class="w-2 h-8 bg-blue-600 rounded"></div>
+      <h1 class="text-lg font-bold uppercase tracking-tight">Static Asset Minifier & Bundler — Folder Import</h1>
+    </div>
+    <p class="text-sm text-slate-400 max-w-3xl">Drop folders or use the folder picker. Tool preserves structure, resolves dependencies from an entry HTML, detects unused files, provides modal decisions, and supports inline single-file, ZIP, or individual downloads.</p>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left: Controls & Folder Import -->
+    <div class="card p-4 col-span-1">
+      <div class="mb-3 flex items-center justify-between">
+        <div>
+          <div class="text-xs uppercase text-zinc-400 font-bold">Folder Import</div>
+          <div class="text-[12px] text-zinc-500">Preserves folder structure and builds dependency graph</div>
+        </div>
+        <div class="text-xs text-zinc-400">Client-side only</div>
+      </div>
+
+      <div id="folderDrop" class="border border-zinc-800 rounded p-4 mb-3 bg-zinc-900/20" style="min-height:120px">
+        <input id="folderPicker" type="file" webkitdirectory multiple style="display:none">
+        <div class="flex flex-col items-start gap-2">
+          <button id="pickFolderBtn" class="px-3 py-2 bg-blue-600 rounded text-white text-sm">Choose Folder</button>
+          <div class="text-xs text-zinc-500">Or drag & drop a folder here (Chrome/Edge/Safari with folder support)</div>
+          <div id="dropHint" class="mt-2 text-[12px] text-zinc-400">No folder loaded.</div>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <div class="text-xs font-bold text-zinc-400 uppercase mb-2">Entry HTML</div>
+        <select id="entrySelect" class="w-full bg-black border border-zinc-700 text-xs rounded px-2 py-2 text-zinc-300"></select>
+        <div id="entryNote" class="text-[12px] text-zinc-500 mt-1">Select the entry HTML file. If none, upload an HTML entry or add manually.</div>
+      </div>
+
+      <div class="mb-3">
+        <div class="text-xs font-bold text-zinc-400 uppercase mb-2">Output Options</div>
+        <select id="outputMode" class="w-full bg-black border border-zinc-700 text-xs rounded px-2 py-2 text-zinc-300">
+          <option value="inline">Single-file HTML (Inline all referenced)</option>
+          <option value="zip">ZIP (Minified, preserved structure)</option>
+          <option value="individual">Individual Downloads (minified)</option>
+        </select>
+      </div>
+
+      <div class="flex gap-2">
+        <button id="analyzeBtn" class="px-3 py-2 bg-amber-600 text-black font-bold rounded text-sm">Analyze</button>
+        <button id="buildBtn" class="px-3 py-2 bg-blue-600 text-white font-bold rounded text-sm">Build</button>
+        <button id="clearBtn" class="px-3 py-2 bg-zinc-800 text-zinc-300 rounded text-sm">Clear</button>
+      </div>
+
+      <div class="mt-4 text-xs text-zinc-400" id="statusLog">Idle.</div>
+    </div>
+
+    <!-- Middle: File tree / preview -->
+    <div class="card p-4 col-span-1 lg:col-span-1">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs uppercase text-zinc-400 font-bold">Folder Structure</div>
+        <div id="fileCounts" class="text-xs text-zinc-500">0 files</div>
+      </div>
+      <div id="treeWrap" class="h-96 overflow-auto border border-zinc-800 p-2 rounded bg-black/5">
+        <div id="fileTree" class="text-sm text-zinc-300"></div>
+      </div>
+
+      <div class="mt-3">
+        <div class="text-xs font-bold text-zinc-400 uppercase mb-2">Preview / Selected File</div>
+        <div id="previewPanel" class="h-48 overflow-auto border border-zinc-800 p-3 rounded bg-black/5">
+          <div id="previewEmpty" class="text-zinc-600 italic">Select a file from the tree to preview its contents or thumbnail.</div>
+          <pre id="previewText" class="hidden text-xs font-mono whitespace-pre-wrap"></pre>
+          <img id="previewImage" class="hidden max-w-full rounded" alt="">
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Dependency graph, referenced/unreferenced -->
+    <div class="card p-4 col-span-1 lg:col-span-1">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs uppercase text-zinc-400 font-bold">Analysis</div>
+        <div id="refCounts" class="text-xs text-zinc-500">Referenced: 0 • Unused: 0</div>
+      </div>
+
+      <div id="referencedList" class="space-y-2 h-56 overflow-auto border border-zinc-800 p-2 rounded mb-3">
+        <div class="text-xs text-zinc-600 italic">No analysis run.</div>
+      </div>
+
+      <div id="unreferencedList" class="space-y-2 h-48 overflow-auto border border-zinc-800 p-2 rounded">
+        <div class="text-xs text-zinc-600 italic">No analysis run.</div>
+      </div>
+
+      <div class="mt-3 flex gap-2">
+        <button id="removeUnusedBtn" class="px-3 py-2 bg-red-700 text-white rounded text-sm">Remove Unused</button>
+        <button id="keepAllBtn" class="px-3 py-2 bg-zinc-800 text-zinc-300 rounded text-sm">Keep All</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Output & Preview area -->
+  <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="card p-4">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs uppercase text-zinc-400 font-bold">Build Preview</div>
+        <div class="text-xs text-zinc-500" id="previewMode">no preview</div>
+      </div>
+      <div id="buildPreview" class="h-96 overflow-hidden border border-zinc-800 rounded bg-white hidden">
+        <iframe id="previewIframe" class="w-full h-full border-none" sandbox="allow-scripts"></iframe>
+      </div>
+
+      <div id="buildConsole" class="h-96 overflow-auto border border-zinc-800 rounded p-2 bg-black/5 text-xs font-mono text-zinc-300"></div>
+    </div>
+
+    <div class="card p-4">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs uppercase text-zinc-400 font-bold">Downloads</div>
+        <div class="text-xs text-zinc-500" id="downloadInfo">No build</div>
+      </div>
+
+      <div id="downloadList" class="space-y-2">
+        <div class="text-xs text-zinc-600 italic">Build outputs will appear here.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal root -->
+<div id="modalRoot"></div>
+
+<script>
+/* ========= Utilities & State ========= */
+const logToConsole = (s) => {
+  const el = document.getElementById('buildConsole');
+  el.innerHTML += `[${new Date().toLocaleTimeString()}] ${s}\n`;
+  el.scrollTop = el.scrollHeight;
+};
+const setStatus = (s) => { document.getElementById('statusLog').textContent = s; logToConsole(s); };
+const ext = (name) => name.split('.').pop().toLowerCase();
+const isBinaryExt = (e) => ['png','jpg','jpeg','gif','svg','webp','ico','woff','woff2','ttf','otf','mp4','webm','ogg'].includes(e);
+const maxInlineBytesWarn = 25 * 1024 * 1024; // 25MB threshold warn for single-file inline.
+
+let files = []; // { path, name, ext, content (string or dataURL), rawFile (File), isBinary, size, referenced:false }
+let filesMap = new Map(); // key: normalized path -> file object
+let entryPath = null;
+let dependencyGraph = new Map(); // path -> Set(paths)
+let referencedSet = new Set();
+let unreferencedSet = new Set();
+
+/* ========= DOM refs ========= */
+const folderDrop = document.getElementById('folderDrop');
+const folderPicker = document.getElementById('folderPicker');
+const pickFolderBtn = document.getElementById('pickFolderBtn');
+const dropHint = document.getElementById('dropHint');
+const fileTree = document.getElementById('fileTree');
+const fileCounts = document.getElementById('fileCounts');
+const previewText = document.getElementById('previewText');
+const previewImage = document.getElementById('previewImage');
+const previewEmpty = document.getElementById('previewEmpty');
+const entrySelect = document.getElementById('entrySelect');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const buildBtn = document.getElementById('buildBtn');
+const clearBtn = document.getElementById('clearBtn');
+const outputModeEl = document.getElementById('outputMode');
+const referencedListEl = document.getElementById('referencedList');
+const unreferencedListEl = document.getElementById('unreferencedList');
+const refCounts = document.getElementById('refCounts');
+const removeUnusedBtn = document.getElementById('removeUnusedBtn');
+const keepAllBtn = document.getElementById('keepAllBtn');
+const downloadList = document.getElementById('downloadList');
+const downloadInfo = document.getElementById('downloadInfo');
+const buildPreview = document.getElementById('buildPreview');
+const previewIframe = document.getElementById('previewIframe');
+const previewMode = document.getElementById('previewMode');
+
+/* ========= Helpers: path normalize & resolve ========= */
+function normalizePath(p) {
+  return p.replace(/\\/g,'/').replace(/^\.\//,'').replace(/\/+/g,'/').trim();
+}
+function dirname(p) {
+  const n = normalizePath(p);
+  return n.includes('/') ? n.slice(0, n.lastIndexOf('/')) : '';
+}
+function resolveRelative(fromPath, relative) {
+  if (/^(https?:|\/\/|data:)/i.test(relative)) return null; // external or data -> ignore
+  const base = dirname(fromPath);
+  if (relative.startsWith('/')) {
+    // treat leading slash as root of the uploaded folder
+    return normalizePath(relative.replace(/^\//,''));
+  }
+  const joined = (base ? base + '/' + relative : relative);
+  const parts = normalizePath(joined).split('/');
+  const out = [];
+  for (const p of parts) {
+    if (p === '' || p === '.') continue;
+    if (p === '..') out.pop();
+    else out.push(p);
+  }
+  return out.join('/');
+}
+
+/* ========= File ingestion ========= */
+/* Add files from <input webkitdirectory> where File.webkitRelativePath is available */
+folderPicker.addEventListener('change', async (e) => {
+  const fList = Array.from(e.target.files || []);
+  if (!fList.length) return;
+  setStatus(`Reading ${fList.length} file(s) from folder picker...`);
+  await ingestFileList(fList.map(f => ({ file: f, relativePath: f.webkitRelativePath || f.name })));
+  folderPicker.value = '';
+});
+
+/* Drag & drop: support both files list (with webkitRelativePath) and webkitGetAsEntry */
+folderDrop.addEventListener('dragover', (e) => { e.preventDefault(); folderDrop.classList.add('ring-1','ring-blue-500'); });
+folderDrop.addEventListener('dragleave', (e) => { folderDrop.classList.remove('ring-1','ring-blue-500'); });
+folderDrop.addEventListener('drop', async (e) => {
+  e.preventDefault(); folderDrop.classList.remove('ring-1','ring-blue-500');
+  const items = e.dataTransfer.items;
+  if (!items) {
+    // fallback: files only
+    const filesArray = Array.from(e.dataTransfer.files || []);
+    await ingestFileList(filesArray.map(f => ({ file: f, relativePath: f.name })));
+    return;
+  }
+
+  // if items support webkitGetAsEntry -> traverse entries
+  const entries = [];
+  for (const it of items) {
+    const entry = it.webkitGetAsEntry ? it.webkitGetAsEntry() : null;
+    if (entry) entries.push(entry);
+    else if (it.getAsFile) {
+      const f = it.getAsFile();
+      if (f) entries.push({ __file: f, name: f.name }); // fallback
+    }
+  }
+  if (!entries.length) {
+    const filesArray = Array.from(e.dataTransfer.files || []);
+    await ingestFileList(filesArray.map(f => ({ file: f, relativePath: f.name })));
+    return;
+  }
+
+  setStatus('Recursing dropped folder(s)...');
+  // read entries recursively and gather files
+  const collected = [];
+  const walkEntry = (entry, pathPrefix = '') => new Promise((resolve) => {
+    if (entry.isFile) {
+      entry.file((file) => {
+        collected.push({ file, relativePath: pathPrefix + file.name });
+        resolve();
+      }, () => resolve());
+    } else if (entry.isDirectory) {
+      const dirReader = entry.createReader();
+      const readAll = () => dirReader.readEntries(async (results) => {
+        if (!results.length) return resolve();
+        for (const r of results) await walkEntry(r, pathPrefix + entry.name + '/');
+        // subsequent reads might be needed; read again until empty
+        readAll();
+      });
+      readAll();
+    } else {
+      resolve();
+    }
+  });
+
+  for (const en of entries) {
+    // if object had __file fallback
+    if (en.__file) {
+      collected.push({ file: en.__file, relativePath: en.name });
+    } else {
+      await walkEntry(en, '');
+    }
+  }
+  await ingestFileList(collected);
+});
+
+/* ingestion helper that reads files and pushes to files map */
+async function ingestFileList(items) {
+  // items: [{file, relativePath}]
+  const toRead = items.length;
+  let readCount = 0;
+  for (const it of items) {
+    const f = it.file;
+    const rel = normalizePath(it.relativePath || f.name);
+    const size = f.size || 0;
+    const e = ext(rel);
+    const isBin = isBinaryExt(e);
+    // read as dataURL for binaries, text for text
+    if (isBin) {
+      const dataURL = await new Promise((res) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = () => res(null);
+        r.readAsDataURL(f);
+      });
+      addFile({ path: rel, name: rel.split('/').pop(), ext: e, content: dataURL, rawFile: f, isBinary: true, size });
+    } else {
+      const txt = await f.text();
+      addFile({ path: rel, name: rel.split('/').pop(), ext: e, content: txt, rawFile: f, isBinary: false, size });
+    }
+    readCount++;
+    setStatus(`Read ${readCount}/${toRead} files...`);
+  }
+  rebuildIndexes();
+  setStatus(`Ingest complete: ${files.length} file(s).`);
+}
+
+/* add file to files array and map (overwrites existing path) */
+function addFile(fObj) {
+  const p = normalizePath(fObj.path);
+  const existing = filesMap.get(p);
+  if (existing) {
+    // overwrite
+    existing.content = fObj.content;
+    existing.rawFile = fObj.rawFile;
+    existing.isBinary = fObj.isBinary;
+    existing.size = fObj.size;
+  } else {
+    const node = { ...fObj, path: p, referenced: false };
+    files.push(node);
+    filesMap.set(p, node);
+  }
+}
+
+/* clear all */
+clearBtn.onclick = () => {
+  files = []; filesMap.clear(); dependencyGraph.clear(); referencedSet.clear(); unreferencedSet.clear(); entryPath = null;
+  fileTree.innerHTML = ''; entrySelect.innerHTML = ''; referencedListEl.innerHTML = '<div class="text-xs text-zinc-600 italic">No analysis run.</div>'; unreferencedListEl.innerHTML = '<div class="text-xs text-zinc-600 italic">No analysis run.</div>';
+  document.getElementById('dropHint').textContent = 'No folder loaded.'; fileCounts.textContent = '0 files'; setStatus('Cleared workspace.');
+  downloadList.innerHTML = '<div class="text-xs text-zinc-600 italic">Build outputs will appear here.</div>'; downloadInfo.textContent = 'No build';
+  buildPreview.classList.add('hidden'); previewIframe.srcdoc = '';
+};
+
+/* rebuild tree UI and entry selector */
+function rebuildIndexes() {
+  // sort files lexicographically
+  files.sort((a,b)=> a.path.localeCompare(b.path));
+  // build tree HTML
+  const tree = buildTreeHtml(files.map(f=>f.path));
+  fileTree.innerHTML = tree.html;
+  fileCounts.textContent = `${files.length} files`;
+  // populate entry selector with html files
+  const htmlFiles = files.filter(f => f.ext === 'html' || f.ext === 'htm');
+  entrySelect.innerHTML = '';
+  if (htmlFiles.length === 0) {
+    const opt = document.createElement('option'); opt.value=''; opt.textContent='(no HTML files found)';
+    entrySelect.appendChild(opt);
+    entryPath = null;
+    document.getElementById('dropHint').textContent = `${files.length} files loaded — no HTML found.`;
+  } else {
+    htmlFiles.forEach((h,i) => {
+      const opt = document.createElement('option'); opt.value = h.path; opt.textContent = h.path;
+      entrySelect.appendChild(opt);
+      if (i===0) entryPath = h.path;
+    });
+    document.getElementById('dropHint').textContent = `Loaded ${files.length} files — ${htmlFiles.length} HTML file(s).`;
+    entrySelect.value = entryPath || htmlFiles[0].path;
+    entryPath = entrySelect.value;
+  }
+  // attach click handlers for tree items
+  document.querySelectorAll('[data-path]').forEach(el => {
+    el.onclick = (e) => {
+      const p = el.dataset.path;
+      selectFileForPreview(p);
+    };
+  });
+}
+
+/* build tree HTML from list of paths */
+function buildTreeHtml(paths) {
+  // create nested structure
+  const root = {};
+  for (const p of paths) {
+    const parts = p.split('/');
+    let node = root;
+    for (const part of parts) {
+      node.children = node.children || {};
+      node.children[part] = node.children[part] || { name: part, children: {} };
+      node = node.children[part];
+    }
+    node.isFile = true;
+    node.path = p;
+  }
+  const renderNode = (node, depth=0) => {
+    if (!node.children) return '';
+    let out = '<ul class="pl-2">';
+    for (const key of Object.keys(node.children)) {
+      const child = node.children[key];
+      if (child.isFile) {
+        out += `<li class="text-xs text-zinc-300 file-row" style="cursor:pointer;margin-bottom:4px" data-path="${child.path}"><div style="flex:1">${child.path}</div><div class="text-[11px] text-zinc-500">${ext(child.path)}</div></li>`;
+      } else {
+        out += `<li class="text-xs text-zinc-300" style="margin-bottom:6px"><details><summary style="cursor:pointer;color:#cbd5e1;margin-bottom:4px">${child.name}</summary>${renderNode(child, depth+1)}</details></li>`;
+      }
+    }
+    out += '</ul>';
+    return out;
+  };
+  return renderNode({ children: root.children || {} });
+}
+
+/* preview file */
+function selectFileForPreview(path) {
+  const f = filesMap.get(path);
+  if (!f) return;
+  previewText.classList.add('hidden'); previewImage.classList.add('hidden'); previewEmpty.classList.add('hidden');
+  if (f.isBinary && /^image\//.test(f.content || '')) {
+    previewImage.src = f.content; previewImage.classList.remove('hidden');
+  } else {
+    previewText.textContent = f.content || '(binary)';
+    previewText.classList.remove('hidden');
+  }
+}
+
+/* entry select change */
+entrySelect.addEventListener('change', (e) => {
+  entryPath = e.target.value || null;
+});
+
+/* ========= Dependency scanning ========= */
+
+/* Parse references from HTML string. Returns array of candidate relative paths (as they appear in attributes) */
+function parseHtmlRefs(html) {
+  const refs = [];
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    // elements that commonly reference files
+    const attrElems = [
+      { sel: 'script[src]', attr: 'src' },
+      { sel: 'link[rel="stylesheet"][href]', attr: 'href' },
+      { sel: 'img[src]', attr: 'src' },
+      { sel: 'source[src]', attr: 'src' },
+      { sel: 'video[src]', attr: 'src' },
+      { sel: 'audio[src]', attr: 'src' },
+      { sel: 'object[data]', attr: 'data' },
+      { sel: 'iframe[src]', attr: 'src' },
+      { sel: 'a[href]', attr: 'href' },
+    ];
+    for (const e of attrElems) {
+      const nodes = Array.from(doc.querySelectorAll(e.sel || ''));
+      for (const n of nodes) {
+        const v = n.getAttribute(e.attr);
+        if (!v) continue;
+        refs.push(v);
+      }
+    }
+    // inline styles with url(...)
+    const inlineStyles = Array.from(doc.querySelectorAll('[style]')).map(n=>n.getAttribute('style'));
+    inlineStyles.forEach(s => {
+      const m = [...s.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/gi)];
+      m.forEach(mm => refs.push(mm[1]));
+    });
+    // look for <style> blocks
+    const styleBlocks = Array.from(doc.querySelectorAll('style')).map(s=>s.textContent||'');
+    for (const sb of styleBlocks) {
+      const m = [...sb.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/gi)];
+      m.forEach(mm => refs.push(mm[1]));
+      const imp = [...sb.matchAll(/@import\s+(?:url\()?['"]?([^'")]+)['"]?\)?/gi)];
+      imp.forEach(i=> refs.push(i[1]));
+    }
+  } catch (e) {
+    // fallback: regex-based approximate
+    const re = /(?:src|href)=["']([^"']+)["']/gi;
+    for (const m of html.matchAll(re)) refs.push(m[1]);
+  }
+  return refs;
+}
+
+/* Parse CSS for url() and @import */
+function parseCssRefs(css) {
+  const refs = [];
+  const m1 = [...css.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/gi)];
+  m1.forEach(mm => refs.push(mm[1]));
+  const m2 = [...css.matchAll(/@import\s+(?:url\()?['"]?([^'")]+)['"]?\)?/gi)];
+  m2.forEach(mm => refs.push(mm[1]));
+  return refs;
+}
+
+/* Parse JS for static import/require/fetch/new URL('...') - best-effort only */
+function parseJsRefs(js) {
+  const refs = [];
+  const importRe = /import\s+(?:[^'"]+from\s+)?['"]([^'"]+)['"]/gi;
+  const reqRe = /require\(\s*['"]([^'"]+)['"]\s*\)/gi;
+  const fetchRe = /fetch\(\s*['"]([^'"]+)['"]/gi;
+  const urlNewRe = /new\s+URL\(\s*['"]([^'"]+)['"]/gi;
+  for (const m of js.matchAll(importRe)) refs.push(m[1]);
+  for (const m of js.matchAll(reqRe)) refs.push(m[1]);
+  for (const m of js.matchAll(fetchRe)) refs.push(m[1]);
+  for (const m of js.matchAll(urlNewRe)) refs.push(m[1]);
+  return refs;
+}
+
+/* Build dependency graph starting at an entry HTML. Returns { referencedPaths (Set), graph } */
+function buildDependencyGraph(entry) {
+  dependencyGraph.clear();
+  const visited = new Set();
+  const referenced = new Set();
+  const toProcess = [entry];
+
+  while (toProcess.length) {
+    const cur = toProcess.shift();
+    if (!cur || visited.has(cur)) continue;
+    visited.add(cur);
+    const node = filesMap.get(cur);
+    if (!node) continue;
+    referenced.add(cur);
+    dependencyGraph.set(cur, new Set());
+    const extn = node.ext;
+    let refs = [];
+    if (extn === 'html' || extn === 'htm') refs = parseHtmlRefs(node.content || '');
+    else if (extn === 'css') refs = parseCssRefs(node.content || '');
+    else if (extn === 'js') refs = parseJsRefs(node.content || '');
+    else refs = []; // other text files likely not referencing others, but could be linked from HTML.
+    for (let r of refs) {
+      if (!r) continue;
+      // ignore absolute/external URLs
+      if (/^(https?:|\/\/|data:|mailto:|tel:)/i.test(r)) continue;
+      // resolve relative to cur
+      const resolved = resolveRelative(cur, r);
+      if (!resolved) continue;
+      // try exact match, then attempt percent-decoded, then case-insensitive fallback
+      let target = resolved;
+      if (!filesMap.has(target)) {
+        // try decodeURI
+        try { const dec = decodeURI(target); if (filesMap.has(dec)) target = dec; } catch {}
+      }
+      if (!filesMap.has(target)) {
+        // case-insensitive match
+        const lower = target.toLowerCase();
+        for (const k of filesMap.keys()) if (k.toLowerCase() === lower) { target = k; break; }
+      }
+      // record edge if exists
+      if (filesMap.has(target)) {
+        dependencyGraph.get(cur).add(target);
+        if (!visited.has(target)) toProcess.push(target);
+      }
+    }
+  }
+
+  return { referencedPaths: referenced, graph: dependencyGraph };
+}
+
+/* ========= Analysis & UI rendering for referenced/unreferenced ========= */
+analyzeBtn.onclick = () => {
+  if (!entrySelect.value) { setStatus('No entry HTML selected.'); return; }
+  if (!filesMap.size) { setStatus('No files loaded.'); return; }
+  entryPath = entrySelect.value;
+  setStatus(`Building dependency graph from ${entryPath}...`);
+  const { referencedPaths } = buildDependencyGraph(entryPath);
+  // mark files
+  referencedSet = new Set(referencedPaths);
+  unreferencedSet = new Set();
+  for (const [p, f] of filesMap.entries()) {
+    if (!referencedSet.has(p)) unreferencedSet.add(p);
+  }
+  renderAnalysis();
+  setStatus(`Analysis complete. Referenced: ${referencedSet.size} • Unused: ${unreferencedSet.size}`);
+};
+
+function renderAnalysis() {
+  // referenced list
+  referencedListEl.innerHTML = '';
+  if (!referencedSet.size) referencedListEl.innerHTML = '<div class="text-xs text-zinc-600 italic">No referenced files.</div>';
+  else {
+    for (const p of Array.from(referencedSet).sort()) {
+      const f = filesMap.get(p);
+      const row = document.createElement('div'); row.className = 'file-row';
+      row.innerHTML = `<div style="flex:1"><div style="font-weight:700">${p}</div><div style="font-size:12px;color:var(--muted)">${f.ext} • ${Math.round(f.size/1024)} KB</div></div><div style="min-width:56px;text-align:right"><button class="px-2 py-1 text-xs bg-zinc-800 rounded">Preview</button></div>`;
+      row.querySelector('button').onclick = ()=>selectFileForPreview(p);
+      referencedListEl.appendChild(row);
+    }
+  }
+  // unreferenced list
+  unreferencedListEl.innerHTML = '';
+  if (!unreferencedSet.size) unreferencedListEl.innerHTML = '<div class="text-xs text-zinc-600 italic">No unused files.</div>';
+  else {
+    for (const p of Array.from(unreferencedSet).sort()) {
+      const f = filesMap.get(p);
+      const row = document.createElement('div'); row.className = 'file-row';
+      row.innerHTML = `<div style="flex:1"><div style="font-weight:700">${p}</div><div style="font-size:12px;color:var(--muted)">${f.ext} • ${Math.round(f.size/1024)} KB</div></div><div style="min-width:110px;text-align:right"><button class="px-2 py-1 text-xs bg-red-700 rounded mr-2">Remove</button><button class="px-2 py-1 text-xs bg-zinc-800 rounded">Preview</button></div>`;
+      const btns = row.querySelectorAll('button');
+      btns[0].onclick = ()=> { removeFile(p); renderAnalysis(); };
+      btns[1].onclick = ()=> selectFileForPreview(p);
+      unreferencedListEl.appendChild(row);
+    }
+  }
+  refCounts.textContent = `Referenced: ${referencedSet.size} • Unused: ${unreferencedSet.size}`;
+}
+
+/* remove a single file from workspace */
+function removeFile(path) {
+  files = files.filter(f => f.path !== path);
+  filesMap.delete(path);
+  // rebuild tree
+  rebuildIndexes();
+  setStatus(`Removed ${path}`);
+}
+
+/* remove all unreferenced files */
+removeUnusedBtn.onclick = () => {
+  if (!unreferencedSet.size) { setStatus('No unreferenced files to remove.'); return; }
+  const confirmed = confirm(`Remove ${unreferencedSet.size} unreferenced file(s) from workspace? This cannot be undone in this session.`);
+  if (!confirmed) return;
+  for (const p of Array.from(unreferencedSet)) {
+    filesMap.delete(p);
+    files = files.filter(f => f.path !== p);
+  }
+  unreferencedSet.clear();
+  rebuildIndexes();
+  renderAnalysis();
+  setStatus('Removed unreferenced files.');
+};
+keepAllBtn.onclick = () => { setStatus('Keeping all files.'); unreferencedSet.clear(); renderAnalysis(); };
+
+/* ========= Build (three modes) ========= */
+
+/* simple minifiers used as safe fallback */
+function simpleCssMinify(css) {
+  return css.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\s+/g,' ').replace(/\s*([{}:;,])\s*/g,'$1').trim();
+}
+function simpleHtmlMinify(html) {
+  return html.replace(/<!--[\s\S]*?-->/g,'').replace(/\n+/g,' ').replace(/>\s+</g,'><').replace(/\s{2,}/g,' ').trim();
+}
+function simpleJsMinify(js) {
+  return js.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/[^\n\r]*/g,'').replace(/\n{2,}/g,'\n').trim();
+}
+
+/* helper to collect referenced files set (full recursive graph) */
+function computeFullReferencedSet(entry) {
+  const { referencedPaths, graph } = buildDependencyGraph(entry);
+  // The buildDependencyGraph returns visited nodes reachable from entry. But it only returns nodes actually encountered.
+  // Return referencedPaths as set.
+  return new Set(referencedPaths);
+}
+
+/* Build workflow */
+buildBtn.onclick = async () => {
+  if (!entrySelect.value) { setStatus('No entry HTML selected.'); return; }
+  entryPath = entrySelect.value;
+  if (!filesMap.has(entryPath)) { setStatus('Selected entry no longer exists.'); return; }
+  setStatus(`Starting build from ${entryPath}...`);
+  const mode = outputModeEl.value;
+  // recompute referenced/unreferenced
+  const fullRef = computeFullReferencedSet(entryPath);
+  const allPaths = Array.from(filesMap.keys());
+  const unused = allPaths.filter(p=> !fullRef.has(p));
+  setStatus(`Referenced: ${fullRef.size} • Unreferenced: ${unused.length}`);
+  // If inline mode and there are unused files -> show modal offering removal
+  if (mode === 'inline' && unused.length > 0) {
+    const referencedFiles = Array.from(fullRef).map(p=>filesMap.get(p)).filter(Boolean);
+    const unrefFiles = unused.map(p=>filesMap.get(p)).filter(Boolean);
+    const decision = await showUsageModal(referencedFiles, unrefFiles);
+    if (decision === 'cancel') { setStatus('Build cancelled by user.'); return; }
+    if (decision === 'remove') {
+      for (const f of unrefFiles) {
+        filesMap.delete(f.path);
+      }
+      rebuildIndexes();
+      setStatus(`Removed ${unrefFiles.length} unreferenced files per user decision.`);
+    } else {
+      setStatus('Keeping all files (user choice).');
+    }
+  }
+
+  // second validation
+  const finalRef = computeFullReferencedSet(entryPath);
+  setStatus(`Final referenced count: ${finalRef.size}`);
+
+  // Safety: warn if total inlining size exceed threshold
+  let totalInlineBytes = 0;
+  for (const p of finalRef) {
+    const f = filesMap.get(p); if (!f) continue;
+    if (f.isBinary) totalInlineBytes += (f.size||0);
+    else totalInlineBytes += new TextEncoder().encode(f.content||'').length;
+  }
+  if (mode === 'inline' && totalInlineBytes > maxInlineBytesWarn) {
+    const cont = confirm(`Inlining will produce a single file around ${(totalInlineBytes/1024/1024).toFixed(1)} MB. Continue?`);
+    if (!cont) { setStatus('Build aborted by user due to size.'); return; }
+  }
+
+  // prepare outputs
+  if (mode === 'inline') {
+    await buildSingleFile(entryPath, finalRef);
+  } else if (mode === 'zip') {
+    await buildZip(entryPath, finalRef);
+  } else {
+    await buildIndividual(finalRef);
+  }
+};
+
+/* Modal for usage review; returns Promise resolving to 'remove'|'keep'|'cancel' */
+function showUsageModal(referencedFiles, unreferencedFiles) {
+  return new Promise((resolve) => {
+    const modalRoot = document.getElementById('modalRoot');
+    modalRoot.innerHTML = '';
+    const backdrop = document.createElement('div'); backdrop.className = 'modal-backdrop';
+    const card = document.createElement('div'); card.className = 'modal-card';
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div>
+          <div style="font-weight:800;font-size:16px">Folder Usage Review</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:6px">Files referenced by entry HTML (safe to inline) and files not referenced (candidates for removal).</div>
+        </div>
+        <div style="font-size:12px;color:var(--muted)">Referenced: ${referencedFiles.length} • Unused: ${unreferencedFiles.length}</div>
+      </div>
+      <div style="margin-top:8px">
+        <div style="font-weight:700;margin-bottom:6px;color:#7ee787">Referenced files</div>
+        <div id="modalRefGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px"></div>
+      </div>
+      <div style="margin-top:12px">
+        <div style="font-weight:700;margin-bottom:6px;color:#f6c177">Unreferenced files</div>
+        <div id="modalUnrefGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button id="mCancel" class="px-3 py-2" style="background:#111827;color:#fff;border-radius:6px">Cancel</button>
+        <button id="mKeep" class="px-3 py-2" style="background:#1f2937;color:#fff;border-radius:6px">Keep All</button>
+        <button id="mProceed" class="px-3 py-2" style="background:var(--accent);color:#fff;border-radius:6px">Proceed & Remove Unused</button>
+      </div>
+    `;
+    backdrop.appendChild(card); modalRoot.appendChild(backdrop);
+
+    const refGrid = card.querySelector('#modalRefGrid');
+    const unrefGrid = card.querySelector('#modalUnrefGrid');
+    referencedFiles.forEach(f=>{
+      const r = document.createElement('div'); r.className='file-row';
+      r.innerHTML = `<div style="display:flex;gap:.75rem;align-items:center"><div style="width:48px;height:48px">${f.isBinary?`<img src="${f.content}" style="width:48px;height:48px;object-fit:cover;border-radius:6px">`:'<div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;background:#000;border-radius:6px;color:#9ca3af">TXT</div>'}</div><div style="flex:1"><div style="font-weight:700">${f.path}</div><div style="font-size:12px;color:var(--muted)">${f.ext} • ${Math.round((f.size||0)/1024)} KB</div></div></div>`;
+      refGrid.appendChild(r);
+    });
+    unreferencedFiles.forEach(f=>{
+      const r = document.createElement('div'); r.className='file-row';
+      r.innerHTML = `<div style="display:flex;gap:.75rem;align-items:center"><div style="width:48px;height:48px">${f.isBinary?`<img src="${f.content}" style="width:48px;height:48px;object-fit:cover;border-radius:6px">`:'<div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;background:#000;border-radius:6px;color:#9ca3af">TXT</div>'}</div><div style="flex:1"><div style="font-weight:700">${f.path}</div><div style="font-size:12px;color:var(--muted)">${f.ext} • ${Math.round((f.size||0)/1024)} KB</div></div></div>`;
+      unrefGrid.appendChild(r);
+    });
+
+    card.querySelector('#mProceed').onclick = ()=>{ modalRoot.innerHTML=''; resolve('remove'); };
+    card.querySelector('#mKeep').onclick = ()=>{ modalRoot.innerHTML=''; resolve('keep'); };
+    card.querySelector('#mCancel').onclick = ()=>{ modalRoot.innerHTML=''; resolve('cancel'); };
+  });
+}
+
+/* Build single inline HTML */
+async function buildSingleFile(entry, referencedPaths) {
+  setStatus('Building single-file HTML (inline mode)...');
+  // Collect HTML entry content
+  const entryFile = filesMap.get(entry);
+  let htmlText = entryFile ? entryFile.content || '' : '';
+  // Collect CSS and JS in order as they appear in HTML
+  // Parse entry HTML DOM to find insertion order
+  const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+
+  // Gather CSS strings (resolve <link rel=stylesheet href="">)
+  const cssContents = [];
+  // find link tags in document order
+  const linkNodes = Array.from(doc.querySelectorAll('link[rel="stylesheet"][href]'));
+  for (const ln of linkNodes) {
+    const href = ln.getAttribute('href');
+    const resolved = resolveRelative(entry, href);
+    if (resolved && filesMap.has(resolved) && referencedPaths.has(resolved)) {
+      const f = filesMap.get(resolved);
+      cssContents.push({ path: resolved, content: f.content || '' });
+      // remove the link tag (we will inject style)
+      ln.remove();
+    }
+  }
+  // Also include any style elements (inline CSS)
+  const styleNodes = Array.from(doc.querySelectorAll('style'));
+  for (const sn of styleNodes) {
+    cssContents.push({ path: entry + '::inline-style', content: sn.textContent || '' });
+    sn.remove();
+  }
+  // Gather JS strings preserving script order
+  const jsContents = [];
+  const scriptNodes = Array.from(doc.querySelectorAll('script'));
+  for (const sn of scriptNodes) {
+    const src = sn.getAttribute && sn.getAttribute('src');
+    if (src) {
+      const resolved = resolveRelative(entry, src);
+      if (resolved && filesMap.has(resolved) && referencedPaths.has(resolved)) {
+        const f = filesMap.get(resolved);
+        jsContents.push({ path: resolved, content: f.content || '' });
+      }
+      // remove script tag (we will inject inline)
+      sn.remove();
+    } else {
+      // inline script content
+      jsContents.push({ path: entry + '::inline-script', content: sn.textContent || '' });
+      sn.remove();
+    }
+  }
+
+  // Build map of referenced binaries for inlining into HTML/CSS (never touch JS content)
+  const mediaMap = {};
+  for (const p of referencedPaths) {
+    const f = filesMap.get(p);
+    if (!f) continue;
+    if (f.isBinary) mediaMap[f.path.split('/').pop()] = f.content; // map by basename
+    // also map by path itself (relative)
+    mediaMap[f.path] = f.content;
+  }
+
+  // Inline references in remaining HTML (attributes src/href) and CSS -> careful: do not mutate JS content
+  // Replace src/href in HTML doc
+  const processAttrNodes = (docNode) => {
+    const attrs = ['src','href','data','poster'];
+    for (const a of attrs) {
+      const nodes = Array.from(docNode.querySelectorAll('['+a+']'));
+      for (const n of nodes) {
+        const v = n.getAttribute(a);
+        if (!v) continue;
+        if (/^(https?:|\/\/|data:|mailto:|tel:)/i.test(v)) continue;
+        const resolved = resolveRelative(entry, v);
+        let replacement = null;
+        if (resolved && filesMap.has(resolved)) replacement = filesMap.get(resolved).content;
+        else {
+          // try basename match
+          const bn = v.split('/').pop().split('?')[0].split('#')[0];
+          if (mediaMap[bn]) replacement = mediaMap[bn];
+        }
+        if (replacement) n.setAttribute(a, replacement);
+      }
+    }
+  };
+  processAttrNodes(doc);
+
+  // Inline CSS assets: transform collected CSS strings by replacing url(...) with dataURIs
+  const combinedCss = cssContents.map(c => {
+    let css = c.content || '';
+    css = css.replace(/url\(\s*(['"])?([^'")]+)\1\s*\)/gi, (m, q, val) => {
+      if (/^(https?:|\/\/|data:)/i.test(val)) return `url("${val}")`;
+      const resolved = resolveRelative(c.path.startsWith(entry) ? entry : c.path, val) || val;
+      let f = filesMap.get(resolved);
+      if (!f) {
+        const bn = val.split('/').pop().split('?')[0].split('#')[0];
+        // try matching by basename
+        for (const k of filesMap.keys()) if (k.split('/').pop() === bn) { f = filesMap.get(k); break; }
+      }
+      if (f && f.isBinary && f.content) return `url("${f.content}")`;
+      return `url("${val}")`;
+    });
+    return css;
+  }).join('\n');
+
+  // Inject combinedCss into head
+  const styleEl = doc.createElement('style');
+  styleEl.textContent = simpleCssMinify(combinedCss || '');
+  doc.head.appendChild(styleEl);
+
+  // Prepare combined JS (do not mutate JS code to inline images)
+  const combinedJs = jsContents.map(j => j.content || '').join('\n;\n');
+  const minifiedJs = simpleJsMinify(combinedJs || '');
+
+  // Inject combinedJs at end of body
+  const scriptEl = doc.createElement('script');
+  scriptEl.textContent = minifiedJs;
+  doc.body.appendChild(scriptEl);
+
+  // Final HTML serialization and minify
+  let finalHtml = new XMLSerializer().serializeToString(doc);
+  finalHtml = simpleHtmlMinify(finalHtml);
+
+  // set outputs and preview
+  setStatus('Single-file build complete. Rendering preview.');
+  document.getElementById('downloadInfo').textContent = 'Generated single-file HTML';
+  downloadList.innerHTML = '';
+  const blob = new Blob([finalHtml], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const aHtml = document.createElement('div');
+  aHtml.innerHTML = `<div class="file-row"><div style="flex:1"><div style="font-weight:700">index.bundle.html</div><div style="font-size:12px;color:var(--muted)">${(finalHtml.length/1024).toFixed(1)} KB</div></div><div style="min-width:120px;text-align:right"><button id="dlInline" class="px-3 py-1 bg-blue-600 text-white rounded text-sm">Download</button><button id="previewInline" class="px-3 py-1 bg-zinc-800 text-zinc-300 rounded text-sm ml-2">Preview</button></div></div>`;
+  downloadList.appendChild(aHtml);
+  aHtml.querySelector('#dlInline').onclick = ()=> { const a=document.createElement('a'); a.href = url; a.download='index.bundle.html'; a.click(); };
+  aHtml.querySelector('#previewInline').onclick = ()=> { buildPreview.classList.remove('hidden'); previewIframe.srcdoc = finalHtml; previewMode.textContent = 'single-file'; };
+
+  // cleanup blob URL after some time (optional)
+  setTimeout(()=> URL.revokeObjectURL(url), 60*1000);
+}
+
+/* Build ZIP preserving structure and minifying text files */
+async function buildZip(entry, referencedPaths) {
+  setStatus('Building ZIP (minified, preserved structure)...');
+  const zip = new JSZip();
+  for (const p of Array.from(referencedPaths)) {
+    const f = filesMap.get(p);
+    if (!f) continue;
+    if (f.isBinary && f.content && f.rawFile) {
+      // rawFile is available -> add as binary blob to preserve original bytes
+      const blob = f.rawFile;
+      zip.file(p, blob);
+    } else if (f.isBinary && f.content) {
+      // convert dataURL to binary
+      const arr = dataURLtoUint8Array(f.content);
+      zip.file(p, arr);
+    } else {
+      // text file -> minify based on type
+      let txt = f.content || '';
+      if (f.ext === 'css') txt = simpleCssMinify(txt);
+      else if (f.ext === 'js') txt = simpleJsMinify(txt);
+      else if (f.ext === 'html') txt = simpleHtmlMinify(txt);
+      zip.file(p, txt);
+    }
+  }
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+  const url = URL.createObjectURL(blob);
+  downloadList.innerHTML = '';
+  const node = document.createElement('div'); node.className='file-row';
+  node.innerHTML = `<div style="flex:1"><div style="font-weight:700">site_bundle.zip</div><div style="font-size:12px;color:var(--muted)">${(blob.size/1024).toFixed(1)} KB</div></div><div style="min-width:120px;text-align:right"><button id="dlZip" class="px-3 py-1 bg-blue-600 text-white rounded text-sm">Download ZIP</button></div>`;
+  downloadList.appendChild(node);
+  node.querySelector('#dlZip').onclick = ()=> { const a=document.createElement('a'); a.href=url; a.download='site_bundle.zip'; a.click(); };
+  downloadInfo.textContent = 'ZIP ready';
+  setStatus('ZIP build complete.');
+  setTimeout(()=> URL.revokeObjectURL(url), 60*1000);
+}
+
+/* Build individual files ready for download (minified) */
+async function buildIndividual(referencedPaths) {
+  setStatus('Preparing individual minified files for download...');
+  downloadList.innerHTML = '';
+  for (const p of Array.from(referencedPaths).sort()) {
+    const f = filesMap.get(p);
+    if (!f) continue;
+    let content = f.content;
+    let mime = 'text/plain';
+    if (f.isBinary) {
+      // binary file: provide original file download if available
+      if (f.rawFile) {
+        const blob = f.rawFile;
+        const url = URL.createObjectURL(blob);
+        const row = document.createElement('div'); row.className='file-row';
+        row.innerHTML = `<div style="flex:1"><div style="font-weight:700">${p}</div><div style="font-size:12px;color:var(--muted)">${f.ext} • ${(blob.size/1024).toFixed(1)} KB</div></div><div style="min-width:120px;text-align:right"><button class="px-3 py-1 bg-blue-600 text-white rounded text-sm">Download</button></div>`;
+        row.querySelector('button').onclick = ()=>{ const a=document.createElement('a'); a.href=url; a.download=p.split('/').pop(); a.click(); };
+        downloadList.appendChild(row);
+        continue;
+      } else if (f.content) {
+        // dataURL available -> convert to blob
+        const arr = dataURLtoUint8Array(f.content);
+        const blob = new Blob([arr]);
+        const url = URL.createObjectURL(blob);
+        const row = document.createElement('div'); row.className='file-row';
+        row.innerHTML = `<div style="flex:1"><div style="font-weight:700">${p}</div><div style="font-size:12px;color:var(--muted)">${f.ext} • ${(blob.size/1024).toFixed(1)} KB</div></div><div style="min-width:120px;text-align:right"><button class="px-3 py-1 bg-blue-600 text-white rounded text-sm">Download</button></div>`;
+        row.querySelector('button').onclick = ()=>{ const a=document.createElement('a'); a.href=url; a.download=p.split('/').pop(); a.click(); };
+        downloadList.appendChild(row);
+        continue;
+      }
+    } else {
+      // text minify based on extension
+      if (f.ext === 'css') content = simpleCssMinify(content || '');
+      else if (f.ext === 'js') content = simpleJsMinify(content || '');
+      else if (f.ext === 'html') content = simpleHtmlMinify(content || '');
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const row = document.createElement('div'); row.className='file-row';
+      row.innerHTML = `<div style="flex:1"><div style="font-weight:700">${p}</div><div style="font-size:12px;color:var(--muted)">${f.ext} • ${(blob.size/1024).toFixed(1)} KB</div></div><div style="min-width:120px;text-align:right"><button class="px-3 py-1 bg-blue-600 text-white rounded text-sm">Download</button></div>`;
+      row.querySelector('button').onclick = ()=>{ const a=document.createElement('a'); a.href=url; a.download=p.split('/').pop(); a.click(); };
+      downloadList.appendChild(row);
+    }
+  }
+  downloadInfo.textContent = 'Individual files ready';
+  setStatus('Individual downloads prepared.');
+}
+
+/* helper: convert dataURL to Uint8Array */
+function dataURLtoUint8Array(dataURL) {
+  const arr = dataURL.split(',');
+  const meta = arr[0];
+  const base64 = arr[1];
+  const binary = atob(base64);
+  const len = binary.length;
+  const u8 = new Uint8Array(len);
+  for (let i=0;i<len;i++) u8[i] = binary.charCodeAt(i);
+  return u8;
+}
+
+/* ========= Initial wiring ========= */
+pickFolderBtn.onclick = () => folderPicker.click();
+setStatus('Ready. Use "Choose Folder" or drag a folder into the drop area.');
+
+/* expose addFile for debugging/testing (not required) */
+window.__sam_addFile = addFile;
+
+
+</script>
+</body>
+</html>

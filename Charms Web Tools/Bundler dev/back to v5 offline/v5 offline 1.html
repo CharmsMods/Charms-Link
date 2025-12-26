@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Static Asset Minifier & Bundler (V2)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg-dark: #0a0a0c;
+    --card-bg: #141417;
+    --border: #2d2d32;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --text-muted: #94a3b8;
+  }
+
+  body {
+    background-color: var(--bg-dark);
+    color: #e2e8f0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  .glass-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .editor-area {
+    background: #000;
+    color: #d1d5db;
+    border: 1px solid var(--border);
+    transition: all 0.2s ease;
+    font-family: 'Fira Code', 'Courier New', monospace;
+  }
+
+  .editor-area:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .drop-zone-active {
+    border: 2px dashed var(--accent) !important;
+    background: rgba(59, 130, 246, 0.08) !important;
+  }
+
+  .tab-btn {
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+  }
+
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(59, 130, 246, 0.05);
+  }
+
+  .asset-item {
+    transition: all 0.2s;
+    border-left: 2px solid transparent;
+  }
+
+  .asset-item.active {
+    background: #1e293b;
+    border-left-color: var(--accent);
+  }
+
+  .log-line {
+    border-left: 1px solid var(--border);
+    padding-left: 12px;
+  }
+
+  /* Modal Specifics */
+  #usageModalOverlay {
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+  }
+
+  .modal-section-header {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 8px 0;
+    margin-bottom: 8px;
+  }
+
+  .usage-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-dark); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+<script>
+(()=>{var wb=Object.create;var li=Object.defineProperty;var bb=Object.getOwnPropertyDescriptor;var vb=Object.getOwnPropertyNames;var xb=Object.getPrototypeOf,kb=Object.prototype.hasOwnProperty;var au=i=>li(i,"__esModule",{value:!0});var ou=i=>{if(typeof require!="undefined")return require(i);throw new Error('Dynamic require of "'+i+'" is not supported')};var C=(i,e)=>()=>(i&&(e=i(i=0)),e);var v=(i,e)=>()=>(e||i((e={exports:{}}).exports,e),e.exports),_e=(i,e)=>{au(i);for(var t in e)li(i,t,{get:e[t],enumerable:!0})},Sb=(i,e,t)=>{if(e&&typeof e=="object"||typeof e=="function")for(let r of vb(e))!kb.call(i,r)&&r!=="default"&&li(i,r,{get:()=>e[r],enumerable:!(t=bb(e,r))||t.enumerable});return i},X=i=>Sb(au(li(i!=null?wb(xb(i)):{},"default",i&&i.__esModule&&"default"in i?{get:()=>i.default,enumerable:!0}:{value:i,enumerable:!0})),i);var h,l=C(()=>{h={platform:"",env:{},versions:{node:"14.17.6"}}});var Cb,re,je=C(()=>{l();Cb=0,re={readFileSync:i=>self[i]||"",statSync:()=>({mtimeMs:Cb++}),promises:{readFile:i=>Promise.resolve(self[i]||"")}}});var Qn=v((PO,uu)=>{l();"use strict";var lu=class{constructor(e={}) {if(!(e.maxSize&&e.maxSize>0))throw new TypeError("`maxSize` must be a number greater than 0");if(typeof e.maxAge=="number"&&e.maxAge===0)throw new TypeError("`maxAge` must be a number greater than 0");this.maxSize=e.maxSize,this.maxAge=e.maxAge||1/0,this.onEviction=e.onEviction,this.cache=new Map,this.oldCache=new Map,this._size=0}_emitEvictions(e){if(typeof this.onEviction=="function")for(let[t,r] of e)this.onEviction(t,r.value)}_deleteIfExpired(e,t){return typeof t.expiry=="number"&&t.expiry<=Date.now()?(typeof this.onEviction=="function"&&this.onEviction(e,t.value),this.delete(e)):!1}_getOrDeleteIfExpired(e,t){if(this._deleteIfExpired(e,t)=== !1)return t.value}_getItemValue(e,t){return t.expiry?this._getOrDeleteIfExpired(e,t):t.value}_peek(e,t){let r=t.get(e);return this._getItemValue(e,r)}_set(e,t){this.cache.set(e,t),this._size++,this._size>=this.maxSize&&(this._size=0,this._emitEvictions(this.oldCache),this.oldCache=this.cache,this.cache=new Map)}_moveToRecent(e,t){this.oldCache.delete(e),this._set(e,t)}*_entriesAscending(){for(let e of this.oldCache){let[t,r]=e;this.cache.has(t)||this._deleteIfExpired(t,r)===!1&&(yield e)}for(let e of this.cache){let[t,r]=e;this._deleteIfExpired(t,r)===!1&&(yield e)}}get(e){if(this.cache.has(e)){let t=this.cache.get(e);return this._getItemValue(e,t)}if(this.oldCache.has(e)){let t=this.oldCache.get(e);if(this._deleteIfExpired(e,t)===!1)return this._moveToRecent(e,t),t.value}}set(e,t,{maxAge:r=this.maxAge===1/0?void 0:Date.now()+this.maxAge}={}) {this.cache.has(e)?this.cache.set(e,{value:t,maxAge:r}):this._set(e,{value:t,expiry:r})}has(e){return this.cache.has(e)?!this._deleteIfExpired(e,this.cache.get(e)):this.oldCache.has(e)?!this._deleteIfExpired(e,this.oldCache.get(e)):!1}peek(e){if(this.cache.has(e))return this._peek(e,this.cache);if(this.oldCache.has(e))return this._peek(e,this.oldCache)}delete(e){let t=this.cache.delete(e);return t&&this._size--,this.oldCache.delete(e)||t}clear(){this.cache.clear(),this.oldCache.clear(),this._size=0}resize(e){if(!(e&&e>0))throw new TypeTypeError("`maxSize` must be a number greater than 0");let t=[...this._entriesAscending()],r=t.length-e;r<0?(this.cache=new Map(t),this.oldCache=new Map,this._size=t.length):(r>0&&this._emitEvictions(t.slice(0,r)),this.oldCache=new Map(t.slice(r)),this.cache=new Map,this._size=0),this.maxSize=e}*keys(){for(let[e] of this)yield e}*values(){for(let[,e] of this)yield e}*[Symbol.iterator](){for(let e of this.cache){let[t,r]=e;this._deleteIfExpired(t,r)===!1&&(yield[t,r.value])}for(let e of this.oldCache){let[t,r]=e;this.cache.has(t)||this._deleteIfExpired(t,r)===!1&&(yield[t,r.value])}}*entriesDescending(){let e=[...this.cache];for(let t=e.length-1;t>=0;--t){let r=e[t],[n,a]=r;this._deleteIfExpired(n,a)===!1&&(yield[n,a.value])}e=[...this.oldCache];for(let t=e.length-1;t>=0;--t){let r=e[t],[n,a]=r;this.cache.has(n)||this._deleteIfExpired(n,a)===!1&&(yield[n,a.value])}}*entriesAscending(){for(let[e,t] of this._entriesAscending())yield[e,t.value]}get size(){if(!this._size)return this.oldCache.size;let e=0;for(let t of this.oldCache.keys())this.cache.has(t)||e++;return Math.min(this._size+e,this.maxSize)}};uu.exports=lu});var fu,cu=C(()=>{l();fu=i=>i&&i._hash});function ui(i){return fu(i,{ignoreUnknown:!0})}var pu=C(()=>{l();cu()});function Xe(i){if(i=`${i}`,i==="0")return"0";if(/^[+-]?(\d+|\d*\.\d+)(e[+-]?\d+)?(%|\w+)?$/.test(i))return i.replace(/^[+-]?/,t=>t==="-"?"":"-");let e=["var","calc","min","max","clamp"];for(let t of e)if(i.includes(`${t}(`))return`calc(${i} * -1)`}var fi=C(()=>{l()});var du,hu=C(()=>{l();du=["preflight","container","accessibility","pointerEvents","visibility","position","inset","isolation","zIndex","order","gridColumn","gridColumnStart","gridColumnEnd","gridRow","gridRowStart","gridRowEnd","float","clear","margin","boxSizing","lineClamp","display","aspectRatio","size","height","maxHeight","minHeight","width","minWidth","maxWidth","flex","flexShrink","flexGrow","flexBasis","tableLayout","captionSide","borderCollapse","borderSpacing","transformOrigin","translate","rotate","skew","scale","transform","animation","cursor","touchAction","userSelect","resize","scrollSnapType","scrollSnapAlign","scrollSnapStop","scrollMargin","scrollPadding","listStylePosition","listStyleType","listStyleImage","appearance","columns","breakBefore","breakInside","breakAfter","gridAutoColumns","gridAutoFlow","gridAutoRows","gridTemplateColumns","gridTemplateRows","flexDirection","flexWrap","placeContent","placeItems","alignContent","alignItems","justifyContent","justifyItems","gap","space","divideWidth","divideStyle","divideColor","divideOpacity","placeSelf","alignSelf","justifySelf","overflow","overscrollBehavior","scrollBehavior","textOverflow","hyphens","whitespace","textWrap","wordBreak","borderRadius","borderWidth","borderStyle","borderColor","borderOpacity","backgroundColor","backgroundOpacity","backgroundImage","gradientColorStops","boxDecorationBreak","backgroundSize","backgroundAttachment","backgroundClip","backgroundPosition","backgroundRepeat","backgroundOrigin","fill","stroke","strokeWidth","objectFit","objectPosition","padding","textAlign","textIndent","verticalAlign","fontFamily","fontSize","fontWeight","textTransform","fontStyle","fontVariantNumeric","lineHeight","letterSpacing","textColor","textOpacity","textDecoration","textDecorationColor","textDecorationStyle","textDecorationThickness","textUnderlineOffset","fontSmoothing","placeholderColor","placeholderOpacity","caretColor","accentColor","opacity","backgroundBlendMode","mixBlendMode","boxShadow","boxShadowColor","outlineStyle","outlineWidth","outlineOffset","outlineColor","ringWidth","ringColor","ringOpacity","ringOffsetWidth","ringOffsetColor","blur","brightness","contrast","dropShadow","grayscale","hueRotate","invert","saturate","sepia","filter","backdropBlur","backdropBrightness","backdropContrast","backdropGrayscale","backdropHueRotate","backdropInvert","backdropOpacity","backdropSaturate","backdropSepia","backdropFilter","transitionProperty","transitionDelay","transitionDuration","transitionTimingFunction","willChange","contain","content","forcedColorAdjust"]});function mu(i,e){return i===void 0?e:Array.isArray(i)?i:[...new Set(e.filter(r=>i!==!1&&i[r]!==!1).concat(Object.keys(i).filter(r=>i[r]!==!1)))]}var gu=C(()=>{l()});var yu={};_e(yu,{default:()=>Oe});var Oe,ci=C(()=>{l();Oe=new Proxy({},{get:()=>String});var bu={};_e(bu,{default:()=>Kn});function ar({version:i,from:e,to:t}){F.warn(`${e}-color-renamed`,[`As of Tailwind CSS ${i}, \`${e}\` has been renamed to \`${t}\`.`,"Update your configuration file to silence this warning."])}var Kn,Zn=C(()=>{l();Ee();Kn={inherit:"inherit",current:"currentColor",transparent:"transparent",black:"#000",white:"#fff",slate:{50:"#f8fafc",100:"#f1f5f9",200:"#e2e8f0",300:"#cbd5e1",400:"#94a3b8",500:"#64748b",600:"#475569",700:"#334155",800:"#1e293b",900:"#0f172a",950:"#020617"},gray:{50:"#f9fafb",100:"#f3f4f6",200:"#e5e7eb",300:"#d1d5db",400:"#9ca3af",500:"#6b7280",600:"#4b5563",700:"#374151",800:"#1f2937",900:"#111827",950:"#030712"},zinc:{50:"#fafafa",100:"#f4f4f5",200:"#e4e4e7",300:"#d4d4d8",400:"#a1a1aa",500:"#71717a",600:"#52525b",700:"#3f3f46",800:"#27272a",900:"#18181b",950:"#09090b"},neutral:{50:"#fafafa",100:"#f5f5f5",200:"#e5e5e5",300:"#d4d4d4",400:"#a3a3a3",500:"#737373",600:"#525252",700:"#404040",800:"#262626",900:"#171717",950:"#0a0a0a"},stone:{50:"#fafaf9",100:"#f5f5f4",200:"#e7e5e4",300:"#d6d3d1",400:"#a8a29e",500:"#78716c",600:"#57534e",700:"#44403c",800:"#292524",900:"#1c1917",950:"#0c0a09"},red:{50:"#fef2f2",100:"#fee2e2",200:"#fecaca",300:"#fca5a5",400:"#f87171",500:"#ef4444",600:"#dc2626",700:"#b91c1c",800:"#991b1b",900:"#7f1d1d",950:"#450a0a"},orange:{50:"#fff7ed",100:"#ffedd5",200:"#fed7aa",300:"#fdba74",400:"#fb923c",500:"#f97316",600:"#ea580c",700:"#c2410c",800:"#9a3412",900:"#7c2d12",950:"#431407"},amber:{50:"#fffbeb",100:"#fef3c7",200:"#fde68a",300:"#fcd34d",400:"#fbbf24",500:"#f59e0b",600:"#d97706",700:"#b45309",800
+</script>
+</head>
+<body class="p-4 md:p-8" id="dropBoundary">
+
+<div class="max-w-6xl mx-auto">
+  <header class="mb-10 border-b border-zinc-800 pb-6">
+    <div class="flex items-center gap-3">
+        <div class="w-2 h-8 bg-blue-600 rounded"></div>
+        <h1 class="text-xl font-bold tracking-tight text-white uppercase">
+          Static Asset Minifier & Bundler
+        </h1>
+    </div>
+    <p class="text-sm text-slate-400 mt-2 max-w-2xl">
+      High-performance frontend asset pipeline. Supports bulk file imports, path normalization, and automatic Base64 inlining for single-file distribution.
+</span>
+    </p>
+  </header>
+
+  <div class="glass-card overflow-hidden">
+    <nav class="flex border-b border-zinc-800 bg-zinc-900/30">
+      <button class="tab-btn active px-6 py-4 text-[10px] font-bold uppercase tracking-widest" data-tab="workspace">Workspace</button>
+      <button class="tab-btn px-6 py-4 text-[10px] font-bold uppercase tracking-widest" data-tab="output">Build Output</button>
+      <button class="tab-btn px-6 py-4 text-[10px] font-bold uppercase tracking-widest" data-tab="log">Process Logs</button>
+    </nav>
+
+    <main class="p-0">
+      
+      <!-- Workspace Section -->
+      <section id="workspace" class="tab-content block h-[600px] flex">
+        <div class="w-64 border-r border-zinc-800 flex flex-col bg-zinc-900/10">
+          <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
+            <span class="text-[10px] font-bold uppercase text-zinc-500 tracking-widest">Assets</span>
+            <div class="flex gap-2">
+               <button id="addHtml" class="text-[9px] text-zinc-400 hover:text-blue-400 font-bold px-1">+HTML</button>
+               <button id="addCss" class="text-[9px] text-zinc-400 hover:text-blue-400 font-bold px-1">+CSS</button>
+               <button id="addJs" class="text-[9px] text-zinc-400 hover:text-blue-400 font-bold px-1">+JS</button>
+            </div>
+          </div>
+          <div id="assetList" class="flex-1 overflow-y-auto"></div>
+        </div>
+
+        <div class="flex-1 flex flex-col relative">
+          <div id="noAssetPrompt" class="absolute inset-0 z-10 bg-zinc-900/90 flex flex-col items-center justify-center p-12 text-center">
+             <svg class="w-12 h-12 text-zinc-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+             <h3 class="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-2">No Assets Loaded</h3>
+             <p class="text-xs text-zinc-600 max-w-xs leading-relaxed">Drag and drop files to begin. JS files are now protected from corruption during image inlining.</p>
+          </div>
+
+          <div id="editorHeader" class="hidden p-3 border-b border-zinc-800 bg-zinc-900/20 flex items-center justify-between">
+            <span id="currentFileName" class="text-xs font-mono text-blue-400">Select an asset</span>
+            <button id="removeAsset" class="text-[10px] font-bold text-red-900 hover:text-red-500 uppercase">Delete File</button>
+          </div>
+          
+          <textarea id="mainEditor" class="editor-area hidden flex-1 w-full p-6 text-sm resize-none" placeholder="Paste code here..."></textarea>
+          
+          <div id="mediaView" class="hidden flex-1 flex flex-col items-center justify-center bg-black p-10 overflow-hidden">
+             <div class="text-[10px] font-bold text-zinc-500 mb-4 uppercase tracking-widest">Binary Asset Preview</div>
+             <img id="imgPreview" class="max-w-full max-h-[300px] rounded border border-zinc-800 shadow-2xl mb-4" src="" alt="">
+             <div id="base64Summary" class="text-[10px] font-mono text-zinc-600 break-all max-w-md text-center"></div>
+          </div>
+
+          <div id="dropOverlay" class="absolute inset-0 pointer-events-none border-4 border-transparent flex items-center justify-center transition-all">
+             <div class="bg-blue-600 text-white px-8 py-4 rounded-full text-xs font-bold opacity-0 transition-opacity uppercase tracking-widest shadow-2xl scale-95 transform">Drop to Import</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Output Section -->
+      <section id="output" class="tab-content hidden p-6 space-y-6">
+        <div class="flex flex-wrap items-center gap-6 bg-zinc-900/50 p-5 rounded border border-zinc-800">
+          <div class="flex flex-col gap-1">
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Build Configuration</span>
+            <select id="mode" class="bg-black border border-zinc-700 text-xs rounded px-3 py-2 outline-none focus:border-blue-500">
+              <option value="inline">Single HTML Bundle (Inline Assets)</option>
+              <option value="separate">Multi-file Minification (Standard)</option>
+            </select>
+          </div>
+          <button id="build" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2.5 px-10 rounded transition-all active:scale-95 uppercase tracking-widest">
+            Run Build
+          </button>
+          <div id="build-status" class="hidden text-blue-400 text-[10px] font-bold uppercase tracking-widest">
+            Optimizing...
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <button id="togglePreview" class="w-full flex items-center justify-between p-3 bg-zinc-800/20 border border-zinc-700 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-800/40">
+            <span>Toggle Live Preview</span>
+            <span class="text-zinc-500">View</span>
+          </button>
+          <div id="previewBox" class="hidden overflow-hidden rounded border border-zinc-800 h-[400px] bg-white shadow-inner">
+            <iframe id="previewFrame" class="w-full h-full border-none" sandbox="allow-scripts"></iframe>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button id="downH" class="p-4 bg-zinc-900 border border-zinc-800 rounded hover:border-zinc-500 text-[10px] font-bold uppercase">HTML</button>
+            <button id="downC" class="p-4 bg-zinc-900 border border-zinc-800 rounded hover:border-zinc-500 text-[10px] font-bold uppercase">CSS</button>
+            <button id="downJ" class="p-4 bg-zinc-900 border border-zinc-800 rounded hover:border-zinc-500 text-[10px] font-bold uppercase">JS</button>
+            <button id="downA" class="p-4 bg-blue-900/20 border border-blue-800/50 rounded hover:bg-blue-900/30 text-[10px] font-bold uppercase text-blue-400">Bundle All</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Log Section -->
+      <section id="log" class="tab-content hidden p-6">
+        <div id="logBox" class="editor-area w-full h-96 p-4 rounded overflow-y-auto text-[11px] font-mono leading-relaxed">
+          <div class="text-zinc-600 italic">No logs recorded yet.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- IMAGE USAGE MODAL -->
+<div id="usageModalOverlay" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+    <div class="glass-card w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
+        <div class="p-6 border-b border-zinc-800">
+            <h2 class="text-sm font-bold uppercase tracking-[0.2em] text-white">Image Usage Review</h2>
+            <p class="text-[11px] text-zinc-500 mt-1">Review which assets are referenced in your code before proceeding with the build.</p>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-6 space-y-8">
+            <!-- Referenced Section -->
+            <div id="referencedSection">
+                <h3 class="modal-section-header text-emerald-500 border-b border-emerald-900/30">Referenced Assets</h3>
+                <div id="referencedList" class="space-y-2 mt-4"></div>
+            </div>
+
+            <!-- Unreferenced Section -->
+            <div id="unreferencedSection">
+                <h3 class="modal-section-header text-amber-500 border-b border-amber-900/30">Unused Assets (Will be removed)</h3>
+                <div id="unreferencedList" class="space-y-2 mt-4"></div>
+            </div>
+        </div>
+
+        <div class="p-6 border-t border-zinc-800 flex gap-4">
+            <button id="modalCancel" class="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] font-bold uppercase tracking-widest rounded">Cancel</button>
+            <button id="modalProceed" class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase tracking-widest rounded shadow-lg shadow-blue-900/20">Proceed & Clean Build</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { minify as minifyHTML } from "https://esm.sh/html-minifier-terser";
+import CleanCSS from "https://esm.sh/clean-css";
+import { minify as minifyJS } from "https://esm.sh/terser";
+
+let assets = [];
+let activeAssetId = null;
+let outputs = { html: "", css: "", js: "" };
+
+// UI Elements
+const logBox = document.getElementById("logBox");
+const assetList = document.getElementById("assetList");
+const mainEditor = document.getElementById("mainEditor");
+const mediaView = document.getElementById("mediaView");
+const imgPreview = document.getElementById("imgPreview");
+const base64Summary = document.getElementById("base64Summary");
+const currentFileName = document.getElementById("currentFileName");
+const buildStatus = document.getElementById("build-status");
+const noAssetPrompt = document.getElementById("noAssetPrompt");
+const editorHeader = document.getElementById("editorHeader");
+
+// Modal Elements
+const usageModal = document.getElementById("usageModalOverlay");
+const refList = document.getElementById("referencedList");
+const unrefList = document.getElementById("unreferencedList");
+const modalProceed = document.getElementById("modalProceed");
+const modalCancel = document.getElementById("modalCancel");
+
+const log = (msg) => {
+  if (logBox.children.length === 1 && logBox.querySelector('.italic')) logBox.innerHTML = '';
+  const entry = document.createElement("div");
+  entry.className = "log-line text-zinc-400 py-1 mb-1";
+  const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  entry.innerHTML = `<span class="text-zinc-600 font-mono mr-3">${time}</span> ${msg}`;
+  logBox.appendChild(entry);
+  logBox.scrollTop = logBox.scrollHeight;
+};
+
+const renderAssetList = () => {
+  assetList.innerHTML = '';
+  if (assets.length === 0) {
+    noAssetPrompt.classList.remove('hidden');
+    editorHeader.classList.add('hidden');
+    mainEditor.classList.add('hidden');
+    mediaView.classList.add('hidden');
+    return;
+  }
+  
+  noAssetPrompt.classList.add('hidden');
+  editorHeader.classList.remove('hidden');
+
+  assets.forEach(asset => {
+    const div = document.createElement('div');
+    div.className = `asset-item px-4 py-3 cursor-pointer border-b border-zinc-800/50 flex justify-between items-center ${asset.id === activeAssetId ? 'active' : ''}`;
+    div.innerHTML = `
+      <span class="text-xs font-mono truncate mr-2 ${asset.id === activeAssetId ? 'text-white' : 'text-zinc-500'}">${asset.name}</span>
+      <span class="text-[8px] px-1 bg-zinc-800 rounded font-bold uppercase text-zinc-400">${asset.type}</span>
+    `;
+    div.onclick = () => selectAsset(asset.id);
+    assetList.appendChild(div);
+  });
+};
+
+const selectAsset = (id) => {
+  if (!id) {
+    activeAssetId = null;
+    renderAssetList();
+    return;
+  }
+
+  const prev = assets.find(a => a.id === activeAssetId);
+  if (prev && prev.type !== 'media') prev.content = mainEditor.value;
+
+  activeAssetId = id;
+  const next = assets.find(a => a.id === id);
+  if (!next) return;
+
+  currentFileName.innerText = next.name;
+
+  if (next.type === 'media') {
+     mainEditor.classList.add('hidden');
+     mediaView.classList.remove('hidden');
+     imgPreview.src = next.content;
+     base64Summary.innerText = next.content.substring(0, 80) + "...";
+  } else {
+     mainEditor.classList.remove('hidden');
+     mediaView.classList.add('hidden');
+     mainEditor.value = next.content;
+  }
+  
+  renderAssetList();
+};
+
+const addAsset = (type, name, content) => {
+  const id = crypto.randomUUID();
+  assets.push({ id, type, name, content });
+  log(`Successfully imported: <span class="text-blue-400">${name}</span>`);
+  selectAsset(id);
+};
+
+// Controls
+document.getElementById("addHtml").onclick = () => addAsset('html', `page-${assets.filter(a => a.type === 'html').length + 1}.html`, '');
+document.getElementById("addCss").onclick = () => addAsset('css', `style-${assets.filter(a => a.type === 'css').length + 1}.css`, '');
+document.getElementById("addJs").onclick = () => addAsset('js', `script-${assets.filter(a => a.type === 'js').length + 1}.js`, '');
+
+document.getElementById("removeAsset").onclick = () => {
+  assets = assets.filter(a => a.id !== activeAssetId);
+  if (assets.length > 0) {
+    selectAsset(assets[assets.length - 1].id);
+  } else {
+    selectAsset(null);
+  }
+};
+
+document.querySelectorAll(".tab-btn").forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll(".tab-btn").forEach(e => e.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(e => e.classList.add("hidden"));
+    tab.classList.add("active");
+    document.getElementById(tab.dataset.tab).classList.remove("hidden");
+  };
+});
+
+// Drag & Drop
+const dropBoundary = document.getElementById("dropBoundary");
+const dropOverlay = document.getElementById("dropOverlay");
+
+dropBoundary.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropOverlay.classList.add('drop-zone-active');
+  dropOverlay.firstElementChild.style.opacity = '1';
+  dropOverlay.firstElementChild.style.transform = 'scale(1)';
+});
+
+dropBoundary.addEventListener('dragleave', (e) => {
+  if (e.relatedTarget === null || e.relatedTarget === dropBoundary) {
+     dropOverlay.classList.remove('drop-zone-active');
+     dropOverlay.firstElementChild.style.opacity = '0';
+  }
+});
+
+dropBoundary.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  dropOverlay.classList.remove('drop-zone-active');
+  dropOverlay.firstElementChild.style.opacity = '0';
+  
+  const files = Array.from(e.dataTransfer.files);
+  if (files.length === 0) return;
+
+  for (const file of files) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'].includes(ext)) {
+       const reader = new FileReader();
+       reader.onload = (ev) => addAsset('media', file.name, ev.target.result);
+       reader.readAsDataURL(file);
+    } else {
+        const text = await file.text();
+        if (['html', 'htm'].includes(ext)) addAsset('html', file.name, text);
+        else if (ext === 'css') addAsset('css', file.name, text);
+        else if (ext === 'js') addAsset('js', file.name, text);
+    }
+  }
+});
+
+// --- CORE FIX: Usage Detection & Protected Build ---
+
+const scanImageUsage = () => {
+    const media = assets.filter(a => a.type === 'media');
+    const htmlText = assets.filter(a => a.type === 'html').map(a => a.content).join(' ');
+    const cssText = assets.filter(a => a.type === 'css').map(a => a.content).join(' ');
+    
+    const used = [];
+    const unused = [];
+
+    media.forEach(asset => {
+        const name = asset.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // HTML Search: src="filename" or href="filename"
+        const htmlRegex = new RegExp(`(src|href)=["']([^"']*\\/)?${name}["']`, 'i');
+        // CSS Search: url(filename) or url("filename")
+        const cssRegex = new RegExp(`url\\(\\s*["']?([^"')]*\\/)?${name}["']?\\s*\\)`, 'i');
+
+        let foundIn = [];
+        if (htmlRegex.test(htmlText)) foundIn.push('HTML');
+        if (cssRegex.test(cssText)) foundIn.push('CSS');
+
+        if (foundIn.length > 0) {
+            used.push({ ...asset, foundIn });
+        } else {
+            unused.push(asset);
+        }
+    });
+
+    return { used, unused };
+};
+
+const showUsageModal = (used, unused) => {
+    refList.innerHTML = '';
+    unrefList.innerHTML = '';
+
+    used.forEach(img => {
+        const div = document.createElement('div');
+        div.className = "flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 p-2 rounded";
+        div.innerHTML = `
+            <img src="${img.content}" class="w-8 h-8 object-cover rounded">
+            <span class="text-xs font-mono text-emerald-400 flex-1">${img.name}</span>
+            <span class="usage-badge bg-emerald-500/20 text-emerald-400 uppercase">In ${img.foundIn.join(' & ')}</span>
+        `;
+        refList.appendChild(div);
+    });
+
+    unused.forEach(img => {
+        const div = document.createElement('div');
+        div.className = "flex items-center gap-3 bg-amber-500/5 border border-amber-500/20 p-2 rounded opacity-80";
+        div.innerHTML = `
+            <img src="${img.content}" class="w-8 h-8 object-cover rounded">
+            <span class="text-xs font-mono text-amber-500 flex-1">${img.name}</span>
+            <span class="usage-badge bg-amber-500/20 text-amber-500 uppercase">Unused</span>
+        `;
+        unrefList.appendChild(div);
+    });
+
+    usageModal.classList.remove('hidden');
+};
+
+modalCancel.onclick = () => usageModal.classList.add('hidden');
+
+modalProceed.onclick = () => {
+    usageModal.classList.add('hidden');
+    const { unused } = scanImageUsage();
+    // Delete unused assets from state
+    assets = assets.filter(a => !unused.find(u => u.id === a.id));
+    renderAssetList();
+    log(`Purged ${unused.length} unused media assets.`);
+    executeBuild();
+};
+
+document.getElementById("build").onclick = () => {
+    // Save current editor state
+    const current = assets.find(a => a.id === activeAssetId);
+    if (current && current.type !== 'media') current.content = mainEditor.value;
+
+    const { used, unused } = scanImageUsage();
+    
+    if (unused.length > 0) {
+        showUsageModal(used, unused);
+    } else {
+        executeBuild();
+    }
+};
+
+const executeBuild = async () => {
+  const htmlSource = assets.find(a => a.type === 'html');
+  if (!htmlSource) {
+    log("<span class='text-red-500'>Error:</span> No HTML entry found.");
+    return;
+  }
+
+  buildStatus.classList.remove('hidden');
+  log("Starting protected build sequence...");
+  
+  const mode = document.getElementById("mode").value;
+  let finalHTML = htmlSource.content;
+  let combinedCSS = assets.filter(a => a.type === 'css').map(a => a.content).join('\n');
+  let combinedJS = assets.filter(a => a.type === 'js').map(a => a.content).join('\n');
+  const mediaAssets = assets.filter(a => a.type === 'media');
+
+  try {
+    // 1. Minification (Standard)
+    if (combinedCSS) {
+        combinedCSS = new CleanCSS().minify(combinedCSS).styles;
+    }
+    if (combinedJS) {
+        // JS is minified but NOT mutated for images to prevent breaking logic
+        combinedJS = (await minifyJS(combinedJS)).code;
+    }
+
+    // 2. Inlining (ONLY HTML & CSS)
+    if (mode === 'inline' && mediaAssets.length > 0) {
+      log(`Inlining ${mediaAssets.length} assets into HTML/CSS...`);
+      mediaAssets.forEach(media => {
+        const escapedName = media.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pathRegex = new RegExp(`(['"\\(])(?:[^'"\\(\\)]*?\\/)?${escapedName}(['"\\)])`, 'g');
+        const replaceFn = (match, p1, p2) => `${p1}${media.content}${p2}`;
+
+        finalHTML = finalHTML.replace(pathRegex, replaceFn);
+        if (combinedCSS) combinedCSS = combinedCSS.replace(pathRegex, replaceFn);
+        
+        // !! JS MUTATION REMOVED !!
+        // This prevents the tool from breaking fetch calls or logic variables in JS.
+      });
+    }
+
+    if (mode === 'inline') {
+      if (combinedCSS) finalHTML = finalHTML.replace('</head>', `<style>${combinedCSS}</style></head>`);
+      if (combinedJS) finalHTML = finalHTML.replace('</body>', `<script>${combinedJS}<\/script></body>`);
+    }
+
+    // 3. Final HTML Compression
+    finalHTML = await minifyHTML(finalHTML, {
+      collapseWhitespace: true,
+      removeComments: true,
+      minifyCSS: true,
+      minifyJS: true
+    });
+
+    outputs = { html: finalHTML, css: combinedCSS, js: combinedJS };
+    document.getElementById("previewFrame").srcdoc = finalHTML;
+    
+    log("<span class='text-green-500 font-bold'>Build Complete.</span> Outputs generated.");
+    document.querySelector('[data-tab="output"]').click();
+
+  } catch (err) {
+    log(`<span class="text-red-500">Error:</span> ${err.message}`);
+  } finally {
+    buildStatus.classList.add('hidden');
+  }
+};
+
+// Utils
+const dl = (n, c) => {
+  if (!c) return;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([c], { type: "text/plain" }));
+  a.download = n;
+  a.click();
+};
+
+document.getElementById("downH").onclick = () => dl("index.min.html", outputs.html);
+document.getElementById("downC").onclick = () => dl("styles.min.css", outputs.css);
+document.getElementById("downJ").onclick = () => dl("scripts.min.js", outputs.js);
+document.getElementById("downA").onclick = () => {
+  dl("index.min.html", outputs.html);
+  if (outputs.css) dl("styles.min.css", outputs.css);
+  if (outputs.js) dl("scripts.min.js", outputs.js);
+};
+
+document.getElementById("togglePreview").onclick = () => {
+  document.getElementById("previewBox").classList.toggle('hidden');
+};
+
+renderAssetList();
+</script>
+</body>
+</html>
