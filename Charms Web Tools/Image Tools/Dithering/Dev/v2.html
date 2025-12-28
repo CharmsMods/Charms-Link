@@ -1,0 +1,392 @@
+<!-- filename: index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dither Studio — GPU Dithering Tool</title>
+<style>
+  :root{--bg:#0f1720;--panel:#111827;--accent:#38bdf8;--muted:#9ca3af;}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;background:var(--bg);color:#e6eef6}
+  .app{display:grid;grid-template-columns:360px 1fr;gap:18px;height:100vh;padding:18px;box-sizing:border-box}
+  .panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:16px;border-radius:12px;box-shadow:0 6px 20px rgba(2,6,23,0.6);overflow:auto}
+  h1{font-size:16px;margin:0 0 12px 0}
+  .control{margin-bottom:12px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  input[type=range]{width:100%}
+  select,input[type=file],button{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+  .canvas-wrap{display:flex;align-items:center;justify-content:center;background:#000;border-radius:12px;overflow:hidden}
+  canvas{max-width:100%;height:auto;width:100%;background:#000;display:block}
+  .row{display:flex;gap:8px}
+  .small{width:48%;}
+  .meta{font-size:12px;color:var(--muted);margin-top:6px}
+  .footer{margin-top:12px;font-size:12px;color:var(--muted)}
+  .val{float:right;color:#cbd5e1}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="panel" id="controls">
+    <h1>Dither Studio — GPU Dithering</h1>
+
+    <div class="control">
+      <label>Load image</label>
+      <input id="file" type="file" accept="image/*">
+    </div>
+
+    <div class="control">
+      <label>Bit depth (per channel) <span class="val" id="bitDepthVal">8</span></label>
+      <input id="bitDepth" type="range" min="0" max="1" step="0.001" value="1">
+      <div class="meta">Mapped exponentially to 1–8 bits for fine low-end control.</div>
+    </div>
+
+    <div class="control">
+      <label>Palette mode</label>
+      <select id="paletteMode">
+        <option value="none">None (bit-depth / posterize)</option>
+        <option value="auto">Auto (k-means palette)</option>
+      </select>
+    </div>
+
+    <div class="control">
+      <label>Palette size <span class="val" id="paletteSizeVal">8</span></label>
+      <input id="paletteSize" type="range" min="0" max="1" step="0.001" value="0.2">
+      <div class="meta">When using Auto, the palette will be computed (2–64 colors). Uses sampled k-means on the image.</div>
+    </div>
+
+    <div class="control">
+      <label>Dither type</label>
+      <select id="ditherType">
+        <option value="0">None</option>
+        <option value="1">Bayer (ordered)</option>
+        <option value="2">Noise (random)</option>
+      </select>
+    </div>
+
+    <div class="control">
+      <label>Dither strength <span class="val" id="ditherStrengthVal">0.75</span></label>
+      <input id="ditherStrength" type="range" min="0" max="1" step="0.001" value="0.75">
+    </div>
+
+    <div class="control row">
+      <div class="small"><label>Scale</label><input id="scale" type="range" min="0.125" max="4" step="0.125" value="1"></div>
+      <div class="small"><label>Preserve pixels</label><select id="filterMode"><option value="nearest">Nearest</option><option value="linear">Linear</option></select></div>
+    </div>
+
+    <div class="control">
+      <button id="exportBtn">Export PNG</button>
+    </div>
+
+    <div class="footer">Tip: use the bit-depth slider for posterize effects; use Auto palette for limited-color art. Palette compute is sampled and runs quickly on medium-sized images.</div>
+  </div>
+
+  <div class="panel" style="display:flex;flex-direction:column;">
+    <div class="canvas-wrap" style="flex:1;"> 
+      <canvas id="glcanvas"></canvas>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:12px;align-items:center;">
+      <div style="flex:1;color:var(--muted);font-size:12px">Image: <span id="info">No image loaded</span></div>
+      <div><button id="fitBtn">Fit to window</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// -------------------- Helpers --------------------
+function expMap(s, min, max){ return min * Math.pow(max / min, s); }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+// DOM
+const fileInput = document.getElementById('file');
+const canvas = document.getElementById('glcanvas');
+const info = document.getElementById('info');
+const bitDepthSlider = document.getElementById('bitDepth');
+const bitDepthVal = document.getElementById('bitDepthVal');
+const paletteMode = document.getElementById('paletteMode');
+const paletteSizeSlider = document.getElementById('paletteSize');
+const paletteSizeVal = document.getElementById('paletteSizeVal');
+const ditherType = document.getElementById('ditherType');
+const ditherStrength = document.getElementById('ditherStrength');
+const ditherStrengthVal = document.getElementById('ditherStrengthVal');
+const exportBtn = document.getElementById('exportBtn');
+const fitBtn = document.getElementById('fitBtn');
+const scaleSlider = document.getElementById('scale');
+const filterMode = document.getElementById('filterMode');
+
+let gl = null;
+let program = null;
+let imageTexture = null;
+let paletteTexture = null;
+let imageWidth = 0, imageHeight = 0;
+let loadedImage = null;
+
+// Max palette entries supported in shader
+const MAX_PALETTE = 64;
+
+// -------------------- WebGL setup --------------------
+function initGL(){
+  // preserveDrawingBuffer: true so canvas.toBlob reads the rendered pixels
+  // alpha: false to make the canvas opaque (avoid transparent output)
+  gl = canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true, alpha: false });
+  if(!gl) return alert('WebGL2 not supported');
+
+  const vs = `#version 300 es
+  in vec2 a_pos; in vec2 a_uv; out vec2 v_uv; void main(){v_uv=a_uv; gl_Position = vec4(a_pos,0,1);} `;
+
+  const fs = `#version 300 es
+  precision mediump float;
+  in vec2 v_uv; out vec4 fragColor;
+  uniform sampler2D u_image;
+  uniform sampler2D u_palette; // 1D palette stored in width x 1 texture
+  uniform int u_paletteSize;
+  uniform int u_ditherType; // 0 none,1 bayer,2 noise
+  uniform float u_ditherStrength;
+  uniform float u_bitDepth; // bits per channel (1..8)
+  uniform vec2 u_resolution;
+
+  // 4x4 Bayer matrix
+  float bayer4(ivec2 p){
+    int x = p.x & 3; int y = p.y & 3; int idx = x + y*4;
+    float m[16] = float[](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.);
+    return m[idx] / 16.0;
+  }
+
+  // simple hash for noise
+  float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123); }
+
+  vec3 applyDither(vec3 color, ivec2 fragCoord){
+    if(u_ditherType == 1){ float d = bayer4(fragCoord) - 0.5; return clamp(color + d * u_ditherStrength, 0.0, 1.0); }
+    if(u_ditherType == 2){ float n = hash(vec2(fragCoord)) - 0.5; return clamp(color + n * u_ditherStrength, 0.0, 1.0); }
+    return color;
+  }
+
+  vec3 quantizeBits(vec3 color, float bits){
+    float levels = pow(2.0, bits) - 1.0;
+    return floor(color * levels + 0.5) / levels;
+  }
+
+  vec3 paletteNearest(vec3 color, int paletteSize){
+    if(paletteSize <= 0) return color;
+    float bestDist = 1e9; vec3 bestCol = vec3(0.0);
+    for(int i=0;i<${MAX_PALETTE};++i){
+      if(i>=paletteSize) break;
+      vec3 p = texelFetch(u_palette, ivec2(i,0), 0).rgb;
+      float d = distance(p, color);
+      if(d < bestDist){ bestDist = d; bestCol = p; }
+    }
+    return bestCol;
+  }
+
+  void main(){
+    ivec2 fragCoord = ivec2(gl_FragCoord.xy);
+    vec3 c = texture(u_image, v_uv).rgb;
+    // apply dither before quantization
+    c = applyDither(c, fragCoord);
+    // quantize by bits if no palette, or apply palette nearest
+    if(u_paletteSize > 0){
+      vec3 pal = paletteNearest(c, u_paletteSize);
+      fragColor = vec4(pal, 1.0);
+    } else {
+      vec3 q = quantizeBits(c, u_bitDepth);
+      fragColor = vec4(q, 1.0);
+    }
+  }
+`;
+
+  const vert = createShader(gl.VERTEX_SHADER, vs);
+  const frag = createShader(gl.FRAGMENT_SHADER, fs);
+  program = createProgram(vert, frag);
+
+  // quad
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const pos = new Float32Array([
+    -1,-1, 0,0,
+     1,-1, 1,0,
+    -1, 1, 0,1,
+    -1, 1, 0,1,
+     1,-1, 1,0,
+     1, 1, 1,1
+  ]);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW);
+  const a_pos = gl.getAttribLocation(program, 'a_pos'); const a_uv = gl.getAttribLocation(program, 'a_uv');
+  gl.enableVertexAttribArray(a_pos); gl.vertexAttribPointer(a_pos,2,gl.FLOAT,false,16,0);
+  gl.enableVertexAttribArray(a_uv); gl.vertexAttribPointer(a_uv,2,gl.FLOAT,false,16,8);
+
+  // initial textures
+  imageTexture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, imageTexture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+  paletteTexture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, paletteTexture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+  gl.useProgram(program);
+  // bind texture units
+  gl.uniform1i(gl.getUniformLocation(program, 'u_image'), 0);
+  gl.uniform1i(gl.getUniformLocation(program, 'u_palette'), 1);
+
+  // clear color so canvas won't be transparent / uninitialized
+  gl.clearColor(0.0, 0.0, 0.0, 1.0);
+}
+
+function createShader(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){ console.error('Shader compile error:', gl.getShaderInfoLog(s)); throw new Error('Shader compile error'); } return s; }
+function createProgram(vs, fs){ const p = gl.createProgram(); gl.attachShader(p, vs); gl.attachShader(p, fs); gl.linkProgram(p); if(!gl.getProgramParameter(p, gl.LINK_STATUS)){ console.error('Program link error:', gl.getProgramInfoLog(p)); throw new Error('Program link error'); } return p; }
+
+// -------------------- Image / palette compute --------------------
+function uploadImage(img){
+  loadedImage = img;
+  imageWidth = img.naturalWidth || img.width; imageHeight = img.naturalHeight || img.height;
+  const scale = parseFloat(scaleSlider.value) || 1.0;
+  canvas.width = Math.max(1, Math.floor(imageWidth * scale));
+  canvas.height = Math.max(1, Math.floor(imageHeight * scale));
+  gl.viewport(0,0,canvas.width,canvas.height);
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, imageTexture);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+
+  // update info
+  info.textContent = imageWidth + ' x ' + imageHeight;
+
+  // compute palette if needed
+  requestRender();
+}
+
+async function computePaletteFromImage(maxEntries){
+  // sample image data via canvas
+  const tmp = document.createElement('canvas'); tmp.width = imageWidth; tmp.height = imageHeight;
+  const tctx = tmp.getContext('2d'); tctx.drawImage(loadedImage, 0, 0, imageWidth, imageHeight);
+  const imgd = tctx.getImageData(0,0,imageWidth,imageHeight).data;
+
+  const sampleCount = Math.min(2500, Math.floor((imageWidth*imageHeight)/10) || 2000);
+  const pixels = [];
+  for(let i=0;i<sampleCount;i++){
+    const idx = Math.floor(Math.random() * (imageWidth*imageHeight));
+    const off = idx*4;
+    pixels.push([imgd[off]/255, imgd[off+1]/255, imgd[off+2]/255]);
+  }
+
+  // k-means
+  const k = Math.min(maxEntries, MAX_PALETTE);
+  let centers = [];
+  for(let i=0;i<k;i++){ centers.push(pixels[Math.floor(Math.random()*pixels.length)].slice()); }
+  for(let iter=0; iter<12; iter++){
+    const bins = Array.from({length:k},()=>({sum:[0,0,0],count:0}));
+    for(const p of pixels){
+      let best=0,bestd=1e9; for(let i=0;i<k;i++){ const d = (p[0]-centers[i][0])**2 + (p[1]-centers[i][1])**2 + (p[2]-centers[i][2])**2; if(d<bestd){bestd=d;best=i;} }
+      bins[best].sum[0]+=p[0]; bins[best].sum[1]+=p[1]; bins[best].sum[2]+=p[2]; bins[best].count++;
+    }
+    let moved = 0;
+    for(let i=0;i<k;i++){
+      if(bins[i].count === 0) continue;
+      const nx = bins[i].sum[0]/bins[i].count; const ny = bins[i].sum[1]/bins[i].count; const nz = bins[i].sum[2]/bins[i].count;
+      moved += Math.abs(nx-centers[i][0])+Math.abs(ny-centers[i][1])+Math.abs(nz-centers[i][2]);
+      centers[i][0]=nx; centers[i][1]=ny; centers[i][2]=nz;
+    }
+    if(moved < 1e-5) break;
+  }
+
+  // if we got fewer than k, pad with black
+  while(centers.length < k) centers.push([0,0,0]);
+  return centers;
+}
+
+function uploadPalette(centers){
+  const k = centers.length;
+  const data = new Uint8Array(k*4);
+  for(let i=0;i<k;i++){ data[i*4+0] = Math.round(clamp(centers[i][0],0,1)*255); data[i*4+1] = Math.round(clamp(centers[i][1],0,1)*255); data[i*4+2] = Math.round(clamp(centers[i][2],0,1)*255); data[i*4+3] = 255; }
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, paletteTexture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, centers.length, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+}
+
+// -------------------- Render --------------------
+function render(){
+  if(!gl || !loadedImage) return;
+  gl.useProgram(program);
+
+  // set viewport and clear to ensure no transparent/garbage pixels
+  gl.viewport(0,0,canvas.width,canvas.height);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  // set uniforms
+  const bits = Math.round(expMap(parseFloat(bitDepthSlider.value), 1, 8));
+  const paletteModeVal = paletteMode.value;
+  const paletteSize = (paletteModeVal === 'auto') ? Math.round(expMap(parseFloat(paletteSizeSlider.value), 2, MAX_PALETTE)) : 0;
+  gl.uniform1f(gl.getUniformLocation(program,'u_bitDepth'), bits);
+  gl.uniform1i(gl.getUniformLocation(program,'u_paletteSize'), paletteSize);
+  gl.uniform1i(gl.getUniformLocation(program,'u_ditherType'), parseInt(ditherType.value));
+  gl.uniform1f(gl.getUniformLocation(program,'u_ditherStrength'), parseFloat(ditherStrength.value));
+  gl.uniform2f(gl.getUniformLocation(program,'u_resolution'), canvas.width, canvas.height);
+
+  // set filtering
+  const f = (filterMode.value === 'nearest') ? gl.NEAREST : gl.LINEAR;
+  gl.bindTexture(gl.TEXTURE_2D, imageTexture); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+
+  // active textures
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, imageTexture);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, paletteTexture);
+
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+}
+
+let _renderPending = false;
+function requestRender(){ if(_renderPending) return; _renderPending = true; requestAnimationFrame(()=>{ _renderPending=false; onBeforeRender().then(()=>render()); }); }
+
+async function onBeforeRender(){
+  // if palette auto, compute and upload
+  if(!loadedImage) return;
+  const paletteModeVal = paletteMode.value;
+  if(paletteModeVal === 'auto'){
+    const size = Math.round(expMap(parseFloat(paletteSizeSlider.value), 2, MAX_PALETTE));
+    paletteSizeVal.textContent = size;
+    const centers = await computePaletteFromImage(size);
+    uploadPalette(centers);
+  } else {
+    paletteSizeVal.textContent = '—';
+    // upload empty palette so shader works
+    const empty = new Uint8Array([0,0,0,255]);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, paletteTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, empty);
+  }
+}
+
+// -------------------- Events --------------------
+fileInput.addEventListener('change', async (e)=>{
+  const f = e.target.files && e.target.files[0]; if(!f) return;
+  const img = new Image();
+  img.onload = ()=>{ uploadImage(img); };
+  img.src = URL.createObjectURL(f);
+});
+
+bitDepthSlider.addEventListener('input', ()=>{ const bits = Math.round(expMap(parseFloat(bitDepthSlider.value),1,8)); bitDepthVal.textContent = bits; requestRender(); });
+paletteSizeSlider.addEventListener('input', ()=>{ const size = Math.round(expMap(parseFloat(paletteSizeSlider.value),2,MAX_PALETTE)); paletteSizeVal.textContent = size; requestRender(); });
+ditherStrength.addEventListener('input', ()=>{ ditherStrengthVal.textContent = parseFloat(ditherStrength.value).toFixed(2); requestRender(); });
+ditherType.addEventListener('change', ()=>requestRender());
+paletteMode.addEventListener('change', ()=>requestRender());
+scaleSlider.addEventListener('input', ()=>{ if(loadedImage) uploadImage(loadedImage); });
+filterMode.addEventListener('change', ()=>requestRender());
+fitBtn.addEventListener('click', ()=>{ if(!loadedImage) return; // fit canvas to container
+  const wrap = canvas.parentElement; const cw = wrap.clientWidth; const ch = wrap.clientHeight; const ar = imageWidth / imageHeight; let w = cw, h = Math.floor(w / ar); if(h > ch){ h = ch; w = Math.floor(h * ar);} canvas.style.width = w + 'px'; canvas.style.height = h + 'px'; });
+
+exportBtn.addEventListener('click', ()=>{
+  // debug: ensure canvas has valid size before exporting
+  if(!canvas.width || !canvas.height){ console.warn('Export skipped: canvas size is zero'); return; }
+  canvas.toBlob((b)=>{ const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'dithered.png'; a.click(); }, 'image/png');
+});
+
+// -------------------- Init --------------------
+initGL();
+// initial uniform values
+bitDepthVal.textContent = Math.round(expMap(parseFloat(bitDepthSlider.value),1,8));
+paletteSizeVal.textContent = Math.round(expMap(parseFloat(paletteSizeSlider.value),2,MAX_PALETTE));
+ditherStrengthVal.textContent = parseFloat(ditherStrength.value).toFixed(2);
+
+</script>
+</body>
+</html>
