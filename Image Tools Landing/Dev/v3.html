@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pro-Grade Fluid Grid</title>
+  <style>
+    :root {
+      --bg: #020202;
+      --fg: #f5f5f5;
+      --border: rgba(255,255,255,0.1);
+      --accent: #ffffff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; overflow: hidden; height: 100vh; }
+
+    /* ─── BACKGROUND SYSTEM ─── */
+    .bg-container { position: fixed; inset: 0; z-index: 0; background: black; }
+    
+    .bg-layer {
+      position: absolute;
+      inset: 0;
+      background-position: center;
+      background-size: cover;
+      opacity: 0;
+      transition: opacity 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: opacity;
+      transform: translateZ(0);
+    }
+    .bg-layer.active { opacity: 0.35; }
+
+    /* ─── UI ELEMENTS ─── */
+    .grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      padding: 60px;
+      height: 100vh;
+      align-content: center;
+      z-index: 10;
+    }
+
+    .card {
+      height: 150px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      color: inherit;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(12px);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .card:hover {
+      border-color: var(--accent);
+      transform: scale(1.03) translateY(-4px);
+      background: rgba(255,255,255,0.08);
+    }
+
+    .card span { letter-spacing: 2px; text-transform: uppercase; font-size: 0.85rem; font-weight: 500; }
+  </style>
+</head>
+<body>
+
+  <div class="bg-container" id="bg-stack">
+    <div class="bg-layer" id="l1"></div>
+    <div class="bg-layer" id="l2"></div>
+    <div class="bg-layer" id="l3"></div>
+  </div>
+
+  <div class="grid">
+    <a class="card" data-img="../images/Noise Studio.png"><span>Noise Studio</span></a>
+    <a class="card" data-img="../images/Background Remover.png"><span>Background Remover</span></a>
+    <a class="card" data-img="../images/Image Corruption.png"><span>Image Corruption</span></a>
+    <a class="card" data-img="../images/JPG Hex Editor.png"><span>JPG Hex Editor</span></a>
+    <a class="card" data-img="../images/Motion Detection.png"><span>Motion Detection</span></a>
+    <a class="card" data-img="../images/Pixel Art.png"><span>Pixel Art</span></a>
+  </div>
+
+  <script>
+    const layers = Array.from(document.querySelectorAll('.bg-layer'));
+    const cards = document.querySelectorAll('.card');
+    
+    let currentLayerIdx = 0;
+    let zIndexCounter = 1;
+    let fadeOutTimeout;
+
+    // ─── 1. PRELOADER & DIAGNOSTICS ───
+    console.log("🚀 Preloader starting...");
+    cards.forEach(card => {
+      const url = card.dataset.img;
+      const img = new Image();
+      
+      img.onload = () => console.log(`✅ Loaded: ${url}`);
+      img.onerror = () => {
+        console.error(`❌ FAILED TO LOAD: ${url}`);
+        console.warn(`Check if the path is correct relative to this HTML file.`);
+      };
+      img.src = url;
+    });
+
+    // ─── 2. CORE INTERACTION LOGIC ───
+    cards.forEach(card => {
+      card.addEventListener('mouseenter', () => {
+        if (fadeOutTimeout) clearTimeout(fadeOutTimeout);
+        
+        const imgUrl = card.dataset.img;
+        
+        // Circular buffer (Cycle through layers 1, 2, 3)
+        currentLayerIdx = (currentLayerIdx + 1) % layers.length;
+        const targetLayer = layers[currentLayerIdx];
+
+        // Lift newest layer to the top of the stack
+        zIndexCounter++;
+        targetLayer.style.zIndex = zIndexCounter;
+
+        // Apply image and trigger fade
+        targetLayer.style.backgroundImage = `url("${imgUrl}")`;
+        targetLayer.classList.add('active');
+
+        // Clean up the "oldest" layers gradually
+        layers.forEach((l, idx) => {
+          if (idx !== currentLayerIdx) {
+            l.classList.remove('active');
+          }
+        });
+      });
+
+      card.addEventListener('mouseleave', () => {
+        // Delay complete fade-out to prevent flickering during fast movements
+        fadeOutTimeout = setTimeout(() => {
+          layers.forEach(l => l.classList.remove('active'));
+        }, 400);
+      });
+    });
+  </script>
+</body>
+</html>

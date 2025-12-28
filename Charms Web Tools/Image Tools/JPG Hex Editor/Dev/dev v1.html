@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>JPEG Byte Editor</title>
+  <style>
+    :root {
+      --bg: #121212;
+      --panel: #1e1e1e;
+      --text: #e0e0e0;
+      --muted: #888;
+      --accent: #4dabf7;
+      --danger: #ff6b6b;
+      --border: #333;
+      --hover-bg: #2a2a2a;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Segoe UI Mono', monospace;
+    }
+    
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    
+    .app {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 14px;
+      height: 100vh;
+      width: 100%;
+      box-sizing: border-box;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .top-row {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 14px;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+    
+    .preview-section {
+      height: 40vh;
+      min-height: 200px;
+      max-height: 50vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .controls-panel {
+      overflow-y: auto;
+    }
+    
+    .panel {
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+      overflow: auto;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    
+    header {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    h1 {
+      font-size: 16px;
+      margin: 0;
+      color: var(--text);
+    }
+    
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    
+    input[type=file] {
+      display: none;
+    }
+
+    /* left column */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .btn {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      background: #2a2a2a;
+      color: var(--text);
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+      background: #333;
+      border-color: #444;
+    }
+    
+    .btn.secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      font-weight: 400;
+    }
+    
+    .meta {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    
+    .segment-list {
+      max-height: 360px;
+      overflow: auto;
+      border-radius: 6px;
+      padding: 6px;
+      border: 1px dashed var(--border);
+      background: rgba(255, 255, 255, 0.03);
+    }
+    
+    .seg {
+      padding: 8px;
+      border-radius: 6px;
+      margin: 4px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s ease;
+    }
+    
+    .seg:hover {
+      background: var(--hover-bg);
+    }
+    
+    .seg .m {
+      font-weight: 600;
+      color: var(--text);
+    }
+    
+    .seg .off {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* center: hex editor */
+    .editor {
+      height: calc(100vh - 120px);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .hexview {
+      flex: 1;
+      background: #1a1a1a;
+      color: #e0e0e0;
+      padding: 12px;
+      border-radius: 8px;
+      overflow: auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      border: 1px solid var(--border);
+    }
+    
+    .hex-line {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      line-height: 1.5;
+    }
+    
+    .offset {
+      width: 90px;
+      color: #7fdbff;
+      flex: 0 0 90px;
+      opacity: 0.8;
+    }
+    
+    .bytes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    
+    .byte {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    
+    .byte:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .byte.editing {
+      outline: 2px solid var(--accent);
+      background: rgba(77, 171, 247, 0.2);
+    }
+    
+    .byte.highlight {
+      background: rgba(255, 213, 0, 0.25);
+    }
+    
+    .ascii {
+      margin-left: 12px;
+      color: #b3b9c5;
+      letter-spacing: 1px;
+    }
+    
+    .controls-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    /* right: preview */
+    .preview {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: stretch;
+    }
+    
+    .img-wrap {
+      position: relative;
+      border-radius: 8px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      flex: 1;
+      min-height: 100px;
+      background: #141414;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .img-wrap img {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      display: block;
+      object-fit: contain;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+    
+    .compare {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    
+    .compare img.top {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      object-fit: contain;
+    }
+    
+    .compare .slider {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 50%;
+      overflow: hidden;
+      border-right: 2px solid var(--accent);
+    }
+    
+    footer {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--muted);
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .warn {
+      color: var(--danger);
+      font-weight: 600;
+    }
+    
+    .muted {
+      color: var(--muted);
+    }
+
+    /* form elements */
+    input[type=number],
+    select,
+    input[type=range] {
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #2a2a2a;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+    }
+    
+    input[type=number]:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(77, 171, 247, 0.2);
+    }
+    
+    select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23888%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 10px;
+      padding-right: 30px;
+    }
+    
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top-row">
+      <div class="panel controls-panel">
+        <header>
+          <h1>JPEG Byte Editor</h1>
+        </header>
+        <div class="controls">
+          <label class="btn" style="margin-bottom: 12px;">
+            Choose JPEG
+            <input id="file" type="file" accept="image/jpeg">
+          </label>
+          <div class="row">
+            <button class="btn secondary" id="resetBtn">Reset edits</button>
+          </div>
+          <div class="meta panel-block">
+            <div><strong id="fname">No file</strong></div>
+            <div class="small">Size: <span id="fsize">—</span> • Type: <span id="ftype">—</span></div>
+          </div>
+
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><strong>JPEG segments</strong><span class="small">click to select</span></div>
+            <div class="segment-list" id="segments"></div>
+          </div>
+
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><strong>Corruption tools</strong></div>
+            <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+              <input id="corruptCount" type="number" value="10" min="1" style="width:80px"> bytes
+            </div>
+            <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+              <select id="corruptScope"><option value="all">Entire file</option><option value="selected">Selected segment</option></select>
+              <button class="btn" id="corruptBtn">Corrupt</button>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+              <button class="btn secondary" id="flipBits">Flip random bits</button>
+              <button class="btn secondary" id="sanitizeBtn">Sanitize byte-stuffing</button>
+            </div>
+          </div>
+
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><strong>Undo / History</strong></div>
+            <div style="display:flex;gap:8px;margin-top:6px"><button class="btn" id="undoBtn">Undo</button><button class="btn" id="snapshotBtn">Snapshot</button></div>
+          </div>
+
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><strong>Download</strong></div>
+            <div style="display:flex;gap:8px;margin-top:6px">
+              <button class="btn" id="downloadBtn">Download modified</button>
+              <button class="btn secondary" id="downloadRawBtn">Download bytes.bin</button>
+            </div>
+          </div>
+
+          <div class="small muted">All processing happens locally in your browser. Use 'Reset edits' to revert to original file.</div>
+        </div>
+      </div>
+
+      <div class="panel editor">
+        <div class="controls-row">
+          <div class="small muted">Hex / Byte editor (double-click any byte to edit)</div>
+          <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+            <label class="small muted">Bytes/line <input id="bytesPerLine" type="number" value="16" min="8" max="32" style="width:64px"></label>
+            <button class="btn secondary" id="reflow">Reflow</button>
+          </div>
+        </div>
+        <div id="hexview" class="hexview" tabindex="0" aria-label="Hex byte viewer"></div>
+      </div>
+    </div>
+
+    <div class="preview-section">
+      <div class="panel preview">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>Preview</strong>
+          <div class="small muted">Decode status: <span id="status">idle</span></div>
+        </div>
+        <div class="img-wrap">
+          <img id="modImg" alt="Modified" style="width:100%;height:100%;object-fit:contain;display:block;background:#222">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:8px">
+          <button class="btn" id="refreshPreview">Refresh Preview</button>
+        </div>
+        <footer>
+          <div class="small muted">Notes: Editing entropy-coded sections may produce visual corruption or decode failure. 'Sanitize byte-stuffing' will insert 0x00 after any 0xFF inside entropy regions; this changes file length.</div>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Helper utilities
+    const $ = id => document.getElementById(id);
+    let originalBytes = null; // Uint8Array
+    let bytes = null; // working Uint8Array
+    let history = [];
+    let segments = [];
+    let selectedSegmentIndex = -1;
+    let bytesPerLine = parseInt($('bytesPerLine').value,10) || 16;
+    let currentBlobUrl = null;
+
+    // Marker name map
+    const markerNames = (m => ({
+      0xD8: 'SOI', 0xD9:'EOI', 0xDA:'SOS',
+      0xE0:'APP0',0xE1:'APP1',0xFE:'COM',
+    }))();
+    function markerName(b){
+      if(markerNames[b]) return markerNames[b];
+      if(b>=0xE0 && b<=0xEF) return 'APP'+(b-0xE0);
+      if(b>=0xC0 && b<=0xCF) return 'SOF'+(b-0xC0);
+      if(b>=0xD0 && b<=0xD7) return 'RST'+(b-0xD0);
+      return '0x'+b.toString(16).padStart(2,'0').toUpperCase();
+    }
+
+    // read file
+    $('file').addEventListener('change', function(e) {
+      const file = this.files[0];
+      if (file) {
+        loadFile(file);
+      }
+    });
+    
+
+    $('resetBtn').addEventListener('click', ()=>{
+      if(!originalBytes) return; bytes = originalBytes.slice(); history = []; selectedSegmentIndex=-1; renderAll(); setStatus('reset to original');
+    });
+
+    function setStatus(s){$('status').textContent = s}
+
+    async function loadFile(file){
+      const ab = await file.arrayBuffer();
+      originalBytes = new Uint8Array(ab);
+      bytes = originalBytes.slice();
+      history = [];
+      selectedSegmentIndex = -1;
+      $('fname').textContent = file.name; $('fsize').textContent = originalBytes.length+' bytes'; $('ftype').textContent = file.type || 'image/jpeg';
+      renderAll();
+      refreshPreview();
+      setStatus('loaded');
+    }
+
+    function renderAll(){
+      parseSegments(); renderSegments(); renderHex(); refreshPreview();
+    }
+
+    function parseSegments(){
+      segments = [];
+      if(!bytes) return;
+      const n = bytes.length;
+      let i = 0;
+      // expect SOI first
+      if(n>=2 && bytes[0]===0xFF && bytes[1]===0xD8){
+        segments.push({marker:0xD8,name:'SOI',offset:0,length:2,payloadOffset:null,payloadLength:0});
+        i = 2;
+      }
+      while(i < n){
+        if(bytes[i] !== 0xFF){
+          // stray bytes — treat as data until next 0xFF
+          const start = i;
+          while(i<n && bytes[i]!==0xFF) i++;
+          segments.push({marker:null,name:'DATA',offset:start,length:i-start,payloadOffset:start,payloadLength:i-start});
+          continue;
+        }
+        // bytes[i] == 0xFF
+        if(i+1 >= n) break;
+        let j = i+1;
+        // skip any fill 0xFF
+        while(j<n && bytes[j]===0xFF) j++;
+        if(j>=n) break;
+        const m = bytes[j];
+        // 0x00 means stuffed 0xFF inside data
+        if(m===0x00){ i = j+1; continue; }
+        const marker = m;
+        const name = markerName(marker);
+        // markers without length: SOI(0xD8), EOI(0xD9), RSTn(0xD0-0xD7), TEM(0x01)
+        if(marker===0xD8 || marker===0xD9 || (marker>=0xD0 && marker<=0xD7) || marker===0x01){
+          segments.push({marker, name, offset:i, length:2, payloadOffset:null, payloadLength:0});
+          i = j+1; continue;
+        }
+        // markers with 2-byte big-endian length at j+1 and j+2? Actually length bytes at j+1,j+2
+        if(j+2 >= n) break;
+        const len = (bytes[j+1]<<8) | bytes[j+2];
+        const segStart = i;
+        const headerLen = 2 + 2; // 0xFF, marker + 2 length bytes
+        const payloadOffset = j+3; // wait: positions: i=FF, j=marker, j+1=lenHi, j+2=lenLo -> payload starts at j+3
+        // But careful: we computed len as bytes[j+1]<<8 | bytes[j+2]; length includes the 2 bytes of length per spec
+        const payloadLen = Math.max(0, len-2);
+        const segTotalLen = headerLen + payloadLen; // seg length in bytes from i
+        segments.push({marker, name, offset:segStart, length:segTotalLen, payloadOffset:payloadOffset, payloadLength:payloadLen});
+        // If SOS, entropy-coded data follows until next 0xFF marker (not stuffed)
+        if(marker===0xDA){
+          // entropy starts at payloadOffset + payloadLen (which is position after SOS header)
+          let k = segStart + segTotalLen;
+          // scan until 0xFF followed by non-zero and not fill
+          while(k < n-1){
+            if(bytes[k] === 0xFF){
+              let m2 = bytes[k+1];
+              if(m2 === 0x00){ // stuffed 0xFF
+                k += 2; continue;
+              }
+              // Found marker start — entropy ends before k
+              break;
+            }
+            k++;
+          }
+          const entropyStart = segStart + segTotalLen;
+          const entropyLen = Math.max(0, (k - entropyStart));
+          if(entropyLen>0){
+            segments.push({marker:0xEE,name:'Entropy',offset:entropyStart,length:entropyLen,payloadOffset:entropyStart,payloadLength:entropyLen,relatedSOS:segments.length-1});
+          }
+          // loop continues at k (which should be a marker starting with 0xFF)
+          i = k;
+        } else {
+          i = segStart + segTotalLen;
+        }
+      }
+      // ensure EOI exists? if last marker not EOI, leave as is
+    }
+
+    function renderSegments(){
+      const wrap = $('segments'); wrap.innerHTML='';
+      segments.forEach((s,idx)=>{
+        const el = document.createElement('div'); el.className='seg';
+        const left = document.createElement('div'); left.innerHTML = `<div class="m">${s.name}</div><div class="off">offset ${s.offset} • ${s.length} bytes</div>`;
+        const right = document.createElement('div');
+        const btn = document.createElement('button'); btn.className='btn secondary'; btn.textContent='Select'; btn.addEventListener('click', ()=>{ selectSegment(idx); });
+        right.appendChild(btn);
+        el.appendChild(left); el.appendChild(right);
+        wrap.appendChild(el);
+      });
+    }
+
+    function selectSegment(i){ selectedSegmentIndex = i; renderHex(); setStatus('selected segment '+i+' ('+segments[i].name+')'); }
+
+    function renderHex(){
+      const view = $('hexview'); view.innerHTML=''; if(!bytes) return;
+      bytesPerLine = parseInt($('bytesPerLine').value,10) || 16;
+      const n = bytes.length;
+      for(let offset=0; offset<n; offset+=bytesPerLine){
+        const line = document.createElement('div'); line.className='hex-line';
+        const off = document.createElement('div'); off.className='offset'; off.textContent = offset.toString(16).padStart(8,'0');
+        const bytesWrap = document.createElement('div'); bytesWrap.className='bytes';
+        const ascii = document.createElement('div'); ascii.className='ascii';
+        for(let i=0;i<bytesPerLine;i++){
+          const idx = offset + i;
+          const bspan = document.createElement('span'); bspan.className='byte';
+          bspan.dataset.index = idx;
+          if(idx < n){
+            const v = bytes[idx];
+            bspan.textContent = v.toString(16).padStart(2,'0').toUpperCase();
+            const ch = (v>=32 && v<127) ? String.fromCharCode(v) : '.';
+            ascii.textContent += ch;
+            // highlight if in selected segment
+            if(selectedSegmentIndex>=0){
+              const s = segments[selectedSegmentIndex];
+              if(s && idx>=s.offset && idx < s.offset + s.length) bspan.classList.add('highlight');
+            }
+            bspan.addEventListener('dblclick', onByteEdit);
+          } else { bspan.textContent = '  '; ascii.textContent += ' '; }
+          bytesWrap.appendChild(bspan);
+        }
+        line.appendChild(off); line.appendChild(bytesWrap); line.appendChild(ascii);
+        view.appendChild(line);
+      }
+    }
+
+    function onByteEdit(e){
+      const span = e.currentTarget; const idx = parseInt(span.dataset.index,10); if(isNaN(idx) || idx<0 || idx>=bytes.length) return;
+      const old = bytes[idx];
+      const input = document.createElement('input'); input.type='text'; input.value = old.toString(16).padStart(2,'0').toUpperCase(); input.style.width='44px'; input.style.fontFamily='var(--mono)';
+      span.innerHTML=''; span.appendChild(input); input.select();
+      input.addEventListener('blur', ()=>{ finishEdit(); });
+      input.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter'){ finishEdit(); } else if(ev.key==='Escape'){ cancelEdit(); } });
+      function finishEdit(){ const v = input.value.trim(); if(/^[0-9a-fA-F]{1,2}$/.test(v)){
+          const nv = parseInt(v,16); pushHistory(); bytes[idx] = nv; renderHex(); refreshPreview(); setStatus('edited byte '+idx);
+        } else { setStatus('invalid hex'); renderHex(); }
+      }
+      function cancelEdit(){ renderHex(); setStatus('edit canceled'); }
+    }
+
+    function pushHistory(){ if(!bytes) return; history.push(bytes.slice()); if(history.length>50) history.shift(); }
+    $('undoBtn').addEventListener('click', ()=>{ if(history.length===0) return; bytes = history.pop(); renderAll(); setStatus('undo'); });
+    $('snapshotBtn').addEventListener('click', ()=>{ pushHistory(); setStatus('snapshot saved'); });
+
+    // corruption
+    $('corruptBtn').addEventListener('click', ()=>{
+      const cnt = Math.max(1, parseInt($('corruptCount').value,10) || 1);
+      const scope = $('corruptScope').value;
+      pushHistory();
+      if(scope==='all' || selectedSegmentIndex<0){
+        corruptRandom(bytes, cnt, 0, bytes.length-1);
+      } else {
+        const s = segments[selectedSegmentIndex]; corruptRandom(bytes,cnt,s.offset, s.offset + s.length -1);
+      }
+      renderHex(); refreshPreview(); setStatus('corrupted '+cnt+' bytes');
+    });
+
+    $('flipBits').addEventListener('click', ()=>{
+      pushHistory(); flipRandomBits(Math.max(1,parseInt($('corruptCount').value,10)||1)); renderHex(); refreshPreview(); setStatus('flipped bits');
+    });
+
+    function corruptRandom(arr,count,start=0,end=arr.length-1){
+      for(let k=0;k<count;k++){
+        const idx = Math.floor(Math.random()*(end-start+1))+start;
+        arr[idx] = Math.floor(Math.random()*256);
+      }
+    }
+    function flipRandomBits(count){
+      for(let k=0;k<count;k++){
+        const idx = Math.floor(Math.random()*bytes.length);
+        const mask = 1 << Math.floor(Math.random()*8);
+        bytes[idx] = bytes[idx] ^ mask;
+      }
+    }
+
+    // sanitize byte-stuffing inside entropy regions (inserts 0x00 after 0xFF inside entropy)
+    $('sanitizeBtn').addEventListener('click', ()=>{
+      pushHistory(); sanitizeEntropy(); renderAll(); setStatus('sanitized byte-stuffing (file length may change)');
+    });
+    function sanitizeEntropy(){
+      if(!segments || segments.length===0) return;
+      // find entropy segments (named 'Entropy')
+      let newArr = [];
+      for(let i=0;i<bytes.length;i++) newArr.push(bytes[i]);
+      // walk segments, when encounter entropy, rebuild
+      let delta = 0;
+      for(const s of segments){
+        if(s.name==='Entropy'){
+          // for each 0xFF in entropy payload, if next byte != 0x00 and not marker start, insert 0x00 after it
+          let pos = s.offset + delta;
+          let end = pos + s.length;
+          let k = pos;
+          while(k < end){
+            if(newArr[k] === 0xFF){
+              // if next exists and !=0x00, insert 0x00
+              if(k+1 >= newArr.length || newArr[k+1] !== 0x00){
+                newArr.splice(k+1,0,0x00);
+                k += 2; end += 1; delta +=1; continue;
+              }
+            }
+            k++;
+          }
+        }
+      }
+      bytes = new Uint8Array(newArr);
+      // reparse will update segments
+      parseSegments();
+    }
+
+    // preview / blob handling
+    function revokeCurrent(){ if(currentBlobUrl){ URL.revokeObjectURL(currentBlobUrl); currentBlobUrl=null; } }
+    function refreshPreview(){
+      revokeCurrent(); if(!bytes) return; try{
+        const blob = new Blob([bytes],{type:'image/jpeg'});
+        currentBlobUrl = URL.createObjectURL(blob);
+        $('modImg').src = currentBlobUrl;
+        setStatus('preview updated');
+      } catch(err){ setStatus('preview error: '+err.message); }
+    }
+    $('refreshPreview').addEventListener('click', ()=>refreshPreview());
+
+
+    $('downloadBtn').addEventListener('click', ()=>{
+      if(!bytes) return; const blob = new Blob([bytes],{type:'image/jpeg'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = ($('fname').textContent || 'image') .replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_.-]/g,'') || 'modified.jpg'; document.body.appendChild(a); a.click(); setTimeout(()=>{ a.remove(); URL.revokeObjectURL(a.href); },2000);
+    });
+    $('downloadRawBtn').addEventListener('click', ()=>{
+      if(!bytes) return; const blob = new Blob([bytes.buffer],{type:'application/octet-stream'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'bytes.bin'; a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); },2000);
+    });
+
+    // reset reflow
+    $('reflow').addEventListener('click', ()=>{ renderHex(); setStatus('reflowed'); });
+
+    // when selecting segment programmatically, scroll hexview to that offset
+    function scrollToOffset(off){ const view = $('hexview'); const lineHeight = 22; // approximate
+      const y = Math.floor(off/bytesPerLine) * lineHeight; view.scrollTop = y - 40; }
+
+    // when selecting segment, highlight and scroll
+    function selectSegment(idx){ selectedSegmentIndex = idx; renderHex(); const s = segments[idx]; if(s) scrollToOffset(s.offset); }
+
+    // initial empty state
+    setStatus('idle');
+
+    // Add keyboard support: Ctrl+Z for undo
+    window.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); $('undoBtn').click(); } });
+
+  </script>
+</body>
+</html>

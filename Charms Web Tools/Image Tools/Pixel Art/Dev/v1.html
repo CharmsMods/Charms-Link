@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Art Editor - Fixed Engines</title>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --bg-panel: #1e1e1e;
+            --bg-toolbar: #2d2d2d;
+            --text-main: #e0e0e0;
+            --accent: #bb86fc;
+            --border: #333;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; padding: 0; 
+            display: flex; flex-direction: column; 
+            height: 100vh; 
+            background: var(--bg-dark); 
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+        #toolbar { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            padding: 8px 15px; 
+            background: var(--bg-toolbar); 
+            border-bottom: 1px solid var(--border);
+            z-index: 10;
+        }
+
+        #left-panel, #right-panel { 
+            width: 240px; 
+            padding: 15px; 
+            background: var(--bg-panel); 
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+        }
+
+        #right-panel { border-right: none; border-left: 1px solid var(--border); }
+
+        #center { 
+            flex: 1; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            overflow: auto; 
+            background: #0a0a0a;
+            position: relative;
+            padding: 40px;
+        }
+
+        #canvas { 
+            border: 1px solid #444; 
+            image-rendering: pixelated;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+
+        #status-bar { 
+            padding: 6px 15px; 
+            background: var(--bg-toolbar); 
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            color: #888;
+        }
+
+        .control { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 13px; color: #aaa; }
+        
+        input[type="number"], select, button {
+            background: #333;
+            border: 1px solid #444;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+        }
+
+        button:hover { background: var(--accent); color: black; cursor: pointer; }
+        input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+        .zoom-controls button { margin-right: 2px; padding: 4px 10px; font-size: 11px; }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <div>
+            <input type="file" id="upload" accept="image/*" style="display:none">
+            <button onclick="document.getElementById('upload').click()">Open Image</button>
+            <button id="export">Export PNG</button>
+        </div>
+        <div>
+            <select id="backend">
+                <option value="webgl2">WebGL2 Engine</option>
+                <option value="canvas2d">Canvas2D Engine</option>
+            </select>
+        </div>
+    </div>
+    
+    <div style="display: flex; flex: 1; overflow: hidden;">
+        <div id="left-panel">
+            <div class="control">
+                <label>Pixel Size: <span id="ps-val">8</span></label>
+                <input type="range" id="pixel-size" min="1" max="128" value="8">
+            </div>
+            <div class="control">
+                <label><input type="checkbox" id="constrain-divisors"> Snap to Divisors</label>
+            </div>
+            <div class="control">
+                <label>Sampling Mode:</label>
+                <select id="mode" style="width:100%">
+                    <option value="hard">Hard (Nearest)</option>
+                    <option value="box">Box (Average)</option>
+                </select>
+            </div>
+            <hr style="border:0; border-top:1px solid #333; margin: 20px 0;">
+            <div class="control">
+                <label>Colors: <span id="pal-val">256</span></label>
+                <input type="range" id="palette-size" min="2" max="256" value="256">
+            </div>
+            <div class="control" class="zoom-controls">
+                <label>View Zoom:</label>
+                <button data-zoom="0.5">50%</button>
+                <button data-zoom="1">Fit Screen</button>
+                <button data-zoom="2">200%</button>
+            </div>
+        </div>
+
+        <div id="center">
+            <canvas id="canvas"></canvas>
+        </div>
+
+        <div id="right-panel">
+            <h4 style="margin-top:0">Statistics</h4>
+            <div class="control">
+                <label>Target Res:</label>
+                <div id="target-res-info" style="font-size:12px; color:var(--accent);">0 x 0</div>
+            </div>
+            <div class="control">
+                <label>Engine Health:</label>
+                <div id="engine-health" style="font-size:12px;">Stable</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="status-bar">
+        Engine: <span id="status-engine">Ready</span> | Original Res: <span id="status-res">0x0</span> | FPS: <span id="status-fps">0</span>
+    </div>
+
+    <script>
+        let canvas, ctx, gl, backend = 'webgl2';
+        let originalImage = null, originalW = 0, originalH = 0;
+        let pixelSize = 8, constrainDivisors = false, mode = 'hard';
+        let paletteSize = 256;
+        let zoom = 1;
+        let srcTex, positionBuffer, texCoordBuffer, lowFBO;
+        let downscaleProgramHard, downscaleProgramBox, upscaleProgram;
+        let lastFrameTime = performance.now();
+        
+        const offCanvas = document.createElement('canvas');
+        const offCtx = offCanvas.getContext('2d');
+
+        Math.clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+
+        function init() {
+            canvas = document.getElementById('canvas');
+            setupEventListeners();
+            switchBackend();
+        }
+
+        function switchBackend() {
+            backend = document.getElementById('backend').value;
+            
+            // Clean up previous context references
+            const newCanvas = canvas.cloneNode(false);
+            canvas.parentNode.replaceChild(newCanvas, canvas);
+            canvas = newCanvas;
+
+            gl = null; ctx = null;
+
+            if (backend === 'webgl2') {
+                gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true, antialias: false });
+                if (!gl) {
+                    backend = 'canvas2d';
+                    document.getElementById('backend').value = 'canvas2d';
+                    ctx = canvas.getContext('2d');
+                } else {
+                    initGL();
+                    if (originalImage) uploadTexture();
+                }
+            } else {
+                ctx = canvas.getContext('2d');
+            }
+
+            // Restore canvas resolution
+            if (originalW > 0) {
+                canvas.width = originalW;
+                canvas.height = originalH;
+            }
+
+            render();
+        }
+
+        function uploadTexture() {
+            if (!gl || !originalImage) return;
+            srcTex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, srcTex);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, originalImage);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        }
+
+        function initGL() {
+            const vs = `#version 300 es
+                in vec2 a_position; in vec2 a_texCoord;
+                out vec2 v_texCoord;
+                void main() { 
+                    v_texCoord = a_texCoord; 
+                    gl_Position = vec4(a_position, 0, 1); 
+                }`;
+
+            const fsHard = `#version 300 es
+                precision mediump float;
+                uniform sampler2D u_src; uniform vec2 u_lowSize;
+                in vec2 v_texCoord; out vec4 fragColor;
+                void main() { 
+                    fragColor = texture(u_src, floor(v_texCoord * u_lowSize) / u_lowSize + 0.5/u_lowSize); 
+                }`;
+
+            const fsBox = `#version 300 es
+                precision mediump float;
+                uniform sampler2D u_src; uniform vec2 u_srcSize; uniform vec2 u_lowSize;
+                in vec2 v_texCoord; out vec4 fragColor;
+                void main() {
+                    vec2 baseUV = (floor(v_texCoord * u_lowSize) + 0.5) / u_lowSize;
+                    vec2 step = 1.0 / u_srcSize;
+                    vec4 sum = vec4(0.0);
+                    for(int y=-1; y<=1; y++) for(int x=-1; x<=1; x++) 
+                        sum += texture(u_src, baseUV + vec2(float(x), float(y)) * step);
+                    fragColor = sum / 9.0;
+                }`;
+
+            const fsUpscale = `#version 300 es
+                precision mediump float;
+                uniform sampler2D u_tex; 
+                uniform bool u_flipY;
+                in vec2 v_texCoord; out vec4 fragColor;
+                void main() { 
+                    vec2 uv = v_texCoord;
+                    if(u_flipY) uv.y = 1.0 - uv.y;
+                    fragColor = texture(u_tex, uv); 
+                }`;
+
+            downscaleProgramHard = createProgram(vs, fsHard);
+            downscaleProgramBox = createProgram(vs, fsBox);
+            upscaleProgram = createProgram(vs, fsUpscale);
+
+            positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,-1, 1,1, -1,1]), gl.STATIC_DRAW);
+
+            texCoordBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0, 1,0, 0,1, 1,0, 1,1, 0,1]), gl.STATIC_DRAW);
+        }
+
+        function createProgram(vsS, fsS) {
+            const p = gl.createProgram();
+            const v = compileShader(gl.VERTEX_SHADER, vsS);
+            const f = compileShader(gl.FRAGMENT_SHADER, fsS);
+            gl.attachShader(p, v); gl.attachShader(p, f);
+            gl.linkProgram(p);
+            return p;
+        }
+
+        function compileShader(type, src) {
+            const s = gl.createShader(type);
+            gl.shaderSource(s, src); gl.compileShader(s);
+            if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+            return s;
+        }
+
+        function createFBO(w, h) {
+            const fbo = gl.createFramebuffer();
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+            const tex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+            return { fbo, tex, w, h };
+        }
+
+        function render(isExport = false) {
+            if (!originalImage) return;
+
+            let ps = pixelSize;
+            if (constrainDivisors) {
+                while (ps > 1 && (originalW % ps !== 0 || originalH % ps !== 0)) ps--;
+            }
+
+            const lowW = Math.max(1, Math.ceil(originalW / ps));
+            const lowH = Math.max(1, Math.ceil(originalH / ps));
+
+            if (backend === 'webgl2' && gl) {
+                if (!lowFBO || lowFBO.w !== lowW || lowFBO.h !== lowH) lowFBO = createFBO(lowW, lowH);
+
+                gl.bindFramebuffer(gl.FRAMEBUFFER, lowFBO.fbo);
+                gl.viewport(0, 0, lowW, lowH);
+                const prog = mode === 'hard' ? downscaleProgramHard : downscaleProgramBox;
+                gl.useProgram(prog);
+                
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                const pL = gl.getAttribLocation(prog, 'a_position');
+                gl.enableVertexAttribArray(pL);
+                gl.vertexAttribPointer(pL, 2, gl.FLOAT, false, 0, 0);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+                const tL = gl.getAttribLocation(prog, 'a_texCoord');
+                gl.enableVertexAttribArray(tL);
+                gl.vertexAttribPointer(tL, 2, gl.FLOAT, false, 0, 0);
+
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, srcTex);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_src'), 0);
+                gl.uniform2f(gl.getUniformLocation(prog, 'u_lowSize'), lowW, lowH);
+                if(mode === 'box') gl.uniform2f(gl.getUniformLocation(prog, 'u_srcSize'), originalW, originalH);
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+                const data = new Uint8Array(lowW * lowH * 4);
+                gl.readPixels(0, 0, lowW, lowH, gl.RGBA, gl.UNSIGNED_BYTE, data);
+                applyQuantization(data);
+
+                gl.bindTexture(gl.TEXTURE_2D, lowFBO.tex);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, lowW, lowH, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                gl.viewport(0, 0, canvas.width, canvas.height);
+                gl.useProgram(upscaleProgram);
+                gl.uniform1i(gl.getUniformLocation(upscaleProgram, 'u_flipY'), 1);
+                gl.bindTexture(gl.TEXTURE_2D, lowFBO.tex);
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+            } else if (ctx) {
+                // Clear the main display canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Prepare offscreen buffer
+                offCanvas.width = lowW;
+                offCanvas.height = lowH;
+                offCtx.imageSmoothingEnabled = (mode === 'box');
+                
+                // 1. Scale down to low-res buffer
+                offCtx.drawImage(originalImage, 0, 0, lowW, lowH);
+
+                // 2. Process data (quantization)
+                const imgData = offCtx.getImageData(0, 0, lowW, lowH);
+                applyQuantization(imgData.data);
+                offCtx.putImageData(imgData, 0, 0);
+
+                // 3. Draw low-res buffer back to full display canvas
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(offCanvas, 0, 0, lowW, lowH, 0, 0, originalW, originalH);
+            }
+
+            updateStats(ps, lowW, lowH);
+        }
+
+        function applyQuantization(data) {
+            if (paletteSize >= 256) return;
+            const step = 256 / paletteSize;
+            for (let i = 0; i < data.length; i += 4) {
+                for (let j = 0; j < 3; j++) {
+                    data[i+j] = Math.floor(data[i+j] / step) * step;
+                }
+            }
+        }
+
+        function updateStats(ps, lowW, lowH) {
+            const now = performance.now();
+            const fps = (1000 / (now - lastFrameTime)).toFixed(1);
+            lastFrameTime = now;
+            document.getElementById('status-engine').textContent = backend.toUpperCase();
+            document.getElementById('status-res').textContent = `${originalW}x${originalH}`;
+            document.getElementById('status-fps').textContent = fps;
+            document.getElementById('ps-val').textContent = ps;
+            document.getElementById('pal-val').textContent = paletteSize;
+            document.getElementById('target-res-info').textContent = `${lowW} x ${lowH}`;
+        }
+
+        function setupEventListeners() {
+            document.getElementById('upload').addEventListener('change', e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const img = new Image();
+                img.onload = () => {
+                    originalImage = img;
+                    originalW = img.width;
+                    originalH = img.height;
+                    canvas.width = originalW;
+                    canvas.height = originalH;
+                    if (backend === 'webgl2') uploadTexture();
+                    render();
+                };
+                img.src = URL.createObjectURL(file);
+            });
+
+            document.getElementById('pixel-size').addEventListener('input', (e) => {
+                pixelSize = parseInt(e.target.value);
+                render();
+            });
+
+            document.getElementById('palette-size').addEventListener('input', (e) => {
+                paletteSize = parseInt(e.target.value);
+                render();
+            });
+
+            document.getElementById('constrain-divisors').addEventListener('change', e => {
+                constrainDivisors = e.target.checked;
+                render();
+            });
+
+            document.getElementById('mode').addEventListener('change', e => {
+                mode = e.target.value;
+                render();
+            });
+
+            document.getElementById('backend').addEventListener('change', switchBackend);
+
+            document.querySelectorAll('[data-zoom]').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    zoom = parseFloat(btn.dataset.zoom);
+                    if (zoom === 1) {
+                        canvas.style.transform = `scale(1)`;
+                        canvas.style.maxWidth = '90%';
+                        canvas.style.maxHeight = '90%';
+                    } else {
+                        canvas.style.maxWidth = 'none';
+                        canvas.style.maxHeight = 'none';
+                        canvas.style.transform = `scale(${zoom})`;
+                    }
+                });
+            });
+
+            document.getElementById('export').addEventListener('click', () => {
+                // Force a render cycle to be safe
+                render(true);
+                const link = document.createElement('a');
+                link.download = `pixelart_${originalW}x${originalH}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

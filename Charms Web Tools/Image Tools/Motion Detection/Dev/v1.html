@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motion Analysis</title>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --card: #121212;
+            --text: #c0c0c0;
+            --accent: #ff3e3e; 
+            --border: #222222;
+        }
+        
+        body { background-color: var(--bg); color: var(--text); font-family: sans-serif; display: flex; justify-content: center; padding: 20px; }
+        .ui-container { width: 100%; max-width: 1000px; background: var(--card); border: 1px solid var(--border); padding: 25px; border-radius: 2px; box-sizing: border-box; }
+
+        /* ✧ Input Section ✧ */
+        .grid-upload { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .box { border: 1px solid var(--border); padding: 15px; text-align: center; }
+        .preview-img { width: 100%; height: 100px; object-fit: contain; margin-top: 10px; display: none; background: #000; opacity: 0.6; }
+
+        /* ✦ Analysis Controls ✦ */
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; padding: 20px 0; border-top: 1px solid var(--border); }
+        .control-group { display: flex; flex-direction: column; gap: 12px; font-size: 0.7rem; letter-spacing: 1.5px; }
+        .btn-row { grid-column: span 2; display: flex; justify-content: center; gap: 10px; margin-top: 15px; }
+
+        input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; height: 4px; background: var(--border); border-radius: 2px; appearance: none; }
+        input[type="range"]::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; background: var(--text); border-radius: 50%; }
+
+        select { background: #1a1a1a; color: var(--text); border: 1px solid var(--border); padding: 5px; font-size: 0.7rem; letter-spacing: 1px; outline: none; }
+
+        .btn { background: none; border: 1px solid var(--border); color: var(--text); padding: 8px 24px; cursor: pointer; text-transform: uppercase; font-size: 0.65rem; transition: 0.2s; }
+        .btn:hover:not(:disabled) { border-color: var(--text); background: #1a1a1a; }
+        .btn:disabled { opacity: 0.15; cursor: default; }
+        .btn-primary { border-color: var(--accent); color: var(--accent); }
+
+        /* ❖ Visualization Stack ❖ */
+        .result-area { position: relative; display: flex; flex-direction: column; align-items: center; margin-top: 20px; min-height: 200px; overflow: hidden; }
+        .canvas-stack { position: relative; display: none; border: 1px solid var(--border); line-height: 0; background: #000; max-width: 100%; }
+        
+        canvas { max-width: 100%; height: auto !important; }
+
+        #out { position: relative; z-index: 1; display: block; }
+        #overlay { position: absolute; top: 0; left: 0; z-index: 2; pointer-events: none; }
+        #maskLayer { position: absolute; top: 0; left: 0; z-index: 3; pointer-events: none; }
+        
+        input[type="file"] { display: none; }
+        .label-val { display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+
+<div class="ui-container">
+    <div class="grid-upload">
+        <div class="box"><label class="btn">Source A <input type="file" id="in1" accept="image/*"></label><img id="p1" class="preview-img"></div>
+        <div class="box"><label class="btn">Source B <input type="file" id="in2" accept="image/*"></label><img id="p2" class="preview-img"></div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <div class="label-val"><label>LAYER BLEND (ORIGINAL)</label><span id="blendVal">40%</span></div>
+            <input type="range" id="blend" min="0" max="100" value="40">
+            
+            <label style="margin-top: 10px;">ANALYSIS MODE</label>
+            <select id="analysisMode">
+                <option value="heatmap">HEATMAP (COLORS)</option>
+                <option value="blur">GAUSSIAN BLUR</option>
+                <option value="sharpen">GAUSSIAN SHARPEN</option>
+                <option value="saturation">SELECTIVE SATURATION</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <!-- Dynamic Controls -->
+            <div id="filterControls">
+                <div class="label-val"><label id="strengthLabel">STRENGTH</label><span id="strengthVal">30%</span></div>
+                <input type="range" id="filterStrength" min="0" max="100" value="30">
+                
+                <div class="label-val" style="margin-top:10px;"><label>MASK OPACITY</label><span id="maskVal">100%</span></div>
+                <input type="range" id="maskOpacity" min="0" max="100" value="100">
+            </div>
+
+            <div id="saturationControls" style="display:none;">
+                <div class="label-val"><label>BG SATURATION</label><span id="bgSatVal">20%</span></div>
+                <input type="range" id="bgSat" min="0" max="200" value="20">
+                
+                <div class="label-val" style="margin-top:10px;"><label>MOTION SATURATION</label><span id="moSatVal">100%</span></div>
+                <input type="range" id="moSat" min="0" max="200" value="100">
+
+                <div class="label-val" style="margin-top:10px;"><label>GLOW RADIUS (FALL-OFF)</label><span id="glowVal">10px</span></div>
+                <input type="range" id="glowRadius" min="0" max="100" value="10">
+            </div>
+        </div>
+
+        <div class="btn-row">
+            <button id="run" class="btn btn-primary" disabled>Process</button>
+            <button id="reset" class="btn">Reset</button>
+            <button id="dl" class="btn" disabled>Export</button>
+        </div>
+    </div>
+
+    <div class="result-area">
+        <div class="canvas-stack" id="stack">
+            <canvas id="out"></canvas>
+            <canvas id="overlay"></canvas>
+            <canvas id="maskLayer"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    const $ = id => document.getElementById(id);
+    let imgA = null, imgB = null;
+
+    [1, 2].forEach(num => {
+        $(`in${num}`).onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = val => {
+                $(`p${num}`).src = val.target.result;
+                $(`p${num}`).style.display = 'block';
+                const i = new Image();
+                i.onload = () => { 
+                    if (num === 1) imgA = i; 
+                    if (num === 2) imgB = i; 
+                    $('run').disabled = !(imgA && imgB); 
+                };
+                i.src = val.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+    });
+
+    const refresh = () => {
+        const mode = $('analysisMode').value;
+        const strength = $('filterStrength').value;
+        const maskOpacity = $('maskOpacity').value / 100;
+        const layerBlend = $('blend').value / 100;
+        const glow = $('glowRadius').value;
+
+        // UI Updates
+        $('blendVal').innerText = $('blend').value + '%';
+        $('strengthVal').innerText = strength + '%';
+        $('maskVal').innerText = $('maskOpacity').value + '%';
+        $('bgSatVal').innerText = $('bgSat').value + '%';
+        $('moSatVal').innerText = $('moSat').value + '%';
+        $('glowVal').innerText = glow + 'px';
+
+        // Toggle Control Panels
+        $('saturationControls').style.display = (mode === 'saturation') ? 'block' : 'none';
+        $('filterControls').style.display = (mode === 'saturation') ? 'none' : 'block';
+
+        // Visibility Toggles
+        $('out').style.visibility = (mode === 'heatmap') ? 'visible' : 'hidden';
+        $('maskLayer').style.display = (mode === 'heatmap') ? 'none' : 'block';
+        
+        // Base Overlays
+        $('overlay').style.opacity = layerBlend;
+        
+        if (mode === 'saturation') {
+            $('overlay').style.filter = `saturate(${$('bgSat').value}%)`;
+            $('maskLayer').style.filter = `saturate(${$('moSat').value}%) blur(${glow}px)`;
+            $('maskLayer').style.opacity = 1; 
+        } else {
+            $('overlay').style.filter = 'none';
+            $('maskLayer').style.opacity = maskOpacity;
+            
+            if (mode === 'blur') {
+                $('maskLayer').style.filter = `blur(${strength/4}px)`;
+            } else if (mode === 'sharpen') {
+                $('maskLayer').style.filter = `contrast(${100 + Number(strength)}%) brightness(${100 + (strength/4)}%)`;
+            } else {
+                $('maskLayer').style.filter = 'none';
+            }
+        }
+    };
+
+    $('analysisMode').onchange = refresh;
+    $('blend').oninput = refresh;
+    $('filterStrength').oninput = refresh;
+    $('maskOpacity').oninput = refresh;
+    $('bgSat').oninput = refresh;
+    $('moSat').oninput = refresh;
+    $('glowRadius').oninput = refresh;
+
+    $('run').onclick = async () => {
+        $('run').disabled = true;
+        const w = imgA.width, h = imgA.height;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = w; canvas.height = h;
+
+        ctx.drawImage(imgA, 0, 0);
+        const dataA = ctx.getImageData(0, 0, w, h).data;
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(imgB, 0, 0);
+        const dataB = ctx.getImageData(0, 0, w, h).data;
+
+        const workerCode = `
+            self.onmessage = e => {
+                const { a, b } = e.data;
+                const out = new Uint8ClampedArray(a.length);
+                const mask = new Uint8ClampedArray(a.length);
+
+                for (let i = 0; i < a.length; i += 4) {
+                    const diff = (Math.abs(a[i]-b[i]) + Math.abs(a[i+1]-b[i+1]) + Math.abs(a[i+2]-b[i+2])) / 3;
+                    out[i+3] = 255; 
+                    if (diff > 12) {
+                        mask[i]=b[i]; mask[i+1]=b[i+1]; mask[i+2]=b[i+2]; mask[i+3]=255;
+                        if (diff > 60) { out[i]=255; out[i+1]=62; out[i+2]=62; }
+                        else if (diff > 30) { out[i]=255; out[i+1]=150; out[i+2]=0; }
+                        else { out[i]=255; out[i+1]=230; out[i+2]=0; }
+                    } else {
+                        out[i]=0; out[i+1]=0; out[i+2]=0;
+                        mask[i+3]=0;
+                    }
+                }
+                self.postMessage({ out, mask }, [out.buffer, mask.buffer]);
+            };
+        `;
+
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        const worker = new Worker(URL.createObjectURL(blob));
+        worker.postMessage({ a: dataA, b: dataB }, [dataA.buffer, dataB.buffer]);
+
+        worker.onmessage = e => {
+            const { out, mask } = e.data;
+            [$('out'), $('overlay'), $('maskLayer')].forEach(c => { 
+                c.width = w; 
+                c.height = h; 
+            });
+            
+            $('out').getContext('2d').putImageData(new ImageData(out, w, h), 0, 0);
+            $('overlay').getContext('2d').drawImage(imgB, 0, 0);
+            $('maskLayer').getContext('2d').putImageData(new ImageData(mask, w, h), 0, 0);
+
+            $('stack').style.display = 'block';
+            refresh();
+            $('dl').disabled = false;
+            $('run').disabled = false;
+            worker.terminate();
+        };
+    };
+
+    $('dl').onclick = () => {
+        const link = document.createElement('a');
+        link.download = 'analysis.png';
+        link.href = $('out').toDataURL();
+        link.click();
+    };
+
+    $('reset').onclick = () => location.reload();
+</script>
+
+</body>
+</html>

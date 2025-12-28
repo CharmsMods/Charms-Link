@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smooth Grid</title>
+  <style>
+    :root {
+      --bg: #050505;
+      --fg: #f5f5f5;
+      --border: #1a1a1a;
+      --hover: #ffffff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; background: var(--bg); font-family: system-ui, sans-serif; color: var(--fg); overflow: hidden; }
+
+    /* ─── BACKGROUND LAYERS ─── */
+    .bg-layer {
+      position: fixed;
+      inset: 0;
+      background-position: center;
+      background-size: cover; /* Changed to cover for a more immersive feel */
+      background-repeat: no-repeat;
+      opacity: 0;
+      transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .bg-layer.show {
+      opacity: 0.3; /* Adjusted for better visibility during cross-fade */
+    }
+
+    /* ─── GRID UI ─── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, auto);
+      gap: 24px;
+      padding: 48px;
+      width: 100%;
+      height: 100%;
+      align-content: center;
+      z-index: 10;
+      position: relative;
+    }
+
+    .card {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      color: var(--fg);
+      border: 1px solid var(--border);
+      height: 140px;
+      font-size: 1.1rem;
+      letter-spacing: 0.05em;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
+      overflow: hidden;
+      transition: 
+        border-color 0.4s ease, 
+        transform 0.6s cubic-bezier(0.16,1,0.3,1), 
+        background-color 0.4s ease;
+    }
+
+    .card span { 
+      position: relative; 
+      z-index: 1; 
+      transition: transform 0.6s cubic-bezier(0.16,1,0.3,1); 
+    }
+
+    .card:hover { 
+      border-color: var(--hover); 
+      transform: translateY(-8px); 
+      background-color: rgba(255,255,255,0.05); 
+    }
+
+    .card:active { 
+      transform: translateY(-2px) scale(0.98); 
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-layer" id="bg-1"></div>
+  <div class="bg-layer" id="bg-2"></div>
+
+  <div class="grid">
+    <a class="card" href="#" data-img="../images/Noise Studio.png"><span>Noise Studio</span></a>
+    <a class="card" href="#" data-img="../images/Background Remover.png"><span>Background Remover</span></a>
+    <a class="card" href="#" data-img="../images/Image Corruption.png"><span>Image Corruption</span></a>
+    <a class="card" href="#" data-img="../images/JPG Hex Editor.png"><span>JPG Hex Editor</span></a>
+    <a class="card" href="#" data-img="../images/Motion Detection.png"><span>Motion Detection</span></a>
+    <a class="card" href="#" data-img="../images/Pixel Art.png"><span>Pixel Art</span></a>
+  </div>
+
+  <script>
+    const layers = [document.getElementById('bg-1'), document.getElementById('bg-2')];
+    const cards = document.querySelectorAll('.card');
+    
+    let activeIdx = 0; // Tracks which layer is currently "on top"
+    let currentImg = null;
+    let exitTimeout = null;
+
+    cards.forEach(card => {
+      card.addEventListener('mouseenter', () => {
+        const nextImg = card.dataset.img;
+        
+        if (nextImg === currentImg) return;
+        if (exitTimeout) clearTimeout(exitTimeout);
+
+        // Logic: Switch to the OTHER layer
+        const nextLayerIdx = 1 - activeIdx;
+        const nextLayer = layers[nextLayerIdx];
+        const currentLayer = layers[activeIdx];
+
+        // Set the image on the hidden layer and show it
+        nextLayer.style.backgroundImage = `url("${nextImg}")`;
+        nextLayer.classList.add('show');
+
+        // Hide the previous layer
+        currentLayer.classList.remove('show');
+
+        // Update state
+        currentImg = nextImg;
+        activeIdx = nextLayerIdx;
+      });
+
+      card.addEventListener('mouseleave', () => {
+        // Delay the total fade-out to black so it doesn't flicker 
+        // if the user is just moving between cards
+        exitTimeout = setTimeout(() => {
+          layers.forEach(l => l.classList.remove('show'));
+          currentImg = null;
+        }, 300);
+      });
+    });
+  </script>
+</body>
+</html>
