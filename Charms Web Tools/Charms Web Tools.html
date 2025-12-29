@@ -6,8 +6,10 @@
     <title>My Tools</title>
     <style>
         /*
-         * Global styles to remove borders and lines, and set up the background.
-         * Using Tailwind-like color variables for consistency.
+         * ──────────────────────────────────────────────
+         * GLOBAL STYLES & COLOR VARIABLES
+         * Sets up color palette, resets, and base layout
+         * ──────────────────────────────────────────────
          */
         :root {
             --text-color: #ffffff;
@@ -16,7 +18,10 @@
             --hover-shadow: rgba(255, 255, 255, 0.1);
         }
 
-        /* Basic reset for borderless design */
+        /*
+         * Basic reset for borderless design and smooth transitions
+         * Only transitions on specific properties for performance
+         */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -35,15 +40,17 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            /* Ensure the body doesn't cause horizontal overflow */
+            /* Prevent horizontal scrollbars on all devices */
             overflow-x: hidden; 
         }
         
         /* ------------------------------------------------ */
-        /* ✨ FIXED BACKGROUND STYLES (FINAL CORRECTION) ✨ */
-        /* ------------------------------------------------ */
+        /*
+         * ✨ FIXED BACKGROUND STYLES
+         * Blurred SVG background with fade-in effect
+         * ------------------------------------------------ */
 
-        /* 1. Body starts with solid black */
+        /* 1. Body starts with solid black (fallback) */
         body {
             background-color: #000000;
             margin: 0;
@@ -51,7 +58,7 @@
             min-height: 100vh;
         }
 
-        /* 2. Background image with fade-in effect and darkening */
+        /* 2. Background image overlay, blurred and faded in by JS */
         #background-overlay {
             position: fixed;
             top: 0;
@@ -73,14 +80,16 @@
             transform: scale(1.1); /* Slight zoom for better blur effect */
         }
         
-        /* The class added by JavaScript to trigger the fade-in */
+        /* .loaded class is added by JS to trigger fade-in transition */
         #background-overlay.loaded {
             opacity: 1; /* Full opacity with the dark overlay */
         }
 
         /* ------------------------------------------------ */
-        /* CONTENT WRAPPER STYLES */
-        /* ------------------------------------------------ */
+        /*
+         * CONTENT WRAPPER STYLES
+         * Main container for header, search, and tool grid
+         * ------------------------------------------------ */
         .content-wrapper {
             padding: 1rem;
             width: 100%;
@@ -96,7 +105,10 @@
         }
 
 
-        /* Container for the search bar and status text */
+        /*
+         * HEADER CONTAINER
+         * Contains search bar and status text
+         */
         .header-container {
             width: 90%;
             max-width: 800px;
@@ -118,7 +130,10 @@
             margin-top: 0.5rem;
         }
 
-        /* Search bar styling */
+        /*
+         * SEARCH BAR STYLES
+         * Modern, rounded, blurred input
+         */
         .search-bar {
             width: 90%;
             max-width: 400px;
@@ -138,7 +153,10 @@
             color: rgba(255, 255, 255, 0.5);
         }
 
-        /* Container for all the tool boxes */
+        /*
+         * TOOLS GRID CONTAINER
+         * Responsive grid for all tool cards
+         */
         .tools-container {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -148,7 +166,10 @@
             width: 100%;
         }
 
-        /* Styling for all tool boxes */
+        /*
+         * TOOL BOX STYLES
+         * Each .tool-box is a clickable card with popup info
+         */
         .tool-box {
             width: 100%;
             height: 120px;
@@ -184,7 +205,10 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
-        /* Info popup styles */
+        /*
+         * INFO POPUP STYLES
+         * Hidden by default, shown on hover/tap
+         */
 
 
         .tool-box:active {
@@ -199,14 +223,17 @@
             transition: opacity 0.3s ease, transform 0.3s ease;
         }
         
-        /* New rule: Hide the title completely when the popup is active */
+        /* Hide the card title when popup is active (for smooth transition) */
         .tool-box.is-hovering h2 {
             opacity: 0;
             transform: translateY(-20px);
             visibility: hidden;
         }
 
-        /* Pop-up for tool information */
+        /*
+         * INFO POPUP OVERLAY
+         * Appears above card, dark background, scales in
+         */
         .info-popup {
             position: absolute;
             top: 0;
@@ -227,7 +254,7 @@
             border-radius: 8px;
         }
         
-        /* Show pop-up on hover/tap */
+        /* Show popup when .is-hovering is set (hover/tap) */
         .tool-box.is-hovering .info-popup {
             opacity: 1;
             visibility: visible;
@@ -248,8 +275,10 @@
         }
 
         /* ------------------------------------------------ */
-        /* MOBILE-SPECIFIC ADJUSTMENTS */
-        /* ------------------------------------------------ */
+        /*
+         * MOBILE-SPECIFIC ADJUSTMENTS
+         * Smaller grid, touch-friendly, disables hover effects
+         * ------------------------------------------------ */
         @media (max-width: 768px) {
             .content-wrapper {
                 padding: 0.5rem;
@@ -288,16 +317,34 @@
 <body>
 
 
-    <div id="background-overlay"></div>
+        <!--
+            ──────────────────────────────────────────────
+            BLURRED SVG BACKGROUND (fades in on load)
+            ──────────────────────────────────────────────
+        -->
+        <div id="background-overlay"></div>
 
-    <div class="content-wrapper">
-        <div class="header-container">
-            <!-- Added autocomplete="off" for better mobile keyboard experience -->
-            <input type="text" id="searchInput" class="search-bar" placeholder="Search for a tool..." autocomplete="off">
-            <p>all computation is done locally for all tools</p>
-        </div>
+        <!--
+            ──────────────────────────────────────────────
+            MAIN CONTENT WRAPPER
+            Contains header (search), tool grid, and popups
+            ──────────────────────────────────────────────
+        -->
+        <div class="content-wrapper">
+                <div class="header-container">
+                        <!--
+                            SEARCH BAR (with autocomplete off for mobile)
+                            Status text: all computation is local
+                        -->
+                        <input type="text" id="searchInput" class="search-bar" placeholder="Search for a tool..." autocomplete="off">
+                        <p>all computation is done locally for all tools</p>
+                </div>
 
-        <div class="tools-container">
+                <!--
+                    TOOLS GRID
+                    Each .tool-box is a tool card with popup info
+                -->
+                <div class="tools-container">
 
             <a href="./image%20border%20sizer.html" class="tool-box" data-id="border-sizer">
                 <h2>Image Border Sizer</h2>
@@ -356,13 +403,15 @@
                 </div>
             </a>
 
-            <!-- Separator -->
+                        <!--
+                            Separator between main and secondary tools
+                        -->
             <div style="width: 100%; height: 2px; background: rgba(255, 255, 255, 0.2); margin: 2rem 0; grid-column: 1 / -1;"></div>
             
-            <!-- Add a heading for secondary tools -->
+            <!-- Heading for secondary tools -->
             <h3 style="grid-column: 1 / -1; text-align: center; margin: 0.5rem 0 1rem; font-weight: 400; color: rgba(255, 255, 255, 0.7);">Other Tools</h3>
 
-            <!-- Other tools with smaller size -->
+            <!-- Other tools (secondary, smaller cards) -->
             <a href="./File%20Encryptor/index.html" class="tool-box secondary-tool" data-id="file-encryptor">
                 <h2>File Encryptor</h2>
                 <div class="info-popup">
@@ -415,7 +464,14 @@
     </div>
 
     <script>
-        // Check if the user is on a touch device
+        //
+        // ──────────────────────────────────────────────
+        // INTERACTION & BACKGROUND LOGIC
+        // Handles background fade-in, search, and dual-mode (hover/tap) popups
+        // ──────────────────────────────────────────────
+        //
+
+        // Utility: Detect if device is touch-enabled
         const isTouchDevice = () => ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -426,20 +482,19 @@
             let currentActiveBox = null; // Track the currently tapped box for touch devices
 
             // --- BACKGROUND LOADING LOGIC ---
+            // Preload SVG and fade in overlay when loaded
             const bgImage = new Image();
             bgImage.src = 'background.svg';
-
-            // Once the image is fully loaded, we trigger the opacity transition
             bgImage.onload = () => {
-                // Apply the loaded class to fade in the background
                 backgroundOverlay.classList.add('loaded');
             };
 
-            // Handle search bar functionality
+            // --- SEARCH BAR FUNCTIONALITY ---
+            // Filters tool cards by search term (case-insensitive)
             searchInput.addEventListener('keyup', (e) => {
                 const searchTerm = e.target.value.toLowerCase();
                 toolBoxes.forEach(box => {
-                    // Check text content of both <h2> in the box and <h2> in the popup
+                    // Check all text content in the card (title and popup)
                     const title = box.textContent.toLowerCase(); 
                     if (searchTerm === '' || title.includes(searchTerm)) {
                         box.style.display = 'flex';
@@ -449,10 +504,7 @@
                 });
             });
 
-            // ---------------------------------------------
-            // DUAL-MODE INTERACTION (Hover for Desktop, Tap for Mobile)
-            // ---------------------------------------------
-
+            // --- DUAL-MODE INTERACTION (Hover for Desktop, Tap for Mobile) ---
             toolBoxes.forEach(box => {
                 const popup = box.querySelector('.info-popup');
 
@@ -474,55 +526,43 @@
                 });
                 
                 // --- MOBILE/TOUCH LOGIC (Immediate Tap/Click for Info) ---
-                
-                // We use 'touchstart' to immediately show the description.
-                // We use 'click' (or touch-to-click) to follow the link.
+                // touchstart: show popup, click: follow link on second tap
                 box.addEventListener('touchstart', (e) => {
-                    // Prevent the default touch-and-hold context menu
+                    // Prevent default context menu on long press
                     e.preventDefault(); 
-                    
-                    // If we tapped the already active box, let the click event fire to follow the link
+                    // If already active, let click event fire to follow link
                     if (currentActiveBox === box) {
                         return; 
                     }
-
-                    // On a touch device, tapping once shows the description (bypassing the link)
+                    // On touch, first tap shows popup, second tap follows link
                     if (isTouchDevice()) {
-                        // 1. Hide the previously active description (if any)
+                        // Hide previous popup
                         if (currentActiveBox && currentActiveBox !== box) {
                             currentActiveBox.classList.remove('is-hovering');
                         }
-                        
-                        // 2. Show the current box description
+                        // Show current popup
                         box.classList.add('is-hovering');
                         currentActiveBox = box;
                     }
-                }, { passive: true }); // Use passive listener for performance
+                }, { passive: true });
 
-                // Prevent immediate link follow after the first touch/tap reveals the info
+                // Prevent immediate link follow after first tap
                 box.addEventListener('click', (e) => {
                     if (isTouchDevice() && box.classList.contains('is-hovering')) {
-                        // If the box is currently showing its description, we want to allow the link 
-                        // to be followed only on the SECOND tap.
-                        
-                        // If this is the first tap, prevent navigation and just show description
+                        // Only allow navigation on second tap
                         if (currentActiveBox === box) {
-                            // If user taps the active box again, allow link navigation (default behavior)
                             return true; 
                         } else {
-                            // First tap: prevent navigation and show description (handled in touchstart)
                             e.preventDefault();
                             e.stopPropagation();
                         }
                     }
                 });
-                
             });
             
-            // Global click listener to hide the active popup when clicking anywhere else
+            // Global click listener: hide popup if clicking outside any tool card
             document.addEventListener('click', (e) => {
                 if (isTouchDevice() && currentActiveBox) {
-                    // Check if the click target is outside the current active box
                     if (!e.target.closest('.tool-box')) {
                         currentActiveBox.classList.remove('is-hovering');
                         currentActiveBox = null;

@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cinematic Narrow Grid</title>
   <style>
+    /*
+      CSS Variables for theme colors and accents
+      --bg: Background color
+      --fg: Foreground/text color
+      --border: Card border color
+      --accent: Highlight color for hover
+    */
     :root {
       --bg: #020202;
       --fg: #f5f5f5;
@@ -12,10 +19,18 @@
       --accent: #ffffff;
     }
 
+    /*
+      Reset box model and remove default margin/padding
+      Set up base font and prevent scrollbars by hiding overflow
+    */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; overflow: hidden; height: 100vh; }
 
-    /* ─── BACKGROUND & GRAIN ─── */
+    /*
+      ─── BACKGROUND LAYERS ───
+      .bg-container: Fixed, full-viewport container for background images
+      .bg-layer: Stacked layers for background images, faded in/out on hover
+    */
     .bg-container { position: fixed; inset: 0; z-index: 0; background: black; }
     
     .bg-layer {
@@ -23,16 +38,20 @@
       inset: 0;
       background-position: center;
       background-size: cover;
-      opacity: 0;
-      transition: opacity 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+      opacity: 0; /* Hidden by default */
+      transition: opacity 1.5s cubic-bezier(0.22, 1, 0.36, 1); /* Smooth fade */
       will-change: opacity;
     }
-    .bg-layer.active { opacity: 0.4; }
+    .bg-layer.active { opacity: 0.4; } /* Show active background layer */
 
-    /* ─── SLIM UI GRID ─── */
+    /*
+      ─── GRID LAYOUT ───
+      .grid-wrapper: Centers the grid vertically and horizontally
+      .grid: 3-column grid with fixed-width cards and spacing
+    */
     .grid-wrapper {
       position: relative;
-      z-index: 10;
+      z-index: 10; /* Above background */
       display: flex;
       justify-content: center;
       align-items: center;
@@ -42,12 +61,18 @@
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(3, 180px); /* Fixed narrow width */
-      gap: 40px; /* Generous spacing */
+      grid-template-columns: repeat(3, 180px); /* 3 columns, each 180px wide */
+      gap: 40px; /* Space between cards */
       padding: 40px;
       max-width: 1000px;
     }
 
+    /*
+      ─── CARD STYLES ───
+      .card: Each tool link, styled as a frosted glass card
+      .card:hover: Highlight and lift effect on hover
+      .card span: Tool name styling
+    */
     .card {
       height: 130px;
       border: 1px solid var(--border);
@@ -56,14 +81,14 @@
       justify-content: center;
       text-decoration: none;
       color: inherit;
-      background: rgba(5, 5, 5, 0.7);
+      background: rgba(5, 5, 5, 0.7); /* Frosted glass look */
       backdrop-filter: blur(8px);
       transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .card:hover {
-      border-color: var(--accent);
-      transform: scale(1.08) translateY(-10px);
+      border-color: var(--accent); /* Highlight border */
+      transform: scale(1.08) translateY(-10px); /* Pop up */
       background: rgba(255,255,255,0.05);
       box-shadow: 0 20px 40px rgba(0,0,0,0.5);
     }
@@ -80,11 +105,21 @@
 </head>
 <body>
 
+  <!--
+    Background container with 3 layers for smooth image transitions.
+    Each .bg-layer is used to display a background image on card hover.
+  -->
   <div class="bg-container">
     <div class="bg-layer" id="l1"></div>
     <div class="bg-layer" id="l2"></div>
     <div class="bg-layer" id="l3"></div>
-  </div><div class="grid-wrapper">
+  </div>
+
+  <!--
+    Main grid wrapper containing all tool cards.
+    Each card links to a tool and has a data-img attribute for its preview image.
+  -->
+  <div class="grid-wrapper">
     <div class="grid">
       <a class="card" href="../../Charms Web Tools/Image Tools/Noise Studio/Current Noise Studio/noise studio v11 gpu.html" data-img="../images/Noise Studio.png"><span>Noise Studio</span></a>
       <a class="card" href="../../Charms Web Tools/Image Tools/Background Remover/Background Remover/background remover and patcher.html" data-img="../images/Background Remover.png"><span>Background Remover</span></a>
@@ -97,13 +132,18 @@
   </div>
 
   <script>
+    //
+    // Cinematic background hover effect for grid cards
+    //
+
+    // Get all background layers and card elements
     const layers = Array.from(document.querySelectorAll('.bg-layer'));
     const cards = document.querySelectorAll('.card');
-    let currentLayerIdx = 0;
-    let zIndexCounter = 1;
-    let fadeOutTimeout;
+    let currentLayerIdx = 0; // Tracks which bg-layer is currently used
+    let zIndexCounter = 1;   // Ensures new layers appear above old ones
+    let fadeOutTimeout;      // Timeout for fading out backgrounds
 
-    // Preloader & Error Check
+    // Preload all card images and log if any are missing
     cards.forEach(card => {
       const url = card.dataset.img;
       const img = new Image();
@@ -111,25 +151,31 @@
       img.src = url;
     });
 
+    // Add hover listeners to each card to trigger background transitions
     cards.forEach(card => {
       card.addEventListener('mouseenter', () => {
+        // Cancel any pending fade-out
         if (fadeOutTimeout) clearTimeout(fadeOutTimeout);
         const imgUrl = card.dataset.img;
-        
+
+        // Cycle to the next background layer for smooth transitions
         currentLayerIdx = (currentLayerIdx + 1) % layers.length;
         const targetLayer = layers[currentLayerIdx];
 
+        // Bring this layer to the front and set its image
         zIndexCounter++;
         targetLayer.style.zIndex = zIndexCounter;
         targetLayer.style.backgroundImage = `url("${imgUrl}")`;
         targetLayer.classList.add('active');
 
+        // Hide all other layers
         layers.forEach((l, idx) => {
           if (idx !== currentLayerIdx) l.classList.remove('active');
         });
       });
 
       card.addEventListener('mouseleave', () => {
+        // Fade out all backgrounds after a short delay
         fadeOutTimeout = setTimeout(() => {
           layers.forEach(l => l.classList.remove('active'));
         }, 500);
