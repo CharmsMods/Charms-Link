@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Digital Grain Studio — Updated</title>
+<style>
+:root{
+  --bg:#000; --fg:#fff; --panel-max:460px; --muted:#8c8c8c; --accent:#2a9df4;
+}
+*{box-sizing:border-box}
+html,body{height:100%; margin:0; background:var(--bg); color:var(--fg); font-family:monospace}
+body{padding:16px; display:flex; gap:16px; align-items:flex-start; min-height:100vh}
+.container{display:flex; gap:16px; width:100%}
+/* Left control column */
+.controls-panel{flex:0 0 var(--panel-max); max-width:var(--panel-max); min-width:260px; padding:10px; border-right:1px solid rgba(255,255,255,0.04)}
+.controls-panel h1{font-size:18px; margin:0 0 8px 0; text-align:center}
+.muted{color:var(--muted); font-size:13px}
+details{border:1px solid rgba(255,255,255,0.06); margin-bottom:10px; padding:6px; border-radius:6px; background:transparent}
+summary{cursor:pointer; font-weight:bold; margin:0 0 6px 0; outline:none}
+.control-row{display:flex; gap:8px; align-items:center; margin-bottom:8px; min-height:32px}
+.control-row label{flex:0 0 130px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+input[type=range]{flex:1}
+.control-value{width:86px; padding:4px; text-align:right; background:transparent; color:var(--fg); border:1px solid rgba(255,255,255,0.06); font-family:monospace}
+select.control-value{flex:1; min-width:120px; padding:4px}
+.row-buttons{display:flex; gap:8px; margin-top:8px}
+button{background:transparent; color:var(--fg); border:1px solid rgba(255,255,255,0.08); padding:8px; cursor:pointer}
+button:hover{background:rgba(255,255,255,0.02)}
+
+/* Right preview column */
+.preview-column{flex:1 1 auto; min-width:320px; display:flex; flex-direction:column; gap:12px}
+.preview-top{display:flex; align-items:center; justify-content:space-between; gap:12px}
+.preview-container{position:relative; border:1px solid rgba(255,255,255,0.06); background:#070707; overflow:visible; padding:8px; display:flex; align-items:center; justify-content:center}
+.main-canvas-wrap{width:100%; display:flex; align-items:center; justify-content:center;}
+
+/* displayCanvas will get style.width set by script to control fitting and aspect */
+#displayCanvas{ display:block; border-radius:2px; background:transparent; }
+
+/* overlay original: absolutely positioned on top of the canvas but not allowed to change layout */
+.overlay-original{ position:absolute; top:8px; left:8px; right:8px; bottom:8px; display:flex; align-items:center; justify-content:center; pointer-events:none;}
+.overlay-original canvas{ width:100%; height:auto; display:block; opacity:0; transition:opacity 180ms ease }
+/* toggle show class to reveal original overlay */
+.overlay-original.show canvas{ opacity:1 }
+
+/* Layer preview window: single container with grid inside */
+.layer-preview-window{ border:1px solid rgba(255,255,255,0.06); background:#050505; padding:10px; overflow:auto; width:100%;}
+.layer-grid{ display:grid; gap:10px; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); align-items:start }
+/* layer item */
+.layer-item{ border:1px solid rgba(255,255,255,0.03); padding:8px; border-radius:6px; display:flex; flex-direction:column; gap:8px; background:transparent}
+.layer-title-row{display:flex; align-items:center; justify-content:space-between}
+.layer-title{ color:var(--muted); font-size:13px; margin:0}
+.layer-canvas{ width:100%; height:auto; border:1px solid rgba(255,255,255,0.03); background:#0a0a0a; display:block }
+
+/* modal */
+.modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 200ms ease; z-index:3000}
+.modal-overlay.show{ opacity:1; pointer-events:auto}
+.modal{ background:#111; border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:12px; max-width:92vw; width:880px; max-height:90vh; overflow:auto}
+
+/* small responsive */
+@media (max-width:900px){ body{padding:10px} .controls-panel{order:2; width:100%} .preview-column{order:1; width:100%} .control-row label{flex:0 0 110px} }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="controls-panel">
+      <h1>Digital Grain Studio</h1>
+      <p class="muted">Settings (Some Sections Collapsed)</p>
+
+      <div style="margin:10px 0">
+        <label style="font-weight:bold; display:block; margin-bottom:6px;">Image Upload</label>
+        <input id="imageUpload" type="file" accept="image/*" style="width:100%; padding:8px; box-sizing:border-box;">
+      </div>
+
+      <!-- Noise Basics expanded by default -->
+      <details open>
+        <summary>Noise Basics</summary>
+        <div class="control-row">
+          <label for="strength">Noise Strength (σ)</label>
+          <input id="strength" type="range" min="0" max="150" step="0.01" value="50">
+        </div>
+        <div class="control-row">
+          <label for="noiseType">Noise Type</label>
+          <select id="noiseType" class="control-value">
+            <option value="color">Color</option>
+            <option value="grayscale" selected>Grayscale</option>
+            <option value="blend">Blend (saturation)</option>
+          </select>
+        </div>
+        <div class="control-row" id="satControls" style="display:flex">
+          <label for="satStrength">Sat Change</label>
+          <input id="satStrength" type="range" min="0" max="4" step="0.01" value="1">
+        </div>
+        <div class="control-row" id="satPerNoiseRow" style="display:flex">
+          <label for="satPerNoise">Noise Sat Impact</label>
+          <input id="satPerNoise" type="range" min="-100" max="100" step="0.1" value="0">
+        </div>
+      </details>
+
+      <!-- Noise Shape & Blur expanded by default -->
+      <details open>
+        <summary>Noise Shape & Blur</summary>
+        <div class="control-row">
+          <label for="noiseSize">Noise Size</label>
+          <input id="noiseSize" type="range" min="0" max="1000" step="0.01" value="4">
+        </div>
+        <div class="control-row">
+          <label for="blurriness">Blurriness</label>
+          <input id="blurriness" type="range" min="0" max="1000" step="0.01" value="160">
+        </div>
+      </details>
+
+      <!-- Blend & Visibility expanded by default -->
+      <details open>
+        <summary>Blend & Visibility</summary>
+        <div class="control-row">
+          <label for="blendMode">Blend Mode</label>
+          <select id="blendMode" class="control-value">
+            <option value="source-over">Normal</option>
+            <option value="overlay" selected>Overlay</option>
+            <option value="screen">Screen</option>
+            <option value="multiply">Multiply</option>
+            <option value="lighter">Add</option>
+            <option value="difference">Subtract</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <label for="opacity">Noise Opacity</label>
+          <input id="opacity" type="range" min="0" max="1" step="0.01" value="0.25">
+        </div>
+      </details>
+
+      <details>
+        <summary>Noise Masking</summary>
+        <div class="control-row">
+          <label for="enableShadows">Noise in Shadows</label>
+          <input id="enableShadows" type="checkbox" style="transform:scale(1.15)">
+        </div>
+        <div class="control-row">
+          <label for="shadowThreshold">Shadow Threshold</label>
+          <input id="shadowThreshold" type="range" min="0" max="1" step="0.0001" value="0.3">
+        </div>
+        <div class="control-row">
+          <label for="shadowFade">Shadow Fade</label>
+          <input id="shadowFade" type="range" min="0" max="1" step="0.0001" value="0.2">
+        </div>
+
+        <div style="height:6px;"></div>
+
+        <div class="control-row">
+          <label for="enableHighlights">Noise in Highlights</label>
+          <input id="enableHighlights" type="checkbox" style="transform:scale(1.15)">
+        </div>
+        <div class="control-row">
+          <label for="highlightThreshold">Highlight Threshold</label>
+          <input id="highlightThreshold" type="range" min="0" max="1" step="0.0001" value="0.7">
+        </div>
+        <div class="control-row">
+          <label for="highlightFade">Highlight Fade</label>
+          <input id="highlightFade" type="range" min="0" max="1" step="0.0001" value="0.2">
+        </div>
+      </details>
+
+      <details>
+        <summary>Image Adjustments</summary>
+        <div class="control-row">
+          <label for="brightness">Brightness</label>
+          <input id="brightness" type="range" min="-100" max="100" step="1" value="0">
+        </div>
+        <div class="control-row">
+          <label for="contrast">Contrast</label>
+          <input id="contrast" type="range" min="-300" max="300" step="1" value="100">
+        </div>
+        <div class="control-row">
+          <label for="saturationAdj">Saturation</label>
+          <input id="saturationAdj" type="range" min="-100" max="100" step="0.1" value="0">
+        </div>
+      </details>
+
+      <details>
+        <summary>HDR Emulation</summary>
+        <div class="control-row">
+          <label for="hdrTolerance">Tolerance</label>
+          <input id="hdrTolerance" type="range" min="0" max="1" step="0.01" value="0.35">
+        </div>
+        <div class="control-row">
+          <label for="hdrAmount">Amount (%)</label>
+          <input id="hdrAmount" type="range" min="0" max="100" step="1" value="20">
+        </div>
+      </details>
+
+      <details open>
+        <summary>Chromatic Aberration</summary>
+        <div class="control-row">
+          <label for="enableCA">Enable</label>
+          <input id="enableCA" type="checkbox" style="transform:scale(1.15)">
+        </div>
+        <div class="control-row">
+          <label for="caMode">Mode</label>
+          <select id="caMode" class="control-value">
+            <option value="radial" selected>Radial</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <label for="caStrengthR">Red Strength</label>
+          <input id="caStrengthR" type="range" min="-10" max="10" step="0.1" value="1">
+        </div>
+        <div class="control-row">
+          <label for="caStrengthG">Green Strength</label>
+          <input id="caStrengthG" type="range" min="-10" max="10" step="0.1" value="0">
+        </div>
+        <div class="control-row">
+          <label for="caStrengthB">Blue Strength</label>
+          <input id="caStrengthB" type="range" min="-10" max="10" step="0.1" value="-1">
+        </div>
+        <div class="control-row">
+          <label for="caRadius">Radius</label>
+          <input id="caRadius" type="range" min="0" max="1" step="0.01" value="1">
+        </div>
+        <div class="control-row">
+          <label for="caFalloff">Falloff</label>
+          <input id="caFalloff" type="range" min="0.1" max="5" step="0.1" value="1">
+        </div>
+        <div class="control-row">
+          <label for="caCenterX">Center X (%)</label>
+          <input id="caCenterX" type="range" min="0" max="100" step="0.1" value="50">
+        </div>
+        <div class="control-row">
+          <label for="caCenterY">Center Y (%)</label>
+          <input id="caCenterY" type="range" min="0" max="100" step="0.1" value="50">
+        </div>
+        <div class="control-row">
+          <label for="caEdgeAware">Edge Aware</label>
+          <input id="caEdgeAware" type="checkbox" style="transform:scale(1.15)">
+        </div>
+      </details>
+
+      <details>
+        <summary>Transparent Pixels</summary>
+        <div class="control-row">
+          <label for="ignoreAlphaToggle">Ignore Transparent Areas</label>
+          <input id="ignoreAlphaToggle" type="checkbox" style="transform:scale(1.15)">
+        </div>
+        <div class="control-row">
+          <label for="ignoreAlphaStrength">Ignore Strength</label>
+          <input id="ignoreAlphaStrength" type="range" min="0" max="100" step="1" value="100">
+        </div>
+      </details>
+
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button id="realtimeToggle">Realtime: ON</button>
+        <button id="applyBtn">Apply</button>
+      </div>
+
+      <div class="row-buttons" style="margin-top:10px">
+        <button id="helpBtn">Help / Manual</button>
+        <button id="compareBtn">Compare</button>
+        <button id="downloadImage" disabled>Download Image</button>
+      </div>
+    </div>
+
+    <div class="preview-column">
+      <div class="preview-top">
+        <h3 style="margin:0">Main Preview (hover to reveal original)</h3>
+        <div class="muted">Main preview fills available area and keeps aspect ratio. Wheel scrolling no longer changes blend.</div>
+      </div>
+
+      <div id="previewArea" class="preview-container" style="min-height:160px;">
+        <div class="main-canvas-wrap" id="canvasWrap" style="width:100%; padding:8px 0;">
+          <!-- display canvas; script controls CSS width/height to fit viewport with aspect preserved -->
+          <canvas id="displayCanvas"></canvas>
+        </div>
+        <div class="overlay-original" id="overlayOriginal">
+          <canvas id="overlayCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="preview-top">
+        <h3 style="margin:0">Layers & Mask Preview</h3>
+        <div class="muted">All layers live inside this single window below the main preview</div>
+      </div>
+
+      <!-- single layer preview window, fixed max height (viewport height) and internal grid -->
+      <div id="layerPreviewWindow" class="layer-preview-window" style="max-height:60vh">
+        <div id="layerGrid" class="layer-grid"></div>
+      </div>
+
+      <div class="row-buttons" style="margin-top:10px">
+        <button id="exportLayersBtn">Export Layers</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Compare modal -->
+  <div id="compareModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="compareTitle">
+      <h2 id="compareTitle">Compare — Original vs Edited</h2>
+      <div style="display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;">
+        <canvas id="compareOriginal" style="border:1px solid #333; background:#000"></canvas>
+        <canvas id="compareEdited" style="border:1px solid #333; background:#000"></canvas>
+      </div>
+      <div style="display:flex; gap:8px; justify-content:center; margin-top:12px">
+        <button id="exportSideBySide">Export Side-by-Side</button>
+        <button id="exportStacked">Export Stacked</button>
+        <button id="closeCompare">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Layers export modal -->
+  <div id="layersModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="layersTitle">
+      <h2 id="layersTitle">Export Layers</h2>
+      <div style="display:flex; gap:8px; justify-content:center; margin-top:12px">
+        <button id="exportLayersSide">Export Side-by-Side</button>
+        <button id="exportLayersGrid">Export Grid (2x4)</button>
+        <button id="closeLayers">Close</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ------------------------- 
+   Elements & state
+   ------------------------- */
+const fileInput = document.getElementById('imageUpload');
+const displayCanvas = document.getElementById('displayCanvas');
+const gl = displayCanvas.getContext('webgl');
+if (!gl) {
+  alert('WebGL not supported. Cannot run the application.');
+  throw new Error('WebGL not supported');
+}
+const overlayCanvas = document.getElementById('overlayCanvas');
+const overlayWrap = document.getElementById('overlayOriginal');
+
+const strengthRange = document.getElementById('strength');
+const noiseTypeSelect = document.getElementById('noiseType');
+const satStrength = document.getElementById('satStrength');
+const satPerNoise = document.getElementById('satPerNoise');
+
+const noiseSizeRange = document.getElementById('noiseSize');
+const blurrinessRange = document.getElementById('blurriness');
+
+const enableShadows = document.getElementById('enableShadows');
+const shadowThreshold = document.getElementById('shadowThreshold');
+const shadowFade = document.getElementById('shadowFade');
+
+const enableHighlights = document.getElementById('enableHighlights');
+const highlightThreshold = document.getElementById('highlightThreshold');
+const highlightFade = document.getElementById('highlightFade');
+
+const blendModeSelect = document.getElementById('blendMode');
+const opacityRange = document.getElementById('opacity');
+
+const brightnessRange = document.getElementById('brightness');
+const contrastRange = document.getElementById('contrast');
+const saturationAdjRange = document.getElementById('saturationAdj');
+
+const hdrTolerance = document.getElementById('hdrTolerance');
+const hdrAmount = document.getElementById('hdrAmount');
+
+const enableCA = document.getElementById('enableCA');
+const caMode = document.getElementById('caMode');
+const caStrengthR = document.getElementById('caStrengthR');
+const caStrengthG = document.getElementById('caStrengthG');
+const caStrengthB = document.getElementById('caStrengthB');
+const caRadius = document.getElementById('caRadius');
+const caFalloff = document.getElementById('caFalloff');
+const caCenterX = document.getElementById('caCenterX');
+const caCenterY = document.getElementById('caCenterY');
+const caEdgeAware = document.getElementById('caEdgeAware');
+
+const ignoreAlphaToggle = document.getElementById('ignoreAlphaToggle');
+const ignoreAlphaStrength = document.getElementById('ignoreAlphaStrength');
+
+const layerGrid = document.getElementById('layerGrid');
+const layerPreviewWindow = document.getElementById('layerPreviewWindow');
+
+const realtimeToggle = document.getElementById('realtimeToggle');
+const applyBtn = document.getElementById('applyBtn');
+const helpBtn = document.getElementById('helpBtn');
+const compareBtn = document.getElementById('compareBtn');
+const downloadBtn = document.getElementById('downloadImage');
+const exportLayersBtn = document.getElementById('exportLayersBtn');
+
+const compareModal = document.getElementById('compareModal');
+const compareOriginal = document.getElementById('compareOriginal');
+const compareEdited = document.getElementById('compareEdited');
+const exportSideBySideBtn = document.getElementById('exportSideBySide');
+const exportStackedBtn = document.getElementById('exportStacked');
+const closeCompareBtn = document.getElementById('closeCompare');
+
+const layersModal = document.getElementById('layersModal');
+const exportLayersSideBtn = document.getElementById('exportLayersSide');
+const exportLayersGridBtn = document.getElementById('exportLayersGrid');
+const closeLayersBtn = document.getElementById('closeLayers');
+
+let baseImageCanvas = null; // 2D canvas for original
+let baseTexture = null; // WebGL texture for original
+let noiseTexture = null;
+let tex1 = null, tex2 = null, fb1 = null, fb2 = null;
+let shadowsTex = null, highlightsTex = null, combinedMaskTex = null;
+let adjustedTex = null;
+let noiseLayerTex = null;
+let finalTex = null;
+let layerCanvases = {};
+let previews = [];
+let originalImageLoaded = false;
+let realtime = true;
+let positionBuffer = null;
+let programs = {};
+let lastFullComposite = null; // for compatibility, but now use WebGL
+
+/* ------------------------- 
+   Utilities
+   ------------------------- */
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+function gaussianRandom(mean = 0, std = 1) {
+  let u = 0, v = 0; while (u === 0) u = Math.random(); while (v === 0) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * std + mean;
+}
+function smoothstep(min, max, value) {
+  if (min > max) [min, max] = [max, min];
+  const x = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  return x * x * (3 - 2 * x);
+}
+const MAX_NOISE_SIZE = 200.0; const MAX_BLUR = 5.0; const SLIDER_MAX = 1000.0; const ZOOM_EXPONENT = 3.0;
+function noiseSizeFromSlider(s) { const t = Math.pow(s / SLIDER_MAX, ZOOM_EXPONENT); return 1.0 + (MAX_NOISE_SIZE - 1.0) * t; }
+function blurFromSlider(s) { const t = Math.pow(s / SLIDER_MAX, ZOOM_EXPONENT); return MAX_BLUR * t; }
+function maskSliderToValue(s) { const v = Math.max(0, Math.min(1, Number(s))); return v * v; }
+
+/* ------------------------- 
+   WebGL setup
+   ------------------------- */
+const vsSource = `
+attribute vec2 a_position;
+varying vec2 v_uv;
+void main() {
+  gl_Position = vec4(a_position, 0, 1);
+  v_uv = (a_position + 1.0) / 2.0;
+}
+`;
+
+function createProgram(vs, fs) {
+  const vShader = gl.createShader(gl.VERTEX_SHADER);
+  gl.shaderSource(vShader, vs);
+  gl.compileShader(vShader);
+  if (!gl.getShaderParameter(vShader, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(vShader));
+
+  const fShader = gl.createShader(gl.FRAGMENT_SHADER);
+  gl.shaderSource(fShader, fs);
+  gl.compileShader(fShader);
+  if (!gl.getShaderParameter(fShader, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(fShader));
+
+  const program = gl.createProgram();
+  gl.attachShader(program, vShader);
+  gl.attachShader(program, fShader);
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(program));
+
+  return program;
+}
+
+function setupPrograms() {
+  programs.adjust = createProgram(vsSource, `
+precision mediump float;
+varying vec2 v_uv;
+uniform sampler2D u_input;
+uniform float u_brightness;
+uniform float u_contrast;
+uniform float u_saturation;
+uniform float u_hdrTol;
+uniform float u_hdrAmt;
+vec3 rgbToHsl(vec3 c) {
+  float maxVal = max(max(c.r, c.g), c.b);
+  float minVal = min(min(c.r, c.g), c.b);
+  vec3 hsl = vec3(0.0);
+  hsl.z = (maxVal + minVal) / 2.0;
+  if (maxVal == minVal) {
+    hsl.x = hsl.y = 0.0;
+  } else {
+    float d = maxVal - minVal;
+    hsl.y = (hsl.z < 0.5) ? d / (maxVal + minVal) : d / (2.0 - maxVal - minVal);
+    if (c.r == maxVal) hsl.x = (c.g - c.b) / d + (c.g < c.b ? 6.0 : 0.0);
+    else if (c.g == maxVal) hsl.x = (c.b - c.r) / d + 2.0;
+    else hsl.x = (c.r - c.g) / d + 4.0;
+    hsl.x /= 6.0;
+  }
+  return hsl;
+}
+vec3 hslToRgb(vec3 h) {
+  vec3 rgb;
+  if (h.y == 0.0) rgb = vec3(h.z);
+  else {
+    float q = h.z < 0.5 ? h.z * (1.0 + h.y) : h.z + h.y - h.z * h.y;
+    float p = 2.0 * h.z - q;
+    rgb.r = hue2rgb(p, q, h.x + 1.0/3.0);
+    rgb.g = hue2rgb(p, q, h.x);
+    rgb.b = hue2rgb(p, q, h.x - 1.0/3.0);
+  }
+  return rgb;
+}
+float hue2rgb(float p, float q, float t) {
+  if (t < 0.0) t += 1.0;
+  if (t > 1.0) t -= 1.0;
+  if (t < 1.0/6.0) return p + (q - p) * 6.0 * t;
+  if (t < 1.0/2.0) return q;
+  if (t < 2.0/3.0) return p + (q - p) * (2.0/3.0 - t) * 6.0;
+  return p;
+}
+void main() {
+  vec4 color = texture2D(u_input, v_uv);
+  vec3 rgb = color.rgb;
+  vec3 lum = vec3(dot(rgb, vec3(0.299,0.587,0.114)));
+  rgb = lum + (rgb - lum) * (1.0 + u_saturation * 0.01);
+  rgb = (rgb - 0.5) * u_contrast + 0.5;
+  rgb += u_brightness * 0.01;
+  rgb = clamp(rgb, 0.0, 1.0);
+  float nl = dot(rgb, vec3(0.299,0.587,0.114));
+  if (nl < u_hdrTol) {
+    float strength = (u_hdrAmt / 100.0) * (1.0 - nl / u_hdrTol);
+    rgb *= (1.0 - strength);
+  }
+  gl_FragColor = vec4(rgb, color.a);
+}
+  `);
+
+  programs.mask = createProgram(vsSource, `
+precision mediump float;
+varying vec2 v_uv;
+uniform sampler2D u_input;
+uniform float u_sh_th;
+uniform float u_sh_f;
+uniform float u_hi_th;
+uniform float u_hi_f;
+uniform bool u_enableShadows;
+uniform bool u_enableHighlights;
+uniform bool u_ignoreAlpha;
+uniform float u_ignoreAlphaStrength;
+uniform int u_maskMode;
+float smoothstep(float edge0, float edge1, float x) {
+  float t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+  return t * t * (3.0 - 2.0 * t);
+}
+void main() {
+  vec4 color = texture2D(u_input, v_uv);
+  vec3 rgb = color.rgb;
+  float a = color.a;
+  float lum = dot(rgb, vec3(0.299,0.587,0.114));
+  float sMask = 0.0;
+  if (u_enableShadows) {
+    float low = u_sh_th - u_sh_f / 2.0;
+    float high = u_sh_th + u_sh_f / 2.0;
+    sMask = 1.0 - smoothstep(low, high, lum);
+  }
+  float hMask = 0.0;
+  if (u_enableHighlights) {
+    float low = u_hi_th - u_hi_f / 2.0;
+    float high = u_hi_th + u_hi_f / 2.0;
+    hMask = smoothstep(low, high, lum);
+  }
+  float tot = max(sMask, hMask);
+  if (u_ignoreAlpha) {
+    tot *= (1.0 - u_ignoreAlphaStrength * (1.0 - a));
+  }
+  float outVal = (u_maskMode == 0) ? tot : (u_maskMode == 1 ? sMask : hMask);
+  gl_FragColor = vec4(vec3(outVal), 1.0);
+}
+  `);
+
+  programs.blur = createProgram(vsSource, `
+precision mediump float;
+varying vec2 v_uv;
+uniform sampler2D u_input;
+uniform vec2 u_dir;
+uniform float u_sigma;
+#define PI 3.14159265
+#define KERNEL_RADIUS 15
+void main() {
+  vec2 size = vec2(textureSize(u_input, 0));
+  float weightSum = 0.0;
+  vec3 sum = vec3(0.0);
+  float gauss = 1.0 / (sqrt(2.0 * PI) * u_sigma);
+  for (int i = -KERNEL_RADIUS; i <= KERNEL_RADIUS; i++) {
+    float weight = gauss * exp(-float(i * i) / (2.0 * u_sigma * u_sigma));
+    vec2 offset = u_dir * float(i) / size;
+    sum += texture2D(u_input, v_uv + offset).rgb * weight;
+    weightSum += weight;
+  }
+  gl_FragColor = vec4(sum / weightSum, 1.0);
+}
+  `);
+
+  programs.noiseLayer = createProgram(vsSource, `
+precision mediump float;
+varying vec2 v_uv;
+uniform sampler2D u_noiseTex;
+uniform sampler2D u_adjusted;
+uniform sampler2D u_maskTex;
+uniform vec2 u_noiseScale;
+uniform int u_noiseType;
+uniform float u_satStrength;
+uniform float u_satPerNoise;
+vec3 rgbToHsl(vec3 c) {
+  float maxVal = max(max(c.r, c.g), c.b);
+  float minVal = min(min(c.r, c.g), c.b);
+  vec3 hsl = vec3(0.0);
+  hsl.z = (maxVal + minVal) / 2.0;
+  if (maxVal == minVal) {
+    hsl.x = hsl.y = 0.0;
+  } else {
+    float d = maxVal - minVal;
+    hsl.y = (hsl.z < 0.5) ? d / (maxVal + minVal) : d / (2.0 - maxVal - minVal);
+    if (c.r == maxVal) hsl.x = (c.g - c.b) / d + (c.g < c.b ? 6.0 : 0.0);
+    else if (c.g == maxVal) hsl.x = (c.b - c.r) / d + 2.0;
+    else hsl.x = (c.r - c.g) / d + 4.0;
+    hsl.x /= 6.0;
+  }
+  return hsl;
+}
+vec3 hslToRgb(vec3 h) {
+  vec3 rgb;
+  if (h.y == 0.0) rgb = vec3(h.z);
+  else {
+    float q = h.z < 0.5 ? h.z * (1.0 + h.y) : h.z + h.y - h.z * h.y;
+    float p = 2.0 * h.z - q;
+    rgb.r = hue2rgb(p, q, h.x + 1.0/3.0);
+    rgb.g = hue2rgb(p, q, h.x);
+    rgb.b = hue2rgb(p, q, h.x - 1.0/3.0);
+  }
+  return rgb;
+}
+float hue2rgb(float p, float q, float t) {
+  if (t < 0.0) t += 1.0;
+  if (t > 1.0) t -= 1.0;
+  if (t < 1.0/6.0) return p + (q - p) * 6.0 * t;
+  if (t < 1.0/2.0) return q;
+  if (t < 2.0/3.0) return p + (q - p) * (2.0/3.0 - t) * 6.0;
+  return p;
+}
+void main() {
+  vec3 noiseRgb = texture2D(u_noiseTex, v_uv * u_noiseScale).rgb;
+  vec4 outColor;
+  if (u_noiseType == 2) { // blend
+    vec3 rgb = texture2D(u_adjusted, v_uv).rgb;
+    float v = noiseRgb.r;
+    float centered = (v - 0.5) * 2.0;
+    float combined = u_satStrength * (1.0 + u_satPerNoise / 100.0);
+    float delta = centered * combined;
+    vec3 hsl = rgbToHsl(rgb);
+    hsl.y = clamp(hsl.y + delta, 0.0, 2.0);
+    rgb = hslToRgb(hsl);
+    outColor = vec4(rgb, 1.0);
+  } else {
+    if (u_noiseType == 1) { // grayscale
+      noiseRgb = vec3(noiseRgb.r);
+    }
+    outColor = vec4(noiseRgb, 1.0);
+  }
+  float mask = texture2D(u_maskTex, v_uv).r;
+  outColor.a = mask;
+  gl_FragColor = outColor;
+}
+  `);
+
+  programs.composite = createProgram(vsSource, `
+precision mediump float;
+varying vec2 v_uv;
+uniform sampler2D u_adjusted;
+uniform sampler2D u_noiseLayer;
+uniform float u_opacity;
+uniform string u_blendMode; // use int
+float overlayComp(float a, float b) {
+  return a < 0.5 ? 2.0 * a * b : 1.0 - 2.0 * (1.0 - a) * (1.0 - b);
+}
+vec3 overlay(vec3 a, vec3 b) {
+  return vec3(overlayComp(a.r, b.r), overlayComp(a.g, b.g), overlayComp(a.b, b.b));
+}
+vec3 screen(vec3 a, vec3 b) {
+  return 1.0 - (1.0 - a) * (1.0 - b);
+}
+vec3 multiply(vec3 a, vec3 b) {
+  return a * b;
+}
+vec3 add(vec3 a, vec3 b) {
+  return a + b;
+}
+vec3 difference(vec3 a, vec3 b) {
+  return abs(a - b);
+}
+void main() {
+  vec4 src = texture2D(u_adjusted, v_uv);
+  vec4 over = texture2D(u_noiseLayer, v_uv);
+  float alpha = u_opacity * over.a;
+  vec3 blended = src.rgb;
+  if (u_blendMode == 0) { // normal
+    blended = over.rgb;
+  } else if (u_blendMode == 1) { // overlay
+    blended = overlay(src.rgb, over.rgb);
+  } else if (u_blendMode == 2) { // screen
+    blended = screen(src.rgb, over.rgb);
+  } else if (u_blendMode == 3) { // multiply
+    blended = multiply(src.rgb, over.rgb);
+  } else if (u_blendMode == 4) { // lighter add
+    blended = add(src.rgb, over.rgb);
+  } else if (u_blendMode = 5) { // difference
+    blended = difference(src.rgb, over.rgb);
+  }
+  vec3 final = blended * alpha + src.rgb * (1.0 - alpha);
+  gl_FragColor = vec4(final, src.a);
+}
+  `);
+
+  programs.ca = createProgram(vsSource, `
+precision mediump float;
+varying vec2 v_uv;
+uniform sampler2D u_input;
+uniform vec2 u_center;
+uniform vec3 u_strength;
+uniform float u_radius;
+uniform float u_falloff;
+uniform bool u_edgeAware;
+float getLum(vec2 pos) {
+  return dot(texture2D(u_input, pos).rgb, vec3(0.299, 0.587, 0.114));
+}
+void main() {
+  vec2 dir = v_uv - u_center;
+  float dist = length(dir);
+  if (dist > u_radius) {
+    gl_FragColor = texture2D(u_input, v_uv);
+    return;
+  }
+  float str = pow(dist / u_radius, u_falloff);
+  if (u_edgeAware) {
+    vec2 px = 1.0 / vec2(textureSize(u_input, 0));
+    float dx = getLum(v_uv + vec2(px.x, 0.0)) - getLum(v_uv - vec2(px.x, 0.0));
+    float dy = getLum(v_uv + vec2(0.0, px.y)) - getLum(v_uv - vec2(0.0, px.y));
+    float edge = sqrt(dx * dx + dy * dy);
+    str *= clamp(edge * 10.0, 0.0, 1.0); // arbitrary sensitivity
+  }
+  vec2 offsetR = dir * u_strength.r * str;
+  vec2 offsetG = dir * u_strength.g * str;
+  vec2 offsetB = dir * u_strength.b * str;
+  float r = texture2D(u_input, v_uv + offsetR).r;
+  float g = texture2D(u_input, v_uv + offsetG).g;
+  float b = texture2D(u_input, v_uv + offsetB).b;
+  gl_FragColor = vec4(r, g, b, 1.0);
+}
+  `);
+
+  programs.blit = createProgram(vsSource, `
+precision mediump float;
+varying vec2 v_uv;
+uniform sampler2D u_input;
+void main() {
+  gl_FragColor = texture2D(u_input, v_uv);
+}
+  `);
+}
+
+function setupQuad() {
+  positionBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+}
+
+function drawQuad(program) {
+  gl.useProgram(program);
+  const posLoc = gl.getAttribLocation(program, 'a_position');
+  gl.enableVertexAttribArray(posLoc);
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+}
+
+function createTexture(w, h) {
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return tex;
+}
+
+function getImageDataFromTexture(tex, w, h) {
+  const fb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  const pixels = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return new ImageData(new Uint8ClampedArray(pixels), w, h);
+}
+
+function get2dCanvasFromTex(tex, name, w, h) {
+  if (!layerCanvases[name]) {
+    layerCanvases[name] = document.createElement('canvas');
+    layerCanvases[name].width = w;
+    layerCanvases[name].height = h;
+  }
+  const ctx = layerCanvases[name].getContext('2d');
+  const data = getImageDataFromTexture(tex, w, h);
+  ctx.putImageData(data, 0, 0);
+  return layerCanvases[name];
+}
+
+/* ------------------------- 
+   Main display fit logic
+   ------------------------- */
+function fitMainPreview() {
+  if (!originalImageLoaded) return;
+  const w = displayCanvas.width;
+  const h = displayCanvas.height;
+  const previewArea = document.getElementById('previewArea');
+  const areaRect = previewArea.getBoundingClientRect();
+  const maxWidth = Math.max(100, areaRect.width - 24);
+  let maxHeight;
+  if (window.scrollY === 0) {
+    const availableHeight = window.innerHeight - areaRect.top - 24;
+    maxHeight = Math.max(60, availableHeight - 16);
+  } else {
+    maxHeight = window.innerHeight * 0.9;
+  }
+  const scale = Math.min(maxWidth / w, maxHeight / h);
+  const cssWidth = Math.round(w * scale);
+  const cssHeight = Math.round(h * scale);
+  displayCanvas.style.width = cssWidth + 'px';
+  displayCanvas.style.height = cssHeight + 'px';
+  overlayCanvas.style.width = cssWidth + 'px';
+  overlayCanvas.style.height = cssHeight + 'px';
+  previewArea.style.minHeight = (cssHeight + 24) + 'px';
+}
+
+/* ------------------------- 
+   Render pipeline
+   ------------------------- */
+function composeAndRender() {
+  if (!originalImageLoaded) return;
+
+  const w = displayCanvas.width;
+  const h = displayCanvas.height;
+  gl.viewport(0, 0, w, h);
+
+  // Create ping-pong framebuffers if not
+  if (!tex1) {
+    tex1 = createTexture(w, h);
+    tex2 = createTexture(w, h);
+    fb1 = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb1);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex1, 0);
+    fb2 = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb2);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex2, 0);
+  }
+
+  // Update noise texture
+  updateNoiseTexture(w, h);
+
+  // Start with base
+  let currentFb = fb1;
+  let currentTex = baseTexture;
+  let nextFb = fb2;
+
+  // Adjustment pass
+  gl.bindFramebuffer(gl.FRAMEBUFFER, currentFb);
+  gl.clearColor(0, 0, 0, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, currentTex);
+  gl.useProgram(programs.adjust);
+  gl.uniform1i(gl.getUniformLocation(programs.adjust, 'u_input'), 0);
+  gl.uniform1f(gl.getUniformLocation(programs.adjust, 'u_brightness'), parseFloat(brightnessRange.value));
+  gl.uniform1f(gl.getUniformLocation(programs.adjust, 'u_contrast'), parseFloat(contrastRange.value) / 100);
+  gl.uniform1f(gl.getUniformLocation(programs.adjust, 'u_saturation'), parseFloat(saturationAdjRange.value));
+  gl.uniform1f(gl.getUniformLocation(programs.adjust, 'u_hdrTol'), parseFloat(hdrTolerance.value));
+  gl.uniform1f(gl.getUniformLocation(programs.adjust, 'u_hdrAmt'), parseFloat(hdrAmount.value));
+  drawQuad(programs.adjust);
+  adjustedTex = tex1;
+  currentTex = tex1;
+  let temp = currentFb;
+  currentFb = nextFb;
+  nextFb = temp;
+  let tempTex = tex1;
+  tex1 = tex2;
+  tex2 = tempTex;
+
+  // Mask passes
+  combinedMaskTex = renderMask(adjustedTex, 0, w, h);
+  shadowsTex = renderMask(adjustedTex, 1, w, h);
+  highlightsTex = renderMask(adjustedTex, 2, w, h);
+
+  // Scaled noise pass (sample small noise)
+  const scaledNoiseTex = renderScaledNoise(noiseTexture, w, h);
+
+  // Blur noise if needed
+  let blurredNoiseTex = scaledNoiseTex;
+  const blurPx = blurFromSlider(blurrinessRange.value);
+  if (blurPx > 0) {
+    blurredNoiseTex = renderBlur(scaledNoiseTex, blurPx, w, h);
+  }
+
+  // Noise layer pass
+  noiseLayerTex = renderNoiseLayer(blurredNoiseTex, adjustedTex, combinedMaskTex, w, h);
+
+  // Composite pass
+  gl.bindFramebuffer(gl.FRAMEBUFFER, currentFb);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, adjustedTex);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, noiseLayerTex);
+  gl.useProgram(programs.composite);
+  gl.uniform1i(gl.getUniformLocation(programs.composite, 'u_adjusted'), 0);
+  gl.uniform1i(gl.getUniformLocation(programs.composite, 'u_noiseLayer'), 1);
+  gl.uniform1f(gl.getUniformLocation(programs.composite, 'u_opacity'), parseFloat(opacityRange.value));
+  gl.uniform1i(gl.getUniformLocation(programs.composite, 'u_blendMode'), blendModeToInt(blendModeSelect.value));
+  drawQuad(programs.composite);
+  let compositeTex = tex1;
+  currentTex = tex1;
+  temp = currentFb;
+  currentFb = nextFb;
+  nextFb = temp;
+  tempTex = tex1;
+  tex1 = tex2;
+  tex2 = tempTex;
+
+  // Chromatic Aberration pass if enabled
+  if (enableCA.checked) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, currentFb);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, compositeTex);
+    gl.useProgram(programs.ca);
+    gl.uniform1i(gl.getUniformLocation(programs.ca, 'u_input'), 0);
+    gl.uniform2f(gl.getUniformLocation(programs.ca, 'u_center'), parseFloat(caCenterX.value) / 100, parseFloat(caCenterY.value) / 100);
+    gl.uniform3f(gl.getUniformLocation(programs.ca, 'u_strength'), parseFloat(caStrengthR.value) / 1000, parseFloat(caStrengthG.value) / 1000, parseFloat(caStrengthB.value) / 1000); // scale to small values
+    gl.uniform1f(gl.getUniformLocation(programs.ca, 'u_radius'), parseFloat(caRadius.value));
+    gl.uniform1f(gl.getUniformLocation(programs.ca, 'u_falloff'), parseFloat(caFalloff.value));
+    gl.uniform1i(gl.getUniformLocation(programs.ca, 'u_edgeAware'), caEdgeAware.checked ? 1 : 0);
+    drawQuad(programs.ca);
+    finalTex = tex1;
+  } else {
+    finalTex = compositeTex;
+  }
+
+  // Blit to screen
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, finalTex);
+  gl.useProgram(programs.blit);
+  gl.uniform1i(gl.getUniformLocation(programs.blit, 'u_input'), 0);
+  drawQuad(programs.blit);
+
+  // Update layers
+  buildLayerGrid(w, h);
+  fitMainPreview();
+  if (downloadBtn) downloadBtn.disabled = false;
+  lastFullComposite = displayCanvas; // for export compatibility
+}
+
+function blendModeToInt(mode) {
+  switch (mode) {
+    case 'source-over': return 0;
+    case 'overlay': return 1;
+    case 'screen': return 2;
+    case 'multiply': return 3;
+    case 'lighter': return 4;
+    case 'difference': return 5;
+    default: return 0;
+  }
+}
+
+function updateNoiseTexture(w, h) {
+  const std = parseFloat(strengthRange.value) || 0;
+  const noiseType = noiseTypeSelect.value;
+  const noiseSize = noiseSizeFromSlider(noiseSizeRange.value);
+  const smallW = Math.max(1, Math.round(w / noiseSize));
+  const smallH = Math.max(1, Math.round(h / noiseSize));
+  const data = new Uint8ClampedArray(smallW * smallH * 4);
+  const isColor = noiseType === 'color';
+  for (let i = 0; i < smallW * smallH; i++) {
+    const idx = i * 4;
+    let vr = 128 + gaussianRandom(0, std);
+    let vg = 128 + gaussianRandom(0, std);
+    let vb = 128 + gaussianRandom(0, std);
+    if (!isColor) vr = vg = vb;
+    data[idx] = clamp(vr, 0, 255);
+    data[idx + 1] = clamp(vg, 0, 255);
+    data[idx + 2] = clamp(vb, 0, 255);
+    data[idx + 3] = 255;
+  }
+  if (!noiseTexture) noiseTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, noiseTexture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, smallW, smallH, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  return { smallW, smallH };
+}
+
+function renderScaledNoise(noiseTex, w, h) {
+  const scaledTex = createTexture(w, h);
+  const fb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, scaledTex, 0);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, noiseTex);
+  gl.useProgram(programs.blit); // simple blit with scale in uv? Wait, for scale, since texture small, but to scale, use u_noiseScale
+  // Actually, for scaled, use noiseLayer shader but only the noise part? No, separate
+  // Let's use blit, but set uniform for scale? Blit doesn't have scale.
+  // Add a scaledNoise program or use uniform in blit.
+  // For simplicity, add u_scale in a new program or use noiseLayer for this part.
+  // To keep simple, since linear filtering, we can draw with u_scale in a simple shader.
+  const scaledProgram = programs.blit; // assume no, need custom.
+  // Let's create a scaledSample program
+  if (!programs.scaledSample) {
+    programs.scaledSample = createProgram(vsSource, `
+precision mediump float;
+varying vec2 v_uv;
+uniform sampler2D u_input;
+uniform vec2 u_scale;
+void main() {
+  gl_FragColor = texture2D(u_input, v_uv * u_scale);
+}
+    `);
+  }
+  gl.useProgram(programs.scaledSample);
+  gl.uniform1i(gl.getUniformLocation(programs.scaledSample, 'u_input'), 0);
+  gl.uniform2f(gl.getUniformLocation(programs.scaledSample, 'u_scale'), w / smallW, h / smallH); // smallW from updateNoiseTexture
+  // Wait, I returned {smallW, smallH}
+  const { smallW, smallH } = updateNoiseTexture(w, h);
+  gl.uniform2f(gl.getUniformLocation(programs.scaledSample, 'u_scale'), w / smallW, h / smallH);
+  drawQuad(programs.scaledSample);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return scaledTex;
+}
+
+function renderBlur(inputTex, sigma, w, h) {
+  let tempTex = createTexture(w, h);
+  let fb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tempTex, 0);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, inputTex);
+  gl.useProgram(programs.blur);
+  gl.uniform1i(gl.getUniformLocation(programs.blur, 'u_input'), 0);
+  gl.uniform2f(gl.getUniformLocation(programs.blur, 'u_dir'), 1.0, 0.0);
+  gl.uniform1f(gl.getUniformLocation(programs.blur, 'u_sigma'), sigma);
+  drawQuad(programs.blur);
+
+  let outputTex = createTexture(w, h);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, outputTex, 0);
+  gl.bindTexture(gl.TEXTURE_2D, tempTex);
+  gl.uniform2f(gl.getUniformLocation(programs.blur, 'u_dir'), 0.0, 1.0);
+  drawQuad(programs.blur);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return outputTex;
+}
+
+function renderMask(inputTex, mode, w, h) {
+  const maskTex = createTexture(w, h);
+  const fb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, maskTex, 0);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, inputTex);
+  gl.useProgram(programs.mask);
+  gl.uniform1i(gl.getUniformLocation(programs.mask, 'u_input'), 0);
+  gl.uniform1f(gl.getUniformLocation(programs.mask, 'u_sh_th'), maskSliderToValue(shadowThreshold.value));
+  gl.uniform1f(gl.getUniformLocation(programs.mask, 'u_sh_f'), maskSliderToValue(shadowFade.value));
+  gl.uniform1f(gl.getUniformLocation(programs.mask, 'u_hi_th'), maskSliderToValue(highlightThreshold.value));
+  gl.uniform1f(gl.getUniformLocation(programs.mask, 'u_hi_f'), maskSliderToValue(highlightFade.value));
+  gl.uniform1i(gl.getUniformLocation(programs.mask, 'u_enableShadows'), enableShadows.checked ? 1 : 0);
+  gl.uniform1i(gl.getUniformLocation(programs.mask, 'u_enableHighlights'), enableHighlights.checked ? 1 : 0);
+  gl.uniform1i(gl.getUniformLocation(programs.mask, 'u_ignoreAlpha'), ignoreAlphaToggle.checked ? 1 : 0);
+  gl.uniform1f(gl.getUniformLocation(programs.mask, 'u_ignoreAlphaStrength'), parseFloat(ignoreAlphaStrength.value) / 100);
+  gl.uniform1i(gl.getUniformLocation(programs.mask, 'u_maskMode'), mode);
+  drawQuad(programs.mask);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return maskTex;
+}
+
+function renderNoiseLayer(noiseTex, adjustedTex, maskTex, w, h) {
+  const noiseLayerTex = createTexture(w, h);
+  const fb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, noiseLayerTex, 0);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, noiseTex);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, adjustedTex);
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, maskTex);
+  gl.useProgram(programs.noiseLayer);
+  gl.uniform1i(gl.getUniformLocation(programs.noiseLayer, 'u_noiseTex'), 0);
+  gl.uniform1i(gl.getUniformLocation(programs.noiseLayer, 'u_adjusted'), 1);
+  gl.uniform1i(gl.getUniformLocation(programs.noiseLayer, 'u_maskTex'), 2);
+  gl.uniform2f(gl.getUniformLocation(programs.noiseLayer, 'u_noiseScale'), w / smallW, h / smallH); // assume global smallW smallH
+  gl.uniform1i(gl.getUniformLocation(programs.noiseLayer, 'u_noiseType'), noiseTypeToInt(noiseTypeSelect.value));
+  gl.uniform1f(gl.getUniformLocation(programs.noiseLayer, 'u_satStrength'), parseFloat(satStrength.value));
+  gl.uniform1f(gl.getUniformLocation(programs.noiseLayer, 'u_satPerNoise'), parseFloat(satPerNoise.value));
+  drawQuad(programs.noiseLayer);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return noiseLayerTex;
+}
+
+function noiseTypeToInt(type) {
+  switch (type) {
+    case 'color': return 0;
+    case 'grayscale': return 1;
+    case 'blend': return 2;
+    default: return 1;
+  }
+}
+
+/* ------------------------- 
+   Build grid previews
+   ------------------------- */
+function buildLayerGrid(w, h) {
+  layerGrid.innerHTML = '';
+  previews = [];
+  get2dCanvasFromTex(baseTexture, 'Base Original', w, h); // Wait, base is texture, but we have baseImageCanvas
+  layerCanvases['Base Original'] = baseImageCanvas;
+  layerCanvases['Adjusted (with HDR)'] = get2dCanvasFromTex(adjustedTex, 'Adjusted (with HDR)', w, h);
+  layerCanvases['HDR Emulation Result'] = layerCanvases['Adjusted (with HDR)'];
+  layerCanvases['Noise Layer'] = get2dCanvasFromTex(noiseLayerTex, 'Noise Layer', w, h);
+  layerCanvases['Mask (combined)'] = get2dCanvasFromTex(combinedMaskTex, 'Mask (combined)', w, h);
+  layerCanvases['Shadows Mask'] = get2dCanvasFromTex(shadowsTex, 'Shadows Mask', w, h);
+  layerCanvases['Highlights Mask'] = get2dCanvasFromTex(highlightsTex, 'Highlights Mask', w, h);
+  layerCanvases['Composite (Edited)'] = get2dCanvasFromTex(finalTex, 'Composite (Edited)', w, h);
+
+  const layerNames = ['Base Original', 'Adjusted (with HDR)', 'HDR Emulation Result', 'Noise Layer', 'Mask (combined)', 'Shadows Mask', 'Highlights Mask', 'Composite (Edited)'];
+  layerNames.forEach(name => {
+    appendItem(name, layerCanvases[name]);
+  });
+
+  const N = previews.length;
+  if (N > 0) {
+    const cols = Math.ceil(N / 2);
+    const minItemW = 100;
+    layerGrid.style.gridTemplateColumns = `repeat(${cols}, minmax(${minItemW}px, 1fr))`;
+  }
+
+  layerPreviewWindow.style.maxHeight = Math.max(200, Math.min(window.innerHeight, Math.round(window.innerHeight * 0.9))) + 'px';
+  updateLayerPreviews();
+}
+
+function appendItem(name, srcCanvas) {
+  const item = document.createElement('div'); item.className = 'layer-item';
+  const titleRow = document.createElement('div'); titleRow.className = 'layer-title-row';
+  const title = document.createElement('div'); title.className = 'layer-title'; title.textContent = name;
+  const actions = document.createElement('div');
+  const dlBtn = document.createElement('button'); dlBtn.textContent = 'Download';
+  dlBtn.title = 'Download full-resolution PNG';
+  actions.appendChild(dlBtn);
+  titleRow.appendChild(title); titleRow.appendChild(actions);
+  const canvas = document.createElement('canvas'); canvas.className = 'layer-canvas';
+  canvas.style.width = '100%'; canvas.style.height = 'auto';
+  dlBtn.addEventListener('click', () => {
+    const link = document.createElement('a'); link.href = srcCanvas.toDataURL('image/png');
+    link.download = `${name.replace(/\s+/g, '_').toLowerCase()}.png`; link.click();
+  });
+  item.appendChild(titleRow); item.appendChild(canvas);
+  layerGrid.appendChild(item);
+  previews.push({ name, canvas, src: srcCanvas, item });
+}
+
+/* ------------------------- 
+   Update layer preview canvases
+   ------------------------- */
+function updateLayerPreviews() {
+  if (previews.length === 0) return;
+  const dpr = window.devicePixelRatio || 1;
+  previews.forEach(p => {
+    const rect = p.canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const srcW = p.src.width;
+    const srcH = p.src.height;
+    const requiredW = rect.width * dpr;
+    const requiredH = rect.height * dpr;
+    const useW = Math.min(requiredW, srcW);
+    const useH = Math.min(requiredH, srcH);
+    p.canvas.width = useW;
+    p.canvas.height = useH;
+    const ctx = p.canvas.getContext('2d');
+    ctx.clearRect(0, 0, useW, useH);
+    ctx.drawImage(p.src, 0, 0, srcW, srcH, 0, 0, useW, useH);
+  });
+}
+
+/* ------------------------- 
+   UI wiring & event handling
+   ------------------------- */
+function setupUIListeners() {
+  const inputElements = [
+    strengthRange, noiseTypeSelect, satStrength, satPerNoise,
+    noiseSizeRange, blurrinessRange,
+    enableShadows, shadowThreshold, shadowFade,
+    enableHighlights, highlightThreshold, highlightFade,
+    blendModeSelect, opacityRange,
+    brightnessRange, contrastRange, saturationAdjRange,
+    hdrTolerance, hdrAmount,
+    enableCA, caMode, caStrengthR, caStrengthG, caStrengthB, caRadius, caFalloff, caCenterX, caCenterY, caEdgeAware,
+    ignoreAlphaToggle, ignoreAlphaStrength
+  ].filter(Boolean);
+
+  inputElements.forEach(el => {
+    el.addEventListener('input', () => { if (realtime) composeAndRender(); });
+    el.addEventListener('change', () => composeAndRender());
+  });
+
+  realtimeToggle.addEventListener('click', () => {
+    realtime = !realtime;
+    realtimeToggle.textContent = 'Realtime: ' + (realtime ? 'ON' : 'OFF');
+    applyBtn.disabled = realtime;
+    if (realtime) composeAndRender();
+  });
+
+  applyBtn.addEventListener('click', composeAndRender);
+
+  helpBtn.addEventListener('click', () => {
+    alert('Quick tips:\n- Hover the main preview to see the original.\n- Realtime applies live updates (ON by default). Turn off to batch changes and press Apply.\n- Click a layer Download to export it at original resolution.\n- Compare opens side-by-side export options.\n- Export Layers opens options to export all layers side-by-side or in a 2x4 grid at full resolution.\n- Layer previews are scaled to fit in at most 2 rows.');
+  });
+
+  compareBtn.addEventListener('click', async () => {
+    await ensureFullQualityComposite();
+    compareModal.classList.add('show');
+    drawCompareCanvases();
+  });
+  closeCompareBtn.addEventListener('click', () => compareModal.classList.remove('show'));
+  exportSideBySideBtn.addEventListener('click', () => exportCompare('side'));
+  exportStackedBtn.addEventListener('click', () => exportCompare('stack'));
+
+  exportLayersBtn.addEventListener('click', async () => {
+    await ensureFullQualityComposite();
+    layersModal.classList.add('show');
+  });
+  closeLayersBtn.addEventListener('click', () => layersModal.classList.remove('show'));
+  exportLayersSideBtn.addEventListener('click', () => exportLayers('side'));
+  exportLayersGridBtn.addEventListener('click', () => exportLayers('grid'));
+
+  downloadBtn.addEventListener('click', async () => {
+    await ensureFullQualityComposite();
+    const link = document.createElement('a');
+    link.href = displayCanvas.toDataURL('image/png');
+    link.download = 'edited_image.png';
+    link.click();
+  });
+
+  const previewArea = document.getElementById('previewArea');
+  previewArea.addEventListener('mouseenter', () => overlayWrap.classList.add('show'));
+  previewArea.addEventListener('mouseleave', () => overlayWrap.classList.remove('show'));
+
+  // Center picker
+  previewArea.addEventListener('click', (ev) => {
+    if (!enableCA.checked) return;
+    const rect = displayCanvas.getBoundingClientRect();
+    const x = ev.clientX - rect.left;
+    const y = ev.clientY - rect.top;
+    caCenterX.value = ((x / rect.width) * 100).toFixed(1);
+    caCenterY.value = ((y / rect.height) * 100).toFixed(1);
+    composeAndRender();
+  });
+}
+
+/* ------------------------- 
+   Compare and export helpers
+   ------------------------- */
+async function ensureFullQualityComposite() {
+  composeAndRender(); // Since always full res
+}
+
+function drawCompareCanvases() {
+  const w = baseImageCanvas.width, h = baseImageCanvas.height;
+  const modal = document.querySelector('.modal');
+  const rect = modal.getBoundingClientRect();
+  const areaW = Math.floor((rect.width - 40) / 2);
+  const scale = Math.min(1, areaW / w);
+  const cw = Math.round(w * scale), ch = Math.round(h * scale);
+  compareOriginal.width = cw; compareOriginal.height = ch;
+  compareEdited.width = cw; compareEdited.height = ch;
+  compareOriginal.getContext('2d').drawImage(baseImageCanvas, 0, 0, w, h, 0, 0, cw, ch);
+  compareEdited.getContext('2d').drawImage(layerCanvases['Composite (Edited)'], 0, 0, w, h, 0, 0, cw, ch);
+}
+
+function exportCompare(mode) {
+  const w = baseImageCanvas.width, h = baseImageCanvas.height;
+  let out = document.createElement('canvas');
+  if (mode === 'side') {
+    out.width = w * 2; out.height = h;
+    const c = out.getContext('2d');
+    c.drawImage(baseImageCanvas, 0, 0);
+    c.drawImage(layerCanvases['Composite (Edited)'], w, 0);
+  } else {
+    out.width = w; out.height = h * 2;
+    const c = out.getContext('2d');
+    c.drawImage(baseImageCanvas, 0, 0);
+    c.drawImage(layerCanvases['Composite (Edited)'], 0, h);
+  }
+  const link = document.createElement('a');
+  link.href = out.toDataURL('image/png');
+  link.download = (mode === 'side' ? 'compare_side_by_side.png' : 'compare_stacked.png');
+  link.click();
+  compareModal.classList.remove('show');
+}
+
+function exportLayers(mode) {
+  const w = baseImageCanvas.width, h = baseImageCanvas.height;
+  const N = previews.length;
+  let out = document.createElement('canvas');
+  if (mode === 'side') {
+    out.width = w * N;
+    out.height = h;
+    const ctx = out.getContext('2d');
+    previews.forEach((p, i) => ctx.drawImage(p.src, i * w, 0));
+  } else if (mode === 'grid') {
+    out.width = w * 2;
+    out.height = h * 4;
+    const ctx = out.getContext('2d');
+    previews.forEach((p, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      ctx.drawImage(p.src, col * w, row * h);
+    });
+  }
+  const link = document.createElement('a');
+  link.href = out.toDataURL('image/png');
+  link.download = (mode === 'side' ? 'layers_side_by_side.png' : 'layers_grid.png');
+  link.click();
+  layersModal.classList.remove('show');
+}
+
+/* ------------------------- 
+   File input handling
+   ------------------------- */
+fileInput.addEventListener('change', (ev) => {
+  const f = ev.target.files[0]; if (!f) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => loadImage(img);
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(f);
+});
+
+function loadImage(img) {
+  const w = img.width, h = img.height;
+  baseImageCanvas = document.createElement('canvas');
+  baseImageCanvas.width = w; baseImageCanvas.height = h;
+  baseImageCanvas.getContext('2d').drawImage(img, 0, 0, w, h);
+  displayCanvas.width = w; displayCanvas.height = h;
+  overlayCanvas.width = w; overlayCanvas.height = h;
+  overlayCanvas.getContext('2d').drawImage(img, 0, 0, w, h);
+  baseTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, baseTexture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  originalImageLoaded = true;
+  composeAndRender();
+}
+
+/* ------------------------- 
+   init
+   ------------------------- */
+(function init() {
+  function updateSatVisibility() {
+    const val = noiseTypeSelect.value;
+    document.getElementById('satControls').style.display = (val === 'blend') ? 'flex' : 'none';
+    document.getElementById('satPerNoiseRow').style.display = (val === 'blend') ? 'flex' : 'none';
+  }
+  noiseTypeSelect.addEventListener('change', updateSatVisibility);
+  updateSatVisibility();
+
+  setupPrograms();
+  setupQuad();
+  setupUIListeners();
+
+  realtimeToggle.textContent = 'Realtime: ON';
+  applyBtn.disabled = true;
+
+  window.addEventListener('resize', () => {
+    fitMainPreview();
+    layerPreviewWindow.style.maxHeight = Math.max(200, Math.min(window.innerHeight, Math.round(window.innerHeight * 0.9))) + 'px';
+    updateLayerPreviews();
+  });
+  window.addEventListener('scroll', fitMainPreview);
+})();
+</script>
+</body>
+</html>
