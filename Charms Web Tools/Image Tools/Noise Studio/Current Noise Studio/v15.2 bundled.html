@@ -1,0 +1,281 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Digital Grain Studio — GPU Accelerated</title><style>:root{--bg:#000;--fg:#fff;--panel-max:460px;--muted:#8c8c8c;--accent:#2a9df4;--border:rgba(255,255,255,0.08);--layer-h:40px;--tab-bg:#1a1a1a;--tab-active:#2a9df4}*{box-sizing:border-box}body,html{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:'Courier New',monospace}body{padding:16px;display:flex;gap:16px;align-items:flex-start;min-height:100vh}.container{display:flex;gap:16px;width:100%;height:100%}.controls-panel{flex:0 0 var(--panel-max);max-width:var(--panel-max);min-width:320px;padding-right:10px;overflow-y:auto;height:100%;scrollbar-width:thin;scrollbar-color:var(--muted) var(--bg);display:flex;flex-direction:column}.controls-panel h1{font-size:18px;margin:0 0 4px 0;text-align:center;letter-spacing:-.5px}.muted{color:var(--muted);font-size:12px;margin-bottom:12px;display:block;text-align:center}.tab-toggle-container{display:flex;gap:4px;margin:10px 0;background:#111;padding:4px;border:1px solid var(--border);border-radius:4px}.tab-btn{flex:1;background:0 0;color:var(--muted);border:none;padding:8px;cursor:pointer;font-size:11px;text-transform:uppercase;font-family:inherit;transition:.2s}.tab-btn.active{background:var(--tab-active);color:#000;font-weight:700}.tab-content{display:none;flex-direction:column;gap:10px}.tab-content.active{display:flex}.drag-layer{background:#111;border:1px solid var(--border);padding:8px 12px;margin-bottom:6px;cursor:grab;display:flex;justify-content:space-between;align-items:center;user-select:none;font-size:13px;border-radius:4px}.drag-layer:active{cursor:grabbing;background:#222;border-color:var(--accent)}.drag-layer.dragging{opacity:.5}.drag-handle{color:var(--muted);margin-right:10px}.drag-controls{display:flex;align-items:center;gap:10px}.drag-toggle{cursor:pointer;accent-color:var(--accent)}details{border:1px solid var(--border);margin-bottom:8px;padding:6px;border-radius:4px;background:#0a0a0a}summary{cursor:pointer;font-weight:700;margin:0 0 6px 0;outline:0;user-select:none;font-size:13px}summary:hover{color:var(--accent)}.control-row{display:flex;gap:8px;align-items:center;margin-bottom:6px;min-height:28px}.control-row label{flex:0 0 120px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}input[type=range]{flex:1;accent-color:var(--accent);cursor:pointer}.control-value{width:60px;padding:2px 4px;text-align:right;background:#000;color:var(--fg);border:1px solid var(--border);font-family:monospace;font-size:11px}select.control-value{flex:1;min-width:120px;padding:4px}.row-buttons{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}button{background:#111;color:var(--fg);border:1px solid var(--border);padding:8px 12px;cursor:pointer;font-family:monospace;font-size:12px;transition:all .2s}button:hover:not(:disabled){background:var(--accent);color:#000;border-color:var(--accent)}button:disabled{opacity:.5;cursor:not-allowed}button.small-btn{padding:4px 8px;font-size:10px}.preview-column{flex:1 1 auto;min-width:320px;display:flex;flex-direction:column;gap:12px;height:100%;overflow:hidden}.preview-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.preview-container{position:relative;border:1px solid var(--border);background:repeating-linear-gradient(45deg,#111 0,#111 10px,#0e0e0e 10px,#0e0e0e 20px);overflow:hidden;flex:1;display:flex;align-items:center;justify-content:center;min-height:300px}canvas{display:block;width:100%;height:100%;object-fit:contain;box-shadow:0 0 20px rgba(0,0,0,.5)}.overlay-original{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:10;transition:opacity .2s ease}.overlay-original canvas{width:100%;height:100%;object-fit:contain;opacity:0}.overlay-original.show canvas{opacity:1}#caPin{width:12px;height:12px;background:var(--accent);border:2px solid #fff;border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);cursor:crosshair;z-index:20;box-shadow:0 0 5px #000;display:none}#caPin.active{display:block}#caPin::after{content:'';position:absolute;top:50%;left:50%;width:40px;height:40px;border:1px dashed rgba(255,255,255,.3);transform:translate(-50%,-50%);border-radius:50%;pointer-events:none}.layer-preview-window{border:1px solid var(--border);background:#050505;padding:8px;height:160px;flex:0 0 160px;overflow:hidden}.layer-grid{display:flex;gap:4px;height:100%}.layer-item{border:1px solid var(--border);flex:1;display:flex;flex-direction:column;background:#000;cursor:pointer;transition:border-color .2s;position:relative;min-width:60px}.layer-item:hover{border-color:var(--muted)}.layer-item.active{border-color:var(--accent)}.layer-title{color:var(--muted);font-size:9px;text-transform:uppercase;text-align:center;padding-top:4px;height:24px;line-height:1.2;word-wrap:break-word;padding:2px}.layer-canvas{width:100%;flex:1;background:#111;border-top:1px solid #222}.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;z-index:3000}.modal-overlay.show{opacity:1;pointer-events:auto}.modal{background:#111;border:1px solid var(--border);padding:20px;max-width:90vw;max-height:90vh;overflow:auto;box-shadow:0 0 50px rgba(0,0,0,.8)}#loading{position:fixed;top:10px;right:10px;background:var(--accent);color:#000;padding:4px 8px;font-size:11px;font-weight:700;display:none;z-index:4000}.upscale-control{display:flex;align-items:center;gap:8px;font-size:11px;border:1px solid var(--border);padding:4px 8px;background:#0a0a0a;border-radius:4px}.upscale-input{width:40px;background:#000;border:1px solid var(--border);color:var(--fg);padding:2px;text-align:center;font-family:monospace}.lock-switch{display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;user-select:none;margin-right:12px;border-right:1px solid var(--border);padding-right:12px}.lock-checkbox{accent-color:var(--accent);cursor:pointer}.json-btn{background:#222;border:1px solid var(--border);color:var(--accent);font-size:10px;padding:4px 8px;cursor:pointer;margin-top:4px;width:100%;text-align:center}.json-btn:hover{background:var(--accent);color:#000}@media (max-width:900px){body{padding:10px;flex-direction:column}.container{flex-direction:column}.controls-panel{width:100%;max-width:none;flex:none;height:auto;max-height:40vh}.preview-column{width:100%;height:50vh}}</style></head><body><div id="loading">PROCESSING GPU...</div><div class="container"><div class="controls-panel"><h1>DIGITAL GRAIN [GPU]</h1><span class="muted">WebGL2 Accelerated Pipeline</span><div style="margin:10px 0;border:1px dashed var(--border);padding:10px;text-align:center"><label for="imageUpload" style="cursor:pointer;display:block"><span style="font-size:24px;display:block;margin-bottom:5px">📂</span> <span style="font-size:12px;color:var(--accent)">CLICK TO LOAD IMAGE</span></label> <input id="imageUpload" type="file" accept="image/*" style="display:none"><div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px"><button class="json-btn" id="downloadJsonBtn">DOWNLOAD .JSON</button> <button class="json-btn" id="uploadJsonTrigger">UPLOAD .JSON</button> <input id="jsonUpload" type="file" accept=".json" style="display:none"></div></div><div class="tab-toggle-container"><button class="tab-btn active" data-tab="tab-controls">Controls</button> <button class="tab-btn" data-tab="tab-layers">Render Layer Order</button></div><div id="tab-controls" class="tab-content active"><details open><summary>Noise Basics</summary><div class="control-row"><label>Noise Strength</label> <input id="strength" type="range" min="0" max="150" step="0.1" value="40"> <input type="text" class="control-value" readonly="readonly"></div><div class="control-row"><label>Noise Type</label> <select id="noiseType" class="control-value"><option value="1" selected="selected">Grayscale</option><option value="0">Color</option><option value="2">Blend (Sat)</option></select></div><div class="control-row"><label>Sat Strength</label> <input id="satStrength" type="range" min="0" max="4" step="0.1" value="1"> <input type="text" class="control-value" readonly="readonly"></div><div class="control-row"><label>Sat Impact</label> <input id="satPerNoise" type="range" min="-100" max="100" step="1" value="0"> <input type="text" class="control-value" readonly="readonly"></div></details><details open><summary>Shape & Blur</summary><div class="control-row"><label>Scale (Size)</label> <input id="noiseSize" type="range" min="0" max="100" step="1" value="0"> <input type="text" class="control-value" readonly="readonly"></div><div class="control-row"><label>Blurriness</label> <input id="blurriness" type="range" min="0" max="100" step="1" value="0"> <input type="text" class="control-value" readonly="readonly"></div></details><details open><summary>Blend & Opacity</summary><div class="control-row"><label>Blend Mode</label> <select id="blendMode" class="control-value"><option value="0">Normal</option><option value="1" selected="selected">Overlay</option><option value="2">Screen</option><option value="3">Multiply</option><option value="4">Add</option><option value="5">Difference</option></select></div><div class="control-row"><label>Opacity</label> <input id="opacity" type="range" min="0" max="1" step="0.01" value="0.5"> <input type="text" class="control-value" readonly="readonly"></div></details><details open><summary>Luminance Masking</summary><div class="control-row"><label>Shadows</label> <input id="enableShadows" type="checkbox" checked="checked"> <label style="color:var(--muted);margin-left:auto">Enable</label></div><div class="control-row"><label>S. Threshold</label> <input id="shadowThreshold" type="range" min="0" max="1" step="0.01" value="0"> <input type="text" class="control-value" readonly="readonly"></div><div class="control-row"><label>S. Fade</label> <input id="shadowFade" type="range" min="0" max="1" step="0.01" value="0"> <input type="text" class="control-value" readonly="readonly"></div><div style="height:10px"></div><div class="control-row"><label>Highlights</label> <input id="enableHighlights" type="checkbox" checked="checked"> <label style="color:var(--muted);margin-left:auto">Enable</label></div><div class="control-row"><label>H. Threshold</label> <input id="highlightThreshold" type="range" min="0" max="1" step="0.01" value="0"> <input type="text" class="control-value" readonly="readonly"></div><div class="control-row"><label>H. Fade</label> <input id="highlightFade" type="range" min="0" max="1" step="0.01" value="0"> <input type="text" class="control-value" readonly="readonly"></div></details><details><summary>Alpha Channel</summary><div class="control-row"><label>Ignore Alpha</label> <input id="ignoreAlphaToggle" type="checkbox" checked="checked"></div><div class="control-row"><label>Strength</label> <input id="ignoreAlphaStrength" type="range" min="0" max="100" step="1" value="100"> <input type="text" class="control-value" readonly="readonly"></div></details><details><summary>Adjustments</summary><div class="control-row"><label>Brightness</label> <input id="brightness" type="range" min="-100" max="100" step="1" value="0"> <input type="text" class="control-value" readonly="readonly"></div><div class="control-row"><label>Contrast</label> <input id="contrast" type="range" min="-100" max="200" step="1" value="0"> <input type="text" class="control-value" readonly="readonly"></div><div class="control-row"><label>Saturation</label> <input id="saturationAdj" type="range" min="-100" max="100" step="1" value="0"> <input type="text" class="control-value" readonly="readonly"></div><div class="control-row"><label>Warmth</label> <input id="warmth" type="range" min="-500" max="500" step="1" value="0"> <input type="text" class="control-value" readonly="readonly"></div><div class="control-row"><label>Sharpening</label> <input id="sharpen" type="range" min="0" max="100" step="1" value="0"> <input type="text" class="control-value" readonly="readonly"></div></details><details><summary>HDR Emulation</summary><div class="control-row"><label>Tolerance</label> <input id="hdrTolerance" type="range" min="0" max="1" step="0.01" value="0.35"> <input type="text" class="control-value" readonly="readonly"></div><div class="control-row"><label>Amount</label> <input id="hdrAmount" type="range" min="0" max="100" step="1" value="0"> <input type="text" class="control-value" readonly="readonly"></div></details><details><summary>Chromatic Aberration</summary><div class="control-row"><label>Amount</label> <input id="aberrationAmount" type="range" min="0" max="1500" step="1" value="0"> <input type="text" class="control-value" readonly="readonly"></div><div class="control-row"><label>Clear Radius</label> <input id="caRadius" type="range" min="0" max="1000" step="1" value="0"> <input type="text" class="control-value" readonly="readonly"></div><div class="control-row"><label>Radius Falloff</label> <input id="caFalloff" type="range" min="0" max="500" step="1" value="0"> <input type="text" class="control-value" readonly="readonly"></div><div class="control-row"><label>Edge Blur</label> <input id="aberrationBlur" type="range" min="0" max="100" step="1" value="0"> <input type="text" class="control-value" readonly="readonly"></div><div style="text-align:right;margin-top:5px"><button id="resetCenterBtn" class="small-btn">RESET CENTER</button></div></details><div class="row-buttons"><button id="downloadBtn" disabled="disabled">DOWNLOAD FULL RES</button> <button id="compareBtn" disabled="disabled">COMPARE / EXPORT</button></div></div><div id="tab-layers" class="tab-content"><div style="font-size:11px;color:var(--muted);margin-bottom:10px">Drag to reorder render pipeline:</div><div id="layer-drag-list"></div></div></div><div class="preview-column"><div class="preview-top"><h3 style="margin:0;font-size:14px;text-transform:uppercase;letter-spacing:1px">Main Preview</h3><div style="display:flex;align-items:center"><label class="lock-switch" title="Lock Preview to prevent Original Image overlay"><input type="checkbox" id="previewLock" class="lock-checkbox"> <span>LOCK PREVIEW</span></label><div class="upscale-control"><span>UPSCALE (x)</span> <input id="upscaleInput" class="upscale-input" type="text" value="1" min="1" max="10"></div></div></div><div class="preview-container" id="previewContainer"><canvas id="displayCanvas"></canvas><div id="caPin"></div><div class="overlay-original" id="overlayOriginal"><canvas id="overlayCanvas"></canvas></div></div><div class="preview-top"><h3 style="margin:0;font-size:14px;text-transform:uppercase;letter-spacing:1px">Layer Breakdown</h3><div style="font-size:10px;color:var(--muted)">Click to view</div></div><div class="layer-preview-window"><div class="layer-grid" id="layerGrid"></div></div></div></div><div id="compareModal" class="modal-overlay"><div class="modal"><h2 style="margin-top:0">Comparison & Export</h2><div style="display:flex;gap:20px;margin-bottom:20px;justify-content:center;flex-wrap:wrap"><div><div class="muted">Original</div><canvas id="compareOriginal" style="max-height:40vh;max-width:40vw;border:1px solid #333"></canvas></div><div><div class="muted">Processed</div><canvas id="compareProcessed" style="max-height:40vh;max-width:40vw;border:1px solid #333"></canvas></div></div><div style="text-align:center;display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button id="exportSideBySide">Export Side-by-Side</button> <button id="exportStacked">Export Stacked</button> <button id="closeCompare">Close</button></div></div></div><script type="x-shader/x-vertex" id="vs-quad">#version 300 es
+in vec2 a_pos;
+in vec2 a_uv;
+out vec2 v_uv;
+void main() {
+    v_uv = a_uv;
+    gl_Position = vec4(a_pos, 0.0, 1.0);
+}</script><script type="x-shader/x-fragment" id="fs-adjust">#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 outColor;
+uniform sampler2D u_tex;
+uniform float u_bright;
+uniform float u_cont;
+uniform float u_sat;
+uniform float u_hdrTol;
+uniform float u_hdrAmt;
+uniform float u_warmth;
+uniform float u_sharp;
+uniform vec2 u_step;
+
+void main() {
+    vec4 c = texture(u_tex, v_uv);
+    vec3 rgb = c.rgb;
+
+    // Saturation
+    float lum = dot(rgb, vec3(0.299,0.587,0.114));
+    rgb = mix(vec3(lum), rgb, 1.0 + u_sat);
+
+    // Contrast
+    rgb = (rgb - 0.5) * (1.0 + u_cont/100.0) + 0.5;
+
+    // Brightness
+    rgb += u_bright/100.0;
+
+    // Warmth
+    if (u_warmth != 0.0) {
+        vec3 warmColor = vec3(1.0, 0.9, 0.8); 
+        vec3 coolColor = vec3(0.8, 0.9, 1.1); 
+        float t = clamp(u_warmth / 100.0, -1.0, 1.0);
+        vec3 tint = mix(coolColor, warmColor, t * 0.5 + 0.5);
+        float mask = smoothstep(0.0, 1.0, lum);
+        rgb = mix(rgb, rgb * tint, abs(t) * mask);
+    }
+
+    // Sharpening
+    if (u_sharp > 0.0) {
+        vec4 sum = vec4(0.0);
+        sum += texture(u_tex, v_uv + vec2(-u_step.x, -u_step.y));
+        sum += texture(u_tex, v_uv + vec2( u_step.x, -u_step.y));
+        sum += texture(u_tex, v_uv + vec2(-u_step.x,  u_step.y));
+        sum += texture(u_tex, v_uv + vec2( u_step.x,  u_step.y));
+        vec4 edge = c - (sum * 0.25);
+        rgb += edge.rgb * (u_sharp / 10.0); 
+    }
+
+    // HDR Emulation
+    float l = dot(rgb, vec3(0.299,0.587,0.114));
+    if (l < u_hdrTol && u_hdrTol > 0.0) {
+        float f = (u_hdrAmt/100.0) * (1.0 - l/u_hdrTol);
+        rgb *= (1.0 - f);
+    }
+
+    outColor = vec4(clamp(rgb, 0.0, 1.0), c.a);
+}</script><script type="x-shader/x-fragment" id="fs-mask">#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 outColor;
+uniform sampler2D u_tex;
+uniform int u_useS; 
+uniform int u_useH;
+uniform float u_sth;
+uniform float u_sfa;
+uniform float u_hth;
+uniform float u_hfa;
+
+void main() {
+    vec4 c = texture(u_tex, v_uv);
+    float l = dot(c.rgb, vec3(0.299,0.587,0.114));
+    
+    float sMask = 0.0;
+    if (u_useS == 1) {
+        float low = u_sth - u_sfa * 0.5;
+        float high = u_sth + u_sfa * 0.5;
+        sMask = 1.0 - smoothstep(low, high, l);
+    }
+
+    float hMask = 0.0;
+    if (u_useH == 1) {
+        float low = u_hth - u_hfa * 0.5;
+        float high = u_hth + u_hfa * 0.5;
+        hMask = smoothstep(low, high, l);
+    }
+
+    float combined = max(sMask, hMask);
+    // Output: R=Combined, G=Shadow, B=Highlight
+    outColor = vec4(combined, sMask, hMask, 1.0);
+}</script><script type="x-shader/x-fragment" id="fs-noise">#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 outColor;
+uniform int u_type; 
+uniform float u_seed;
+uniform vec2 u_res;
+uniform float u_scale;
+uniform vec2 u_origRes; 
+
+float hash12(vec2 p) {
+    vec3 p3  = fract(vec3(p.xyx) * .1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+void main() {
+    vec2 pos = v_uv * u_origRes; 
+    vec2 cell = floor(pos / max(1.0, u_scale));
+    
+    vec3 n;
+    if (u_type == 1) { 
+        float r = hash12(cell + u_seed);
+        n = vec3(r);
+    } else { 
+        float r = hash12(cell + u_seed);
+        float g = hash12(cell + u_seed + 1.23);
+        float b = hash12(cell + u_seed + 2.45);
+        n = vec3(r, g, b);
+    }
+    
+    outColor = vec4(n, 1.0);
+}</script><script type="x-shader/x-fragment" id="fs-blur">#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 outColor;
+uniform sampler2D u_tex;
+uniform vec2 u_dir; 
+uniform float u_rad;
+
+void main() {
+    vec4 color = vec4(0.0);
+    float total = 0.0;
+    for(float i = -4.0; i <= 4.0; i++) {
+        float weight = exp(-(i*i) / (2.0 * 2.0)); 
+        vec4 s = texture(u_tex, v_uv + u_dir * i * u_rad);
+        color += s * weight;
+        total += weight;
+    }
+    outColor = color / total;
+}</script><script type="x-shader/x-fragment" id="fs-composite">#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 outColor;
+uniform sampler2D u_base;
+uniform sampler2D u_noise;
+uniform sampler2D u_mask;
+uniform int u_mode;
+uniform float u_opacity;
+uniform float u_str; 
+uniform int u_nType; 
+uniform float u_satStr;
+uniform float u_satImp;
+uniform int u_ignA; 
+uniform float u_ignAstr;
+
+float overlay(float b, float n) {
+    return b < 0.5 ? (2.0 * b * n) : (1.0 - 2.0 * (1.0 - b) * (1.0 - n));
+}
+
+void main() {
+    vec4 bc = texture(u_base, v_uv);
+    vec4 nc = texture(u_noise, v_uv);
+    vec4 mc = texture(u_mask, v_uv); 
+    vec3 n = nc.rgb;
+    vec3 res;
+    vec3 base = bc.rgb;
+    
+    if (u_nType == 2) {
+        float noiseVal = nc.r; 
+        float centered = (noiseVal - 0.5) * 2.0;
+        float delta = centered * (u_satStr * (1.0 + u_satImp/100.0));
+        float lum = dot(base, vec3(0.299,0.587,0.114));
+        vec3 satColor = mix(vec3(lum), base, 1.0 + delta * (u_str/50.0)); 
+        res = satColor;
+    } else {
+        vec3 noiseLayer = nc.rgb;
+        if (u_mode == 0) { 
+            res = mix(base, noiseLayer, u_opacity); 
+        } else if (u_mode == 1) { 
+            res.r = overlay(base.r, noiseLayer.r);
+            res.g = overlay(base.g, noiseLayer.g);
+            res.b = overlay(base.b, noiseLayer.b);
+        } else if (u_mode == 2) { 
+            res = 1.0 - (1.0 - base) * (1.0 - noiseLayer);
+        } else if (u_mode == 3) { 
+            res = base * noiseLayer;
+        } else if (u_mode == 4) { 
+            res = base + noiseLayer;
+        } else if (u_mode == 5) { 
+            res = abs(base - noiseLayer);
+        }
+        
+        float maskVal = mc.r; 
+        float alphaFactor = 1.0;
+        if (u_ignA == 1) {
+            alphaFactor = 1.0 - (u_ignAstr/100.0) * (1.0 - bc.a);
+        }
+        
+        float finalOp = u_opacity * maskVal * alphaFactor * (u_str / 50.0); 
+        res = mix(base, res, clamp(finalOp, 0.0, 1.0));
+    }
+
+    outColor = vec4(clamp(res, 0.0, 1.0), bc.a);
+}</script><script type="x-shader/x-fragment" id="fs-chroma">#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 outColor;
+uniform sampler2D u_tex;
+uniform float u_amt;
+uniform float u_blur;
+uniform vec2 u_center;
+uniform float u_radius;
+uniform float u_falloff;
+
+void main() {
+    if (u_amt <= 0.0) {
+        outColor = texture(u_tex, v_uv);
+        return;
+    }
+    
+    vec2 dir = v_uv - u_center;
+    float dist = length(dir);
+    
+    // Calculate clear zone mask
+    float clearMask = 0.0;
+    if (u_radius > 0.0 || u_falloff > 0.0) {
+        clearMask = 1.0 - smoothstep(u_radius, u_radius + u_falloff, dist);
+    }
+    
+    // Calculate aberration strength based on distance from center
+    float str = dist * dist * (u_amt / 1000.0); 
+    str *= (1.0 - clearMask); 
+    
+    vec4 result = vec4(0.0);
+    
+    if (u_blur > 0.0) {
+        float totalWeight = 0.0;
+        for(float i = -2.0; i <= 2.0; i++) {
+            float t = i * u_blur * 0.002; 
+            float w = exp(-(i*i)/2.0); 
+            
+            float r = texture(u_tex, v_uv - dir * str + vec2(t, -t)).r;
+            float g = texture(u_tex, v_uv + vec2(t*0.5, t*0.5)).g; 
+            float b = texture(u_tex, v_uv + dir * str + vec2(-t, t)).b;
+            
+            result += vec4(r, g, b, 1.0) * w;
+            totalWeight += w;
+        }
+        result /= totalWeight;
+        result.a = texture(u_tex, v_uv).a;
+    } else {
+        float r = texture(u_tex, v_uv - dir * str).r;
+        float g = texture(u_tex, v_uv).g;
+        float b = texture(u_tex, v_uv + dir * str).b;
+        float a = texture(u_tex, v_uv).a;
+        result = vec4(r, g, b, a);
+    }
+    
+    outColor = result;
+}</script><script type="x-shader/x-fragment" id="fs-copy">#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 outColor;
+uniform sampler2D u_tex;
+uniform int u_channel; 
+
+void main() {
+    vec4 c = texture(u_tex, v_uv);
+    if (u_channel == 1) outColor = vec4(c.rrr, 1.0);
+    else if (u_channel == 2) outColor = vec4(c.ggg, 1.0);
+    else if (u_channel == 3) outColor = vec4(c.bbb, 1.0);
+    else outColor = c;
+}</script><script>const state={gl:null,canvas:null,programs:{},textures:{},fbos:{},pingPong:[null,null],thumbnailFBO:null,baseImage:null,width:1,height:1,renderWidth:1,renderHeight:1,fboWidth:0,fboHeight:0,busy:!1,upscaleFactor:1,renderOrder:["noise","adjust","hdr","ca"],activeLayerPreview:null,caCenter:{x:.5,y:.5},isDraggingPin:!1,layerTextures:{},layerVisibility:{noise:!0,adjust:!0,hdr:!0,ca:!0},pinIdleTimer:null,isPreviewLocked:!1},UI={},LAYERS={noise:{name:"Noise Group",color:"#fff"},adjust:{name:"Adjustments",color:"#fff"},hdr:{name:"HDR Emulation",color:"#fff"},ca:{name:"Chromatic Aberration",color:"#fff"},shadows:{name:"Shadows Mask",color:"#fff"},highlights:{name:"Highlights Mask",color:"#fff"}};function downloadPreset(){const e={values:{},checks:{},selects:{},renderOrder:state.renderOrder,layerVisibility:state.layerVisibility,upscaleFactor:state.upscaleFactor,caCenter:state.caCenter};document.querySelectorAll("input[type=range]").forEach(t=>e.values[t.id]=t.value),document.querySelectorAll("input[type=text].control-value").forEach(e=>{}),document.querySelectorAll("input[type=checkbox]").forEach(t=>{t.id.startsWith("drag-")||"previewLock"===t.id||(e.checks[t.id]=t.checked)}),document.querySelectorAll("select").forEach(t=>e.selects[t.id]=t.value);const t=new Blob([JSON.stringify(e,null,2)],{type:"application/json"}),a=URL.createObjectURL(t),r=document.createElement("a");r.href=a,r.download="grain-settings.json",r.click()}function uploadPreset(e){const t=e.target.files[0];if(!t)return;const a=new FileReader;a.onload=e=>{try{const t=JSON.parse(e.target.result);t.values&&Object.keys(t.values).forEach(e=>{const a=document.getElementById(e);a&&(a.value=t.values[e],a.nextElementSibling&&(a.nextElementSibling.value=t.values[e]))}),t.checks&&Object.keys(t.checks).forEach(e=>{const a=document.getElementById(e);a&&(a.checked=t.checks[e])}),t.selects&&Object.keys(t.selects).forEach(e=>{const a=document.getElementById(e);a&&(a.value=t.selects[e])}),t.renderOrder&&(state.renderOrder=t.renderOrder,setupDragLayerList()),t.layerVisibility&&(state.layerVisibility=t.layerVisibility,setupDragLayerList()),t.upscaleFactor&&(state.upscaleFactor=t.upscaleFactor,UI.upscaleInput.value=t.upscaleFactor),t.caCenter&&(state.caCenter=t.caCenter,updatePinPosition()),requestRender()}catch(e){alert("Error loading JSON: "+e)}},a.readAsText(t)}function setupDragLayerList(){const e=document.getElementById("layer-drag-list");e.innerHTML="",state.renderOrder.forEach((t,a)=>{const r=document.createElement("div");r.className="drag-layer",r.draggable=!0,r.dataset.key=t;const s=state.layerVisibility[t]?"checked":"";r.innerHTML=`\n            <div style="display:flex; align-items:center;">\n                <span class="drag-handle">☰</span> \n                <input type="checkbox" class="drag-toggle" data-key="${t}" ${s}>\n            </div>\n            <span>${LAYERS[t].name}</span>\n        `,r.querySelector("input").addEventListener("change",e=>{state.layerVisibility[t]=e.target.checked,requestRender()}),r.addEventListener("dragstart",e=>{e.dataTransfer.setData("text/plain",a),r.classList.add("dragging")}),r.addEventListener("dragend",()=>r.classList.remove("dragging")),r.addEventListener("dragover",e=>e.preventDefault()),r.addEventListener("drop",e=>{e.preventDefault();const t=parseInt(e.dataTransfer.getData("text/plain")),r=a;if(t===r)return;const s=state.renderOrder.splice(t,1)[0];state.renderOrder.splice(r,0,s),setupDragLayerList(),setupLayerGridDOM(),requestRender()}),e.appendChild(r)})}window.addEventListener("DOMContentLoaded",async()=>{let e;["imageUpload","displayCanvas","overlayCanvas","overlayOriginal","strength","noiseType","satStrength","satPerNoise","noiseSize","blurriness","blendMode","opacity","enableShadows","shadowThreshold","shadowFade","enableHighlights","highlightThreshold","highlightFade","brightness","contrast","saturationAdj","warmth","sharpen","hdrTolerance","hdrAmount","ignoreAlphaToggle","ignoreAlphaStrength","aberrationAmount","aberrationBlur","caRadius","caFalloff","resetCenterBtn","downloadBtn","compareBtn","loading","layerGrid","compareOriginal","compareProcessed","closeCompare","exportSideBySide","exportStacked","previewContainer","caPin","upscaleInput","previewLock","downloadJsonBtn","uploadJsonTrigger","jsonUpload"].forEach(e=>UI[e]=document.getElementById(e)),document.querySelectorAll(".tab-btn").forEach(e=>{e.addEventListener("click",e=>{document.querySelectorAll(".tab-btn").forEach(e=>e.classList.remove("active")),document.querySelectorAll(".tab-content").forEach(e=>e.classList.remove("active")),e.target.classList.add("active"),document.getElementById(e.target.dataset.tab).classList.add("active")})}),setupDragLayerList(),document.querySelectorAll("input[type=range]").forEach(e=>{const t=e.nextElementSibling;if(t&&t.classList.contains("control-value")){const a=()=>t.value=e.value;e.addEventListener("input",()=>{a(),requestRender()}),a()}}),document.querySelectorAll("select, input[type=checkbox]").forEach(e=>{e.addEventListener("change",requestRender)}),UI.previewLock.addEventListener("change",e=>{state.isPreviewLocked=e.target.checked,state.isPreviewLocked&&UI.overlayOriginal.classList.remove("show")}),UI.upscaleInput.addEventListener("change",e=>{let t=parseInt(e.target.value);(isNaN(t)||t<1)&&(t=1),t>10&&(t=10),e.target.value=t,state.upscaleFactor=t,state.baseImage&&(reallocateBuffers(!1),requestRender())}),UI.resetCenterBtn.addEventListener("click",()=>{state.caCenter={x:.5,y:.5},updatePinPosition(),requestRender()}),UI.caPin.addEventListener("mousedown",e=>{state.isDraggingPin=!0,state.isPreviewLocked||UI.overlayOriginal.classList.remove("show"),clearTimeout(state.pinIdleTimer),e.preventDefault()}),window.addEventListener("mouseup",()=>{state.isDraggingPin&&(state.isDraggingPin=!1,state.isPreviewLocked||(state.pinIdleTimer=setTimeout(()=>{UI.overlayOriginal.classList.add("show")},4e3)))}),window.addEventListener("mousemove",e=>{if(!state.isDraggingPin)return;const t=UI.previewContainer.getBoundingClientRect();let a=(e.clientX-t.left)/t.width,r=1-(e.clientY-t.top)/t.height;a=Math.max(0,Math.min(1,a)),r=Math.max(0,Math.min(1,r)),state.caCenter={x:a,y:r},updatePinPosition(),requestRender()});const t=UI.previewContainer;t.addEventListener("mouseenter",()=>{state.isPreviewLocked||state.activeLayerPreview||UI.overlayOriginal.classList.add("show"),clearTimeout(e)}),t.addEventListener("mouseleave",()=>{UI.overlayOriginal.classList.remove("show"),clearTimeout(e)}),t.addEventListener("wheel",t=>{t.preventDefault(),UI.overlayOriginal.classList.remove("show");const a=UI.blendMode,r=a.options.length;let s=a.selectedIndex;s=(s+Math.sign(t.deltaY)+r)%r,a.selectedIndex=s,requestRender(),state.isPreviewLocked||(clearTimeout(e),e=setTimeout(()=>{state.activeLayerPreview||UI.overlayOriginal.classList.add("show")},2e3))},{passive:!1}),t.addEventListener("mousemove",()=>{clearTimeout(e),state.isPreviewLocked||state.activeLayerPreview||UI.overlayOriginal.classList.add("show")}),UI.downloadJsonBtn.addEventListener("click",downloadPreset),UI.uploadJsonTrigger.addEventListener("click",()=>UI.jsonUpload.click()),UI.jsonUpload.addEventListener("change",uploadPreset),initWebGL(),UI.imageUpload.addEventListener("change",e=>{const t=e.target.files[0];if(!t)return;const a=new FileReader;a.onload=e=>{const t=new Image;t.onload=()=>loadNewImage(t),t.src=e.target.result},a.readAsDataURL(t)}),UI.downloadBtn.addEventListener("click",downloadFullRes),UI.compareBtn.addEventListener("click",openCompare),UI.closeCompare.addEventListener("click",()=>document.getElementById("compareModal").classList.remove("show")),UI.exportSideBySide.addEventListener("click",()=>exportComparison("side")),UI.exportStacked.addEventListener("click",()=>exportComparison("stack"))});let renderRequested=!1;function requestRender(){!renderRequested&&state.baseImage&&(renderRequested=!0,requestAnimationFrame(()=>{renderFrame(),renderRequested=!1}))}function initWebGL(){state.canvas=UI.displayCanvas;const e=state.canvas.getContext("webgl2",{antialias:!1,premultipliedAlpha:!1,preserveDrawingBuffer:!0});if(!e)return void alert("WebGL2 not supported.");e.getExtension("EXT_color_buffer_float"),e.getExtension("OES_texture_float_linear"),state.gl=e,e.pixelStorei(e.UNPACK_FLIP_Y_WEBGL,!0),state.programs={adjust:createProgram(e,"vs-quad","fs-adjust"),mask:createProgram(e,"vs-quad","fs-mask"),noise:createProgram(e,"vs-quad","fs-noise"),blur:createProgram(e,"vs-quad","fs-blur"),composite:createProgram(e,"vs-quad","fs-composite"),chroma:createProgram(e,"vs-quad","fs-chroma"),copy:createProgram(e,"vs-quad","fs-copy")};const t=e.createBuffer();e.bindBuffer(e.ARRAY_BUFFER,t),e.bufferData(e.ARRAY_BUFFER,new Float32Array([-1,-1,0,0,1,-1,1,0,-1,1,0,1,-1,1,0,1,1,-1,1,0,1,1,1,1]),e.STATIC_DRAW),Object.values(state.programs).forEach(t=>{e.useProgram(t);const a=e.getAttribLocation(t,"a_pos"),r=e.getAttribLocation(t,"a_uv");e.enableVertexAttribArray(a),e.enableVertexAttribArray(r),e.vertexAttribPointer(a,2,e.FLOAT,!1,16,0),e.vertexAttribPointer(r,2,e.FLOAT,!1,16,8)});const a=createTexture(e,null,320,180),r=e.createFramebuffer();e.bindFramebuffer(e.FRAMEBUFFER,r),e.framebufferTexture2D(e.FRAMEBUFFER,e.COLOR_ATTACHMENT0,e.TEXTURE_2D,a,0),state.thumbnailFBO={fbo:r,tex:a,w:320,h:180}}function loadNewImage(e){state.baseImage=e,state.width=e.width,state.height=e.height;const t=state.gl;state.textures.base&&(t.deleteTexture(state.textures.base),state.textures.base=null),state.textures.base=createTexture(t,e),state.fboWidth=0,state.fboHeight=0,reallocateBuffers(!1),UI.downloadBtn.disabled=!1,UI.compareBtn.disabled=!1,UI.overlayCanvas.width=e.width,UI.overlayCanvas.height=e.height,UI.overlayCanvas.getContext("2d").drawImage(e,0,0),UI.caPin.classList.add("active"),setupLayerGridDOM(),requestRender()}function reallocateBuffers(e=!1){const t=state.gl,a=t.getParameter(t.MAX_TEXTURE_SIZE);let r,s;if(e){let e=state.width*state.upscaleFactor,t=state.height*state.upscaleFactor,o=1;(e>a||t>a)&&(o=Math.min(a/e,a/t)),r=Math.round(state.width*state.upscaleFactor*o),s=Math.round(state.height*state.upscaleFactor*o),state._exportScale=o}else{const e=2048;let t=state.width*state.upscaleFactor,o=state.height*state.upscaleFactor,n=1;if((t>e||o>e)&&(n=Math.min(e/t,e/o)),r=Math.round(t*n),s=Math.round(o*n),r>a||s>a){const e=Math.min(a/r,a/s);r=Math.floor(r*e),s=Math.floor(s*e)}state._exportScale=n}if(state.renderWidth=r,state.renderHeight=s,state.fboWidth===r&&state.fboHeight===s)return{w:r,h:s};state.fboWidth=r,state.fboHeight=s;const o=()=>{const e=createTexture(t,null,r,s),a=t.createFramebuffer();return t.bindFramebuffer(t.FRAMEBUFFER,a),t.framebufferTexture2D(t.FRAMEBUFFER,t.COLOR_ATTACHMENT0,t.TEXTURE_2D,e,0),{tex:e,fbo:a}};state.pingPong[0]?.tex&&(t.deleteTexture(state.pingPong[0].tex),t.deleteFramebuffer(state.pingPong[0].fbo)),state.pingPong[1]?.tex&&(t.deleteTexture(state.pingPong[1].tex),t.deleteFramebuffer(state.pingPong[1].fbo)),state.pingPong[0]=o(),state.pingPong[1]=o(),["tempNoise","blur1","blur2"].forEach(e=>{state.textures[e]&&t.deleteTexture(state.textures[e]),state.fbos[e]&&t.deleteFramebuffer(state.fbos[e])});const n=o();state.textures.tempNoise=n.tex,state.fbos.tempNoise=n.fbo;const i=o();state.textures.blur1=i.tex,state.fbos.blur1=i.fbo;const c=o();return state.textures.blur2=c.tex,state.fbos.blur2=c.fbo,{w:r,h:s}}function renderFrame(e=!1){if(!state.baseImage)return;const t=state.gl,a=reallocateBuffers(e),r=a.w,s=a.h;t.viewport(0,0,r,s);let o=0,n=1,i=state.textures.base;if(e&&(r!==state.width||s!==state.height)){const e=document.createElement("canvas");e.width=r,e.height=s;e.getContext("2d").drawImage(state.baseImage,0,0,state.width,state.height,0,0,r,s),i=t.createTexture(),t.bindTexture(t.TEXTURE_2D,i),t.texParameteri(t.TEXTURE_2D,t.TEXTURE_WRAP_S,t.CLAMP_TO_EDGE),t.texParameteri(t.TEXTURE_2D,t.TEXTURE_WRAP_T,t.CLAMP_TO_EDGE),t.texParameteri(t.TEXTURE_2D,t.TEXTURE_MIN_FILTER,t.LINEAR),t.texParameteri(t.TEXTURE_2D,t.TEXTURE_MAG_FILTER,t.LINEAR),t.pixelStorei(t.UNPACK_FLIP_Y_WEBGL,!0),t.texImage2D(t.TEXTURE_2D,0,t.RGBA,t.RGBA,t.UNSIGNED_BYTE,e)}t.bindFramebuffer(t.FRAMEBUFFER,state.pingPong[0].fbo),t.useProgram(state.programs.copy),t.uniform1i(t.getUniformLocation(state.programs.copy,"u_channel"),0),t.activeTexture(t.TEXTURE0),t.bindTexture(t.TEXTURE_2D,i),t.uniform1i(t.getUniformLocation(state.programs.copy,"u_tex"),0),t.drawArrays(t.TRIANGLES,0,6),e&&i!==state.textures.base&&t.deleteTexture(i);const c={u_bright:parseFloat(UI.brightness.value),u_cont:parseFloat(UI.contrast.value),u_sat:parseFloat(UI.saturationAdj.value)/100,u_warmth:parseFloat(UI.warmth.value),u_sharp:parseFloat(UI.sharpen.value),u_step:[1/r,1/s],u_hdrTol:parseFloat(UI.hdrTolerance.value),u_hdrAmt:parseFloat(UI.hdrAmount.value),u_ca_amt:calcCurve(parseFloat(UI.aberrationAmount.value),300,300),u_ca_blur:calcCurve(parseFloat(UI.aberrationBlur.value),100,100),u_ca_center:[state.caCenter.x,state.caCenter.y],u_ca_rad:parseFloat(UI.caRadius.value)/1e3,u_ca_fall:parseFloat(UI.caFalloff.value)/1e3};state.renderOrder.forEach(e=>{if(state.layerVisibility[e])if("adjust"===e){t.bindFramebuffer(t.FRAMEBUFFER,state.pingPong[n].fbo),t.useProgram(state.programs.adjust),t.activeTexture(t.TEXTURE0),t.bindTexture(t.TEXTURE_2D,state.pingPong[o].tex),t.uniform1i(t.getUniformLocation(state.programs.adjust,"u_tex"),0),t.uniform1f(t.getUniformLocation(state.programs.adjust,"u_bright"),c.u_bright),t.uniform1f(t.getUniformLocation(state.programs.adjust,"u_cont"),c.u_cont),t.uniform1f(t.getUniformLocation(state.programs.adjust,"u_sat"),c.u_sat),t.uniform1f(t.getUniformLocation(state.programs.adjust,"u_hdrTol"),0),t.uniform1f(t.getUniformLocation(state.programs.adjust,"u_hdrAmt"),0),t.uniform1f(t.getUniformLocation(state.programs.adjust,"u_warmth"),c.u_warmth),t.uniform1f(t.getUniformLocation(state.programs.adjust,"u_sharp"),c.u_sharp),t.uniform2f(t.getUniformLocation(state.programs.adjust,"u_step"),c.u_step[0],c.u_step[1]),t.drawArrays(t.TRIANGLES,0,6),state.layerTextures.adjust=state.pingPong[n].tex;let e=o;o=n,n=e}else if("hdr"===e){t.bindFramebuffer(t.FRAMEBUFFER,state.pingPong[n].fbo),t.useProgram(state.programs.adjust),t.activeTexture(t.TEXTURE0),t.bindTexture(t.TEXTURE_2D,state.pingPong[o].tex),t.uniform1i(t.getUniformLocation(state.programs.adjust,"u_tex"),0),t.uniform1f(t.getUniformLocation(state.programs.adjust,"u_bright"),0),t.uniform1f(t.getUniformLocation(state.programs.adjust,"u_cont"),0),t.uniform1f(t.getUniformLocation(state.programs.adjust,"u_sat"),0),t.uniform1f(t.getUniformLocation(state.programs.adjust,"u_warmth"),0),t.uniform1f(t.getUniformLocation(state.programs.adjust,"u_sharp"),0),t.uniform1f(t.getUniformLocation(state.programs.adjust,"u_hdrTol"),c.u_hdrTol),t.uniform1f(t.getUniformLocation(state.programs.adjust,"u_hdrAmt"),c.u_hdrAmt),t.drawArrays(t.TRIANGLES,0,6),state.layerTextures.hdr=state.pingPong[n].tex;let e=o;o=n,n=e}else if("noise"===e){t.useProgram(state.programs.noise),t.bindFramebuffer(t.FRAMEBUFFER,state.fbos.tempNoise),t.uniform1i(t.getUniformLocation(state.programs.noise,"u_type"),parseInt(UI.noiseType.value)),t.uniform1f(t.getUniformLocation(state.programs.noise,"u_seed"),100*Math.random()),t.uniform2f(t.getUniformLocation(state.programs.noise,"u_res"),r,s),t.uniform2f(t.getUniformLocation(state.programs.noise,"u_origRes"),state.width*state.upscaleFactor,state.height*state.upscaleFactor),t.uniform1f(t.getUniformLocation(state.programs.noise,"u_scale"),parseFloat(UI.noiseSize.value)),t.drawArrays(t.TRIANGLES,0,6);const e=parseFloat(UI.blurriness.value)/100;let a=state.textures.tempNoise;e>0&&(t.useProgram(state.programs.blur),t.bindFramebuffer(t.FRAMEBUFFER,state.fbos.blur1),t.bindTexture(t.TEXTURE_2D,state.textures.tempNoise),t.uniform1i(t.getUniformLocation(state.programs.blur,"u_tex"),0),t.uniform2f(t.getUniformLocation(state.programs.blur,"u_dir"),1/r,0),t.uniform1f(t.getUniformLocation(state.programs.blur,"u_rad"),2*e),t.drawArrays(t.TRIANGLES,0,6),t.bindFramebuffer(t.FRAMEBUFFER,state.fbos.blur2),t.bindTexture(t.TEXTURE_2D,state.textures.blur1),t.uniform2f(t.getUniformLocation(state.programs.blur,"u_dir"),0,1/s),t.drawArrays(t.TRIANGLES,0,6),a=state.textures.blur2),t.useProgram(state.programs.mask),t.bindFramebuffer(t.FRAMEBUFFER,state.fbos.blur1),t.bindTexture(t.TEXTURE_2D,state.pingPong[o].tex),t.uniform1i(t.getUniformLocation(state.programs.mask,"u_tex"),0),t.uniform1i(t.getUniformLocation(state.programs.mask,"u_useS"),UI.enableShadows.checked?1:0),t.uniform1f(t.getUniformLocation(state.programs.mask,"u_sth"),parseFloat(UI.shadowThreshold.value)),t.uniform1f(t.getUniformLocation(state.programs.mask,"u_sfa"),parseFloat(UI.shadowFade.value)),t.uniform1i(t.getUniformLocation(state.programs.mask,"u_useH"),UI.enableHighlights.checked?1:0),t.uniform1f(t.getUniformLocation(state.programs.mask,"u_hth"),parseFloat(UI.highlightThreshold.value)),t.uniform1f(t.getUniformLocation(state.programs.mask,"u_hfa"),parseFloat(UI.highlightFade.value)),t.drawArrays(t.TRIANGLES,0,6),state.layerTextures.shadows=state.textures.blur1,state.layerTextures.highlights=state.textures.blur1,t.useProgram(state.programs.composite),t.bindFramebuffer(t.FRAMEBUFFER,state.pingPong[n].fbo),t.activeTexture(t.TEXTURE0),t.bindTexture(t.TEXTURE_2D,state.pingPong[o].tex),t.activeTexture(t.TEXTURE1),t.bindTexture(t.TEXTURE_2D,a),t.activeTexture(t.TEXTURE2),t.bindTexture(t.TEXTURE_2D,state.textures.blur1),t.uniform1i(t.getUniformLocation(state.programs.composite,"u_base"),0),t.uniform1i(t.getUniformLocation(state.programs.composite,"u_noise"),1),t.uniform1i(t.getUniformLocation(state.programs.composite,"u_mask"),2),t.uniform1i(t.getUniformLocation(state.programs.composite,"u_mode"),parseInt(UI.blendMode.value)),t.uniform1f(t.getUniformLocation(state.programs.composite,"u_opacity"),parseFloat(UI.opacity.value)),t.uniform1f(t.getUniformLocation(state.programs.composite,"u_str"),parseFloat(UI.strength.value)),t.uniform1i(t.getUniformLocation(state.programs.composite,"u_nType"),parseInt(UI.noiseType.value)),t.uniform1f(t.getUniformLocation(state.programs.composite,"u_satStr"),parseFloat(UI.satStrength.value)),t.uniform1f(t.getUniformLocation(state.programs.composite,"u_satImp"),parseFloat(UI.satPerNoise.value)),t.uniform1i(t.getUniformLocation(state.programs.composite,"u_ignA"),UI.ignoreAlphaToggle.checked?1:0),t.uniform1f(t.getUniformLocation(state.programs.composite,"u_ignAstr"),parseFloat(UI.ignoreAlphaStrength.value)),t.drawArrays(t.TRIANGLES,0,6),state.layerTextures.noise=state.pingPong[n].tex;let i=o;o=n,n=i}else if("ca"===e){t.bindFramebuffer(t.FRAMEBUFFER,state.pingPong[n].fbo),t.useProgram(state.programs.chroma),t.activeTexture(t.TEXTURE0),t.bindTexture(t.TEXTURE_2D,state.pingPong[o].tex),t.uniform1i(t.getUniformLocation(state.programs.chroma,"u_tex"),0),t.uniform1f(t.getUniformLocation(state.programs.chroma,"u_amt"),c.u_ca_amt),t.uniform1f(t.getUniformLocation(state.programs.chroma,"u_blur"),c.u_ca_blur),t.uniform2f(t.getUniformLocation(state.programs.chroma,"u_center"),c.u_ca_center[0],c.u_ca_center[1]),t.uniform1f(t.getUniformLocation(state.programs.chroma,"u_radius"),c.u_ca_rad),t.uniform1f(t.getUniformLocation(state.programs.chroma,"u_falloff"),c.u_ca_fall),t.drawArrays(t.TRIANGLES,0,6),state.layerTextures.ca=state.pingPong[n].tex;let e=o;o=n,n=e}}),t.bindFramebuffer(t.FRAMEBUFFER,null),t.canvas.width===r&&t.canvas.height===s||(t.canvas.width=r,t.canvas.height=s),t.viewport(0,0,r,s);const u=state.activeLayerPreview&&state.layerTextures[state.activeLayerPreview]?state.layerTextures[state.activeLayerPreview]:state.pingPong[o].tex;t.useProgram(state.programs.copy),t.activeTexture(t.TEXTURE0),t.bindTexture(t.TEXTURE_2D,u),t.uniform1i(t.getUniformLocation(state.programs.copy,"u_tex"),0);let l=0;"shadows"===state.activeLayerPreview&&(l=2),"highlights"===state.activeLayerPreview&&(l=3),t.uniform1i(t.getUniformLocation(state.programs.copy,"u_channel"),l),t.drawArrays(t.TRIANGLES,0,6),e?t.finish():updateLayerPreviews()}function calcCurve(e,t,a=1){const r=e/t;return r*r*a}function updatePinPosition(){const e=100*state.caCenter.x,t=100*(1-state.caCenter.y);UI.caPin.style.left=e+"%",UI.caPin.style.top=t+"%"}function createShader(e,t,a){const r=document.getElementById(a).text.trim(),s=e.createShader("vs-quad"==t?e.VERTEX_SHADER:e.FRAGMENT_SHADER);return e.shaderSource(s,r),e.compileShader(s),e.getShaderParameter(s,e.COMPILE_STATUS)?s:(console.error(e.getShaderInfoLog(s)),null)}function createProgram(e,t,a){const r=createShader(e,"vs-quad",t),s=createShader(e,"fs-fragment",a),o=e.createProgram();return e.attachShader(o,r),e.attachShader(o,s),e.linkProgram(o),o}function createTexture(e,t,a,r){const s=e.createTexture();return e.bindTexture(e.TEXTURE_2D,s),e.texParameteri(e.TEXTURE_2D,e.TEXTURE_WRAP_S,e.CLAMP_TO_EDGE),e.texParameteri(e.TEXTURE_2D,e.TEXTURE_WRAP_T,e.CLAMP_TO_EDGE),e.texParameteri(e.TEXTURE_2D,e.TEXTURE_MIN_FILTER,e.LINEAR),e.texParameteri(e.TEXTURE_2D,e.TEXTURE_MAG_FILTER,e.LINEAR),t?e.texImage2D(e.TEXTURE_2D,0,e.RGBA,e.RGBA,e.UNSIGNED_BYTE,t):e.texImage2D(e.TEXTURE_2D,0,e.RGBA,a,r,0,e.RGBA,e.UNSIGNED_BYTE,null),s}async function downloadFullRes(){UI.loading.style.display="block",await new Promise(e=>setTimeout(e,50)),reallocateBuffers(!0),renderFrame(!0);const e=document.createElement("a");e.download="grain-export.png",e.href=state.canvas.toDataURL("image/png",1),e.click(),reallocateBuffers(!1),requestRender(),UI.loading.style.display="none"}async function openCompare(){UI.loading.style.display="block",await new Promise(e=>setTimeout(e,50)),renderFrame(!0);const e=document.getElementById("compareOriginal"),t=document.getElementById("compareProcessed"),a=state.width/state.height;e.width=600,e.height=600/a,t.width=600,t.height=600/a;const r=e.getContext("2d"),s=t.getContext("2d");r.drawImage(state.baseImage,0,0,e.width,e.height),s.drawImage(state.canvas,0,0,t.width,t.height),document.getElementById("compareModal").classList.add("show"),reallocateBuffers(!1),requestRender(),UI.loading.style.display="none"}async function exportComparison(e){UI.loading.style.display="block",await new Promise(e=>setTimeout(e,50)),renderFrame(!0);const t=state.canvas.toDataURL(),a=new Image;a.src=t,await new Promise(e=>a.onload=e);const r=document.createElement("canvas"),s=state.canvas.width,o=state.canvas.height;if("side"===e){r.width=2*s,r.height=o;const e=r.getContext("2d");e.drawImage(state.baseImage,0,0,s,o),e.drawImage(a,s,0)}else{r.width=s,r.height=2*o;const e=r.getContext("2d");e.drawImage(state.baseImage,0,0,s,o),e.drawImage(a,0,o)}const n=document.createElement("a");n.download=`grain-compare-${e}.png`,n.href=r.toDataURL("image/png",.9),n.click(),reallocateBuffers(!1),requestRender(),UI.loading.style.display="none"}function setupLayerGridDOM(){const e=UI.layerGrid;e.innerHTML="";["noise","adjust","hdr","ca","shadows","highlights"].forEach(t=>{const a=document.createElement("div");a.className="layer-item",state.activeLayerPreview===t&&a.classList.add("active"),a.onclick=()=>{state.activeLayerPreview===t?(state.activeLayerPreview=null,a.classList.remove("active")):(state.activeLayerPreview=t,document.querySelectorAll(".layer-item").forEach(e=>e.classList.remove("active")),a.classList.add("active"),UI.overlayOriginal.classList.remove("show")),requestRender()},a.innerHTML=`<div class="layer-title">${LAYERS[t].name}</div><canvas class="layer-canvas" id="thumb-${t}" width="320" height="180"></canvas>`,e.appendChild(a)})}function updateLayerPreviews(){const e=state.gl;if(!state.thumbnailFBO)return;e.bindFramebuffer(e.FRAMEBUFFER,state.thumbnailFBO.fbo),e.viewport(0,0,state.thumbnailFBO.w,state.thumbnailFBO.h),e.useProgram(state.programs.copy);const t=new Uint8Array(state.thumbnailFBO.w*state.thumbnailFBO.h*4);Object.keys(state.layerTextures).forEach(a=>{const r=state.layerTextures[a],s=document.getElementById(`thumb-${a}`);if(!s||!r)return;e.activeTexture(e.TEXTURE0),e.bindTexture(e.TEXTURE_2D,r),e.uniform1i(e.getUniformLocation(state.programs.copy,"u_tex"),0);let o=0;"shadows"===a&&(o=2),"highlights"===a&&(o=3),e.uniform1i(e.getUniformLocation(state.programs.copy,"u_channel"),o),e.drawArrays(e.TRIANGLES,0,6),e.readPixels(0,0,state.thumbnailFBO.w,state.thumbnailFBO.h,e.RGBA,e.UNSIGNED_BYTE,t);const n=s.getContext("2d"),i=n.createImageData(state.thumbnailFBO.w,state.thumbnailFBO.h),c=state.thumbnailFBO.w,u=state.thumbnailFBO.h;for(let e=0;e<u;e++){const a=(u-1-e)*c*4,r=e*c*4;i.data.set(t.subarray(a,a+4*c),r)}n.putImageData(i,0,0)})}</script></body></html>

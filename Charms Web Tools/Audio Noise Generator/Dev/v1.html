@@ -1,0 +1,366 @@
+<!-- FILE: brutalist-noise-visualizer.html -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Brutalist Noise Visualizer</title>
+<style>
+  :root{ --bg:#0b0b0b; --panel:#0f1113; --accent:#e6e6e6; --muted:#9ca3a8; --accent-2:#ff6b6b; }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--accent);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;}
+  .wrap{display:grid;grid-template-columns:360px 1fr;gap:20px;padding:28px;align-items:start;height:100vh;box-sizing:border-box}
+  header{grid-column:1/-1;display:flex;gap:12px;align-items:center}
+  h1{margin:0;font-size:20px;letter-spacing:0.6px;font-weight:700}
+  .panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border:3px solid #111;padding:18px;border-radius:6px;box-shadow:0 6px 0 rgba(0,0,0,0.6)}
+  .controls{display:flex;flex-direction:column;gap:12px}
+  label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+  select,input[type=range],input[type=number]{width:100%;background:#090909;border:0;padding:6px;color:var(--accent);outline:none}
+  .row{display:flex;gap:10px}
+  button{background:transparent;border:3px solid var(--accent);color:var(--accent);padding:10px 12px;font-weight:700;cursor:pointer}
+  button.ghost{border-color:var(--muted);color:var(--muted)}
+  .visual{display:flex;flex-direction:column;gap:10px}
+  canvas{width:100%;height:36vh;background:#050505;border:3px solid #111}
+  .small{font-size:12px;color:var(--muted)}
+  .big-number{font-size:18px;font-weight:800}
+  .footer{font-size:11px;color:var(--muted);margin-top:6px}
+  .checkbox{display:flex;gap:6px;align-items:center}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  /* brutalist accents */
+  .accent-block{background:transparent;border-left:6px solid var(--accent-2);padding-left:10px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="panel" style="display:flex;align-items:center;gap:16px;padding:12px 18px;">
+        <div style="width:46px;height:46px;background:#0b0b0b;border:2px solid #111;display:flex;align-items:center;justify-content:center;font-weight:900">BN</div>
+        <div>
+          <h1>Brutalist Noise Visualizer</h1>
+          <div class="small">Real-time noise generation (AudioWorklet) · Click <strong>Start</strong> to enable audio</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="panel controls">
+      <div>
+        <label>Playback</label>
+        <div class="row">
+          <button id="startBtn">Start</button>
+          <button id="stopBtn" class="ghost">Stop</button>
+        </div>
+      </div>
+
+      <div>
+        <label>Noise type</label>
+        <select id="noiseType">
+          <option value="white">White</option>
+          <option value="pink">Pink</option>
+          <option value="brown">Brown (Red)</option>
+          <option value="blue">Blue</option>
+          <option value="violet">Violet</option>
+          <option value="grey">Grey (Perceptual)</option>
+          <option value="black">Black (sparse impulses)</option>
+          <option value="hum">Hum (50/60Hz)</option>
+          <option value="hiss">Hiss (high-band)</option>
+          <option value="crackle">Crackle (impulses)</option>
+          <option value="quantize">Quantize (bitcrush)</option>
+          <option value="dither">Dithered Quantize</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Volume</label>
+        <input id="volume" type="range" min="0" max="1" step="0.01" value="0.5">
+      </div>
+
+      <div class="two">
+        <div>
+          <label>Seed (integer)</label>
+          <input id="seed" type="number" value="12345">
+        </div>
+        <div>
+          <label>Impulse density</label>
+          <input id="impulseDensity" type="range" min="0" max="0.1" step="0.0005" value="0.005">
+        </div>
+      </div>
+
+      <div>
+        <label>Hum frequency (Hz)</label>
+        <input id="humFreq" type="range" min="20" max="500" step="1" value="60">
+      </div>
+
+      <div>
+        <label>Quantize bits (for quantize/dither)</label>
+        <input id="bits" type="range" min="1" max="16" step="1" value="8">
+      </div>
+
+      <div>
+        <label>FFT size (visual)</label>
+        <select id="fftSize">
+          <option value="2048">2048</option>
+          <option value="4096">4096</option>
+          <option value="8192">8192</option>
+        </select>
+      </div>
+
+      <div class="footer">Notes: uses AudioWorklet generated noise, AnalyserNode for visualization, single-file (no server needed).</div>
+    </div>
+
+    <div class="panel visual">
+      <canvas id="wave"></canvas>
+      <canvas id="freq"></canvas>
+    </div>
+  </div>
+
+<script>
+// main script: creates AudioWorklet via Blob, wires up UI and visualizer
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const noiseType = document.getElementById('noiseType');
+const volume = document.getElementById('volume');
+const seedInput = document.getElementById('seed');
+const impulseDensity = document.getElementById('impulseDensity');
+const humFreq = document.getElementById('humFreq');
+const bits = document.getElementById('bits');
+const fftSizeSel = document.getElementById('fftSize');
+
+const waveCanvas = document.getElementById('wave');
+const freqCanvas = document.getElementById('freq');
+const wctx = waveCanvas.getContext('2d');
+const fctx = freqCanvas.getContext('2d');
+
+let audioCtx = null;
+let workletNode = null;
+let gainNode = null;
+let analyser = null;
+let rafId = null;
+
+function resizeCanvases(){
+  waveCanvas.width = waveCanvas.clientWidth * devicePixelRatio;
+  waveCanvas.height = waveCanvas.clientHeight * devicePixelRatio;
+  freqCanvas.width = freqCanvas.clientWidth * devicePixelRatio;
+  freqCanvas.height = freqCanvas.clientHeight * devicePixelRatio;
+}
+window.addEventListener('resize', resizeCanvases);
+resizeCanvases();
+
+const workletCode = `
+class BrutalNoiseProcessor extends AudioWorkletProcessor {
+  constructor(){
+    super();
+    this.sampleRate = sampleRate;
+    this.config = {type:'white',volume:0.5,seed:12345,impulseDensity:0.005,humFreq:60,bits:8};
+    this.port.onmessage = (e)=>{ if(e.data && e.data.set) Object.assign(this.config,e.data.set); };
+    // pink filter state (Paul Kellet)
+    this.b0=this.b1=this.b2=this.b3=this.b4=this.b5=0;
+    this.lastWhite = 0;
+    this.brownLast = 0;
+    this.lastVal = 0;
+    // rng
+    this._seed = this.config.seed || 1;
+  }
+  // simple xorshift RNG
+  _rand(){
+    let x = this._seed = (this._seed ^ (this._seed << 13)) >>> 0;
+    x = (x ^ (x >>> 17)) >>> 0;
+    x = (x ^ (x << 5)) >>> 0;
+    // map to -1..1
+    return ((x / 0xFFFFFFFF) * 2 - 1);
+  }
+  _white(){ return this._rand(); }
+  _pink(){
+    // Paul Kellet's pink approximation
+    let white = this._white();
+    this.b0 = 0.99886*this.b0 + white*0.0555179;
+    this.b1 = 0.99332*this.b1 + white*0.0750759;
+    this.b2 = 0.96900*this.b2 + white*0.1538520;
+    this.b3 = 0.86650*this.b3 + white*0.3104856;
+    this.b4 = 0.55000*this.b4 + white*0.5329522;
+    this.b5 = -0.7616*this.b5 - white*0.0168980;
+    let pink = this.b0 + this.b1 + this.b2 + this.b3 + this.b4 + this.b5 + this.brownLast*0.5362;
+    return pink * 0.11; // scale
+  }
+  _brown(){
+    let white = this._white() * 0.02;
+    this.brownLast = (this.brownLast + white) * 0.98;
+    return this.brownLast * 6.5;
+  }
+  _blue(){
+    let white = this._white();
+    let blue = white - this.lastVal;
+    this.lastVal = white;
+    return blue * 0.5;
+  }
+  _violet(){
+    // differentiate twice
+    let white = this._white();
+    let diff = white - this.lastVal;
+    this.lastVal = white;
+    return diff * 2.0;
+  }
+  _hiss(){
+    // high-frequency emphasize: use blue-ish with extra gain
+    return this._blue() * 1.5 + (this._white()*0.15);
+  }
+  _impulse(density){
+    return (Math.abs(this._rand()) < density) ? (Math.sign(this._rand()) * 1.0) : 0.0;
+  }
+  _humSample(frameIndex, humFreq){
+    const t = frameIndex / this.sampleRate;
+    return Math.sin(2*Math.PI*humFreq*t) * 0.15;
+  }
+  _quantize(sample, bits){
+    const levels = Math.pow(2, bits);
+    return Math.round(sample * (levels/2 - 1)) / (levels/2 - 1);
+  }
+  process(inputs, outputs, parameters){
+    const out = outputs[0];
+    const chCount = out.length;
+    const frames = out[0].length;
+    for(let ch=0; ch<chCount; ch++){
+      const channel = out[ch];
+      for(let i=0;i<frames;i++){
+        let s = 0;
+        switch(this.config.type){
+          case 'white': s = this._white(); break;
+          case 'pink': s = this._pink(); break;
+          case 'brown': s = this._brown(); break;
+          case 'blue': s = this._blue(); break;
+          case 'violet': s = this._violet(); break;
+          case 'grey': s = 0.9*this._pink() + 0.1*this._white(); break;
+          case 'black': s = this._impulse(this.config.impulseDensity); break;
+          case 'hum': s = this._humSample(currentFrame + i, this.config.humFreq); break;
+          case 'hiss': s = this._hiss(); break;
+          case 'crackle': s = this._impulse(this.config.impulseDensity*5); break;
+          case 'quantize': s = this._white(); s = this._quantize(s*this.config.volume, this.config.bits); break;
+          case 'dither': {
+            let w = this._white()*0.02; // dither noise
+            let base = this._white();
+            s = this._quantize(base + w, this.config.bits);
+            break;
+          }
+          default: s = this._white();
+        }
+        // add hum if requested as an overlay when type isn't hum
+        if(this.config.type !== 'hum' && this.config.humOn){
+          s += this._humSample(currentFrame + i, this.config.humFreq);
+        }
+        // volume
+        s *= this.config.volume;
+        // store sample
+        channel[i] = Math.max(-1, Math.min(1, s));
+      }
+    }
+    currentFrame += frames;
+    return true;
+  }
+}
+
+let currentFrame = 0;
+registerProcessor('brutal-noise-processor', BrutalNoiseProcessor);
+`;
+
+async function ensureAudio(){
+  if(audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  // create module from blob
+  const blob = new Blob([workletCode],{type:'application/javascript'});
+  const moduleUrl = URL.createObjectURL(blob);
+  try{
+    await audioCtx.audioWorklet.addModule(moduleUrl);
+  }catch(err){
+    console.error('worklet addModule failed',err);
+    alert('AudioWorklet not supported or failed to initialize in this browser.');
+    return;
+  }
+  workletNode = new AudioWorkletNode(audioCtx, 'brutal-noise-processor');
+  gainNode = audioCtx.createGain();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = Number(fftSizeSel.value) || 2048;
+  gainNode.gain.value = Number(volume.value) || 0.5;
+  workletNode.connect(gainNode).connect(analyser).connect(audioCtx.destination);
+  // default config
+  postConfig();
+}
+
+function postConfig(){
+  if(!workletNode) return;
+  const cfg = {
+    type: noiseType.value,
+    volume: Number(volume.value),
+    seed: Number(seedInput.value)|0,
+    impulseDensity: Number(impulseDensity.value),
+    humFreq: Number(humFreq.value),
+    bits: Number(bits.value),
+    humOn: false
+  };
+  workletNode.port.postMessage({set: cfg});
+}
+
+startBtn.addEventListener('click', async ()=>{
+  await ensureAudio();
+  if(audioCtx.state === 'suspended') await audioCtx.resume();
+  postConfig();
+  startVisualizer();
+});
+stopBtn.addEventListener('click', ()=>{
+  if(audioCtx && audioCtx.state !== 'closed'){
+    audioCtx.suspend();
+  }
+  stopVisualizer();
+});
+
+// wire controls
+[noiseType,volume,seedInput,impulseDensity,humFreq,bits,fftSizeSel].forEach(el=>el.addEventListener('input', ()=>{
+  if(el===fftSizeSel && analyser) analyser.fftSize = Number(fftSizeSel.value);
+  if(el===volume && gainNode) gainNode.gain.value = Number(volume.value);
+  postConfig();
+}));
+
+// visualizer
+function startVisualizer(){
+  if(!analyser) return;
+  cancelAnimationFrame(rafId);
+  const bufLen = analyser.fftSize;
+  const dataTime = new Uint8Array(analyser.fftSize);
+  const dataFreq = new Uint8Array(analyser.frequencyBinCount);
+  function draw(){
+    rafId = requestAnimationFrame(draw);
+    analyser.getByteTimeDomainData(dataTime);
+    analyser.getByteFrequencyData(dataFreq);
+    // waveform
+    const wW = waveCanvas.width, wH = waveCanvas.height;
+    wctx.clearRect(0,0,wW,wH);
+    wctx.lineWidth = 2 * devicePixelRatio;
+    wctx.strokeStyle = '#e6e6e6';
+    wctx.beginPath();
+    const step = wW / dataTime.length;
+    for(let i=0;i<dataTime.length;i++){
+      const v = dataTime[i] / 128.0 - 1.0;
+      const y = (v * 0.45 + 0.5) * wH;
+      const x = i * step;
+      if(i===0) wctx.moveTo(x,y); else wctx.lineTo(x,y);
+    }
+    wctx.stroke();
+    // freq bars
+    const fW = freqCanvas.width, fH = freqCanvas.height;
+    fctx.clearRect(0,0,fW,fH);
+    const barCount = dataFreq.length;
+    const barW = fW / barCount;
+    for(let i=0;i<barCount;i++){
+      const v = dataFreq[i] / 255;
+      const h = v * fH;
+      fctx.fillStyle = 'rgba(230,230,230,0.9)';
+      fctx.fillRect(i*barW, fH - h, Math.max(1,barW-1), h);
+    }
+  }
+  draw();
+}
+function stopVisualizer(){ cancelAnimationFrame(rafId); wctx.clearRect(0,0,waveCanvas.width,waveCanvas.height); fctx.clearRect(0,0,freqCanvas.width,freqCanvas.height); }
+
+// initial UI
+postConfig();
+resizeCanvases();
+</script>
+</body>
+</html>
