@@ -1,0 +1,186 @@
+Your job is to implement these new functional controls into the existing site without removing, changing(as little as possible), or breaking any existing functionality, at all. provide an updated html file with the additions without any errors. take note of how the site currently is laid out and works in order to preserve current UI structure and layout preferences. Again, it is extremely important that you DO NOT remove functionality of the site to make it less capable than it is right now. Only make changes to the necessary parts of the logic that you need to in order to complete each task effectively.
+Here are the changes/updates to make.
+
+"Adjustments" controls section additions:
+sharpening and warmth(temp) sliders
+
+"Chromatic Aberration" Controls section updates:
+edge blur chromatic aberration center point able to be dragged around the canvas to set the center point for the center of "Edge Blur" and normal chromatic aberration (remove the x and y sliders and replace with draggable pin with new button "Reset to Center" for both edge detection and chromatic aberration).
+This pin should set the position where there should be no "Edge Blur" around 2 new sliders "Falloff" and "Radius" where Radius controls the size of the circular area of no "Edge Blur" and Falloff controls the *softness* of that area's application.
+
+remove user scroll ability of "Layer Breakdown" section since it is so close to fitting all layer displays on the screen with everything without scrolling, just slightly make everything in that section smaller so that it fits without a scrollbar appearing to see the entire section. Add the Ability to click on one of the "Layer Breakdown" Items and have it display in the main preview to update in real time and at original or upscaled resolution (if the user set one meaning the scale integer is more than 1), re-clicking on the item in the "Layer Breakdown" section will get rid of the large preview item and return to the main preview render output.
+
+Scrolling while hovering over the main preview canvas should *scroll through the blend mode settings in a loop*, one for each wheel click position, logic should be added to display the noise again when the user scrolls while hovering over the main canvas to display the noise again so that switching blend modes is visible to the user, since just hovering over the canvas fades to the original image. (Note when the blend mode changes due to user canvas scroll, the dropdown box state in the controls section should change in real time as well to reflect the current blend mode like normal)
+so the rules are:
+On hover, fade to original image (exactly as before).
+on scroll event while on hover, quickly go back to displaying the preview output from the original image, the quickly move to the next blend mode.
+on mouse no movement activity for more than 5 seconds while on hover canvas, display original image again.
+these rules should allow everything to work smoothly without errors or stuttering.
+
+Add the option to render everything on the canvas at a higher resolution than the uploaded image in multiplicative units larger, this option should appear as a small box just to the right of the text above the main preview window that says "Main Preview", where the user can type an integer in, decimals not supported, a variable should multiply the up and over lengths of the uploaded image by whatever number the user types in, this will be the new canvas resolution, noise, png output, and preview render resolution. (we can do this because noise moves/changes pixels, and moving/changing pixels creates new data information not originally in the image, meaning we now have more info to render at a higher resolution, and the more edits/layers on the image the better this strategy works, this is just an explanation of why), there should be a 10x limit to the multiplier box.
+
+For an update to the scrolling controls section of the site, each unique section of the controls section should be treated like it's own layer to be applied in the render pipeline (i will list what control sections are apart of each layer below), and we will refactor the controls section to be 2 tabs now, toggled back and forth by a single clickable area under the file upload button with text saying "Render Layer Order Toggle".
+the "unique" layer sections are:
+
+
+Layer 1 Controls Section: (these should all stay as separate "sections" but are all apart of the same render layer since they are all noise settings)
+Noise Basics
+Shape and Blur
+Blend and Opacity
+Luminance Masking
+Alpha Channel
+
+Layer 2 Controls Section:
+Adjustments
+
+Layer 3 Controls Section:
+HDR Emulation
+
+Layer 4 Controls Section:
+Chromatic Aberration
+
+
+
+Tab 1 (of the side scroll bar currently existing next to the stationary non-scrolling preview window, make sure to keep it there):
+Contains all of the sections of controls as they are now, only the updates above add things here for this update.
+
+Tab 2 contents:
+a draggable system where the layers for the render are organized from first to last, using Boxes that stack vertically and are drag and droppable elements to reorganize the order. this is so that we can change the order of the layers in the render and in what order they are applied when we look at our preview.
+Each update to this order must be reflected in real time as a refresh, and must NOT change the current settings of each layer or each layers corresponding control's setting's values.
+The top box will be the first render layer, the bottom box is the last.
+
+
+The window underneath the preview window, should be updated with this layering system in mind (however the layer previews do not need to switch order inside the "Layer Breakdown" UI section when the layer order is changed). since there are currently 4 layers, we will need at least 4 separate real-time displays in the "Layer Breakdown" UI window section of the site (all still updating in real time like the main preview like originally).
+
+
+It is important to note that excess text for any of the new feature or pieces updated of this site should be avoided, only add info text in a production ready style where the user is mostly competent and doesn't need a lot of help.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+This is amazing progress. we need to make a few fixes and changes. currently for the "Luminance Masking" controls, there are no realtime prewiews for each of those layers in the "Layer Breakdown" Section like there we before, add those back into the "Layer Breakdown" section without removeing any of our new layer previews, and ensure that the Luminance masking Realtime previews also display on the main preview canvas when clicked.
+
+The Warmth Slider in the "Adjustments" controls section should have much greater positive and negative ranges than currently.
+
+A ran into an issue when the "Upscale" x factor is set high, the outputted image is just a black 1:1 square with no actual image. This could be a browser limit but i want to make sure this is not a code error, as most browser should be able to handle 10k+ images in all of my experience, especially with this site being GPU powered. (this is not a hardware issue on my end for clarity).
+
+Currently the "Chromatic Aberration" controls do not appear to change edit or do anything visible to the image except the "Edge Blur" slider working correctly. however the reset center button does function properly so that is good. When the user clicks onto the draggable circle element on the canvas, and starts moving it, the canvas should stop showing the original image and begin showing the preview again in real time, then when no motion on the draggable element is detected for more than 4 seconds, fade back to the original image preview.
+
+When scrolling over the main preview canvas to change blending modes, mouse movement on the canvas should not trigger the site to display the original image. (this is a small bug i noticed, everything else here works just great).
+
+On "Tab 2" where the render order is, each slab layer should have a small toggle inside to turn on or off it's visibility, which will show up or not in everything, and it will act as a universal on or off for the respective layer.
+
+Treat these instructions as fixes to the site and do not remove features or functionality from the site.
+Make all changes/updates and provide the updated site.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Next Set of edits:
+the "Luminance Masking" controls section should be expanded by default.
+
+Large issue: when exporting with a upscaled resolution, the exported png is cropped in severely, so the full image isn't exported.
+
+Chromatic Aberration render/preview issues:
+Unfortunately the only slider that changes anything visually in the chromatic aberration control section is still the "edge Blur", so you might revisit the logic for the chromatic aberration section and refactor how it works in order to produce correctly working controls that make actual changes like they did before.
+
+
+
+Other aspects of this site and the fixes and updates you have implemented have worked successfully and do not need to be changed or modified.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+it appears that everything on the site works correctly now except 2 things that need to be fixed and few updates and 1 new feature:
+
+1. the output png now is completely black no matter what the resolution scale is, even at 1x, this should be fixed. the output should not be cropped, and i want to re instate just to make sure that the pseudo-logic for upscaling the image is just that we are multiplying the height and the width by the user inputted integer to have our new canvas resolution that the image is scaled up to be displayed on.
+
+2. the logic for not displaying the original image while dragging the chromatic aberration center point around seems to still not lock the main preview in and prevent the original image from popping up while editing the center position, because of this, I want a switch implemented that globally locks the image preview and any layer previews the user wants to load onto it from the "Layer Breakdown" section. Switch placement should be right to the left of the "Upscale" text with the integer box, in line with the title text saying "Main Preview".
+
+3. in the "Shape and Blur" control section the scale and size slider should have a default value of 0 (meaning pixel level noise like the user can set it to) instead of its current default value of 4. This slider should also have it upper range capped some as it does not need to go so high, and the same is true for the "Blurriness" slider.
+
+
+4 NEW FEATURE:
+add 2 new area buttons exactly like the "upload" button, one saying "Download .json" and another saying "Upload .json". These buttons will allow the user to download and upload the exact states/settings/controls of the site at the current state in order for the user to, on the next session, upload and image and if the user wants to, a json file to re-create the exact edit as an earlier session using the saved setting states.

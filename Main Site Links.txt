@@ -1,0 +1,17 @@
+Relative File Paths in index unbundled current.html
+
+1. Path: Image Tools Landing/Current/index.html
+   Leads to: The landing page for various image-related tools.
+   Called on site: "Image Tools"
+
+2. Path: Charms Web Tools/image-converter.html
+   Leads to: A tool for converting multiple image files or folders.
+   Called on site: "Converter"
+
+3. Path: Charms Web Tools/Site Bundler/Current Bundler/bundler gem.html
+   Leads to: A tool to bundle HTML, CSS, JS, and images into a single file.
+   Called on site: "HTML/CSS/JS/Image Bundler"
+
+4. Path: Charms Web Tools/Charms Web Tools.html
+   Leads to: A collection page for other high-power web tools.
+   Called on site: "Other Powerful Tools"

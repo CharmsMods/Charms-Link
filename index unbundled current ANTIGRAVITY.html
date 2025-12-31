@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="images/fav.png">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!--
+        ────────────────
+        SECTION O: Landing Spot
+        Empty landing section for future design
+        ────────────────
+    -->
+    <section class="section-landing" id="section-landing">
+        <div class="landing-content">
+            <h1 class="landing-title">CHARM?</h1>
+            <div class="landing-subtext">
+                <span class="landing-word">World</span>
+                <span class="landing-divider"></span>
+                <span class="landing-word">Color</span>
+                <span class="landing-divider"></span>
+                <span class="landing-word">Noise</span>
+                <span class="landing-divider"></span>
+                <span class="landing-word">Grain</span>
+                <span class="landing-divider"></span>
+                <span class="landing-word">Passion</span>
+            </div>
+        </div>
+    </section>
+
+    <!--
+            ────────────────
+            SECTION 1: Top Profile & Tool Grid
+            Contains profile image, social links, and main tool grid
+            ────────────────
+        -->
+    <section class="section-top section-1" id="section-1">
+        <div class="container">
+            <!--
+                            Profile Picture and Social Media Links
+                            Social links use SVG icons for Discord, YouTube, Twitch, Instagram
+                        -->
+            <div class="profile-container">
+                <img src="pfp.png" alt="Profile Picture" class="profile-pic">
+                <!-- Social Media Links (SVG icons, open in new tab) -->
+                <div class="social-links">
+                    <a href="https://discord.com/users/1198452446456983605" class="social-link" target="_blank"
+                        rel="noopener noreferrer" aria-label="Discord">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36" fill="currentColor">
+                            <path
+                                d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.86.66,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+                        </svg>
+                    </a>
+
+                    <a href="https://www.youtube.com/channel/UC6FGVP7ft-zfwfyVVRtbMCA" class="social-link"
+                        target="_blank" rel="noopener noreferrer" aria-label="YouTube">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" fill="currentColor">
+                            <path
+                                d="M549.7 124.1c-6.3-23.7-24.8-42.3-48.3-48.6C458.8 64 288 64 288 64S117.2 64 74.6 75.5c-23.5 6.3-42 24.9-48.3 48.6-11.4 42.9-11.4 132.3-11.4 132.3s0 89.4 11.4 132.3c6.3 23.7 24.8 41.5 48.3 47.8C117.2 448 288 448 288 448s170.8 0 213.4-11.5c23.5-6.3 42-24.2 48.3-47.8 11.4-42.9 11.4-132.3 11.4-132.3s0-89.4-11.4-132.3zm-317.5 213.5V175.2l142.7 81.2-142.7 81.2z" />
+                        </svg>
+                    </a>
+
+                    <a href="https://www.twitch.tv/xxcharmxxx" class="social-link" target="_blank"
+                        rel="noopener noreferrer" aria-label="Twitch">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor">
+                            <path
+                                d="M391.2,103.5H352.5v109.7h38.6zM285,103H246.2V212.8H285ZM120.8,0,24.8,91.9V420H141.4V512l96.1-92h73.6l155.3-155.1V0ZM449.1,237.2l-40.4,40.5H340.3l-67.2,67.2v-67.2H202.3V37.9H449.1Z" />
+                        </svg>
+                    </a>
+
+                    <a href="https://www.instagram.com/itscharmfr?igsh=MTAwMDBobjFxazlkYQ==" class="social-link"
+                        target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor">
+                            <path
+                                d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7-29.5 9-99.5 9-132.1s2.7 102.7-9 132.1z" />
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+
+            <div class="grid">
+                <!--
+              Main Tool Grid
+              Each .website-box is a card linking to a tool or site, with preview image and title
+              (Deprecated landing page link is commented out below)
+            -->
+                <!-- Charm's Landing Page DEPRECATED, but feel free to check it out if you want to see the old version of my website
+            ...existing code...
+            -->
+
+                <a href="Image Tools Landing/Current/index.html" class="website-box" target="_blank">
+                    <div class="image-container">
+                        <img src="images/Image Tools.png" alt="Image Tools" class="website-image">
+                    </div>
+                    <div class="content">
+                        <div class="website-title">Image Tools</div>
+                    </div>
+                </a>
+
+                <a href="Charms Web Tools/image-converter.html" class="website-box" target="_blank">
+                    <div class="image-container">
+                        <img src="images/image-converter.png" alt="Multi Folder/File Image Converter Screenshot"
+                            class="website-image">
+                    </div>
+                    <div class="content">
+                        <div class="website-title">Converter</div>
+                    </div>
+                </a>
+
+                <a href="Charms Web Tools/Site Bundler/Current Bundler/bundler gem.html" class="website-box"
+                    target="_blank" rel="noopener noreferrer">
+                    <div class="image-container">
+                        <img src="images/Bundler.png" alt="HTML/CSS/JS/Image Bundler Tool" class="website-image">
+                    </div>
+                    <div class="content">
+                        <div class="website-title">HTML/CSS/JS/Image Bundler</div>
+                    </div>
+                </a>
+
+                <a href="Charms Web Tools/Charms Web Tools.html" class="website-box" target="_blank">
+                    <div class="image-container">
+                        <img src="images/Charms Web Tools.png" alt="Charms Web Tools Screenshot" class="website-image">
+                    </div>
+                    <div class="content">
+                        <div class="website-title">Other Powerful Tools</div>
+                    </div>
+                </a>
+
+                <a href="https://charmsmods.github.io/Charms-Main-Site/" class="website-box" target="_blank">
+                    <div class="image-container">
+                        <img src="images/Venge Modding Hub.png" alt="Venge Modding Hub Screenshot"
+                            class="website-image">
+                    </div>
+                    <div class="content">
+                        <div class="website-title">Venge Modding</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!--
+                    Scroll Down Arrow (animated, prompts user to scroll)
+                -->
+        <div class="scroll-down">
+            <div class="scroll-circle">
+                <svg class="arrow-down" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 9L12 16L5 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+            </div>
+        </div>
+    </section>
+
+    <!--
+            ────────────────
+            SECTION 2: Bio/About
+            Personal introduction, story, and images
+            ────────────────
+        -->
+    <section class="section-bio section-2" id="section-2">
+        <div class="bio-content">
+            <div class="bio-text">
+                <p>Hey, I'm Darynn, but I go by Charm? online. You might have seen me on YouTube
+                    playing some games or making edits of those games.</p>
+
+                <div class="bio-image-left">
+                    <!-- Left-aligned bio image, opens fullscreen on click -->
+                    <img src="2nd Section Images/1.png" alt="1" class="bio-image hover-zoom"
+                        data-fullsrc="2nd Section Images/1.png">
+                </div>
+
+                <p>My journey started around a year ago when I discovered Venge.io,
+                    a niche browser shooter game with a Discord server. For most of the time in my life that I've had a
+                    PC,
+                    I've been extremely passionate about shooter games, and when I found Venge.io, I fell in love with
+                    the community
+                    and the game. I contributed to the community by making the only website for automatic modding of the
+                    game, where you could upload assets
+                    and textures, or make them on the site and export them as a mod, compatible with both browser and
+                    client at the same time! I also
+                    made several of my own mods, a few of which have become community favorites.</p>
+
+                <p>After a while, I moved on from consistently playing Venge and began trying other shooter games, while
+                    still contributing
+                    to the community and maintaining my site (as you can see above). Recently, I have immensely enjoyed
+                    playing two games: The FINALS and Banana Shooter.
+                    These games have kept me busy over the past few weeks as I hope to become skilled at a competitive
+                    level in The Finals.
+                </p>
+
+                <div class="bio-image-right">
+                    <!-- Right-aligned bio image, opens fullscreen on click -->
+                    <img src="2nd Section Images/2.png" alt="2" class="bio-image hover-zoom"
+                        data-fullsrc="2nd Section Images/2.png">
+                </div>
+
+                <p>Meanwhile, while playing shooter games, I have begun to grow an online community
+                    through YouTube, Instagram, Discord, and more recently, Twitch. I currently balance
+                    playing shooter games, making updates to this website, and creating content on YouTube and posting
+                    to Instagram.</p>
+
+                <p>Over the past 6 months, I have created this entire complex of websites for you to enjoy as much as
+                    you want. I have a strong passion for all things visual,
+                    so the tools I create are dedicated to providing you with the highest-quality output at a simple
+                    control level, compared
+                    to something paid or a sketchy site online (this isn't one, I promise).
+                    Please feel free to explore!</p>
+            </div>
+        </div>
+        </div>
+    </section>
+
+    <!--
+            ────────────────
+            SECTION 3: Tool Example Galleries
+            Noise Studio and Background Remover before/after examples
+            ────────────────
+        -->
+    <section class="section-footer section-3" id="section-3">
+        <div class="section-3-inner">
+            <div class="section-3-header">
+                <!-- Section 3 Header: Noise Studio Examples -->
+                <div class="section-3-header-title">Noise Studio Examples</div>
+            </div>
+
+            <div class="noise-text">
+                <!-- Description of noise effect and its visual benefits -->
+                <p>Some images are visually striking but can appear flat. In certain situations, adding a subtle amount
+                    of randomness can enhance them. In the examples below, each image was adjusted and layered with
+                    light noise to break up large areas of uniform color. Additional tweaks to saturation, contrast, and
+                    brightness were made to complement the noise and improve overall depth. Ultimately, what matters is
+                    how the image makes your audience feel.</p>
+            </div>
+
+            <div class="noise-collage">
+                <!--
+                                    Example cards for Noise Studio
+                                    Each card shows before/after images on canvas (populated by JS)
+                                -->
+                <div class="example-card" data-example="1" data-before="3rdSectionImages/Examples/1/before.png"
+                    data-after="3rdSectionImages/Examples/1/after.png" role="button" tabindex="0">
+                    <canvas class="example-canvas"></canvas>
+                </div>
+
+                <div class="example-card" data-example="2" data-before="3rdSectionImages/Examples/2/before.png"
+                    data-after="3rdSectionImages/Examples/2/after.png" role="button" tabindex="0">
+                    <canvas class="example-canvas"></canvas>
+                </div>
+
+                <div class="example-card" data-example="3" data-before="3rdSectionImages/Examples/3/before.png"
+                    data-after="3rdSectionImages/Examples/3/after.png" role="button" tabindex="0">
+                    <canvas class="example-canvas"></canvas>
+                </div>
+            </div>
+
+            <div class="bgremover-block">
+                <!--
+                                    Background Remover Example Gallery
+                                    Shows before/after of logo cleanup and watermark removal
+                                -->
+                <div class="section-3-header">
+                    <!-- Section 3 Header: Background Remover Examples -->
+                    <div class="section-3-header-title">Background Remover Examples</div>
+                </div>
+
+                <div class="bgremover-text">
+                    <!-- Description of background remover tool and use case -->
+                    What good is a logo if its edges clash with your site colors or video? Using the background remover
+                    tool, you can make specific colors transparent within a defined tolerance, allowing underlying
+                    content to show through seamlessly. If needed, you can also patch areas of an image to remove
+                    watermarks or other unwanted elements, as shown with the watermark on the Starbucks logo.
+                </div>
+
+                <div class="bgremover-gallery">
+                    <!--
+                                            Example cards for Background Remover
+                                            Each card shows before/after images on canvas (populated by JS)
+                                        -->
+                    <div class="example-card bgremover-card" data-example="bg-1"
+                        data-before="3rdSectionImages/Background Remover Examples/1/before.png"
+                        data-after="3rdSectionImages/Background Remover Examples/1/after.png" role="button"
+                        tabindex="0">
+                        <canvas class="example-canvas"></canvas>
+                    </div>
+
+                    <div class="example-card bgremover-card" data-example="bg-2"
+                        data-before="3rdSectionImages/Background Remover Examples/2/before.png"
+                        data-after="3rdSectionImages/Background Remover Examples/2/after.png" role="button"
+                        tabindex="0">
+                        <canvas class="example-canvas"></canvas>
+                    </div>
+
+                    <div class="example-card bgremover-card" data-example="bg-3"
+                        data-before="3rdSectionImages/Background Remover Examples/3/before.png"
+                        data-after="3rdSectionImages/Background Remover Examples/3/after.png" role="button"
+                        tabindex="0">
+                        <canvas class="example-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!--
+            ────────────────
+            BACKGROUND ELEMENTS
+            Vanta.js animated clouds, mobile fallback, and static desktop fallback
+            ────────────────
+        -->
+    <div id="vanta-bg"></div>
+    <div id="mobile-bg"></div>
+    <div id="desktop-fallback-bg"></div>
+
+    <!--
+            Desktop background mode toggle (animation vs static image)
+            Only visible on desktop, lets user switch between animated and static backgrounds
+        -->
+    <div class="bg-toggle" id="bg-toggle" aria-hidden="true">
+        <button type="button" class="bg-toggle-button" id="bg-toggle-button">
+            <span class="bg-toggle-indicator"></span>
+            <span class="bg-toggle-label">Charm?</span>
+        </button>
+    </div>
+
+    <!--
+            Vanta.js Scripts (Three.js and Vanta Clouds)
+            Used for animated desktop background
+        -->
+    <script src="js/three.r134.min.js.js"></script>
+    <script src="js/vanta.birds.min.js.js"></script>
+
+    <script>
+        //
+        // ────────────────
+        // VANTA.JS BACKGROUND LOGIC
+        // Handles animated clouds, static fallback, and user toggling
+        // ────────────────
+        //
+
+        // Function to initialize Vanta.js (for desktop only)
+        function initVanta() {
+            // Only initialize if screen is wider than 1024px (typical tablet landscape and up)
+            if (window.innerWidth > 1024) {
+                return VANTA.BIRDS({
+                    el: "#vanta-bg",
+                    mouseControls: true,
+                    touchControls: true,
+                    gyroControls: false,
+                    minHeight: 200.00,
+                    minWidth: 200.00,
+                    scale: 1.00,
+                    scaleMobile: 1.00,
+                    backgroundColor: 0xddcba4,
+                    speedLimit: 10.00,
+                    separation: 45.00,
+                    alignment: 1.00,
+                    cohesion: 17.00
+                });
+            }
+            return null;
+        }
+
+        // DOM references for background elements and toggle
+        const mobileBg = document.getElementById('mobile-bg');
+        const desktopFallbackBg = document.getElementById('desktop-fallback-bg');
+        const vantaContainer = document.getElementById('vanta-bg');
+        const bgToggle = document.getElementById('bg-toggle');
+        const bgToggleButton = document.getElementById('bg-toggle-button');
+        const bgToggleLabel = document.querySelector('#bg-toggle .bg-toggle-label');
+
+        // State variables for background logic
+        let vantaEffect = null;
+        let fpsMonitoring = false;
+        let vantaDisabledForPerf = false; // auto-disabled due to low FPS
+        let userForcedMode = null; // 'animation' | 'image' | null (auto)
+        const IDLE_TIMEOUT_MS = 60000; // 1 minute
+        let lastInteractionTime = Date.now();
+        let idleIntervalId = null;
+        let switchedToImageDueToIdle = false;
+
+        // Track user interaction for idle detection (desktop + mobile)
+        document.addEventListener('mousemove', recordInteraction);
+        document.addEventListener('keydown', recordInteraction);
+
+        // Update toggle button UI based on current mode
+        function updateToggleUI(mode) {
+            if (!bgToggleButton || !bgToggleLabel) return;
+            // mode: 'animation' or 'image'
+            if (mode === 'image') {
+                bgToggleButton.classList.add('bg-mode-image');
+                bgToggleLabel.textContent = 'Birds';
+            } else {
+                bgToggleButton.classList.remove('bg-mode-image');
+                bgToggleLabel.textContent = 'Charm?';
+            }
+        }
+
+        // Monitor FPS and auto-disable animation if too low
+        function startFpsMonitor() {
+            if (fpsMonitoring || vantaDisabledForPerf) return;
+            fpsMonitoring = true;
+
+            let frameCount = 0;
+            let startTime = performance.now();
+            const sampleWindow = 3000; // 3 second window
+
+            function sample(now) {
+                if (!fpsMonitoring || vantaDisabledForPerf) return;
+
+                frameCount++;
+                const elapsed = now - startTime;
+
+                if (elapsed >= sampleWindow) {
+                    const fps = (frameCount * 1000) / elapsed;
+
+                    if (fps < 25 && window.innerWidth > 1024 && !userForcedMode) {
+                        // Disable Vanta for low-performance desktops
+                        if (vantaEffect) {
+                            vantaEffect.destroy();
+                            vantaEffect = null;
+                        }
+                        vantaContainer.style.display = 'none';
+                        desktopFallbackBg.style.display = 'block';
+
+                        // Start desktop parallax fallback if helper exists
+                        if (window.startDesktopParallaxFallback) {
+                            window.startDesktopParallaxFallback();
+                        }
+
+                        vantaDisabledForPerf = true;
+                        updateToggleUI('image');
+                        fpsMonitoring = false;
+                        return;
+                    }
+
+                    // Reset counters and continue sampling
+                    frameCount = 0;
+                    startTime = now;
+                }
+
+                requestAnimationFrame(sample);
+            }
+
+            requestAnimationFrame(sample);
+        }
+
+        // Monitor for user idleness and auto-switch to static image
+        function startIdleMonitor() {
+            // Only relevant on desktop when animation is active
+            if (idleIntervalId) return;
+            lastInteractionTime = Date.now();
+
+            idleIntervalId = setInterval(function () {
+                if (window.innerWidth <= 1024) return; // ignore mobile
+                if (!vantaEffect) {
+                    clearInterval(idleIntervalId);
+                    idleIntervalId = null;
+                    return;
+                }
+
+                const idleFor = Date.now() - lastInteractionTime;
+                if (idleFor >= IDLE_TIMEOUT_MS) {
+                    // No interaction for a minute while animation is running: switch to image
+                    switchedToImageDueToIdle = true;
+                    useImageBackground();
+                    clearInterval(idleIntervalId);
+                    idleIntervalId = null;
+                }
+            }, 5000); // check every 5 seconds
+        }
+
+        // Stop idle monitor
+        function stopIdleMonitor() {
+            if (idleIntervalId) {
+                clearInterval(idleIntervalId);
+                idleIntervalId = null;
+            }
+        }
+
+        // Record user interaction for idle logic
+        function recordInteraction() {
+            lastInteractionTime = Date.now();
+
+            // If we previously disabled animation due to idle, and we're back on desktop,
+            // automatically restore the animation unless the user or low-FPS logic said otherwise.
+            if (window.innerWidth > 1024 && switchedToImageDueToIdle && !vantaDisabledForPerf && userForcedMode !== 'image') {
+                switchedToImageDueToIdle = false;
+                useAnimationBackground();
+            }
+        }
+
+        // Switch to animated background (desktop)
+        function useAnimationBackground() {
+            vantaDisabledForPerf = false;
+            desktopFallbackBg.style.display = 'none';
+            vantaContainer.style.display = '';
+
+            if (!vantaEffect) {
+                vantaEffect = initVanta();
+            } else {
+                vantaEffect.resize();
+            }
+
+            startFpsMonitor();
+            startIdleMonitor();
+            updateToggleUI('animation');
+        }
+
+        // Switch to static image background (desktop)
+        function useImageBackground() {
+            if (vantaEffect) {
+                vantaEffect.destroy();
+                vantaEffect = null;
+            }
+            vantaContainer.style.display = 'none';
+            desktopFallbackBg.style.display = 'block';
+            fpsMonitoring = false;
+            stopIdleMonitor();
+            updateToggleUI('image');
+
+            if (window.startDesktopParallaxFallback) {
+                window.startDesktopParallaxFallback();
+            }
+        }
+
+        // Toggle click handler (desktop only)
+        if (bgToggleButton) {
+            bgToggleButton.addEventListener('click', function () {
+                if (window.innerWidth <= 1024) return; // ignore on mobile
+
+                if (desktopFallbackBg.style.display === 'block') {
+                    // Switch to animation
+                    userForcedMode = 'animation';
+                    useAnimationBackground();
+                } else {
+                    // Switch to image
+                    userForcedMode = 'image';
+                    useImageBackground();
+                }
+            });
+        }
+
+        // One-time initialization for Vanta
+        let vantaInitialized = false;
+
+        // Handle window resize and switch backgrounds accordingly
+        function handleResize() {
+            if (window.innerWidth <= 1024) {
+                // On mobile/tablet: mobile has highest priority
+                if (vantaEffect) {
+                    vantaEffect.destroy();
+                    vantaEffect = null;
+                }
+                vantaContainer.style.display = '';
+                desktopFallbackBg.style.display = 'none';
+                mobileBg.style.display = 'block';
+                fpsMonitoring = false;
+                stopIdleMonitor();
+                userForcedMode = null; // reset to auto when going to mobile
+            } else {
+                // On desktop
+                mobileBg.style.display = 'none';
+
+                // Show toggle on desktop (CSS also guards this)
+                if (bgToggle) {
+                    bgToggle.setAttribute('aria-hidden', 'false');
+                }
+
+                // Decide which background to use
+                if (userForcedMode === 'image' || vantaDisabledForPerf) {
+                    useImageBackground();
+                } else {
+                    // Auto or userForcedMode === 'animation'
+                    useAnimationBackground();
+                }
+            }
+        }
+
+        //
+        // ────────────────
+        // SCROLL OPACITY LOGIC
+        // Updates --scroll-bg-opacity based on scroll position
+        // ────────────────
+        //
+        function updateBgOpacity() {
+            const scrollPosition = window.scrollY;
+            const windowHeight = window.innerHeight;
+            // Calculate opacity: 0 at top, 1 after scrolling down 1 viewport height
+            // We use 0.8 * windowHeight so it's fully visible slightly before the first section ends
+            const targetScrollEnd = windowHeight * 0.8;
+
+            let opacity = Math.min(scrollPosition / targetScrollEnd, 1);
+
+            // Ensure it never goes below 0
+            if (opacity < 0) opacity = 0;
+
+            document.documentElement.style.setProperty('--scroll-bg-opacity', opacity);
+        }
+
+        // Add scroll listener
+        window.addEventListener('scroll', updateBgOpacity);
+        // Initial check
+        updateBgOpacity();
+
+        // Initial check
+        handleResize();
+
+        // Add resize event listener
+        window.addEventListener('resize', handleResize);
+    </script>
+
+    <!--
+            ────────────────
+            FULLSCREEN IMAGE MODAL
+            For bio images (click to enlarge)
+            ────────────────
+        -->
+    <div id="fullscreen-modal" class="fullscreen-modal">
+        <button id="fullscreen-close" class="fullscreen-close">&times;</button>
+        <img id="fullscreen-img" class="fullscreen-img" src="" alt="">
+    </div>
+
+    <!--
+            FULLSCREEN EXAMPLE CANVAS MODAL
+            For before/after example cards (populated by section3.js)
+        -->
+    <div id="example-modal">
+        <button id="example-modal-close" class="example-modal-close">&times;</button>
+        <div class="example-modal-inner">
+            <canvas id="example-modal-canvas" class="example-modal-canvas"></canvas>
+        </div>
+    </div>
+
+    <!-- Scroll functionality for smooth navigation -->
+    <script src="js/scroll.js"></script>
+
+    <!-- Parallax functionality for mobile background -->
+    <script src="parallax.js"></script>
+
+    <!-- Section 3 example gallery logic (populates canvases) -->
+    <script src="js/section3.js"></script>
+
+    <script>
+        //
+        // ────────────────
+        // FULLSCREEN IMAGE MODAL LOGIC
+        // Handles click-to-enlarge for bio images
+        // ────────────────
+        //
+        const modal = document.getElementById('fullscreen-modal');
+        const modalImg = document.getElementById('fullscreen-img');
+        const closeBtn = document.getElementById('fullscreen-close');
+
+        // Open modal on click for images with hover-zoom class
+        document.querySelectorAll('.hover-zoom').forEach(img => {
+            img.addEventListener('click', () => {
+                modal.style.display = 'flex';
+                modalImg.src = img.dataset.fullsrc || img.src;
+                document.body.style.overflow = 'hidden';
+            });
+        });
+
+        // Close modal on X click or background click
+        const closeModal = () => {
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+        };
+
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', e => {
+            if (e.target === modal) closeModal();
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
+        });
+
+        //
+        // ────────────────
+        // STARTUP SEQUENCE LOGIC
+        // 1. Force Scroll to Top
+        // 2. Black -> Cream Fade
+        // 3. Text Fade In
+        // ────────────────
+        //
+        window.addEventListener('load', () => {
+            // Force scroll to top on load
+            if ('scrollRestoration' in history) {
+                history.scrollRestoration = 'manual';
+            }
+            window.scrollTo(0, 0);
+
+            const body = document.body;
+            const title = document.querySelector('.landing-title');
+            const subtext = document.querySelector('.landing-subtext');
+            const section1 = document.getElementById('section-1');
+
+            // 1. Initial Delay: 350ms
+            setTimeout(() => {
+                // Fade background to cream
+                body.classList.add('bg-cream');
+
+                // 2. Wait for BG fade (1s) + 200ms delay
+                setTimeout(() => {
+                    // Fade text in
+                    if (title) title.classList.add('visible');
+                    if (subtext) subtext.classList.add('visible');
+
+                    // 3. Wait 1 second (1000ms) then scroll
+                    setTimeout(() => {
+                        if (section1) {
+                            smoothScrollTo(section1.offsetTop, 2000);
+                        }
+                    }, 1000);
+
+                }, 1200); // 1s (bg duration) + 200ms
+
+            }, 350);
+        });
+
+        // Custom Smooth Scroll Function
+        function smoothScrollTo(targetPosition, duration) {
+            const startPosition = window.pageYOffset;
+            const distance = targetPosition - startPosition;
+            let startTime = null;
+
+            function animation(currentTime) {
+                if (startTime === null) startTime = currentTime;
+                const timeElapsed = currentTime - startTime;
+
+                // Ease function (easeInOutQuad)
+                const run = easeInOutQuad(timeElapsed, startPosition, distance, duration);
+
+                window.scrollTo(0, run);
+
+                if (timeElapsed < duration) {
+                    requestAnimationFrame(animation);
+                }
+            }
+
+            function easeInOutQuad(t, b, c, d) {
+                t /= d / 2;
+                if (t < 1) return c / 2 * t * t + b;
+                t--;
+                return -c / 2 * (t * (t - 2) - 1) + b;
+            }
+
+            requestAnimationFrame(animation);
+        }
+    </script>
+
+</body>
+
+</html>

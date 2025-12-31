@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,7 +16,7 @@
     :root {
       --bg: #020202;
       --fg: #f5f5f5;
-      --border: rgba(255,255,255,0.08);
+      --border: rgba(255, 255, 255, 0.08);
       --accent: #ffffff;
     }
 
@@ -23,26 +24,49 @@
       Reset box model and remove default margin/padding
       Set up base font and prevent scrollbars by hiding overflow
     */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; overflow: hidden; height: 100vh; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: system-ui, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+    }
 
     /*
       ─── BACKGROUND LAYERS ───
       .bg-container: Fixed, full-viewport container for background images
       .bg-layer: Stacked layers for background images, faded in/out on hover
     */
-    .bg-container { position: fixed; inset: 0; z-index: 0; background: black; }
-    
+    .bg-container {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background: black;
+    }
+
     .bg-layer {
       position: absolute;
       inset: 0;
       background-position: center;
       background-size: cover;
-      opacity: 0; /* Hidden by default */
-      transition: opacity 1.5s cubic-bezier(0.22, 1, 0.36, 1); /* Smooth fade */
+      opacity: 0;
+      /* Hidden by default */
+      transition: opacity 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+      /* Smooth fade */
       will-change: opacity;
     }
-    .bg-layer.active { opacity: 0.4; } /* Show active background layer */
+
+    .bg-layer.active {
+      opacity: 0.4;
+    }
+
+    /* Show active background layer */
 
     /*
       ─── GRID LAYOUT ───
@@ -51,7 +75,8 @@
     */
     .grid-wrapper {
       position: relative;
-      z-index: 10; /* Above background */
+      z-index: 10;
+      /* Above background */
       display: flex;
       justify-content: center;
       align-items: center;
@@ -61,8 +86,10 @@
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(3, 180px); /* 3 columns, each 180px wide */
-      gap: 40px; /* Space between cards */
+      grid-template-columns: repeat(3, 180px);
+      /* 3 columns, each 180px wide */
+      gap: 40px;
+      /* Space between cards */
       padding: 40px;
       max-width: 1000px;
     }
@@ -81,28 +108,32 @@
       justify-content: center;
       text-decoration: none;
       color: inherit;
-      background: rgba(5, 5, 5, 0.7); /* Frosted glass look */
+      background: rgba(5, 5, 5, 0.7);
+      /* Frosted glass look */
       backdrop-filter: blur(8px);
       transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .card:hover {
-      border-color: var(--accent); /* Highlight border */
-      transform: scale(1.08) translateY(-10px); /* Pop up */
-      background: rgba(255,255,255,0.05);
-      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      border-color: var(--accent);
+      /* Highlight border */
+      transform: scale(1.08) translateY(-10px);
+      /* Pop up */
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     }
 
-    .card span { 
-      letter-spacing: 3px; 
-      text-transform: uppercase; 
-      font-size: 0.7rem; 
+    .card span {
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      font-size: 0.7rem;
       font-weight: 600;
       text-align: center;
       padding: 0 10px;
     }
   </style>
 </head>
+
 <body>
 
   <!--
@@ -121,13 +152,21 @@
   -->
   <div class="grid-wrapper">
     <div class="grid">
-      <a class="card" href="../../Charms Web Tools/Image Tools/Noise Studio/Current Noise Studio/v15.2 bundled.html" data-img="../images/Noise Studio.png"><span>Noise Studio</span></a>
-      <a class="card" href="../../Charms Web Tools/Image Tools/Background Remover/Background Remover/background remover and patcher.html" data-img="../images/Background Remover.png"><span>Background Remover</span></a>
-      <a class="card" href="../../Charms Web Tools/Image Tools/Image Corruption/Image Corruption/Image Corruption.html" data-img="../images/Image Corruption.png"><span>Image Corruption</span></a>
-      <a class="card" href="../../Charms Web Tools/Image Tools/JPG Hex Editor/Current/index.html" data-img="../images/JPG Hex Editor.png"><span>JPG Hex Editor</span></a>
-      <a class="card" href="../../Charms Web Tools/Image Tools/Motion Detection/Current/index.html" data-img="../images/Motion Detection.png"><span>Motion Detection</span></a>
-      <a class="card" href="../../Charms Web Tools/Image Tools/Pixel Art/Current/index.html" data-img="../images/Pixel Art.png"><span>Pixel Art</span></a>
-      <a class="card" href="../../Charms Web Tools/Image Tools/Dithering/Current/index.html" data-img="../images/Image Dithering.png"><span>Image Dithering</span></a>
+      <a class="card" href="../../Charms Web Tools/Image Tools/Noise Studio/Current Noise Studio/v17.html"
+        data-img="../images/Noise Studio.png"><span>Noise Studio</span></a>
+      <a class="card"
+        href="../../Charms Web Tools/Image Tools/Background Remover/Background Remover/background remover and patcher.html"
+        data-img="../images/Background Remover.png"><span>Background Remover</span></a>
+      <a class="card" href="../../Charms Web Tools/Image Tools/Image Corruption/Image Corruption/Image Corruption.html"
+        data-img="../images/Image Corruption.png"><span>Image Corruption</span></a>
+      <a class="card" href="../../Charms Web Tools/Image Tools/JPG Hex Editor/Current/index.html"
+        data-img="../images/JPG Hex Editor.png"><span>JPG Hex Editor</span></a>
+      <a class="card" href="../../Charms Web Tools/Image Tools/Motion Detection/Current/index.html"
+        data-img="../images/Motion Detection.png"><span>Motion Detection</span></a>
+      <a class="card" href="../../Charms Web Tools/Image Tools/Pixel Art/Current/index.html"
+        data-img="../images/Pixel Art.png"><span>Pixel Art</span></a>
+      <a class="card" href="../../Charms Web Tools/Image Tools/Dithering/Current/index.html"
+        data-img="../images/Image Dithering.png"><span>Image Dithering</span></a>
     </div>
   </div>
 
@@ -183,4 +222,5 @@
     });
   </script>
 </body>
+
 </html>

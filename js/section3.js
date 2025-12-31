@@ -5,6 +5,7 @@
 // ──────────────────────────────────────────────
 
 
+document.addEventListener('DOMContentLoaded', () => {
     // Collect all example cards (with data-example attribute)
     const cards = Array.from(document.querySelectorAll('[data-example]'));
 
@@ -231,7 +232,7 @@
         modal.classList.add('is-open');
         document.body.style.overflow = 'hidden';
         // Setup modal canvas with the same logic as cards
-        const modalCard = { addEventListener: () => {} }; // Dummy card for modal
+        const modalCard = { addEventListener: () => { } }; // Dummy card for modal
         modalInstance = setupExampleCanvas(modalCard, modalCanvas, beforeSrc, afterSrc);
         const isBgRemover = typeof beforeSrc === 'string' && beforeSrc.includes('Background Remover Examples');
         modalInstance.setSplit(isBgRemover ? 0.5 : 0);
@@ -296,4 +297,3 @@
         });
     }
 });
-    }

@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU Image Processor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Grayscale Theme - #000000, #FFFFFF, #666666, #CCCCCC */
+        :root {
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --border-color: #ffffff;
+            --accent-color: #666666;
+            --hover-color: #555555;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            overflow: hidden; /* Prevent body scroll, handle inside containers */
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #000000; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #666666; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #999999; 
+        }
+
+        /* Layout Structure */
+        #app-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            flex-direction: column;
+        }
+
+        @media (min-width: 1024px) {
+            #app-container {
+                flex-direction: row;
+            }
+        }
+
+        /* Left Column: Scrollable Controls */
+        #controls-panel {
+            flex: 0 0 400px;
+            overflow-y: auto;
+            border-right: 1px solid var(--border-color);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            z-index: 10;
+        }
+
+        @media (max-width: 1023px) {
+            #controls-panel {
+                flex: 1;
+                border-right: none;
+                border-top: 1px solid var(--border-color);
+                order: 2; /* Controls below preview on mobile */
+            }
+        }
+
+        /* Right Column: Stationary Preview */
+        #preview-panel {
+            flex: 1;
+            background-color: #050505; /* Slightly distinct from pure black */
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            order: 1; /* Preview above on mobile */
+        }
+
+        /* Canvas Wrapper to ensure centering and scaling */
+        .canvas-wrapper {
+            position: relative;
+            box-shadow: 0 0 50px rgba(255, 255, 255, 0.05);
+            border: 1px solid #333;
+            max-width: 95%;
+            max-height: 95%;
+            display: flex; /* Removes bottom gap */
+        }
+
+        canvas {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* UI Components */
+        .section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #999;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #333;
+            padding-bottom: 0.5rem;
+        }
+
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.6rem 1rem;
+            border: 1px solid var(--border-color);
+            background: var(--accent-color);
+            color: white;
+            border-radius: 0.25rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            width: 100%;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background: var(--hover-color);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* Inputs */
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px dashed var(--border-color);
+            background: #111;
+            color: #888;
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: border-color 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .file-label:hover {
+            border-color: #ccc;
+            color: #fff;
+        }
+
+        /* Sliders */
+        .slider-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid #000;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #666;
+            border-radius: 2px;
+        }
+
+        /* Toggles */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 20px;
+            background: #333;
+            border-radius: 20px;
+            border: 1px solid #555;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 14px;
+            height: 14px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        input[type="checkbox"]:checked + .toggle-switch {
+            background: #666;
+            border-color: #fff;
+        }
+
+        input[type="checkbox"]:checked + .toggle-switch::after {
+            transform: translateX(20px);
+        }
+
+        input[type="checkbox"] {
+            display: none;
+        }
+
+        /* Color Picker */
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            background: none;
+            cursor: pointer;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0; 
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: 1px solid #fff;
+            border-radius: 4px;
+        }
+
+        /* Accordion */
+        .accordion-item {
+            border: 1px solid #333;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+            overflow: hidden;
+        }
+
+        .accordion-header {
+            background: #111;
+            padding: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            user-select: none;
+        }
+
+        .accordion-header:hover {
+            background: #222;
+        }
+
+        .accordion-content {
+            background: #000;
+            padding: 0.75rem;
+            display: none;
+        }
+
+        .accordion-item.active .accordion-content {
+            display: block;
+        }
+        
+        .arrow {
+            transition: transform 0.3s;
+        }
+        .accordion-item.active .arrow {
+            transform: rotate(180deg);
+        }
+
+        /* Stats Box */
+        .stats-box {
+            background: #111;
+            padding: 0.75rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #aaa;
+            border: 1px solid #333;
+            margin-bottom: 1rem;
+        }
+
+        /* Message Toast */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            pointer-events: none;
+        }
+        
+        .toast {
+            background: rgba(20, 20, 20, 0.95);
+            border: 1px solid #fff;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            color: white;
+            font-weight: bold;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Toast Notification System -->
+    <div id="toast-container"></div>
+
+    <div id="app-container">
+        
+        <!-- Controls Panel (Scrollable) -->
+        <aside id="controls-panel">
+            <header class="mb-4">
+                <h1 class="text-xl font-bold tracking-tight">GPU Processor</h1>
+                <p class="text-xs text-gray-500 mt-1">WebGL Accelerated | v2.0</p>
+            </header>
+
+            <!-- File Operations -->
+            <div class="control-group">
+                <div class="section-title">File</div>
+                <div class="btn-group mb-3">
+                    <label for="imageUpload" class="btn">Open Image</label>
+                    <input type="file" id="imageUpload" accept="image/*">
+                    <button id="downloadButton" class="btn">Download</button>
+                </div>
+                <div class="btn-group">
+                    <button id="applyButton" class="btn bg-gray-700">Apply Changes (Commit)</button>
+                    <button id="resetButton" class="btn bg-gray-800">Reset All</button>
+                </div>
+            </div>
+
+            <!-- Info Display -->
+            <div class="stats-box">
+                <div class="flex justify-between mb-1">
+                    <span>Res:</span>
+                    <span id="resolutionDisplay" class="text-white">No Image</span>
+                </div>
+                <div class="flex justify-between mb-1">
+                    <span>Selected:</span>
+                    <span id="hexDisplay" class="text-white">#------</span>
+                </div>
+            </div>
+
+            <!-- Main Processing Tools -->
+            <div class="control-group">
+                <div class="section-title">Color Processing</div>
+                
+                <div class="accordion-item active">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        Selection Mode <span class="arrow">▼</span>
+                    </div>
+                    <div class="accordion-content">
+                        <label class="toggle-row">
+                            <span>Area Selection (Flood Fill)</span>
+                            <input type="checkbox" id="areaSelectionToggle">
+                            <div class="toggle-switch"></div>
+                        </label>
+                        <p class="text-xs text-gray-500 mb-2">Click the image to select area.</p>
+                    </div>
+                </div>
+
+                <div class="accordion-item active">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        Tolerance & Smoothing <span class="arrow">▼</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="mb-4">
+                            <label class="flex justify-between text-sm mb-1">
+                                <span>Tolerance</span>
+                                <span id="toleranceVal">20</span>
+                            </label>
+                            <input type="range" id="toleranceStrengthSlider" min="0" max="100" value="20">
+                        </div>
+                        <div>
+                            <label class="flex justify-between text-sm mb-1">
+                                <span>Edge Smoothing</span>
+                                <span id="smoothingVal">0.5</span>
+                            </label>
+                            <input type="range" id="smoothingFactorSlider" min="0" max="1" step="0.01" value="0.5">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item active">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        Output Mode <span class="arrow">▼</span>
+                    </div>
+                    <div class="accordion-content">
+                        <label class="toggle-row mb-3">
+                            <span>Invert Selection</span>
+                            <input type="checkbox" id="invertSelectionToggle">
+                            <div class="toggle-switch"></div>
+                        </label>
+                        
+                        <label class="toggle-row mb-3">
+                            <span>Replace with Color</span>
+                            <input type="checkbox" id="colorReplacementToggle">
+                            <div class="toggle-switch"></div>
+                        </label>
+
+                        <div id="colorReplacementContainer" class="flex items-center gap-3 p-2 bg-gray-900 rounded mb-3" style="display:none;">
+                            <input type="color" id="replacementColorPicker" value="#ff0000">
+                            <span class="text-sm font-mono" id="replacementColorDisplay">#FF0000</span>
+                        </div>
+
+                        <div id="opacityContainer">
+                            <label class="flex justify-between text-sm mb-1">
+                                <span>Opacity (Eraser)</span>
+                                <span id="opacityVal">1.0</span>
+                            </label>
+                            <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="1">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shape Tools -->
+            <div class="control-group">
+                <div class="section-title">Shape Overlay (GPU)</div>
+                <label class="toggle-row">
+                    <span class="font-bold text-white">Enable Shape Mode</span>
+                    <input type="checkbox" id="shapeModeToggle">
+                    <div class="toggle-switch"></div>
+                </label>
+                <p class="text-xs text-gray-500 mb-3">Click canvas to pick replacement color for shape.</p>
+
+                <div id="shapeControls" style="opacity: 0.5; pointer-events: none;">
+                    <div class="mb-3">
+                        <label class="text-sm mb-1 block">Type</label>
+                        <select id="shapeTypeSelect" class="w-full bg-black border border-gray-600 text-white p-2 rounded text-sm">
+                            <option value="0">Rectangle</option>
+                            <option value="1">Ellipse</option>
+                        </select>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <div>
+                            <label class="text-xs mb-1 block text-gray-400">Pos X</label>
+                            <input type="range" id="shapeXSlider" min="0" max="100" value="50">
+                        </div>
+                        <div>
+                            <label class="text-xs mb-1 block text-gray-400">Pos Y</label>
+                            <input type="range" id="shapeYSlider" min="0" max="100" value="50">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <div>
+                            <label class="text-xs mb-1 block text-gray-400">Width</label>
+                            <input type="range" id="shapeWidthSlider" min="10" max="1000" value="100">
+                        </div>
+                        <div>
+                            <label class="text-xs mb-1 block text-gray-400">Height</label>
+                            <input type="range" id="shapeHeightSlider" min="10" max="1000" value="100">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="flex justify-between text-sm mb-1">
+                            <span>Falloff (Feather)</span>
+                            <span id="falloffVal">0</span>
+                        </label>
+                        <input type="range" id="falloffSlider" min="0" max="200" value="0">
+                    </div>
+
+                    <label class="toggle-row mb-3">
+                        <span>Erase Shape</span>
+                        <input type="checkbox" id="shapeEraseToggle">
+                        <div class="toggle-switch"></div>
+                    </label>
+
+                    <div id="shapeColorContainer" class="flex items-center gap-3 p-2 bg-gray-900 rounded">
+                        <input type="color" id="shapeColorPicker" value="#00ff00">
+                        <span class="text-sm font-mono" id="shapeColorDisplay">#00FF00</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-auto pt-6 text-xs text-gray-600 border-t border-gray-800">
+                <p>Processing via WebGL Fragment Shaders.</p>
+                <p class="mt-1">No CPU pixel manipulation.</p>
+            </div>
+        </aside>
+
+        <!-- Preview Panel (Stationary) -->
+        <main id="preview-panel">
+            <div class="canvas-wrapper" id="canvasContainer">
+                <canvas id="glCanvas"></canvas>
+                <div id="loadingOverlay" class="loading-overlay">Processing...</div>
+            </div>
+            
+            <!-- Helper Text -->
+            <div id="emptyState" class="absolute text-center pointer-events-none">
+                <h2 class="text-2xl font-bold text-gray-700">No Image Loaded</h2>
+                <p class="text-gray-600 mt-2">Upload an image to start GPU processing</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- WebGL Scripts -->
+    <script id="vs" type="x-shader/x-vertex">
+        attribute vec2 a_position;
+        attribute vec2 a_texCoord;
+        varying vec2 v_texCoord;
+        void main() {
+            gl_Position = vec4(a_position, 0.0, 1.0);
+            v_texCoord = a_texCoord;
+        }
+    </script>
+
+    <script id="fs" type="x-shader/x-fragment">
+        precision mediump float;
+
+        uniform sampler2D u_image;
+        uniform sampler2D u_mask; // Flood fill mask
+        
+        uniform vec2 u_resolution;
+        
+        // Color Processing
+        uniform vec3 u_selectedColor;
+        uniform float u_tolerance;
+        uniform float u_smoothing;
+        uniform float u_opacity;
+        uniform int u_invert;
+        uniform int u_useMask;
+        uniform int u_isReplaceColor;
+        uniform vec3 u_replaceColor;
+
+        // Shape Processing
+        uniform int u_shapeMode;
+        uniform int u_shapeType;
+        uniform vec2 u_shapeCenter;
+        uniform vec2 u_shapeSize; // half-width, half-height
+        uniform float u_shapeFalloff;
+        uniform int u_shapeErase;
+        uniform vec3 u_shapeColor;
+
+        varying vec2 v_texCoord;
+
+        // Color distance (Euclidean)
+        float colorDistance(vec3 c1, vec3 c2) {
+            vec3 diff = c1 - c2;
+            // Perceptual weights
+            return sqrt(dot(diff * diff, vec3(0.299, 0.587, 0.114)));
+        }
+
+        // Smooth interpolation logic matching the CPU JS
+        float smoothInterpolation(float t, float smoothingFactor) {
+            if (smoothingFactor <= 0.3) {
+                return (1.0 - cos(t * 3.14159)) / 2.0;
+            } else if (smoothingFactor <= 0.7) {
+                return t * t * (3.0 - 2.0 * t);
+            } else {
+                return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+            }
+        }
+
+        void main() {
+            vec4 originalColor = texture2D(u_image, v_texCoord);
+            vec3 finalRGB = originalColor.rgb;
+            float finalAlpha = originalColor.a;
+
+            // --- 1. Color Processing Logic ---
+            float effectFactor = 0.0;
+
+            if (u_useMask == 1) {
+                float maskVal = texture2D(u_mask, v_texCoord).r;
+                // In JS flood fill, white = selected. 
+                // If maskVal > 0.5, we are in the area.
+                
+                if (maskVal > 0.5) {
+                    float dist = colorDistance(originalColor.rgb, u_selectedColor);
+                    if (dist <= u_tolerance) {
+                         if (u_tolerance > 0.0) {
+                            float fadeZone = u_tolerance * u_smoothing;
+                            float coreZone = u_tolerance - fadeZone;
+                            if (dist <= coreZone) {
+                                effectFactor = (u_invert == 1) ? 0.0 : 1.0;
+                            } else {
+                                float fadeProgress = (dist - coreZone) / fadeZone;
+                                float smoothProg = smoothInterpolation(fadeProgress, u_smoothing);
+                                effectFactor = (u_invert == 1) ? smoothProg : (1.0 - smoothProg);
+                            }
+                        } else {
+                            effectFactor = (u_invert == 1) ? 0.0 : 1.0;
+                        }
+                    } else {
+                        effectFactor = (u_invert == 1) ? 1.0 : 0.0;
+                    }
+                } else {
+                    effectFactor = (u_invert == 1) ? 1.0 : 0.0;
+                }
+            } else {
+                // Global Color Select
+                float dist = colorDistance(originalColor.rgb, u_selectedColor);
+                if (dist <= u_tolerance) {
+                    if (u_tolerance > 0.0) {
+                         float fadeZone = u_tolerance * u_smoothing;
+                         float coreZone = u_tolerance - fadeZone;
+                         if (dist <= coreZone) {
+                            effectFactor = (u_invert == 1) ? 0.0 : 1.0;
+                        } else {
+                            float fadeProgress = (dist - coreZone) / fadeZone;
+                            float smoothProg = smoothInterpolation(fadeProgress, u_smoothing);
+                            effectFactor = (u_invert == 1) ? smoothProg : (1.0 - smoothProg);
+                        }
+                    } else {
+                        effectFactor = (u_invert == 1) ? 0.0 : 1.0;
+                    }
+                } else {
+                    effectFactor = (u_invert == 1) ? 1.0 : 0.0;
+                }
+            }
+
+            // Apply Color Opacity
+            if (effectFactor > 0.0) {
+                if (u_isReplaceColor == 1) {
+                    finalRGB = mix(finalRGB, u_replaceColor, effectFactor);
+                } else {
+                    // Erase mode
+                    // Apply a slight gamma curve to opacity for smoother visual feel (matching JS applyOpacityGamma)
+                    float correctedOpacity = pow(u_opacity, 2.2);
+                    finalAlpha *= (1.0 - (correctedOpacity * effectFactor));
+                }
+            }
+
+            // --- 2. Shape Processing Logic ---
+            if (u_shapeMode == 1) {
+                // Coordinate system centered at shape center
+                // Need to convert v_texCoord (0..1) to pixel coordinates relative to center
+                vec2 pixelCoord = v_texCoord * u_resolution;
+                vec2 distVec = pixelCoord - u_shapeCenter;
+                
+                float normalizedDist = 0.0;
+                
+                // Aspect Ratio correction for shapes to be true circles/rects
+                // We divide by the dimensions. 
+                vec2 aspectCorrection = distVec / u_shapeSize;
+                
+                if (u_shapeType == 0) {
+                    // Rectangle (SDF Box)
+                    normalizedDist = max(abs(aspectCorrection.x), abs(aspectCorrection.y));
+                } else {
+                    // Ellipse
+                    normalizedDist = length(aspectCorrection);
+                }
+
+                float shapeFactor = 0.0;
+                
+                if (normalizedDist <= 1.0) {
+                    shapeFactor = 1.0;
+                } else if (u_shapeFalloff > 0.0) {
+                    // Calculate falloff
+                    // Determine distance outside the shape
+                    float outsideDist = normalizedDist - 1.0;
+                    
+                    // Normalize falloff relative to smallest dimension to keep feather consistent
+                    float minDim = min(u_shapeSize.x, u_shapeSize.y);
+                    float normalizedFalloff = u_shapeFalloff / minDim;
+                    
+                    if (outsideDist <= normalizedFalloff) {
+                        float fadeProgress = outsideDist / normalizedFalloff;
+                        shapeFactor = 1.0 - smoothInterpolation(fadeProgress, 0.5);
+                    }
+                }
+
+                if (shapeFactor > 0.0) {
+                    if (u_shapeErase == 1) {
+                        finalAlpha *= (1.0 - shapeFactor);
+                    } else {
+                        finalRGB = mix(finalRGB, u_shapeColor, shapeFactor);
+                    }
+                }
+            }
+
+            gl_FragColor = vec4(finalRGB, finalAlpha);
+        }
+    </script>
+
+    <script>
+        // --- WebGL Setup & Helper Classes ---
+        
+        const canvas = document.getElementById('glCanvas');
+        const gl = canvas.getContext('webgl', { 
+            preserveDrawingBuffer: true, // Needed for screenshot/download
+            premultipliedAlpha: false 
+        });
+
+        if (!gl) {
+            alert("WebGL not supported by your browser.");
+        }
+
+        // --- Shader Compilation ---
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error(gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        const vsSource = document.getElementById('vs').text;
+        const fsSource = document.getElementById('fs').text;
+        const vertexShader = createShader(gl, gl.VERTEX_SHADER, vsSource);
+        const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+            console.error(gl.getProgramInfoLog(program));
+        }
+
+        // --- Geometry Setup (Full Screen Quad) ---
+        const positionLocation = gl.getAttribLocation(program, "a_position");
+        const texCoordLocation = gl.getAttribLocation(program, "a_texCoord");
+
+        const positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            -1, -1,
+             1, -1,
+            -1,  1,
+            -1,  1,
+             1, -1,
+             1,  1,
+        ]), gl.STATIC_DRAW);
+
+        const texCoordBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+        // Flip Y here is handled in shader or texture setup. 
+        // We will use standard 0..1 coords and flip Y in texture setup.
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            0.0, 0.0,
+            1.0, 0.0,
+            0.0, 1.0,
+            0.0, 1.0,
+            1.0, 0.0,
+            1.0, 1.0,
+        ]), gl.STATIC_DRAW);
+
+        // --- Texture Management ---
+        let originalImageTexture = null;
+        let maskTexture = null;
+        let maskCanvas = document.createElement('canvas'); // Offscreen canvas for flood fill
+        let maskCtx = maskCanvas.getContext('2d');
+
+        function createTexture(gl) {
+            const texture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            // Set params so we can handle any size image
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            return texture;
+        }
+
+        function updateTextureFromImage(gl, texture, image) {
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            // Flip Y for WebGL coords
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        }
+        
+        function updateTextureFromCanvas(gl, texture, sourceCanvas) {
+             gl.bindTexture(gl.TEXTURE_2D, texture);
+             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
+        }
+
+        originalImageTexture = createTexture(gl);
+        maskTexture = createTexture(gl);
+        // Initialize mask with white (no mask)
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255,255,255,255]));
+
+        // --- Uniform Locations ---
+        const locs = {
+            resolution: gl.getUniformLocation(program, "u_resolution"),
+            image: gl.getUniformLocation(program, "u_image"),
+            mask: gl.getUniformLocation(program, "u_mask"),
+            selectedColor: gl.getUniformLocation(program, "u_selectedColor"),
+            tolerance: gl.getUniformLocation(program, "u_tolerance"),
+            smoothing: gl.getUniformLocation(program, "u_smoothing"),
+            opacity: gl.getUniformLocation(program, "u_opacity"),
+            invert: gl.getUniformLocation(program, "u_invert"),
+            useMask: gl.getUniformLocation(program, "u_useMask"),
+            isReplaceColor: gl.getUniformLocation(program, "u_isReplaceColor"),
+            replaceColor: gl.getUniformLocation(program, "u_replaceColor"),
+            shapeMode: gl.getUniformLocation(program, "u_shapeMode"),
+            shapeType: gl.getUniformLocation(program, "u_shapeType"),
+            shapeCenter: gl.getUniformLocation(program, "u_shapeCenter"),
+            shapeSize: gl.getUniformLocation(program, "u_shapeSize"),
+            shapeFalloff: gl.getUniformLocation(program, "u_shapeFalloff"),
+            shapeErase: gl.getUniformLocation(program, "u_shapeErase"),
+            shapeColor: gl.getUniformLocation(program, "u_shapeColor"),
+        };
+
+        // --- State Management ---
+        const state = {
+            imageLoaded: false,
+            imageWidth: 0,
+            imageHeight: 0,
+            selectedColor: { r: 255, g: 255, b: 255 }, // Default white
+            tolerance: 20,
+            smoothing: 0.5,
+            opacity: 1.0,
+            invert: false,
+            useMask: false, // Area selection
+            maskData: null, // Uint8Array for mask
+            isReplaceColor: false,
+            replaceColor: { r: 255, g: 0, b: 0 },
+            shapeMode: false,
+            shapeType: 0, // 0 rect, 1 ellipse
+            shapeCenter: { x: 0, y: 0 },
+            shapeSize: { x: 50, y: 50 }, // Half-width/height
+            shapeFalloff: 0,
+            shapeErase: false,
+            shapeColor: { r: 0, g: 255, b: 0 }
+        };
+
+        // --- DOM Elements ---
+        const ui = {
+            upload: document.getElementById('imageUpload'),
+            download: document.getElementById('downloadButton'),
+            apply: document.getElementById('applyButton'),
+            reset: document.getElementById('resetButton'),
+            resDisplay: document.getElementById('resolutionDisplay'),
+            hexDisplay: document.getElementById('hexDisplay'),
+            loading: document.getElementById('loadingOverlay'),
+            emptyState: document.getElementById('emptyState'),
+            
+            // Inputs
+            areaToggle: document.getElementById('areaSelectionToggle'),
+            tolSlider: document.getElementById('toleranceStrengthSlider'),
+            tolVal: document.getElementById('toleranceVal'),
+            smoothSlider: document.getElementById('smoothingFactorSlider'),
+            smoothVal: document.getElementById('smoothingVal'),
+            invertToggle: document.getElementById('invertSelectionToggle'),
+            replaceToggle: document.getElementById('colorReplacementToggle'),
+            replaceContainer: document.getElementById('colorReplacementContainer'),
+            replacePicker: document.getElementById('replacementColorPicker'),
+            replaceDisplay: document.getElementById('replacementColorDisplay'),
+            opacitySlider: document.getElementById('opacitySlider'),
+            opacityVal: document.getElementById('opacityVal'),
+            
+            // Shape
+            shapeToggle: document.getElementById('shapeModeToggle'),
+            shapeControls: document.getElementById('shapeControls'),
+            shapeType: document.getElementById('shapeTypeSelect'),
+            shapeX: document.getElementById('shapeXSlider'),
+            shapeY: document.getElementById('shapeYSlider'),
+            shapeW: document.getElementById('shapeWidthSlider'),
+            shapeH: document.getElementById('shapeHeightSlider'),
+            falloff: document.getElementById('falloffSlider'),
+            falloffVal: document.getElementById('falloffVal'),
+            shapeErase: document.getElementById('shapeEraseToggle'),
+            shapeColorPicker: document.getElementById('shapeColorPicker'),
+            shapeColorDisplay: document.getElementById('shapeColorDisplay'),
+            shapeColorContainer: document.getElementById('shapeColorContainer')
+        };
+
+        // --- Core Rendering Function ---
+        function render() {
+            if (!state.imageLoaded) return;
+
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.useProgram(program);
+
+            // Bind geometry
+            gl.enableVertexAttribArray(positionLocation);
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+            gl.enableVertexAttribArray(texCoordLocation);
+            gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+            gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+
+            // Bind Textures
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, originalImageTexture);
+            gl.uniform1i(locs.image, 0);
+
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, maskTexture);
+            gl.uniform1i(locs.mask, 1);
+
+            // Set Uniforms
+            gl.uniform2f(locs.resolution, canvas.width, canvas.height);
+            gl.uniform3f(locs.selectedColor, state.selectedColor.r/255, state.selectedColor.g/255, state.selectedColor.b/255);
+            gl.uniform1f(locs.tolerance, state.tolerance); // Normalize? Shader expects 0-100 range similar to logic
+            gl.uniform1f(locs.smoothing, state.smoothing);
+            gl.uniform1f(locs.opacity, state.opacity);
+            gl.uniform1i(locs.invert, state.invert ? 1 : 0);
+            gl.uniform1i(locs.useMask, state.useMask ? 1 : 0);
+            gl.uniform1i(locs.isReplaceColor, state.isReplaceColor ? 1 : 0);
+            gl.uniform3f(locs.replaceColor, state.replaceColor.r/255, state.replaceColor.g/255, state.replaceColor.b/255);
+
+            // Shape Uniforms
+            gl.uniform1i(locs.shapeMode, state.shapeMode ? 1 : 0);
+            gl.uniform1i(locs.shapeType, state.shapeType);
+            gl.uniform2f(locs.shapeCenter, state.shapeCenter.x, state.shapeCenter.y);
+            gl.uniform2f(locs.shapeSize, state.shapeSize.x, state.shapeSize.y);
+            gl.uniform1f(locs.shapeFalloff, state.shapeFalloff);
+            gl.uniform1i(locs.shapeErase, state.shapeErase ? 1 : 0);
+            gl.uniform3f(locs.shapeColor, state.shapeColor.r/255, state.shapeColor.g/255, state.shapeColor.b/255);
+
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+        }
+
+        // --- Image Loading ---
+        let currentImage = new Image();
+
+        ui.upload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                currentImage = new Image();
+                currentImage.onload = () => {
+                    initImage(currentImage);
+                };
+                currentImage.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function initImage(img) {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            state.imageWidth = img.width;
+            state.imageHeight = img.height;
+            state.imageLoaded = true;
+            
+            // Setup Mask Canvas
+            maskCanvas.width = img.width;
+            maskCanvas.height = img.height;
+            // Fill mask white (transparent to logic in shader: white = no mask/active area usually)
+            // In our shader: maskVal > 0.5 means IN selected area.
+            // So default white means everywhere is selected.
+            maskCtx.fillStyle = 'white';
+            maskCtx.fillRect(0, 0, img.width, img.height);
+            updateTextureFromCanvas(gl, maskTexture, maskCanvas);
+
+            updateTextureFromImage(gl, originalImageTexture, img);
+            
+            ui.resDisplay.textContent = `${img.width} x ${img.height}`;
+            ui.emptyState.style.display = 'none';
+            
+            // Reset Shape Sliders Max
+            ui.shapeX.max = img.width;
+            ui.shapeY.max = img.height;
+            ui.shapeW.max = img.width;
+            ui.shapeH.max = img.height;
+            ui.shapeX.value = img.width / 2;
+            ui.shapeY.value = img.height / 2;
+            updateShapeState();
+            
+            render();
+            showToast("Image Loaded. GPU Pipeline Active.");
+        }
+
+        // --- CPU Flood Fill Logic (Mask Generation) ---
+        // We keep this on CPU because graph traversal is hard in shaders.
+        // We only run this ONCE per click.
+        
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function runFloodFill(startX, startY, targetColorRGB, tolerance) {
+            if (!state.imageLoaded) return;
+            
+            // Get pixel data from the original image
+            // We need the raw image data to compare colors
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = state.imageWidth;
+            tempCanvas.height = state.imageHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(currentImage, 0, 0);
+            const imgData = tempCtx.getImageData(0, 0, state.imageWidth, state.imageHeight);
+            const data = imgData.data;
+
+            const width = state.imageWidth;
+            const height = state.imageHeight;
+
+            // Reset mask canvas to black (unselected)
+            // In shader, maskVal > 0.5 is selected. So we will paint selection WHITE.
+            maskCtx.fillStyle = 'black';
+            maskCtx.fillRect(0, 0, width, height);
+            
+            const maskImgData = maskCtx.createImageData(width, height);
+            const maskData = maskImgData.data;
+
+            // Helper
+            const getIndex = (x, y) => (y * width + x) * 4;
+            const getPixel = (idx) => ({ r: data[idx], g: data[idx+1], b: data[idx+2] });
+            
+            // Distance
+            const dist = (c1, c2) => {
+                const dr = c1.r - c2.r;
+                const dg = c1.g - c2.g;
+                const db = c1.b - c2.b;
+                return Math.sqrt(0.299*dr*dr + 0.587*dg*dg + 0.114*db*db);
+            };
+
+            const queue = [{x: Math.floor(startX), y: Math.floor(startY)}];
+            const visited = new Uint8Array(width * height); // 0 = unvisited, 1 = visited
+            
+            // Start check
+            const startIdx = getIndex(queue[0].x, queue[0].y);
+            const startColor = getPixel(startIdx);
+            
+            // If start color is already out of tolerance, do nothing
+            if (dist(startColor, targetColorRGB) > tolerance) return;
+
+            while(queue.length > 0) {
+                const p = queue.pop();
+                const idx = p.y * width + p.x;
+
+                if (visited[idx]) continue;
+                visited[idx] = 1;
+
+                const pIdx = idx * 4;
+                const pColor = { r: data[pIdx], g: data[pIdx+1], b: data[pIdx+2] };
+
+                if (dist(pColor, targetColorRGB) <= tolerance) {
+                    // Mark as selected (White in mask alpha or red channel)
+                    maskData[pIdx] = 255; 
+                    maskData[pIdx+1] = 255; 
+                    maskData[pIdx+2] = 255; 
+                    maskData[pIdx+3] = 255;
+
+                    // Neighbors
+                    if (p.x + 1 < width) queue.push({x: p.x + 1, y: p.y});
+                    if (p.x - 1 >= 0)    queue.push({x: p.x - 1, y: p.y});
+                    if (p.y + 1 < height) queue.push({x: p.x, y: p.y + 1});
+                    if (p.y - 1 >= 0)    queue.push({x: p.x, y: p.y - 1});
+                }
+            }
+
+            maskCtx.putImageData(maskImgData, 0, 0);
+            updateTextureFromCanvas(gl, maskTexture, maskCanvas);
+            state.useMask = true;
+            ui.areaToggle.checked = true; // Auto-enable mode
+            render();
+        }
+
+        // --- Interaction Handlers ---
+        
+        // Mouse Picking Logic
+        canvas.addEventListener('mousedown', (e) => {
+            if (!state.imageLoaded) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY; // WebGL 0 is bottom, but pixel array is top. 
+            // However, we flip texture Y with UNPACK_FLIP_Y_WEBGL.
+            // So visually, Y matches mouse.
+            // But when we read the "currentImage" (2D), we need standard coords.
+            // Standard Canvas Y is top-left 0.
+            
+            // Need to flip Y coordinate for the 2D context extraction
+            const canvasY = canvas.height - y; 
+
+            // Pick Color
+            const pX = Math.floor(x);
+            const pY = Math.floor(canvasY); // Inverted for raw pixel array access
+            
+            // For flood fill, we need to use the "Visual" Y relative to the Image Data which is Top-Left
+            // The mouse event Y is Top-Left relative to element. 
+            // Since we didn't rotate the canvas element, just the texture:
+            // Visual Top (Mouse 0) corresponds to Texture 1.0.
+            // Texture 1.0 corresponds to Image Data Height.
+            // So we actually need Height - MouseY for Image Data array.
+            
+            const safeY = Math.max(0, Math.min(state.imageHeight - 1, Math.floor(canvas.height - (e.clientY - rect.top) * scaleY)));
+            const safeX = Math.max(0, Math.min(state.imageWidth - 1, pX));
+
+            // Extract Color from Original Image
+            // We can't easily read from WebGL texture without a render pass.
+            // So we keep 'currentImage' (Image object) in memory to read pixel data.
+            const tempC = document.createElement('canvas');
+            tempC.width = 1; tempC.height = 1;
+            const tCtx = tempC.getContext('2d');
+            tCtx.drawImage(currentImage, -safeX, -safeY);
+            const p = tCtx.getImageData(0,0,1,1).data;
+
+            state.selectedColor = { r: p[0], g: p[1], b: p[2] };
+            ui.hexDisplay.textContent = rgbToHex(p[0], p[1], p[2]);
+            ui.hexDisplay.style.color = rgbToHex(p[0], p[1], p[2]);
+
+            if (state.shapeMode) {
+                // In shape mode, pick color for replacement
+                state.shapeColor = state.selectedColor;
+                ui.shapeColorPicker.value = rgbToHex(p[0], p[1], p[2]);
+                ui.shapeColorDisplay.textContent = ui.shapeColorPicker.value.toUpperCase();
+                showToast("Shape Color Picked");
+            } else {
+                // Perform Flood Fill if Area Mode is on, otherwise just set color
+                if (ui.areaToggle.checked) {
+                    ui.loading.style.display = 'flex';
+                    // Small timeout to allow UI to update
+                    setTimeout(() => {
+                        // Note: Flood Fill needs Top-Left Y.
+                        // Mouse gives Top-Left Y.
+                        // Correction: e.clientY is Top-Left.
+                        // Image Data is Top-Left.
+                        // So we don't need to invert Y for the flood fill algo itself.
+                        // My previous inversion was wrong for the 2D array logic.
+                        const imgDataY = Math.floor((e.clientY - rect.top) * scaleY);
+                        runFloodFill(safeX, imgDataY, state.selectedColor, state.tolerance);
+                        ui.loading.style.display = 'none';
+                    }, 10);
+                } else {
+                    state.useMask = false;
+                    // Reset mask to white
+                    maskCtx.fillStyle = 'white';
+                    maskCtx.fillRect(0,0,state.imageWidth, state.imageHeight);
+                    updateTextureFromCanvas(gl, maskTexture, maskCanvas);
+                    render();
+                }
+            }
+        });
+
+        // UI Event Listeners
+        function bindUI() {
+            const updateAndRender = () => requestAnimationFrame(render);
+
+            ui.areaToggle.addEventListener('change', (e) => {
+                state.useMask = e.target.checked;
+                if (!state.useMask) {
+                    // Reset mask
+                    maskCtx.fillStyle = 'white';
+                    maskCtx.fillRect(0,0,state.imageWidth, state.imageHeight);
+                    updateTextureFromCanvas(gl, maskTexture, maskCanvas);
+                }
+                updateAndRender();
+            });
+
+            ui.tolSlider.addEventListener('input', (e) => {
+                state.tolerance = parseFloat(e.target.value);
+                ui.tolVal.textContent = state.tolerance;
+                updateAndRender();
+            });
+
+            ui.smoothSlider.addEventListener('input', (e) => {
+                state.smoothing = parseFloat(e.target.value);
+                ui.smoothVal.textContent = state.smoothing;
+                updateAndRender();
+            });
+
+            ui.opacitySlider.addEventListener('input', (e) => {
+                state.opacity = parseFloat(e.target.value);
+                ui.opacityVal.textContent = state.opacity.toFixed(2);
+                updateAndRender();
+            });
+
+            ui.invertToggle.addEventListener('change', (e) => {
+                state.invert = e.target.checked;
+                updateAndRender();
+            });
+
+            ui.replaceToggle.addEventListener('change', (e) => {
+                state.isReplaceColor = e.target.checked;
+                ui.replaceContainer.style.display = state.isReplaceColor ? 'flex' : 'none';
+                ui.opacityContainer = document.getElementById('opacityContainer'); // Grab opacity container
+                ui.opacityContainer.style.opacity = state.isReplaceColor ? '0.5' : '1';
+                ui.opacityContainer.style.pointerEvents = state.isReplaceColor ? 'none' : 'all';
+                updateAndRender();
+            });
+
+            ui.replacePicker.addEventListener('input', (e) => {
+                state.replaceColor = hexToRgb(e.target.value);
+                ui.replaceDisplay.textContent = e.target.value.toUpperCase();
+                updateAndRender();
+            });
+
+            // Shape Handlers
+            ui.shapeToggle.addEventListener('change', (e) => {
+                state.shapeMode = e.target.checked;
+                ui.shapeControls.style.opacity = state.shapeMode ? '1' : '0.5';
+                ui.shapeControls.style.pointerEvents = state.shapeMode ? 'all' : 'none';
+                updateAndRender();
+                if(state.shapeMode) showToast("Shape Mode Active. Click image to pick color.");
+            });
+
+            const updateShapeState = () => {
+                state.shapeType = parseInt(ui.shapeType.value);
+                state.shapeCenter.x = parseInt(ui.shapeX.value);
+                state.shapeCenter.y = parseInt(ui.shapeY.value);
+                // Sliders store full dimensions, shader expects half-size
+                state.shapeSize.x = parseInt(ui.shapeW.value) / 2;
+                state.shapeSize.y = parseInt(ui.shapeH.value) / 2;
+                state.shapeFalloff = parseInt(ui.falloff.value);
+                state.shapeErase = ui.shapeErase.checked;
+                
+                ui.falloffVal.textContent = state.shapeFalloff;
+                
+                requestAnimationFrame(render);
+            };
+
+            [ui.shapeType, ui.shapeX, ui.shapeY, ui.shapeW, ui.shapeH, ui.falloff, ui.shapeErase].forEach(el => {
+                el.addEventListener('input', updateShapeState);
+                el.addEventListener('change', updateShapeState);
+            });
+
+            ui.shapeColorPicker.addEventListener('input', (e) => {
+                state.shapeColor = hexToRgb(e.target.value);
+                ui.shapeColorDisplay.textContent = e.target.value.toUpperCase();
+                requestAnimationFrame(render);
+            });
+            
+            // Accordion logic
+            window.toggleAccordion = (header) => {
+                const item = header.parentElement;
+                item.classList.toggle('active');
+            };
+        }
+
+        // --- Action Buttons ---
+
+        ui.reset.addEventListener('click', () => {
+            if(!state.imageLoaded) return;
+            // Re-upload current image
+            initImage(currentImage);
+            
+            // Reset Values
+            ui.tolSlider.value = 20; state.tolerance = 20; ui.tolVal.textContent=20;
+            ui.smoothSlider.value = 0.5; state.smoothing=0.5; ui.smoothVal.textContent=0.5;
+            ui.opacitySlider.value = 1; state.opacity=1; ui.opacityVal.textContent=1.0;
+            ui.invertToggle.checked = false; state.invert=false;
+            ui.areaToggle.checked = false; state.useMask=false;
+            ui.replaceToggle.checked = false; state.isReplaceColor=false;
+            
+            ui.shapeToggle.checked = false; state.shapeMode=false;
+            ui.shapeControls.style.opacity = '0.5'; ui.shapeControls.style.pointerEvents='none';
+            
+            showToast("State Reset");
+        });
+
+        ui.apply.addEventListener('click', () => {
+            if(!state.imageLoaded) return;
+            // "Bake" the current WebGL output into a new Image/Texture
+            // This allows iterative edits (e.g. fade red, then fade blue on top)
+            
+            // 1. Read pixels from WebGL
+            const pixels = new Uint8Array(canvas.width * canvas.height * 4);
+            gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+            
+            // 2. Put onto a temporary 2D canvas to flip Y back (WebGL is bottom-up)
+            const tempC = document.createElement('canvas');
+            tempC.width = canvas.width;
+            tempC.height = canvas.height;
+            const tCtx = tempC.getContext('2d');
+            const imgData = tCtx.createImageData(canvas.width, canvas.height);
+            
+            // Flip Y manually for the data
+            for (let y = 0; y < canvas.height; y++) {
+                for (let x = 0; x < canvas.width; x++) {
+                    const srcIdx = (y * canvas.width + x) * 4;
+                    const dstY = canvas.height - 1 - y;
+                    const dstIdx = (dstY * canvas.width + x) * 4;
+                    imgData.data[dstIdx] = pixels[srcIdx];
+                    imgData.data[dstIdx+1] = pixels[srcIdx+1];
+                    imgData.data[dstIdx+2] = pixels[srcIdx+2];
+                    imgData.data[dstIdx+3] = pixels[srcIdx+3];
+                }
+            }
+            tCtx.putImageData(imgData, 0, 0);
+            
+            // 3. Create new Image object
+            const newImg = new Image();
+            newImg.onload = () => {
+                currentImage = newImg;
+                initImage(newImg); // Reloads everything as the new base
+                showToast("Changes Applied to Base Image");
+            };
+            newImg.src = tempC.toDataURL();
+        });
+
+        ui.download.addEventListener('click', () => {
+            if(!state.imageLoaded) return;
+            const link = document.createElement('a');
+            link.download = 'processed-image.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            showToast("Image Downloaded");
+        });
+
+        // --- Utilities ---
+        function showToast(msg) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = msg;
+            container.appendChild(toast);
+            
+            // Trigger reflow
+            void toast.offsetWidth;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Initialize
+        bindUI();
+
+    </script>
+</body>
+</html>
