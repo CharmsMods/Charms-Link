@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>STATIC ASSET MINIFIER // BRUTALIST EDITION</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    /* Brutalism Palette */
+    --bg-color: #F0F0EB;
+    --surface-color: #FFFFFF;
+    --ink-color: #121212;
+    --accent-color: #FF3366; /* Hot Pink/Red */
+    --secondary-color: #58CC02; /* Acid Green for success/active states */
+    --border-width: 3px;
+    --shadow-offset: 5px;
+    --radius: 0px; /* No rounded corners */
+  }
+
+  body {
+    background-color: var(--bg-color);
+    color: var(--ink-color);
+    font-family: 'Space Grotesk', sans-serif;
+    overflow-x: hidden;
+    background-image: radial-gradient(var(--ink-color) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* --- UTILITIES & TYPOGRAPHY --- */
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  
+  .brutal-shadow {
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--ink-color);
+    border: var(--border-width) solid var(--ink-color);
+    transition: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .brutal-shadow:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: calc(var(--shadow-offset) + 2px) calc(var(--shadow-offset) + 2px) 0px var(--ink-color);
+  }
+
+  .brutal-shadow:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0px 0px 0px var(--ink-color);
+  }
+
+  .brutal-input {
+    background: var(--surface-color);
+    border: var(--border-width) solid var(--ink-color);
+    color: var(--ink-color);
+    font-family: 'JetBrains Mono', monospace;
+    outline: none;
+    transition: 0.2s;
+  }
+  .brutal-input:focus {
+    background: #fffbeb;
+    border-color: var(--accent-color);
+  }
+
+  /* --- LAYOUT COMPONENTS --- */
+  
+  /* Navigation Tabs */
+  .tab-btn {
+    background: var(--bg-color);
+    border-bottom: var(--border-width) solid transparent;
+    color: #666;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    position: relative;
+    transition: 0.2s;
+  }
+  .tab-btn.active {
+    color: var(--ink-color);
+    background: var(--surface-color);
+    border-bottom-color: var(--ink-color);
+  }
+  .tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: calc(-1 * var(--border-width) - 4px);
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--accent-color);
+    z-index: 10;
+  }
+
+  /* Asset List Items */
+  .asset-item {
+    border-left: 4px solid transparent;
+    background: rgba(255,255,255,0.4);
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+  }
+  .asset-item:hover {
+    background: #fff;
+  }
+  .asset-item.active {
+    background: var(--surface-color);
+    border-left-color: var(--accent-color);
+    font-weight: bold;
+  }
+
+  /* Editor Area */
+  .editor-area {
+    background: #1a1a1a;
+    color: #eee;
+    border: none;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.5;
+    caret-color: var(--accent-color);
+  }
+
+  /* Drop Zone Overlay */
+  #dropOverlay {
+    background-image: repeating-linear-gradient(45deg, var(--accent-color) 0, var(--accent-color) 10px, var(--ink-color) 10px, var(--ink-color) 20px);
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+
+  /* --- MODAL STYLING --- */
+  #usageModalOverlay {
+    background: rgba(18, 18, 18, 0.8);
+    backdrop-filter: blur(8px);
+  }
+  .modal-content {
+    background: var(--bg-color);
+    border: var(--border-width) solid var(--ink-color);
+    box-shadow: 10px 10px 0px var(--ink-color);
+  }
+
+  /* --- ANIMATIONS --- */
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .animate-marquee {
+    white-space: nowrap;
+    overflow: hidden;
+    display: inline-block;
+  }
+  .animate-marquee span {
+    display: inline-block;
+    animation: marquee 20s linear infinite;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--bg-color); border-left: 1px solid var(--ink-color); }
+  ::-webkit-scrollbar-thumb { background: var(--ink-color); border: 2px solid var(--bg-color); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent-color); }
+
+</style>
+</head>
+<body class="min-h-screen flex flex-col" id="dropBoundary">
+
+<!-- HEADER -->
+<header class="p-6 md:p-8 border-b-[3px] border-[#121212] bg-[#F0F0EB]">
+  <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+    <div>
+      <div class="flex items-center gap-4 mb-2">
+        <div class="bg-[#121212] text-[#F0F0EB] px-2 py-1 text-xs font-bold font-mono uppercase tracking-widest">v2.0.0</div>
+        <div class="h-[2px] flex-1 bg-[#121212]"></div>
+      </div>
+      <h1 class="text-4xl md:text-6xl font-bold uppercase tracking-tighter leading-none">
+        Static Asset<br>
+        <span class="text-[#FF3366]">Minifier</span> & Bundler
+      </h1>
+    </div>
+    <div class="max-w-xs">
+      <p class="text-sm font-mono leading-relaxed border-l-2 border-[#121212] pl-3">
+        // High-performance frontend pipeline.<br>
+        // Supports bulk imports, Base64 inlining, & safe mutation.<br>
+        // Drag & drop files to begin.
+      </p>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN CONTAINER -->
+<div class="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 flex flex-col gap-6">
+  
+  <!-- NAV TABS -->
+  <nav class="flex w-full">
+    <button class="tab-btn active flex-1 py-4 text-sm md:text-base border-r-[3px] border-[#121212] border-t-[3px] border-l-[3px] rounded-t-md" data-tab="workspace">Workspace</button>
+    <button class="tab-btn flex-1 py-4 text-sm md:text-base border-r-[3px] border-[#121212] border-t-[3px] rounded-t-md" data-tab="output">Build Output</button>
+    <button class="tab-btn flex-1 py-4 text-sm md:text-base border-t-[3px] border-r-[3px] border-l-[3px] border-[#121212] rounded-t-md" data-tab="log">Process Logs</button>
+  </nav>
+
+  <!-- CONTENT AREA -->
+  <main class="brutal-shadow bg-white relative min-h-[600px] flex flex-col">
+    
+    <!-- WORKSPACE SECTION -->
+    <section id="workspace" class="tab-content block h-[600px] flex overflow-hidden">
+      
+      <!-- Sidebar -->
+      <div class="w-64 flex flex-col border-r-[3px] border-[#121212] bg-[#F8F8F3] z-10">
+        <div class="p-4 border-b-[3px] border-[#121212] bg-[#121212] text-white">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-xs font-bold font-mono tracking-widest">ASSETS</span>
+            <span id="assetCount" class="bg-[#FF3366] text-[10px] px-1.5 font-bold">0</span>
+          </div>
+          <div class="flex gap-2">
+             <button id="addHtml" class="flex-1 bg-[#333] hover:bg-white hover:text-black text-white text-[10px] font-bold py-2 transition-colors uppercase">+HTML</button>
+             <button id="addCss" class="flex-1 bg-[#333] hover:bg-white hover:text-black text-white text-[10px] font-bold py-2 transition-colors uppercase">+CSS</button>
+             <button id="addJs" class="flex-1 bg-[#333] hover:bg-white hover:text-black text-white text-[10px] font-bold py-2 transition-colors uppercase">+JS</button>
+          </div>
+        </div>
+        <div id="assetList" class="flex-1 overflow-y-auto"></div>
+      </div>
+
+      <!-- Editor Area -->
+      <div class="flex-1 flex flex-col relative bg-[#121212]">
+        
+        <!-- Empty State -->
+        <div id="noAssetPrompt" class="absolute inset-0 z-10 bg-[#121212] flex flex-col items-center justify-center p-12 text-center">
+           <div class="w-20 h-20 border-4 border-[#333] flex items-center justify-center mb-6 animate-pulse">
+              <svg class="w-10 h-10 text-[#555]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+           </div>
+           <h3 class="text-xl font-bold text-[#333] uppercase tracking-widest mb-2">System Ready</h3>
+           <p class="text-sm font-mono text-[#555] max-w-xs leading-relaxed">
+             [WAITING FOR INPUT]<br>
+             Drag files anywhere to import.<br>
+             Or use buttons to create new assets.
+           </p>
+        </div>
+
+        <!-- Editor Header -->
+        <div id="editorHeader" class="hidden h-12 bg-[#1e1e1e] border-b border-[#333] flex items-center justify-between px-4">
+          <div class="flex items-center gap-3">
+             <div class="w-3 h-3 rounded-full bg-red-500"></div>
+             <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+             <div class="w-3 h-3 rounded-full bg-green-500"></div>
+             <span id="currentFileName" class="text-sm font-mono text-[#888] ml-4">Select an asset</span>
+          </div>
+          <button id="removeAsset" class="text-[10px] font-bold text-red-500 hover:text-red-400 border border-red-900 bg-red-900/20 px-3 py-1 uppercase tracking-wider hover:bg-red-500 hover:text-white transition-all">Delete File</button>
+        </div>
+        
+        <textarea id="mainEditor" class="editor-area hidden flex-1 w-full p-6 text-sm resize-none focus:bg-[#1a1a1a]" placeholder="// Write code here..."></textarea>
+        
+        <div id="mediaView" class="hidden flex-1 flex flex-col items-center justify-center bg-[#121212] p-10 overflow-hidden relative">
+           <!-- Grid background for media -->
+           <div class="absolute inset-0 opacity-10" style="background-image: linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px); background-size: 20px 20px;"></div>
+           
+           <div class="relative z-10 text-center">
+             <div class="text-[10px] font-bold text-[#555] mb-4 uppercase tracking-widest border-b border-[#333] inline-block pb-1">Binary Asset Preview</div>
+             <div class="border-4 border-[#333] bg-[#000] p-2 inline-block shadow-[8px_8px_0_#333]">
+                <img id="imgPreview" class="max-w-full max-h-[350px] block" src="" alt="">
+             </div>
+             <div id="base64Summary" class="mt-4 text-[10px] font-mono text-[#444] break-all max-w-md text-center border border-[#333] p-2 bg-[#1a1a1a]">...</div>
+           </div>
+        </div>
+
+        <!-- Drop Overlay -->
+        <div id="dropOverlay" class="absolute inset-0 pointer-events-none z-50 flex items-center justify-center transition-all duration-200 hidden">
+           <div class="bg-[#F0F0EB] border-[5px] border-[#121212] px-12 py-8 shadow-[12px_12px_0_#000]">
+              <h2 class="text-4xl font-black uppercase tracking-tighter animate-pulse">Drop Files</h2>
+           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- OUTPUT SECTION -->
+    <section id="output" class="tab-content hidden p-6 md:p-10 flex flex-col h-full gap-8">
+      
+      <!-- Config Bar -->
+      <div class="flex flex-wrap items-end gap-6 p-6 bg-[#F8F8F3] border-[3px] border-[#121212] shadow-[6px_6px_0_#121212]">
+        <div class="flex flex-col gap-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-[#666]">Build Configuration</label>
+          <div class="relative">
+            <select id="mode" class="brutal-input px-4 py-3 text-sm font-bold appearance-none pr-10 cursor-pointer w-64">
+              <option value="inline">Single HTML Bundle (Inline)</option>
+              <option value="separate">Multi-file Minification</option>
+            </select>
+            <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none font-bold">▼</div>
+          </div>
+        </div>
+        
+        <div class="flex-1"></div>
+
+        <button id="build" class="bg-[#121212] hover:bg-[#FF3366] text-white text-sm font-black py-4 px-12 uppercase tracking-widest shadow-[4px_4px_0_#FF3366] hover:shadow-[6px_6px_0_#FF3366] hover:translate-x-[-2px] hover:translate-y-[-2px] transition-all flex items-center gap-2">
+          <span id="buildIcon">⚡</span> Run Build
+        </button>
+        <div id="build-status" class="hidden text-[#FF3366] font-bold font-mono text-sm uppercase self-center mb-1 animate-pulse">
+          // OPTIMIZING...
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
+        <!-- Left Column: Preview & Actions -->
+        <div class="lg:col-span-2 space-y-6">
+           <div class="border-[3px] border-[#121212] h-[400px] bg-white shadow-[4px_4px_0_#121212] flex flex-col">
+              <div class="bg-[#121212] text-white px-4 py-2 text-xs font-mono flex justify-between items-center">
+                 <span>LIVE PREVIEW</span>
+                 <button id="togglePreview" class="hover:text-[#FF3366] transition-colors text-[10px] border border-[#555] px-2 py-0.5">TOGGLE</button>
+              </div>
+              <div id="previewBox" class="flex-1 overflow-hidden bg-white relative">
+                <iframe id="previewFrame" class="w-full h-full border-none"></iframe>
+              </div>
+           </div>
+        </div>
+
+        <!-- Right Column: Downloads -->
+        <div class="space-y-4">
+           <h3 class="text-xs font-black uppercase border-b-2 border-[#121212] pb-1 mb-4">Output Artifacts</h3>
+           
+           <button id="downH" class="w-full group text-left p-4 border-[3px] border-[#121212] bg-white hover:bg-[#121212] hover:text-white transition-all">
+              <div class="flex justify-between items-center">
+                 <span class="font-bold font-mono text-sm">index.min.html</span>
+                 <span class="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↓</span>
+              </div>
+           </button>
+           
+           <button id="downC" class="w-full group text-left p-4 border-[3px] border-[#121212] bg-white hover:bg-[#121212] hover:text-white transition-all">
+              <div class="flex justify-between items-center">
+                 <span class="font-bold font-mono text-sm">styles.min.css</span>
+                 <span class="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↓</span>
+              </div>
+           </button>
+           
+           <button id="downJ" class="w-full group text-left p-4 border-[3px] border-[#121212] bg-white hover:bg-[#121212] hover:text-white transition-all">
+              <div class="flex justify-between items-center">
+                 <span class="font-bold font-mono text-sm">scripts.min.js</span>
+                 <span class="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↓</span>
+              </div>
+           </button>
+
+           <div class="pt-4 border-t border-dashed border-[#121212]">
+              <button id="downA" class="w-full bg-[#FF3366] text-white font-black uppercase text-xs py-4 shadow-[4px_4px_0_#121212] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all">
+                 Download Bundle
+              </button>
+           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOG SECTION -->
+    <section id="log" class="tab-content hidden p-0 h-[600px] flex flex-col bg-[#121212]">
+       <div class="bg-[#222] px-4 py-2 text-xs text-[#888] font-mono border-b border-[#333] flex justify-between">
+          <span>> TERMINAL OUTPUT</span>
+          <span class="text-[#FF3366]">● LIVE</span>
+       </div>
+       <div id="logBox" class="flex-1 overflow-y-auto p-6 font-mono text-xs md:text-sm leading-relaxed text-[#ccc]">
+          <div class="text-[#555] italic">> System initialized. Waiting for user input...</div>
+       </div>
+    </section>
+  </main>
+</div>
+
+<!-- IMAGE USAGE MODAL -->
+<div id="usageModalOverlay" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+    <div class="modal-content w-full max-w-3xl max-h-[85vh] flex flex-col">
+        <div class="p-6 border-b-[3px] border-[#121212] bg-[#F8F8F3] flex justify-between items-start">
+            <div>
+                <h2 class="text-2xl font-black uppercase tracking-tighter">Image Usage Review</h2>
+                <p class="text-xs font-mono text-[#666] mt-1">Detected references in source code.</p>
+            </div>
+            <div class="w-3 h-3 bg-[#FF3366] rounded-full animate-ping"></div>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-8 space-y-8">
+            <!-- Referenced Section -->
+            <div id="referencedSection">
+                <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-[#121212] mb-4 border-l-4 border-[#58CC02] pl-3 bg-green-100 inline-block py-1">
+                    Referenced Assets (Keep)
+                </h3>
+                <div id="referencedList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+
+            <!-- Unreferenced Section -->
+            <div id="unreferencedSection">
+                <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-[#121212] mb-4 border-l-4 border-[#FF3366] pl-3 bg-red-100 inline-block py-1">
+                    Unused Assets (Delete)
+                </h3>
+                <div id="unreferencedList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+        </div>
+
+        <div class="p-6 border-t-[3px] border-[#121212] bg-[#F8F8F3] flex gap-4">
+            <button id="modalCancel" class="flex-1 py-4 border-[3px] border-[#121212] text-[#121212] text-xs font-bold uppercase hover:bg-[#121212] hover:text-white transition-colors">
+                Cancel
+            </button>
+            <button id="modalProceed" class="flex-1 py-4 bg-[#58CC02] border-[3px] border-[#121212] text-white text-xs font-bold uppercase shadow-[4px_4px_0_#121212] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[5px_5px_0_#121212] transition-all">
+                Proceed & Clean
+            </button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { minify as minifyHTML } from "https://esm.sh/html-minifier-terser";
+import CleanCSS from "https://esm.sh/clean-css";
+import { minify as minifyJS } from "https://esm.sh/terser";
+
+let assets = [];
+let activeAssetId = null;
+let outputs = { html: "", css: "", js: "" };
+
+// UI Elements
+const logBox = document.getElementById("logBox");
+const assetList = document.getElementById("assetList");
+const mainEditor = document.getElementById("mainEditor");
+const mediaView = document.getElementById("mediaView");
+const imgPreview = document.getElementById("imgPreview");
+const base64Summary = document.getElementById("base64Summary");
+const currentFileName = document.getElementById("currentFileName");
+const buildStatus = document.getElementById("build-status");
+const noAssetPrompt = document.getElementById("noAssetPrompt");
+const editorHeader = document.getElementById("editorHeader");
+const assetCount = document.getElementById("assetCount");
+
+// Modal Elements
+const usageModal = document.getElementById("usageModalOverlay");
+const refList = document.getElementById("referencedList");
+const unrefList = document.getElementById("unreferencedList");
+const modalProceed = document.getElementById("modalProceed");
+const modalCancel = document.getElementById("modalCancel");
+
+const log = (msg) => {
+  if (logBox.children.length === 1 && logBox.querySelector('.italic')) logBox.innerHTML = '';
+  const entry = document.createElement("div");
+  entry.className = "log-line border-l-2 border-[#333] pl-3 py-1 mb-2 hover:bg-white/5 transition-colors";
+  const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  entry.innerHTML = `<span class="text-[#555] font-mono mr-3">[${time}]</span> ${msg}`;
+  logBox.appendChild(entry);
+  logBox.scrollTop = logBox.scrollHeight;
+};
+
+const renderAssetList = () => {
+  assetList.innerHTML = '';
+  assetCount.innerText = assets.length;
+  
+  if (assets.length === 0) {
+    noAssetPrompt.classList.remove('hidden');
+    editorHeader.classList.add('hidden');
+    mainEditor.classList.add('hidden');
+    mediaView.classList.add('hidden');
+    return;
+  }
+  
+  noAssetPrompt.classList.add('hidden');
+  editorHeader.classList.remove('hidden');
+
+  assets.forEach(asset => {
+    const div = document.createElement('div');
+    div.className = `asset-item px-4 py-3 cursor-pointer flex justify-between items-center ${asset.id === activeAssetId ? 'active' : ''}`;
+    
+    let icon = '📄';
+    if(asset.type === 'css') icon = '🎨';
+    if(asset.type === 'js') icon = '⚡';
+    if(asset.type === 'media') icon = '🖼️';
+
+    div.innerHTML = `
+      <div class="flex items-center gap-3 overflow-hidden">
+        <span class="text-lg">${icon}</span>
+        <span class="text-xs font-mono truncate ${asset.id === activeAssetId ? 'text-[#121212]' : 'text-[#666]'}">${asset.name}</span>
+      </div>
+      <span class="text-[9px] border border-[#121212] px-1.5 font-bold uppercase text-[#555]">${asset.type}</span>
+    `;
+    div.onclick = () => selectAsset(asset.id);
+    assetList.appendChild(div);
+  });
+};
+
+const selectAsset = (id) => {
+  if (!id) {
+    activeAssetId = null;
+    renderAssetList();
+    return;
+  }
+
+  const prev = assets.find(a => a.id === activeAssetId);
+  if (prev && prev.type !== 'media') prev.content = mainEditor.value;
+
+  activeAssetId = id;
+  const next = assets.find(a => a.id === id);
+  if (!next) return;
+
+  currentFileName.innerText = next.name;
+
+  if (next.type === 'media') {
+     mainEditor.classList.add('hidden');
+     mediaView.classList.remove('hidden');
+     imgPreview.src = next.content;
+     base64Summary.innerText = next.content.substring(0, 80) + "...";
+  } else {
+     mainEditor.classList.remove('hidden');
+     mediaView.classList.add('hidden');
+     mainEditor.value = next.content;
+  }
+  
+  renderAssetList();
+};
+
+const addAsset = (type, name, content) => {
+  const id = crypto.randomUUID();
+  assets.push({ id, type, name, content });
+  log(`Successfully imported: <span class="text-[#58CC02] font-bold">${name}</span>`);
+  selectAsset(id);
+};
+
+// Controls
+document.getElementById("addHtml").onclick = () => addAsset('html', `page-${assets.filter(a => a.type === 'html').length + 1}.html`, '<!DOCTYPE html>\n<html>\n<body>\n  \n</body>\n</html>');
+document.getElementById("addCss").onclick = () => addAsset('css', `style-${assets.filter(a => a.type === 'css').length + 1}.css`, '/* Styles */\n');
+document.getElementById("addJs").onclick = () => addAsset('js', `script-${assets.filter(a => a.type === 'js').length + 1}.js`, '// Script\n');
+
+document.getElementById("removeAsset").onclick = () => {
+  const removed = assets.find(a => a.id === activeAssetId);
+  if(removed) log(`Deleted asset: ${removed.name}`);
+  
+  assets = assets.filter(a => a.id !== activeAssetId);
+  if (assets.length > 0) {
+    selectAsset(assets[assets.length - 1].id);
+  } else {
+    selectAsset(null);
+  }
+};
+
+document.querySelectorAll(".tab-btn").forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll(".tab-btn").forEach(e => e.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(e => e.classList.add("hidden"));
+    tab.classList.add("active");
+    document.getElementById(tab.dataset.tab).classList.remove("hidden");
+  };
+});
+
+// Drag & Drop
+const dropBoundary = document.getElementById("dropBoundary");
+const dropOverlay = document.getElementById("dropOverlay");
+
+dropBoundary.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropOverlay.classList.remove('hidden');
+});
+
+dropBoundary.addEventListener('dragleave', (e) => {
+  if (e.relatedTarget === null || e.relatedTarget === dropBoundary) {
+     dropOverlay.classList.add('hidden');
+  }
+});
+
+dropBoundary.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  dropOverlay.classList.add('hidden');
+  
+  const files = Array.from(e.dataTransfer.files);
+  if (files.length === 0) return;
+
+  for (const file of files) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'].includes(ext)) {
+       const reader = new FileReader();
+       reader.onload = (ev) => addAsset('media', file.name, ev.target.result);
+       reader.readAsDataURL(file);
+    } else {
+        const text = await file.text();
+        if (['html', 'htm'].includes(ext)) addAsset('html', file.name, text);
+        else if (ext === 'css') addAsset('css', file.name, text);
+        else if (ext === 'js') addAsset('js', file.name, text);
+    }
+  }
+});
+
+// --- CORE FIX: Usage Detection & Protected Build ---
+
+const scanImageUsage = () => {
+    const media = assets.filter(a => a.type === 'media');
+    const htmlText = assets.filter(a => a.type === 'html').map(a => a.content).join(' ');
+    const cssText = assets.filter(a => a.type === 'css').map(a => a.content).join(' ');
+    
+    const used = [];
+    const unused = [];
+
+    media.forEach(asset => {
+        const name = asset.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // HTML Search: src="filename" or href="filename"
+        const htmlRegex = new RegExp(`(src|href)=["']([^"']*\\/)?${name}["']`, 'i');
+        // CSS Search: url(filename) or url("filename")
+        const cssRegex = new RegExp(`url\\(\\s*["']?([^"')]*\\/)?${name}["']?\\s*\\)`, 'i');
+
+        let foundIn = [];
+        if (htmlRegex.test(htmlText)) foundIn.push('HTML');
+        if (cssRegex.test(cssText)) foundIn.push('CSS');
+
+        if (foundIn.length > 0) {
+            used.push({ ...asset, foundIn });
+        } else {
+            unused.push(asset);
+        }
+    });
+
+    return { used, unused };
+};
+
+const showUsageModal = (used, unused) => {
+    refList.innerHTML = '';
+    unrefList.innerHTML = '';
+
+    used.forEach(img => {
+        const div = document.createElement('div');
+        div.className = "flex items-center gap-4 bg-white border-[3px] border-[#121212] p-3 shadow-[3px_3px_0_#000]";
+        div.innerHTML = `
+            <img src="${img.content}" class="w-12 h-12 object-cover border border-[#333]">
+            <div class="flex-1 min-w-0">
+                <div class="font-mono text-xs font-bold truncate text-[#121212]">${img.name}</div>
+                <div class="text-[10px] uppercase text-[#58CC02] font-bold">Found in ${img.foundIn.join(' & ')}</div>
+            </div>
+            <div class="w-2 h-2 bg-[#58CC02] rounded-full"></div>
+        `;
+        refList.appendChild(div);
+    });
+
+    unused.forEach(img => {
+        const div = document.createElement('div');
+        div.className = "flex items-center gap-4 bg-[#F8F8F3] border-[3px] border-[#ccc] p-3 opacity-70";
+        div.innerHTML = `
+            <img src="${img.content}" class="w-12 h-12 object-cover grayscale border border-[#333]">
+            <div class="flex-1 min-w-0">
+                <div class="font-mono text-xs font-bold truncate text-[#666]">${img.name}</div>
+                <div class="text-[10px] uppercase text-[#FF3366] font-bold">Unused</div>
+            </div>
+        `;
+        unrefList.appendChild(div);
+    });
+
+    usageModal.classList.remove('hidden');
+};
+
+modalCancel.onclick = () => usageModal.classList.add('hidden');
+
+modalProceed.onclick = () => {
+    usageModal.classList.add('hidden');
+    const { unused } = scanImageUsage();
+    // Delete unused assets from state
+    assets = assets.filter(a => !unused.find(u => u.id === a.id));
+    renderAssetList();
+    log(`<span class="text-[#FF3366] font-bold">Purged ${unused.length} unused media assets.</span>`);
+    executeBuild();
+};
+
+document.getElementById("build").onclick = () => {
+    // Save current editor state
+    const current = assets.find(a => a.id === activeAssetId);
+    if (current && current.type !== 'media') current.content = mainEditor.value;
+
+    const { used, unused } = scanImageUsage();
+    
+    if (unused.length > 0) {
+        showUsageModal(used, unused);
+    } else {
+        executeBuild();
+    }
+};
+
+const executeBuild = async () => {
+  const htmlSource = assets.find(a => a.type === 'html');
+  if (!htmlSource) {
+    log("<span class='text-[#FF3366]'>Error:</span> No HTML entry found.");
+    return;
+  }
+
+  buildStatus.classList.remove('hidden');
+  log("Starting protected build sequence...");
+  
+  const mode = document.getElementById("mode").value;
+  let finalHTML = htmlSource.content;
+  let combinedCSS = assets.filter(a => a.type === 'css').map(a => a.content).join('\n');
+  let combinedJS = assets.filter(a => a.type === 'js').map(a => a.content).join('\n');
+  const mediaAssets = assets.filter(a => a.type === 'media');
+
+  try {
+    // 1. Minification (Standard)
+    if (combinedCSS) {
+        combinedCSS = new CleanCSS().minify(combinedCSS).styles;
+    }
+    if (combinedJS) {
+        // JS is minified but NOT mutated for images to prevent breaking logic
+        combinedJS = (await minifyJS(combinedJS)).code;
+    }
+
+    // 2. Inlining (ONLY HTML & CSS)
+    if (mode === 'inline' && mediaAssets.length > 0) {
+      log(`Inlining ${mediaAssets.length} assets into HTML/CSS...`);
+      mediaAssets.forEach(media => {
+        const escapedName = media.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pathRegex = new RegExp(`(['"\\(])(?:[^'"\\(\\)]*?\\/)?${escapedName}(['"\\)])`, 'g');
+        const replaceFn = (match, p1, p2) => `${p1}${media.content}${p2}`;
+
+        finalHTML = finalHTML.replace(pathRegex, replaceFn);
+        if (combinedCSS) combinedCSS = combinedCSS.replace(pathRegex, replaceFn);
+        
+        // !! JS MUTATION REMOVED !!
+        // This prevents the tool from breaking fetch calls or logic variables in JS.
+      });
+    }
+
+    if (mode === 'inline') {
+      if (combinedCSS) finalHTML = finalHTML.replace('</head>', `<style>${combinedCSS}</style></head>`);
+      if (combinedJS) finalHTML = finalHTML.replace('</body>', `<script>${combinedJS}<\/script></body>`);
+    }
+
+    // 3. Final HTML Compression
+    finalHTML = await minifyHTML(finalHTML, {
+      collapseWhitespace: true,
+      removeComments: true,
+      minifyCSS: true,
+      minifyJS: true
+    });
+
+    outputs = { html: finalHTML, css: combinedCSS, js: combinedJS };
+    document.getElementById("previewFrame").srcdoc = finalHTML;
+    
+    log("<span class='text-[#58CC02] font-bold'>Build Complete.</span> Outputs generated.");
+    document.querySelector('[data-tab="output"]').click();
+
+  } catch (err) {
+    log(`<span class="text-[#FF3366]">Error:</span> ${err.message}`);
+  } finally {
+    buildStatus.classList.add('hidden');
+  }
+};
+
+// Utils
+const dl = (n, c) => {
+  if (!c) return;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([c], { type: "text/plain" }));
+  a.download = n;
+  a.click();
+};
+
+document.getElementById("downH").onclick = () => dl("index.min.html", outputs.html);
+document.getElementById("downC").onclick = () => dl("styles.min.css", outputs.css);
+document.getElementById("downJ").onclick = () => dl("scripts.min.js", outputs.js);
+document.getElementById("downA").onclick = () => {
+  dl("index.min.html", outputs.html);
+  if (outputs.css) dl("styles.min.css", outputs.css);
+  if (outputs.js) dl("scripts.min.js", outputs.js);
+};
+
+document.getElementById("togglePreview").onclick = () => {
+  const box = document.getElementById("previewBox");
+  box.classList.toggle('hidden');
+};
+
+renderAssetList();
+</script>
+</body>
+</html>
