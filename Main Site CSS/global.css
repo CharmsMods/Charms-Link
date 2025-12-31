@@ -1,0 +1,39 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #ddcba4;
+    /* Default cream color, no black startup */
+    color: #ffffff77;
+    padding: 40px 20px;
+    position: relative;
+    overflow-x: hidden;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+/* Section layouts */
+.section-top {
+    min-height: 100vh;
+    /* ensure first section always fills at least one viewport */
+    padding: 0px 20px 100px 20px;
+    position: relative;
+    z-index: 1;
+}
+
+.section-bio {
+    position: relative;
+    z-index: 1;
+    padding-top: 120px;
+    padding-bottom: 80px;
+}

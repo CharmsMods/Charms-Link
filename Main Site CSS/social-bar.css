@@ -1,0 +1,206 @@
+/* Fixed Social Media Bar (Commonly used in transitions/scrolled states) */
+.social-bar {
+    position: fixed;
+    right: 20px;
+    top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    z-index: 1000;
+    transition: all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transform: translateY(0);
+    background-color: rgba(26, 26, 26, 0.8);
+    backdrop-filter: blur(10px);
+    padding: 15px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* When scrolled past halfway, move to bottom */
+body.scrolled .social-bar {
+    top: auto;
+    bottom: 20px;
+    right: 20px;
+    transform: translateY(0);
+}
+
+.social-icon {
+    width: 50px;
+    height: 50px;
+    background-color: transparent;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    color: white;
+    animation: subtleShake 0.5s ease-in-out infinite;
+    animation-play-state: paused;
+}
+
+.social-icon:hover {
+    transform: translateY(-3px) scale(1.1);
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.15);
+    animation-play-state: running;
+}
+
+/* Brand Colors */
+.social-icon:nth-child(1) {
+    background-color: rgba(88, 101, 242, 0.2);
+    border-left: 4px solid #5865F2;
+}
+
+.social-icon:nth-child(1):hover {
+    background-color: rgba(88, 101, 242, 0.4);
+    transform: translateX(-30px);
+    width: 100px;
+    animation-play-state: running;
+}
+
+.social-icon:nth-child(2) {
+    background-color: rgba(255, 0, 0, 0.2);
+    border-left: 3px solid #FF0000;
+}
+
+.social-icon:nth-child(2):hover {
+    background-color: rgba(255, 0, 0, 0.4);
+    transform: translateX(-30px);
+    width: 100px;
+    animation-play-state: running;
+}
+
+.social-icon:nth-child(3) {
+    background-color: rgba(145, 70, 255, 0.2);
+    border-left: 3px solid #9146FF;
+}
+
+.social-icon:nth-child(3):hover {
+    background-color: rgba(145, 70, 255, 0.4);
+    transform: translateX(-30px);
+    width: 100px;
+    animation-play-state: running;
+}
+
+.social-icon svg {
+    width: 24px;
+    height: 24px;
+    transition: transform 0.3s ease;
+}
+
+.social-icon:hover svg {
+    transform: scale(1.1);
+    animation: subtleShake 0.4s ease-in-out infinite;
+}
+
+.social-tooltip {
+    position: absolute;
+    right: 60px;
+    background-color: #1a1a1a;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid #333;
+    pointer-events: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.social-icon:hover .social-tooltip {
+    opacity: 1;
+    visibility: visible;
+    right: 50px;
+}
+
+/* Pause animation when reduced motion is preferred */
+@media (prefers-reduced-motion: reduce) {
+
+    .social-icon,
+    .social-icon:hover svg {
+        animation: none;
+    }
+}
+
+@media (max-width: 1200px) {
+    .social-bar {
+        flex-direction: row;
+        bottom: 0;
+        top: auto;
+        left: 0;
+        right: 0;
+        transform: none !important;
+        justify-content: center;
+        background-color: rgba(26, 26, 26, 0.98);
+        padding: 12px 8px;
+        border-top: 2px solid #444;
+        gap: 12px;
+        height: 80px;
+    }
+
+    body.scrolled .social-bar {
+        top: auto !important;
+        bottom: 0 !important;
+        right: 0 !important;
+        left: 0 !important;
+        border-radius: 0;
+        flex-direction: row;
+        justify-content: center;
+        padding: 10px 0;
+        width: 100%;
+    }
+
+    .social-icon {
+        width: 65px;
+        height: 65px;
+        border-radius: 6px;
+        margin: 0 6px;
+        border: none !important;
+        border-top: 5px solid transparent !important;
+    }
+
+    .social-icon:nth-child(1) {
+        border-top-color: #5865F2 !important;
+    }
+
+    .social-icon:nth-child(2) {
+        border-top-color: #FF0000 !important;
+    }
+
+    .social-icon:nth-child(3) {
+        border-top-color: #9146FF !important;
+    }
+
+    .social-icon:hover {
+        transform: translateY(-5px) !important;
+        width: 36px !important;
+        /* This matches original, though original had a comment 'Increased from 75px' but 36px seems small. I'll stick to original logic. */
+    }
+
+    .social-tooltip {
+        bottom: 50px;
+        right: auto !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        font-size: 12px;
+        padding: 4px 10px;
+    }
+
+    .social-icon:hover .social-tooltip {
+        bottom: 55px;
+    }
+
+    .social-icon svg {
+        width: 36px;
+        height: 36px;
+    }
+}

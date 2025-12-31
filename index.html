@@ -5,7 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="images/fav.png">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="Main Site CSS/animations.css">
+    <link rel="stylesheet" href="Main Site CSS/global.css">
+    <link rel="stylesheet" href="Main Site CSS/background.css">
+    <link rel="stylesheet" href="Main Site CSS/profile.css">
+    <link rel="stylesheet" href="Main Site CSS/grid.css">
+    <link rel="stylesheet" href="Main Site CSS/bio.css">
+    <link rel="stylesheet" href="Main Site CSS/modals.css">
+    <link rel="stylesheet" href="Main Site CSS/social-bar.css">
 </head>
 
 <body>
@@ -194,97 +201,6 @@
         </div>
     </section>
 
-    <!--
-            ────────────────
-            SECTION 3: Tool Example Galleries
-            Noise Studio and Background Remover before/after examples
-            ────────────────
-        -->
-    <section class="section-footer section-3" id="section-3">
-        <div class="section-3-inner">
-            <div class="section-3-header">
-                <!-- Section 3 Header: Noise Studio Examples -->
-                <div class="section-3-header-title">Noise Studio Examples</div>
-            </div>
-
-            <div class="noise-text">
-                <!-- Description of noise effect and its visual benefits -->
-                <p>Some images are visually striking but can appear flat. In certain situations, adding a subtle amount
-                    of randomness can enhance them. In the examples below, each image was adjusted and layered with
-                    light noise to break up large areas of uniform color. Additional tweaks to saturation, contrast, and
-                    brightness were made to complement the noise and improve overall depth. Ultimately, what matters is
-                    how the image makes your audience feel.</p>
-            </div>
-
-            <div class="noise-collage">
-                <!--
-                                    Example cards for Noise Studio
-                                    Each card shows before/after images on canvas (populated by JS)
-                                -->
-                <div class="example-card" data-example="1" data-before="3rdSectionImages/Examples/1/before.png"
-                    data-after="3rdSectionImages/Examples/1/after.png" role="button" tabindex="0">
-                    <canvas class="example-canvas"></canvas>
-                </div>
-
-                <div class="example-card" data-example="2" data-before="3rdSectionImages/Examples/2/before.png"
-                    data-after="3rdSectionImages/Examples/2/after.png" role="button" tabindex="0">
-                    <canvas class="example-canvas"></canvas>
-                </div>
-
-                <div class="example-card" data-example="3" data-before="3rdSectionImages/Examples/3/before.png"
-                    data-after="3rdSectionImages/Examples/3/after.png" role="button" tabindex="0">
-                    <canvas class="example-canvas"></canvas>
-                </div>
-            </div>
-
-            <div class="bgremover-block">
-                <!--
-                                    Background Remover Example Gallery
-                                    Shows before/after of logo cleanup and watermark removal
-                                -->
-                <div class="section-3-header">
-                    <!-- Section 3 Header: Background Remover Examples -->
-                    <div class="section-3-header-title">Background Remover Examples</div>
-                </div>
-
-                <div class="bgremover-text">
-                    <!-- Description of background remover tool and use case -->
-                    What good is a logo if its edges clash with your site colors or video? Using the background remover
-                    tool, you can make specific colors transparent within a defined tolerance, allowing underlying
-                    content to show through seamlessly. If needed, you can also patch areas of an image to remove
-                    watermarks or other unwanted elements, as shown with the watermark on the Starbucks logo.
-                </div>
-
-                <div class="bgremover-gallery">
-                    <!--
-                                            Example cards for Background Remover
-                                            Each card shows before/after images on canvas (populated by JS)
-                                        -->
-                    <div class="example-card bgremover-card" data-example="bg-1"
-                        data-before="3rdSectionImages/Background Remover Examples/1/before.png"
-                        data-after="3rdSectionImages/Background Remover Examples/1/after.png" role="button"
-                        tabindex="0">
-                        <canvas class="example-canvas"></canvas>
-                    </div>
-
-                    <div class="example-card bgremover-card" data-example="bg-2"
-                        data-before="3rdSectionImages/Background Remover Examples/2/before.png"
-                        data-after="3rdSectionImages/Background Remover Examples/2/after.png" role="button"
-                        tabindex="0">
-                        <canvas class="example-canvas"></canvas>
-                    </div>
-
-                    <div class="example-card bgremover-card" data-example="bg-3"
-                        data-before="3rdSectionImages/Background Remover Examples/3/before.png"
-                        data-after="3rdSectionImages/Background Remover Examples/3/after.png" role="button"
-                        tabindex="0">
-                        <canvas class="example-canvas"></canvas>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </section>
 
     <!--
             ────────────────
@@ -581,16 +497,6 @@
         <img id="fullscreen-img" class="fullscreen-img" src="" alt="">
     </div>
 
-    <!--
-            FULLSCREEN EXAMPLE CANVAS MODAL
-            For before/after example cards (populated by section3.js)
-        -->
-    <div id="example-modal">
-        <button id="example-modal-close" class="example-modal-close">&times;</button>
-        <div class="example-modal-inner">
-            <canvas id="example-modal-canvas" class="example-modal-canvas"></canvas>
-        </div>
-    </div>
 
     <!-- Scroll functionality for smooth navigation -->
     <script src="js/scroll.js"></script>
@@ -598,8 +504,6 @@
     <!-- Parallax functionality for mobile background -->
     <script src="parallax.js"></script>
 
-    <!-- Section 3 example gallery logic (populates canvases) -->
-    <script src="js/section3.js"></script>
 
     <script>
         //

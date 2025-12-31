@@ -1,0 +1,142 @@
+/* Background Elements */
+#vanta-bg,
+#mobile-bg,
+#desktop-fallback-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: -1;
+    /* Opacity always at max (no scroll fade) */
+    opacity: var(--max-bg-opacity, 0.8);
+}
+
+/* Vanta.js Globe Background */
+#vanta-bg {
+    --max-bg-opacity: 0.8;
+}
+
+/* Mobile Background */
+#mobile-bg {
+    display: none;
+    background-image: url('../images/mobilebackground.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    --max-bg-opacity: 0.6;
+}
+
+/* Desktop fallback background */
+#desktop-fallback-bg {
+    display: none;
+    background-image: url('../images/desktopbackground.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    --max-bg-opacity: 0.7;
+}
+
+/* Hide Vanta.js on mobile by default */
+@media (max-width: 1024px) {
+    #vanta-bg {
+        display: none;
+    }
+
+    #mobile-bg {
+        display: block;
+    }
+}
+
+/* Desktop background mode toggle (animation vs image) */
+.bg-toggle {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 1100;
+    display: none;
+    /* Hidden by default, shown on desktop via media query */
+}
+
+.bg-toggle-button {
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.45);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(8px);
+    transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.bg-toggle-button:hover {
+    background: rgba(0, 0, 0, 0.7);
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.bg-toggle-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #68b8d7;
+    /* default: animation (Vanta) active */
+}
+
+.bg-toggle-button.bg-mode-image .bg-toggle-indicator {
+    background: #ffb347;
+    /* image mode */
+}
+
+@media (min-width: 1025px) {
+    .bg-toggle {
+        display: block;
+    }
+}
+
+/* Scroll Down Arrow */
+.scroll-down {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 40px 0 80px;
+    z-index: 10;
+}
+
+.scroll-circle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    z-index: 10;
+}
+
+.scroll-circle:hover {
+    transform: translateY(5px);
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.scroll-circle.clicked {
+    transform: scale(0.9);
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.arrow-down {
+    width: 24px;
+    height: 24px;
+    color: white;
+    animation: bounce 2s infinite;
+}
