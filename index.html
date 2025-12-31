@@ -9,28 +9,7 @@
 </head>
 
 <body>
-    <!--
-        ────────────────
-        SECTION O: Landing Spot
-        Empty landing section for future design
-        ────────────────
-    -->
-    <section class="section-landing" id="section-landing">
-        <div class="landing-content">
-            <h1 class="landing-title">CHARM?</h1>
-            <div class="landing-subtext">
-                <span class="landing-word">World</span>
-                <span class="landing-divider"></span>
-                <span class="landing-word">Color</span>
-                <span class="landing-divider"></span>
-                <span class="landing-word">Noise</span>
-                <span class="landing-divider"></span>
-                <span class="landing-word">Grain</span>
-                <span class="landing-divider"></span>
-                <span class="landing-word">Passion</span>
-            </div>
-        </div>
-    </section>
+
 
     <!--
             ────────────────
@@ -582,31 +561,7 @@
             }
         }
 
-        //
-        // ────────────────
-        // SCROLL OPACITY LOGIC
-        // Updates --scroll-bg-opacity based on scroll position
-        // ────────────────
-        //
-        function updateBgOpacity() {
-            const scrollPosition = window.scrollY;
-            const windowHeight = window.innerHeight;
-            // Calculate opacity: 0 at top, 1 after scrolling down 1 viewport height
-            // We use 0.8 * windowHeight so it's fully visible slightly before the first section ends
-            const targetScrollEnd = windowHeight * 0.8;
 
-            let opacity = Math.min(scrollPosition / targetScrollEnd, 1);
-
-            // Ensure it never goes below 0
-            if (opacity < 0) opacity = 0;
-
-            document.documentElement.style.setProperty('--scroll-bg-opacity', opacity);
-        }
-
-        // Add scroll listener
-        window.addEventListener('scroll', updateBgOpacity);
-        // Initial check
-        updateBgOpacity();
 
         // Initial check
         handleResize();
@@ -682,48 +637,7 @@
             if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
         });
 
-        //
-        // ────────────────
-        // STARTUP SEQUENCE LOGIC
-        // 1. Force Scroll to Top
-        // 2. Black -> Cream Fade
-        // 3. Text Fade In
-        // ────────────────
-        //
-        window.addEventListener('load', () => {
-            // Force scroll to top on load
-            if ('scrollRestoration' in history) {
-                history.scrollRestoration = 'manual';
-            }
-            window.scrollTo(0, 0);
 
-            const body = document.body;
-            const title = document.querySelector('.landing-title');
-            const subtext = document.querySelector('.landing-subtext');
-            const section1 = document.getElementById('section-1');
-
-            // 1. Initial Delay: 350ms
-            setTimeout(() => {
-                // Fade background to cream
-                body.classList.add('bg-cream');
-
-                // 2. Wait for BG fade (1s) + 200ms delay
-                setTimeout(() => {
-                    // Fade text in
-                    if (title) title.classList.add('visible');
-                    if (subtext) subtext.classList.add('visible');
-
-                    // 3. Wait 1 second (1000ms) then scroll
-                    setTimeout(() => {
-                        if (section1) {
-                            smoothScrollTo(section1.offsetTop, 2000);
-                        }
-                    }, 1000);
-
-                }, 1200); // 1s (bg duration) + 200ms
-
-            }, 350);
-        });
 
         // Custom Smooth Scroll Function
         function smoothScrollTo(targetPosition, duration) {

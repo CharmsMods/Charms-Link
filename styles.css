@@ -56,26 +56,14 @@
 
 body {
     font-family: Arial, sans-serif;
-    background-color: #000000;
-    /* Start black as requested */
+    background-color: #ddcba4;
+    /* Default cream color, no black startup */
     color: #ffffff77;
     padding: 40px 20px;
     position: relative;
     overflow-x: hidden;
     min-height: 100vh;
     margin: 0;
-    transition: background-color 1s ease;
-}
-
-body.bg-cream {
-    background-color: #ddcba4;
-    /* Darker tan cream */
-}
-
-/* Remove dark overlay when on cream background so colors are pure */
-body.bg-cream::before {
-    opacity: 0;
-    transition: opacity 1s ease;
 }
 
 
@@ -89,10 +77,9 @@ body.bg-cream::before {
     width: 100%;
     height: 100vh;
     z-index: -1;
-    /* Opacity controlled by scroll: 0 at top, increasing to maxOpacity as we scroll down */
-    opacity: calc(var(--max-bg-opacity, 0.8) * var(--scroll-bg-opacity, 0));
-    transition: opacity 0.1s linear;
-    /* Short transition for smoothness but fast enough for scroll */
+    /* Opacity always at max (no scroll fade) */
+    opacity: var(--max-bg-opacity, 0.8);
+    /* transition: opacity 0.1s linear;  <-- Removed */
 }
 
 /* Vanta.js Globe Background */
@@ -131,7 +118,7 @@ body.bg-cream::before {
     }
 }
 
-/* Scroll Down Arrow */
+/* Scroll Down Arrow (Section 1 - Restored) */
 .scroll-down {
     position: relative;
     width: 100%;
@@ -193,122 +180,13 @@ body.bg-cream::before {
     }
 }
 
-/* Content Section (generic) */
-.content-section {
-    min-height: 100vh;
-    padding: 80px 20px;
-    position: relative;
-    z-index: 1;
-}
+/* Cleanup for old landing classes just in case they are referenced elsewhere (unlikely) */
+/* .landing-content was here */
+/* .landing-title was here */
+/* .landing-subtext was here */
+/* .landing-word was here */
+/* .landing-divider was here */
 
-/* FONTS */
-@font-face {
-    font-family: 'Permanent Marker';
-    src: url('PermanentMarker-Regular.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-}
-
-@font-face {
-    font-family: 'Indie Flower';
-    src: url('IndieFlower-Regular.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-}
-
-/* Landing Section */
-.section-landing {
-    min-height: 100vh;
-    padding: 20px;
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-}
-
-.landing-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    max-width: 1200px;
-}
-
-.landing-title {
-    font-family: 'Permanent Marker', cursive;
-    font-size: clamp(6rem, 22vw, 18rem);
-    color: #ffffff;
-    line-height: 1;
-    margin-bottom: 20px;
-
-    /* Initial hidden state */
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 1s ease-out, transform 1s ease-out, color 1s ease;
-}
-
-body.bg-cream .landing-title {
-    color: #fff8e7;
-    /* Lighter tan cream */
-}
-
-.landing-subtext {
-    font-family: 'Indie Flower', cursive;
-    font-size: clamp(1.2rem, 2.5vw, 2.5rem);
-    color: rgba(255, 255, 255, 0.9);
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 15px;
-    align-items: center;
-
-    /* Initial hidden state */
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 1s ease-out, transform 1s ease-out;
-}
-
-body.bg-cream .landing-subtext {
-    color: #fff8e7;
-    /* Match large text color */
-}
-
-.landing-title.visible,
-.landing-subtext.visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.landing-word {
-    position: relative;
-}
-
-.landing-divider {
-    width: 2px;
-    height: 1.2em;
-    background-color: rgba(255, 255, 255, 0.6);
-    display: inline-block;
-    transition: background-color 1s ease;
-}
-
-body.bg-cream .landing-divider {
-    background-color: rgba(0, 0, 0, 0.6);
-}
-
-@keyframes expandWidth {
-    from {
-        width: 0;
-        opacity: 0;
-    }
-
-    to {
-        width: 80%;
-        opacity: 1;
-    }
-}
 
 /* Top tools section on landing page */
 .section-top {
@@ -355,16 +233,7 @@ body.bg-cream .landing-divider {
     z-index: 1;
 }
 
-body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(18, 18, 18, 0.8);
-    z-index: -1;
-}
+
 
 .container {
     max-width: 1000px;
