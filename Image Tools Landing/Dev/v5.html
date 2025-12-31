@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BRUTAL_TOOLKIT // IMG_ENABLED</title>
+    <style>
+        /*
+      BRUTALIST THEME VARIABLES
+      Dark Cream aesthetic.
+    */
+        :root {
+            --bg-color: #1a1612;
+            /* Deep Dark Brown */
+            --cream-main: #e0d8c3;
+            /* Main Cream Text */
+            --cream-dim: #8c8575;
+            /* Dimmed Cream */
+            --accent-red: #ff3333;
+            /* Red accent (toned down in usage) */
+            --border-width: 3px;
+            --grid-gap: 12px;
+            --font-stack: 'Courier New', Courier, monospace;
+        }
+
+        /*
+      RESET & BASE STYLES
+    */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            cursor: crosshair;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--cream-main);
+            font-family: var(--font-stack);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        /*
+      ─── LAYER STACK ───
+      1. Images (Bottom)
+      2. Canvas Effects (Middle)
+      3. Static Noise (Middle-Top)
+      4. UI/Grid (Top)
+    */
+
+        /* 1. Image Background Container */
+        .bg-container {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: black;
+        }
+
+        .bg-layer {
+            position: absolute;
+            inset: 0;
+            background-position: center;
+            background-size: cover;
+            opacity: 0;
+            transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+            /* Shorter duration for snappier feel */
+        }
+
+        .bg-layer.active {
+            opacity: 0.5;
+            /* Slight fade so black bleeds through for contrast */
+        }
+
+        /* 2. Canvas Overlay */
+        #gen-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* 3. Static Texture */
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /*
+      ─── UI FRAMEWORK ───
+    */
+        .header-frame {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 80px;
+            z-index: 10;
+            border-bottom: var(--border-width) solid var(--cream-main);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            background: var(--bg-color);
+        }
+
+        .brand-title {
+            font-size: 1.5rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            text-transform: uppercase;
+        }
+
+        .system-status {
+            font-size: 0.8rem;
+            color: var(--cream-dim);
+        }
+
+        /*
+      ─── GRID LAYOUT ───
+    */
+        .grid-wrapper {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100%;
+            padding-top: 60px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 220px);
+            gap: 30px;
+            max-width: 900px;
+        }
+
+        /*
+      ─── CARD STYLES ───
+    */
+        .card {
+            height: 140px;
+            border: var(--border-width) solid var(--cream-dim);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: var(--cream-main);
+            background: transparent;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.15s steps(4);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            right: 4px;
+            bottom: 4px;
+            border: 1px solid var(--cream-dim);
+            pointer-events: none;
+        }
+
+        .card span {
+            z-index: 2;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            background: var(--bg-color);
+            padding: 4px 8px;
+        }
+
+        /* Hover Effect: Skew + Red Border */
+        .card:hover {
+            border-color: var(--accent-red);
+            transform: scale(1.05) skew(-5deg);
+            background: var(--cream-main);
+            color: var(--bg-color);
+            box-shadow: 10px 10px 0px rgba(255, 51, 51, 0.15);
+            /* Slight shadow, not too heavy */
+        }
+
+        .card:hover span {
+            background: var(--accent-red);
+            color: var(--bg-color);
+            text-shadow: 2px 0px 0px rgba(0, 0, 0, 0.5);
+        }
+
+        .card:hover::before {
+            border-color: var(--accent-red);
+            opacity: 0.5;
+        }
+
+        .scanline {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent-red);
+            opacity: 0;
+            z-index: 5;
+        }
+
+        .card:hover .scanline {
+            animation: scan 1.5s linear infinite;
+            opacity: 0.4;
+            /* Reduced opacity for red noise */
+        }
+
+        @keyframes scan {
+            0% {
+                top: -10%;
+                opacity: 0;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+
+            100% {
+                top: 110%;
+                opacity: 0;
+            }
+        }
+
+        /*
+      ─── FOOTER ───
+    */
+        .marquee-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            border-top: var(--border-width) solid var(--cream-main);
+            background: var(--bg-color);
+            overflow: hidden;
+            z-index: 20;
+            height: 40px;
+            display: flex;
+            align-items: center;
+        }
+
+        .marquee-text {
+            white-space: nowrap;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            animation: scroll 20s linear infinite;
+            color: var(--cream-dim);
+        }
+
+        @keyframes scroll {
+            0% {
+                transform: translateX(100%);
+            }
+
+            100% {
+                transform: translateX(-100%);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Image Layers (Background) -->
+    <div class="bg-container">
+        <div class="bg-layer" id="l1"></div>
+        <div class="bg-layer" id="l2"></div>
+        <div class="bg-layer" id="l3"></div>
+    </div>
+
+    <!-- Canvas Overlay (Effects on top of images) -->
+    <canvas id="gen-canvas"></canvas>
+
+    <!-- Static Texture -->
+    <div class="noise-overlay"></div>
+
+    <!-- Header -->
+    <div class="header-frame">
+        <div class="brand-title">TOOL_INDEX // 01</div>
+        <div class="system-status">SYSTEM: READY</div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid-wrapper">
+        <div class="grid">
+            <a class="card" href="../../Charms Web Tools/Image Tools/Noise Studio/Current Noise Studio/v17.html"
+                data-img="../images/Noise Studio.png">
+                <div class="scanline"></div>
+                <span>Noise Studio</span>
+            </a>
+            <a class="card"
+                href="../../Charms Web Tools/Image Tools/Background Remover/Background Remover/background remover and patcher.html"
+                data-img="../images/Background Remover.png">
+                <div class="scanline"></div>
+                <span>Background Remover</span>
+            </a>
+            <a class="card"
+                href="../../Charms Web Tools/Image Tools/Image Corruption/Image Corruption/Image Corruption.html"
+                data-img="../images/Image Corruption.png">
+                <div class="scanline"></div>
+                <span>Image Corruption</span>
+            </a>
+            <a class="card" href="../../Charms Web Tools/Image Tools/JPG Hex Editor/Current/index.html"
+                data-img="../images/JPG Hex Editor.png">
+                <div class="scanline"></div>
+                <span>JPG Hex Editor</span>
+            </a>
+            <a class="card" href="../../Charms Web Tools/Image Tools/Motion Detection/Current/index.html"
+                data-img="../images/Motion Detection.png">
+                <div class="scanline"></div>
+                <span>Motion Detection</span>
+            </a>
+            <a class="card" href="../../Charms Web Tools/Image Tools/Pixel Art/Current/index.html"
+                data-img="../images/Pixel Art.png">
+                <div class="scanline"></div>
+                <span>Pixel Art</span>
+            </a>
+            <a class="card" href="../../Charms Web Tools/Image Tools/Dithering/Current/index.html"
+                data-img="../images/Image Dithering.png">
+                <div class="scanline"></div>
+                <span>Image Dithering</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="marquee-container">
+        <div class="marquee-text">
+            INITIALIZING VISUAL PROTOCOLS... > AWAITING SELECTION... > DISPLAY MODE: ACTIVE... >
+        </div>
+    </div>
+
+    <script>
+        /**
+         * IMAGE BACKGROUND MANAGER
+         * Cycles through the 3 background layers based on hover.
+         */
+        const layers = Array.from(document.querySelectorAll('.bg-layer'));
+        const cards = document.querySelectorAll('.card');
+        let currentLayerIdx = 0;
+        let zIndexCounter = 1;
+        let fadeOutTimeout;
+
+        // Track if ANY image is currently active for the canvas engine
+        let isImageActive = false;
+
+        // Preload images
+        cards.forEach(card => {
+            const url = card.dataset.img;
+            if (url) {
+                const img = new Image();
+                img.onerror = () => console.error(`Missing: ${url}`);
+                img.src = url;
+            }
+        });
+
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                if (fadeOutTimeout) clearTimeout(fadeOutTimeout);
+                const imgUrl = card.dataset.img;
+
+                if (imgUrl) {
+                    // Cycle Layer
+                    currentLayerIdx = (currentLayerIdx + 1) % layers.length;
+                    const targetLayer = layers[currentLayerIdx];
+
+                    zIndexCounter++;
+                    targetLayer.style.zIndex = zIndexCounter;
+                    targetLayer.style.backgroundImage = `url("${imgUrl}")`;
+                    targetLayer.classList.add('active');
+
+                    layers.forEach((l, idx) => {
+                        if (idx !== currentLayerIdx) l.classList.remove('active');
+                    });
+
+                    isImageActive = true;
+                }
+            });
+
+            card.addEventListener('mouseleave', () => {
+                fadeOutTimeout = setTimeout(() => {
+                    layers.forEach(l => l.classList.remove('active'));
+                    isImageActive = false;
+                }, 600);
+            });
+        });
+
+        /**
+         * BRUTALIST CANVAS OVERLAY ENGINE
+         * Draws effects ON TOP of the images.
+         */
+        const canvas = document.getElementById('gen-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Utilities
+        const random = (min, max) => Math.random() * (max - min) + min;
+
+        // Draw HUD Elements (when image is active)
+        function drawHUD(time) {
+            const strokeColor = 'rgba(224, 216, 195, 0.6)'; // Cream, visible over photos
+
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = strokeColor;
+
+            // 1. Central Crosshair
+            const cx = width / 2;
+            const cy = height / 2;
+            const size = 50;
+
+            ctx.beginPath();
+            ctx.moveTo(cx - size, cy);
+            ctx.lineTo(cx + size, cy);
+            ctx.moveTo(cx, cy - size);
+            ctx.lineTo(cx, cy + size);
+            ctx.stroke();
+
+            // 2. Corner Brackets (Scanner look)
+            const pad = 100;
+            const len = 40;
+            ctx.lineWidth = 2;
+
+            // Top Left
+            ctx.beginPath();
+            ctx.moveTo(pad, pad + len);
+            ctx.lineTo(pad, pad);
+            ctx.lineTo(pad + len, pad);
+            ctx.stroke();
+
+            // Top Right
+            ctx.beginPath();
+            ctx.moveTo(width - pad, pad + len);
+            ctx.lineTo(width - pad, pad);
+            ctx.lineTo(width - pad - len, pad);
+            ctx.stroke();
+
+            // Bottom Left
+            ctx.beginPath();
+            ctx.moveTo(pad, height - pad - len);
+            ctx.lineTo(pad, height - pad);
+            ctx.lineTo(pad + len, height - pad);
+            ctx.stroke();
+
+            // Bottom Right
+            ctx.beginPath();
+            ctx.moveTo(width - pad, height - pad - len);
+            ctx.lineTo(width - pad, height - pad);
+            ctx.lineTo(width - pad - len, height - pad);
+            ctx.stroke();
+
+            // 3. Moving Scanning Line (Subtle)
+            const scanY = (time * 0.1) % height;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.beginPath();
+            ctx.moveTo(0, scanY);
+            ctx.lineTo(width, scanY);
+            ctx.stroke();
+        }
+
+        // Draw Abstract Geometric Pattern (when NO image is active)
+        function drawAbstract(time) {
+            const density = 20;
+            const offset = (time * 0.05) % density;
+
+            ctx.strokeStyle = 'rgba(224, 216, 195, 0.08)'; // Very dim
+            ctx.lineWidth = 1;
+
+            // Grid
+            for (let x = 0; x < width; x += density) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+
+            for (let y = offset; y < height; y += density) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+
+            // Random blocks
+            if (Math.random() > 0.9) {
+                ctx.fillStyle = 'rgba(255, 51, 51, 0.1)';
+                ctx.fillRect(random(0, width), random(0, height), 50, 50);
+            }
+        }
+
+        // Red Glitch Effect (Rare, toned down)
+        function triggerGlitch() {
+            // Very low probability: 1 in 100 frames
+            if (Math.random() > 0.01) return;
+
+            const h = random(2, 6); // Thin lines
+            const y = random(0, height);
+
+            ctx.fillStyle = 'rgba(255, 51, 51, 0.4)'; // Red
+            ctx.fillRect(0, y, width, h);
+        }
+
+        // Main Loop
+        function animate(time) {
+            // Clear canvas completely to show image underneath cleanly
+            ctx.clearRect(0, 0, width, height);
+
+            if (isImageActive) {
+                drawHUD(time);
+                triggerGlitch(); // Occasionally glitch over the photo
+            } else {
+                drawAbstract(time);
+            }
+
+            requestAnimationFrame(animate);
+        }
+        requestAnimationFrame(animate);
+
+    </script>
+</body>
+
+</html>

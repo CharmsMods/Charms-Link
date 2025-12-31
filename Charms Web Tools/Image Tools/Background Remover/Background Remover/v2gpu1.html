@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,7 +21,8 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             height: 100vh;
-            overflow: hidden; /* Prevent body scroll, handle inside containers */
+            overflow: hidden;
+            /* Prevent body scroll, handle inside containers */
             display: flex;
             flex-direction: column;
         }
@@ -30,15 +32,18 @@
             width: 8px;
             height: 8px;
         }
+
         ::-webkit-scrollbar-track {
-            background: #000000; 
+            background: #000000;
         }
+
         ::-webkit-scrollbar-thumb {
-            background: #666666; 
+            background: #666666;
             border-radius: 4px;
         }
+
         ::-webkit-scrollbar-thumb:hover {
-            background: #999999; 
+            background: #999999;
         }
 
         /* Layout Structure */
@@ -72,20 +77,23 @@
                 flex: 1;
                 border-right: none;
                 border-top: 1px solid var(--border-color);
-                order: 2; /* Controls below preview on mobile */
+                order: 2;
+                /* Controls below preview on mobile */
             }
         }
 
         /* Right Column: Stationary Preview */
         #preview-panel {
             flex: 1;
-            background-color: #050505; /* Slightly distinct from pure black */
+            background-color: #050505;
+            /* Slightly distinct from pure black */
             position: relative;
             display: flex;
             justify-content: center;
             align-items: center;
             overflow: hidden;
-            order: 1; /* Preview above on mobile */
+            order: 1;
+            /* Preview above on mobile */
         }
 
         /* Canvas Wrapper to ensure centering and scaling */
@@ -95,7 +103,8 @@
             border: 1px solid #333;
             max-width: 95%;
             max-height: 95%;
-            display: flex; /* Removes bottom gap */
+            display: flex;
+            /* Removes bottom gap */
         }
 
         canvas {
@@ -181,13 +190,13 @@
             align-items: center;
             gap: 1rem;
         }
-        
+
         input[type=range] {
             -webkit-appearance: none;
             width: 100%;
             background: transparent;
         }
-        
+
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
             height: 16px;
@@ -198,7 +207,7 @@
             cursor: pointer;
             margin-top: -6px;
         }
-        
+
         input[type=range]::-webkit-slider-runnable-track {
             width: 100%;
             height: 4px;
@@ -238,12 +247,12 @@
             transition: transform 0.3s;
         }
 
-        input[type="checkbox"]:checked + .toggle-switch {
+        input[type="checkbox"]:checked+.toggle-switch {
             background: #666;
             border-color: #fff;
         }
 
-        input[type="checkbox"]:checked + .toggle-switch::after {
+        input[type="checkbox"]:checked+.toggle-switch::after {
             transform: translateX(20px);
         }
 
@@ -261,9 +270,11 @@
             background: none;
             cursor: pointer;
         }
+
         input[type="color"]::-webkit-color-swatch-wrapper {
-            padding: 0; 
+            padding: 0;
         }
+
         input[type="color"]::-webkit-color-swatch {
             border: 1px solid #fff;
             border-radius: 4px;
@@ -302,10 +313,11 @@
         .accordion-item.active .accordion-content {
             display: block;
         }
-        
+
         .arrow {
             transition: transform 0.3s;
         }
+
         .accordion-item.active .arrow {
             transform: rotate(180deg);
         }
@@ -331,7 +343,7 @@
             z-index: 100;
             pointer-events: none;
         }
-        
+
         .toast {
             background: rgba(20, 20, 20, 0.95);
             border: 1px solid #fff;
@@ -342,11 +354,11 @@
             opacity: 0;
             transform: translateY(-20px);
             transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             text-align: center;
             font-size: 0.9rem;
         }
-        
+
         .toast.show {
             opacity: 1;
             transform: translateY(0);
@@ -355,7 +367,7 @@
         .loading-overlay {
             position: absolute;
             inset: 0;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0, 0, 0, 0.7);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -366,13 +378,14 @@
         }
     </style>
 </head>
+
 <body>
 
     <!-- Toast Notification System -->
     <div id="toast-container"></div>
 
     <div id="app-container">
-        
+
         <!-- Controls Panel (Scrollable) -->
         <aside id="controls-panel">
             <header class="mb-4">
@@ -409,7 +422,7 @@
             <!-- Main Processing Tools -->
             <div class="control-group">
                 <div class="section-title">Color Processing</div>
-                
+
                 <div class="accordion-item active">
                     <div class="accordion-header" onclick="toggleAccordion(this)">
                         Selection Mode <span class="arrow">▼</span>
@@ -456,14 +469,15 @@
                             <input type="checkbox" id="invertSelectionToggle">
                             <div class="toggle-switch"></div>
                         </label>
-                        
+
                         <label class="toggle-row mb-3">
                             <span>Replace with Color</span>
                             <input type="checkbox" id="colorReplacementToggle">
                             <div class="toggle-switch"></div>
                         </label>
 
-                        <div id="colorReplacementContainer" class="flex items-center gap-3 p-2 bg-gray-900 rounded mb-3" style="display:none;">
+                        <div id="colorReplacementContainer" class="flex items-center gap-3 p-2 bg-gray-900 rounded mb-3"
+                            style="display:none;">
                             <input type="color" id="replacementColorPicker" value="#ff0000">
                             <span class="text-sm font-mono" id="replacementColorDisplay">#FF0000</span>
                         </div>
@@ -492,12 +506,13 @@
                 <div id="shapeControls" style="opacity: 0.5; pointer-events: none;">
                     <div class="mb-3">
                         <label class="text-sm mb-1 block">Type</label>
-                        <select id="shapeTypeSelect" class="w-full bg-black border border-gray-600 text-white p-2 rounded text-sm">
+                        <select id="shapeTypeSelect"
+                            class="w-full bg-black border border-gray-600 text-white p-2 rounded text-sm">
                             <option value="0">Rectangle</option>
                             <option value="1">Ellipse</option>
                         </select>
                     </div>
-                    
+
                     <div class="grid grid-cols-2 gap-2 mb-3">
                         <div>
                             <label class="text-xs mb-1 block text-gray-400">Pos X</label>
@@ -540,7 +555,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="mt-auto pt-6 text-xs text-gray-600 border-t border-gray-800">
                 <p>Processing via WebGL Fragment Shaders.</p>
                 <p class="mt-1">No CPU pixel manipulation.</p>
@@ -553,7 +568,7 @@
                 <canvas id="glCanvas"></canvas>
                 <div id="loadingOverlay" class="loading-overlay">Processing...</div>
             </div>
-            
+
             <!-- Helper Text -->
             <div id="emptyState" class="absolute text-center pointer-events-none">
                 <h2 class="text-2xl font-bold text-gray-700">No Image Loaded</h2>
@@ -561,6 +576,17 @@
             </div>
         </main>
     </div>
+
+    <!-- WebGL Scripts -->
+    <script id="vs" type="x-shader/x-vertex">
+        attribute vec2 a_position;
+        attribute vec2 a_texCoord;
+        varying vec2 v_texCoord;
+        void main() {
+            gl_Position = vec4(a_position, 0.0, 1.0);
+            v_texCoord = a_texCoord;
+        }
+    </script>
 
     <!-- WebGL Scripts -->
     <script id="vs" type="x-shader/x-vertex">
@@ -744,11 +770,11 @@
 
     <script>
         // --- WebGL Setup & Helper Classes ---
-        
+
         const canvas = document.getElementById('glCanvas');
-        const gl = canvas.getContext('webgl', { 
+        const gl = canvas.getContext('webgl', {
             preserveDrawingBuffer: true, // Needed for screenshot/download
-            premultipliedAlpha: false 
+            premultipliedAlpha: false
         });
 
         if (!gl) {
@@ -761,7 +787,7 @@
             gl.shaderSource(shader, source);
             gl.compileShader(shader);
             if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                console.error(gl.getShaderInfoLog(shader));
+                console.error("Shader Compile Error:", gl.getShaderInfoLog(shader));
                 gl.deleteShader(shader);
                 return null;
             }
@@ -773,13 +799,17 @@
         const vertexShader = createShader(gl, gl.VERTEX_SHADER, vsSource);
         const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
 
+        if (!vertexShader || !fragmentShader) {
+            console.error("Failed to create shaders.");
+        }
+
         const program = gl.createProgram();
         gl.attachShader(program, vertexShader);
         gl.attachShader(program, fragmentShader);
         gl.linkProgram(program);
 
         if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-            console.error(gl.getProgramInfoLog(program));
+            console.error("Program Link Error:", gl.getProgramInfoLog(program));
         }
 
         // --- Geometry Setup (Full Screen Quad) ---
@@ -790,17 +820,16 @@
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
             -1, -1,
-             1, -1,
-            -1,  1,
-            -1,  1,
-             1, -1,
-             1,  1,
+            1, -1,
+            -1, 1,
+            -1, 1,
+            1, -1,
+            1, 1,
         ]), gl.STATIC_DRAW);
 
         const texCoordBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-        // Flip Y here is handled in shader or texture setup. 
-        // We will use standard 0..1 coords and flip Y in texture setup.
+        // Standard UV coordinates (0,0 bottom-left)
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
             0.0, 0.0,
             1.0, 0.0,
@@ -833,17 +862,17 @@
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         }
-        
+
         function updateTextureFromCanvas(gl, texture, sourceCanvas) {
-             gl.bindTexture(gl.TEXTURE_2D, texture);
-             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
         }
 
         originalImageTexture = createTexture(gl);
         maskTexture = createTexture(gl);
         // Initialize mask with white (no mask)
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255,255,255,255]));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
 
         // --- Uniform Locations ---
         const locs = {
@@ -900,7 +929,7 @@
             hexDisplay: document.getElementById('hexDisplay'),
             loading: document.getElementById('loadingOverlay'),
             emptyState: document.getElementById('emptyState'),
-            
+
             // Inputs
             areaToggle: document.getElementById('areaSelectionToggle'),
             tolSlider: document.getElementById('toleranceStrengthSlider'),
@@ -914,7 +943,7 @@
             replaceDisplay: document.getElementById('replacementColorDisplay'),
             opacitySlider: document.getElementById('opacitySlider'),
             opacityVal: document.getElementById('opacityVal'),
-            
+
             // Shape
             shapeToggle: document.getElementById('shapeModeToggle'),
             shapeControls: document.getElementById('shapeControls'),
@@ -928,14 +957,21 @@
             shapeErase: document.getElementById('shapeEraseToggle'),
             shapeColorPicker: document.getElementById('shapeColorPicker'),
             shapeColorDisplay: document.getElementById('shapeColorDisplay'),
-            shapeColorContainer: document.getElementById('shapeColorContainer')
+            shapeColorContainer: document.getElementById('shapeColorContainer'),
+            opacityContainer: document.getElementById('opacityContainer') // Ensure this ID exists in HTML
         };
 
         // --- Core Rendering Function ---
         function render() {
             if (!state.imageLoaded) return;
 
+            // Set Viewport to match canvas pixel size
             gl.viewport(0, 0, canvas.width, canvas.height);
+
+            // Clear buffer
+            gl.clearColor(0, 0, 0, 1); // Black background
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
             gl.useProgram(program);
 
             // Bind geometry
@@ -958,14 +994,14 @@
 
             // Set Uniforms
             gl.uniform2f(locs.resolution, canvas.width, canvas.height);
-            gl.uniform3f(locs.selectedColor, state.selectedColor.r/255, state.selectedColor.g/255, state.selectedColor.b/255);
+            gl.uniform3f(locs.selectedColor, state.selectedColor.r / 255, state.selectedColor.g / 255, state.selectedColor.b / 255);
             gl.uniform1f(locs.tolerance, state.tolerance); // Normalize? Shader expects 0-100 range similar to logic
             gl.uniform1f(locs.smoothing, state.smoothing);
             gl.uniform1f(locs.opacity, state.opacity);
             gl.uniform1i(locs.invert, state.invert ? 1 : 0);
             gl.uniform1i(locs.useMask, state.useMask ? 1 : 0);
             gl.uniform1i(locs.isReplaceColor, state.isReplaceColor ? 1 : 0);
-            gl.uniform3f(locs.replaceColor, state.replaceColor.r/255, state.replaceColor.g/255, state.replaceColor.b/255);
+            gl.uniform3f(locs.replaceColor, state.replaceColor.r / 255, state.replaceColor.g / 255, state.replaceColor.b / 255);
 
             // Shape Uniforms
             gl.uniform1i(locs.shapeMode, state.shapeMode ? 1 : 0);
@@ -974,7 +1010,7 @@
             gl.uniform2f(locs.shapeSize, state.shapeSize.x, state.shapeSize.y);
             gl.uniform1f(locs.shapeFalloff, state.shapeFalloff);
             gl.uniform1i(locs.shapeErase, state.shapeErase ? 1 : 0);
-            gl.uniform3f(locs.shapeColor, state.shapeColor.r/255, state.shapeColor.g/255, state.shapeColor.b/255);
+            gl.uniform3f(locs.shapeColor, state.shapeColor.r / 255, state.shapeColor.g / 255, state.shapeColor.b / 255);
 
             gl.drawArrays(gl.TRIANGLES, 0, 6);
         }
@@ -984,13 +1020,17 @@
 
         ui.upload.addEventListener('change', (e) => {
             const file = e.target.files[0];
-            if(!file) return;
-            
+            if (!file) return;
+
             const reader = new FileReader();
             reader.onload = (evt) => {
                 currentImage = new Image();
                 currentImage.onload = () => {
                     initImage(currentImage);
+                };
+                currentImage.onerror = () => {
+                    console.error("Failed to load image");
+                    showToast("Error loading image file.");
                 };
                 currentImage.src = evt.target.result;
             };
@@ -998,12 +1038,19 @@
         });
 
         function initImage(img) {
+            // Safety check for image dimensions
+            if (img.width === 0 || img.height === 0) {
+                console.error("Invalid image dimensions: 0x0");
+                showToast("Invalid image dimensions.");
+                return;
+            }
+
             canvas.width = img.width;
             canvas.height = img.height;
             state.imageWidth = img.width;
             state.imageHeight = img.height;
             state.imageLoaded = true;
-            
+
             // Setup Mask Canvas
             maskCanvas.width = img.width;
             maskCanvas.height = img.height;
@@ -1015,10 +1062,10 @@
             updateTextureFromCanvas(gl, maskTexture, maskCanvas);
 
             updateTextureFromImage(gl, originalImageTexture, img);
-            
+
             ui.resDisplay.textContent = `${img.width} x ${img.height}`;
             ui.emptyState.style.display = 'none';
-            
+
             // Reset Shape Sliders Max
             ui.shapeX.max = img.width;
             ui.shapeY.max = img.height;
@@ -1027,7 +1074,7 @@
             ui.shapeX.value = img.width / 2;
             ui.shapeY.value = img.height / 2;
             updateShapeState();
-            
+
             render();
             showToast("Image Loaded. GPU Pipeline Active.");
         }
@@ -1035,7 +1082,7 @@
         // --- CPU Flood Fill Logic (Mask Generation) ---
         // We keep this on CPU because graph traversal is hard in shaders.
         // We only run this ONCE per click.
-        
+
         function rgbToHex(r, g, b) {
             return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
         }
@@ -1051,7 +1098,7 @@
 
         function runFloodFill(startX, startY, targetColorRGB, tolerance) {
             if (!state.imageLoaded) return;
-            
+
             // Get pixel data from the original image
             // We need the raw image data to compare colors
             const tempCanvas = document.createElement('canvas');
@@ -1069,33 +1116,33 @@
             // In shader, maskVal > 0.5 is selected. So we will paint selection WHITE.
             maskCtx.fillStyle = 'black';
             maskCtx.fillRect(0, 0, width, height);
-            
+
             const maskImgData = maskCtx.createImageData(width, height);
             const maskData = maskImgData.data;
 
             // Helper
             const getIndex = (x, y) => (y * width + x) * 4;
-            const getPixel = (idx) => ({ r: data[idx], g: data[idx+1], b: data[idx+2] });
-            
+            const getPixel = (idx) => ({ r: data[idx], g: data[idx + 1], b: data[idx + 2] });
+
             // Distance
             const dist = (c1, c2) => {
                 const dr = c1.r - c2.r;
                 const dg = c1.g - c2.g;
                 const db = c1.b - c2.b;
-                return Math.sqrt(0.299*dr*dr + 0.587*dg*dg + 0.114*db*db);
+                return Math.sqrt(0.299 * dr * dr + 0.587 * dg * dg + 0.114 * db * db);
             };
 
-            const queue = [{x: Math.floor(startX), y: Math.floor(startY)}];
+            const queue = [{ x: Math.floor(startX), y: Math.floor(startY) }];
             const visited = new Uint8Array(width * height); // 0 = unvisited, 1 = visited
-            
+
             // Start check
             const startIdx = getIndex(queue[0].x, queue[0].y);
             const startColor = getPixel(startIdx);
-            
+
             // If start color is already out of tolerance, do nothing
             if (dist(startColor, targetColorRGB) > tolerance) return;
 
-            while(queue.length > 0) {
+            while (queue.length > 0) {
                 const p = queue.pop();
                 const idx = p.y * width + p.x;
 
@@ -1103,20 +1150,20 @@
                 visited[idx] = 1;
 
                 const pIdx = idx * 4;
-                const pColor = { r: data[pIdx], g: data[pIdx+1], b: data[pIdx+2] };
+                const pColor = { r: data[pIdx], g: data[pIdx + 1], b: data[pIdx + 2] };
 
                 if (dist(pColor, targetColorRGB) <= tolerance) {
                     // Mark as selected (White in mask alpha or red channel)
-                    maskData[pIdx] = 255; 
-                    maskData[pIdx+1] = 255; 
-                    maskData[pIdx+2] = 255; 
-                    maskData[pIdx+3] = 255;
+                    maskData[pIdx] = 255;
+                    maskData[pIdx + 1] = 255;
+                    maskData[pIdx + 2] = 255;
+                    maskData[pIdx + 3] = 255;
 
                     // Neighbors
-                    if (p.x + 1 < width) queue.push({x: p.x + 1, y: p.y});
-                    if (p.x - 1 >= 0)    queue.push({x: p.x - 1, y: p.y});
-                    if (p.y + 1 < height) queue.push({x: p.x, y: p.y + 1});
-                    if (p.y - 1 >= 0)    queue.push({x: p.x, y: p.y - 1});
+                    if (p.x + 1 < width) queue.push({ x: p.x + 1, y: p.y });
+                    if (p.x - 1 >= 0) queue.push({ x: p.x - 1, y: p.y });
+                    if (p.y + 1 < height) queue.push({ x: p.x, y: p.y + 1 });
+                    if (p.y - 1 >= 0) queue.push({ x: p.x, y: p.y - 1 });
                 }
             }
 
@@ -1128,7 +1175,7 @@
         }
 
         // --- Interaction Handlers ---
-        
+
         // Mouse Picking Logic
         canvas.addEventListener('mousedown', (e) => {
             if (!state.imageLoaded) return;
@@ -1143,21 +1190,21 @@
             // So visually, Y matches mouse.
             // But when we read the "currentImage" (2D), we need standard coords.
             // Standard Canvas Y is top-left 0.
-            
+
             // Need to flip Y coordinate for the 2D context extraction
-            const canvasY = canvas.height - y; 
+            const canvasY = canvas.height - y;
 
             // Pick Color
             const pX = Math.floor(x);
             const pY = Math.floor(canvasY); // Inverted for raw pixel array access
-            
+
             // For flood fill, we need to use the "Visual" Y relative to the Image Data which is Top-Left
             // The mouse event Y is Top-Left relative to element. 
             // Since we didn't rotate the canvas element, just the texture:
             // Visual Top (Mouse 0) corresponds to Texture 1.0.
             // Texture 1.0 corresponds to Image Data Height.
             // So we actually need Height - MouseY for Image Data array.
-            
+
             const safeY = Math.max(0, Math.min(state.imageHeight - 1, Math.floor(canvas.height - (e.clientY - rect.top) * scaleY)));
             const safeX = Math.max(0, Math.min(state.imageWidth - 1, pX));
 
@@ -1168,7 +1215,7 @@
             tempC.width = 1; tempC.height = 1;
             const tCtx = tempC.getContext('2d');
             tCtx.drawImage(currentImage, -safeX, -safeY);
-            const p = tCtx.getImageData(0,0,1,1).data;
+            const p = tCtx.getImageData(0, 0, 1, 1).data;
 
             state.selectedColor = { r: p[0], g: p[1], b: p[2] };
             ui.hexDisplay.textContent = rgbToHex(p[0], p[1], p[2]);
@@ -1200,7 +1247,7 @@
                     state.useMask = false;
                     // Reset mask to white
                     maskCtx.fillStyle = 'white';
-                    maskCtx.fillRect(0,0,state.imageWidth, state.imageHeight);
+                    maskCtx.fillRect(0, 0, state.imageWidth, state.imageHeight);
                     updateTextureFromCanvas(gl, maskTexture, maskCanvas);
                     render();
                 }
@@ -1216,7 +1263,7 @@
                 if (!state.useMask) {
                     // Reset mask
                     maskCtx.fillStyle = 'white';
-                    maskCtx.fillRect(0,0,state.imageWidth, state.imageHeight);
+                    maskCtx.fillRect(0, 0, state.imageWidth, state.imageHeight);
                     updateTextureFromCanvas(gl, maskTexture, maskCanvas);
                 }
                 updateAndRender();
@@ -1248,9 +1295,10 @@
             ui.replaceToggle.addEventListener('change', (e) => {
                 state.isReplaceColor = e.target.checked;
                 ui.replaceContainer.style.display = state.isReplaceColor ? 'flex' : 'none';
-                ui.opacityContainer = document.getElementById('opacityContainer'); // Grab opacity container
-                ui.opacityContainer.style.opacity = state.isReplaceColor ? '0.5' : '1';
-                ui.opacityContainer.style.pointerEvents = state.isReplaceColor ? 'none' : 'all';
+                if (ui.opacityContainer) {
+                    ui.opacityContainer.style.opacity = state.isReplaceColor ? '0.5' : '1';
+                    ui.opacityContainer.style.pointerEvents = state.isReplaceColor ? 'none' : 'all';
+                }
                 updateAndRender();
             });
 
@@ -1266,7 +1314,7 @@
                 ui.shapeControls.style.opacity = state.shapeMode ? '1' : '0.5';
                 ui.shapeControls.style.pointerEvents = state.shapeMode ? 'all' : 'none';
                 updateAndRender();
-                if(state.shapeMode) showToast("Shape Mode Active. Click image to pick color.");
+                if (state.shapeMode) showToast("Shape Mode Active. Click image to pick color.");
             });
 
             const updateShapeState = () => {
@@ -1278,9 +1326,9 @@
                 state.shapeSize.y = parseInt(ui.shapeH.value) / 2;
                 state.shapeFalloff = parseInt(ui.falloff.value);
                 state.shapeErase = ui.shapeErase.checked;
-                
+
                 ui.falloffVal.textContent = state.shapeFalloff;
-                
+
                 requestAnimationFrame(render);
             };
 
@@ -1294,7 +1342,7 @@
                 ui.shapeColorDisplay.textContent = e.target.value.toUpperCase();
                 requestAnimationFrame(render);
             });
-            
+
             // Accordion logic
             window.toggleAccordion = (header) => {
                 const item = header.parentElement;
@@ -1305,40 +1353,40 @@
         // --- Action Buttons ---
 
         ui.reset.addEventListener('click', () => {
-            if(!state.imageLoaded) return;
+            if (!state.imageLoaded) return;
             // Re-upload current image
             initImage(currentImage);
-            
+
             // Reset Values
-            ui.tolSlider.value = 20; state.tolerance = 20; ui.tolVal.textContent=20;
-            ui.smoothSlider.value = 0.5; state.smoothing=0.5; ui.smoothVal.textContent=0.5;
-            ui.opacitySlider.value = 1; state.opacity=1; ui.opacityVal.textContent=1.0;
-            ui.invertToggle.checked = false; state.invert=false;
-            ui.areaToggle.checked = false; state.useMask=false;
-            ui.replaceToggle.checked = false; state.isReplaceColor=false;
-            
-            ui.shapeToggle.checked = false; state.shapeMode=false;
-            ui.shapeControls.style.opacity = '0.5'; ui.shapeControls.style.pointerEvents='none';
-            
+            ui.tolSlider.value = 20; state.tolerance = 20; ui.tolVal.textContent = 20;
+            ui.smoothSlider.value = 0.5; state.smoothing = 0.5; ui.smoothVal.textContent = 0.5;
+            ui.opacitySlider.value = 1; state.opacity = 1; ui.opacityVal.textContent = 1.0;
+            ui.invertToggle.checked = false; state.invert = false;
+            ui.areaToggle.checked = false; state.useMask = false;
+            ui.replaceToggle.checked = false; state.isReplaceColor = false;
+
+            ui.shapeToggle.checked = false; state.shapeMode = false;
+            ui.shapeControls.style.opacity = '0.5'; ui.shapeControls.style.pointerEvents = 'none';
+
             showToast("State Reset");
         });
 
         ui.apply.addEventListener('click', () => {
-            if(!state.imageLoaded) return;
+            if (!state.imageLoaded) return;
             // "Bake" the current WebGL output into a new Image/Texture
             // This allows iterative edits (e.g. fade red, then fade blue on top)
-            
+
             // 1. Read pixels from WebGL
             const pixels = new Uint8Array(canvas.width * canvas.height * 4);
             gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-            
+
             // 2. Put onto a temporary 2D canvas to flip Y back (WebGL is bottom-up)
             const tempC = document.createElement('canvas');
             tempC.width = canvas.width;
             tempC.height = canvas.height;
             const tCtx = tempC.getContext('2d');
             const imgData = tCtx.createImageData(canvas.width, canvas.height);
-            
+
             // Flip Y manually for the data
             for (let y = 0; y < canvas.height; y++) {
                 for (let x = 0; x < canvas.width; x++) {
@@ -1346,13 +1394,13 @@
                     const dstY = canvas.height - 1 - y;
                     const dstIdx = (dstY * canvas.width + x) * 4;
                     imgData.data[dstIdx] = pixels[srcIdx];
-                    imgData.data[dstIdx+1] = pixels[srcIdx+1];
-                    imgData.data[dstIdx+2] = pixels[srcIdx+2];
-                    imgData.data[dstIdx+3] = pixels[srcIdx+3];
+                    imgData.data[dstIdx + 1] = pixels[srcIdx + 1];
+                    imgData.data[dstIdx + 2] = pixels[srcIdx + 2];
+                    imgData.data[dstIdx + 3] = pixels[srcIdx + 3];
                 }
             }
             tCtx.putImageData(imgData, 0, 0);
-            
+
             // 3. Create new Image object
             const newImg = new Image();
             newImg.onload = () => {
@@ -1364,7 +1412,7 @@
         });
 
         ui.download.addEventListener('click', () => {
-            if(!state.imageLoaded) return;
+            if (!state.imageLoaded) return;
             const link = document.createElement('a');
             link.download = 'processed-image.png';
             link.href = canvas.toDataURL('image/png');
@@ -1379,11 +1427,11 @@
             toast.className = 'toast';
             toast.textContent = msg;
             container.appendChild(toast);
-            
+
             // Trigger reflow
             void toast.offsetWidth;
             toast.classList.add('show');
-            
+
             setTimeout(() => {
                 toast.classList.remove('show');
                 setTimeout(() => toast.remove(), 300);
@@ -1395,4 +1443,5 @@
 
     </script>
 </body>
+
 </html>

@@ -1,0 +1,2355 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Digital Grain Studio — Node Graph</title>
+    <style>
+        :root {
+            --bg: #000;
+            --fg: #fff;
+            --panel-max: 460px;
+            --muted: #8c8c8c;
+            --accent: #2a9df4;
+            --border: rgba(255, 255, 255, 0.15);
+            --node-bg: #1a1a1a;
+            --node-header: #252525;
+            --node-selected: #fff;
+            --grid-color: rgba(255, 255, 255, 0.05);
+            --grid-size: 20px;
+            --socket-color: #555;
+            --socket-hover: #fff;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        input,
+        select,
+        button {
+            user-select: text;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            gap: 0;
+            align-items: stretch;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* --- LEFT CONTROL PANEL --- */
+        .controls-panel {
+            flex: 0 0 var(--panel-max);
+            max-width: var(--panel-max);
+            min-width: 300px;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            z-index: 10;
+        }
+
+        .controls-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            background: #111;
+        }
+
+        .controls-header h1 {
+            font-size: 18px;
+            margin: 0 0 4px 0;
+            letter-spacing: -0.5px;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .controls-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .empty-state {
+            color: var(--muted);
+            text-align: center;
+            margin-top: 40px;
+            font-style: italic;
+        }
+
+        /* --- RIGHT PREVIEW / GRAPH AREA --- */
+        .main-stage {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .top-bar {
+            height: 50px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            background: #0a0a0a;
+        }
+
+        .view-toggle {
+            display: flex;
+            background: #222;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .view-btn {
+            background: transparent;
+            color: var(--muted);
+            border: none;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 11px;
+            text-transform: uppercase;
+            transition: 0.2s;
+        }
+
+        .view-btn.active {
+            background: var(--accent);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .view-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            display: none;
+        }
+
+        .view-container.active {
+            display: block;
+        }
+
+        /* --- PREVIEW MODE --- */
+        .preview-wrapper {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: repeating-linear-gradient(45deg, #111 0px, #111 10px, #0e0e0e 10px, #0e0e0e 20px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            /* Allow scrolling for Full Zoom */
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            max-width: 100%;
+            max-height: 100%;
+            /* Default transform, updated by JS */
+            transform-origin: center center;
+            transition: transform 0.1s ease-out;
+        }
+
+        /* Overlay Elements */
+        .overlay-original {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 10;
+            transition: opacity 0.2s ease;
+        }
+
+        .overlay-original canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            opacity: 0;
+        }
+
+        .overlay-original.show canvas {
+            opacity: 1
+        }
+
+        #caPin {
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border: 2px solid #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: crosshair;
+            z-index: 20;
+            box-shadow: 0 0 5px #000;
+            display: none;
+        }
+
+        #caPin.active {
+            display: block;
+        }
+
+        /* Zoom / Lens */
+        #zoomResIndicator {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #0f0;
+            padding: 4px 8px;
+            font-size: 10px;
+            font-family: monospace;
+            z-index: 20;
+            display: none;
+            border: 1px solid #0f0;
+        }
+
+        #zoomLens {
+            position: absolute;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            border: 2px solid var(--accent);
+            overflow: hidden;
+            pointer-events: none;
+            display: none;
+            z-index: 25;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            background: #000;
+            /* Ensure lens doesn't capture mouse events away from canvas */
+        }
+
+        /* --- NODE GRAPH MODE --- */
+        .graph-wrapper {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background-color: #050505;
+            background-image:
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: var(--grid-size) var(--grid-size);
+            overflow: hidden;
+            cursor: grab;
+        }
+
+        .graph-wrapper:active {
+            cursor: grabbing;
+        }
+
+        .graph-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            width: 100000px;
+            height: 100000px;
+        }
+
+        /* Node Styles */
+        .node {
+            position: absolute;
+            width: 180px;
+            background: var(--node-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            z-index: 5;
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+
+        .node.selected {
+            border-color: var(--node-selected);
+            box-shadow: 0 0 15px rgba(42, 157, 244, 0.3);
+        }
+
+        .node-header {
+            background: var(--node-header);
+            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+            border-radius: 5px 5px 0 0;
+            cursor: grab;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .node-header:active {
+            cursor: grabbing;
+        }
+
+        .node-delete {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1px solid var(--muted);
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 10px;
+        }
+
+        .node-delete:hover {
+            background: #ff4444;
+            color: white;
+            border-color: #ff4444;
+        }
+
+        .node-body {
+            padding: 10px;
+            position: relative;
+            min-height: 40px;
+        }
+
+        /* Connection Ports (Sockets) */
+        .socket {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: var(--socket-color);
+            border: 2px solid var(--node-bg);
+            border-radius: 50%;
+            cursor: crosshair;
+            transition: 0.2s;
+            z-index: 10;
+        }
+
+        .socket:hover {
+            background: var(--socket-hover);
+            transform: scale(1.2);
+        }
+
+        /* Positioning */
+        .socket.input {
+            left: -7px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .socket.output {
+            right: -7px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* Specific Node Overrides */
+        .node[data-type="image"] {
+            border-color: #888;
+        }
+
+        .node[data-type="output"] {
+            border-color: var(--accent);
+        }
+
+        /* SVG Connections Layer */
+        #connections-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            overflow: visible;
+        }
+
+        path.connection {
+            fill: none;
+            stroke: #555;
+            stroke-width: 2px;
+            pointer-events: stroke;
+            cursor: pointer;
+            transition: stroke 0.2s;
+        }
+
+        path.connection:hover {
+            stroke: var(--accent);
+            stroke-width: 3px;
+        }
+
+        /* Node Menu */
+        #node-menu-trigger {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+        }
+
+        #node-menu {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            width: 200px;
+            background: #111;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px;
+            max-height: 60vh;
+            overflow-y: auto;
+            z-index: 99;
+            display: none;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        #node-menu.show {
+            display: block;
+        }
+
+        .menu-item {
+            padding: 8px;
+            border: 1px solid transparent;
+            background: #1a1a1a;
+            margin-bottom: 4px;
+            font-size: 11px;
+            cursor: grab;
+            border-radius: 3px;
+        }
+
+        .menu-item:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* --- BOTTOM LAYER BREAKDOWN --- */
+        .bottom-panel {
+            height: 160px;
+            border-top: 1px solid var(--border);
+            background: #0a0a0a;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bottom-header {
+            padding: 6px 12px;
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: #111;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .layer-grid {
+            display: flex;
+            gap: 4px;
+            padding: 8px;
+            height: 100%;
+            overflow-x: auto;
+            background: #050505;
+        }
+
+        .layer-item {
+            min-width: 100px;
+            border: 1px solid var(--border);
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .layer-item:hover {
+            border-color: var(--muted);
+        }
+
+        .layer-item.active {
+            border-color: var(--accent);
+        }
+
+        .layer-title {
+            font-size: 9px;
+            text-align: center;
+            padding: 4px;
+            background: #111;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .layer-canvas {
+            width: 100%;
+            flex: 1;
+            background: #111;
+            object-fit: contain;
+        }
+
+        /* --- UI CONTROLS (Shared) --- */
+        .control-group {
+            margin-bottom: 16px;
+        }
+
+        details {
+            border: 1px solid var(--border);
+            margin-bottom: 8px;
+            padding: 6px;
+            border-radius: 4px;
+            background: #0a0a0a;
+        }
+
+        summary {
+            cursor: pointer;
+            font-weight: bold;
+            margin: 0 0 6px 0;
+            outline: none;
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        summary:hover {
+            color: var(--accent);
+        }
+
+        .control-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 6px;
+            min-height: 24px;
+        }
+
+        .control-row label {
+            flex: 0 0 100px;
+            font-size: 11px;
+            color: #bbb;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            accent-color: var(--accent);
+            height: 4px;
+            margin: 0;
+        }
+
+        .control-value {
+            width: 40px;
+            background: #000;
+            border: 1px solid var(--border);
+            color: #fff;
+            font-size: 10px;
+            padding: 2px;
+            text-align: right;
+            font-family: monospace;
+        }
+
+        select.control-value {
+            padding: 2px;
+            width: auto;
+            flex: 1;
+        }
+
+        button.ui-btn {
+            background: #222;
+            color: #eee;
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            font-size: 11px;
+            cursor: pointer;
+            font-family: inherit;
+            text-transform: uppercase;
+            border-radius: 3px;
+            transition: 0.2s;
+        }
+
+        button.ui-btn:hover:not(:disabled) {
+            background: var(--accent);
+            color: #000;
+            border-color: var(--accent);
+        }
+
+        button.ui-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .row-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        input[type="checkbox"] {
+            accent-color: var(--accent);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: #111;
+            border: 1px solid var(--border);
+            padding: 20px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: auto;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+        }
+
+        #loading {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: var(--accent);
+            color: #000;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: bold;
+            display: none;
+            z-index: 3000;
+        }
+
+        .file-input-wrapper {
+            margin-top: 10px;
+            text-align: center;
+            border: 1px dashed var(--border);
+            padding: 15px;
+            border-radius: 4px;
+            background: #080808;
+        }
+
+        .file-btn {
+            background: #222;
+            color: var(--accent);
+            font-size: 10px;
+            padding: 4px 8px;
+            cursor: pointer;
+            margin-top: 4px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .file-btn:hover {
+            background: var(--accent);
+            color: #000;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="loading">PROCESSING GPU...</div>
+
+    <!-- LEFT PANEL: CONTROLS -->
+    <div class="controls-panel">
+        <div class="controls-header">
+            <h1>DIGITAL GRAIN [GPU]</h1>
+            <span class="muted">WebGL2 Pipeline</span>
+        </div>
+
+        <div class="file-input-wrapper">
+            <label for="imageUpload" style="cursor: pointer; display: block;">
+                <span style="font-size: 24px;">📂</span>
+                <div style="font-size: 11px; color: var(--accent); margin-top:4px;">LOAD SOURCE IMAGE</div>
+            </label>
+            <input id="imageUpload" type="file" accept="image/*" style="display: none;">
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 8px;">
+                <button class="file-btn" id="downloadJsonBtn">SAVE .JSON</button>
+                <button class="file-btn" id="uploadJsonTrigger">LOAD .JSON</button>
+                <input id="jsonUpload" type="file" accept=".json" style="display: none;">
+            </div>
+        </div>
+
+        <div id="dynamic-controls" class="controls-content">
+            <div class="empty-state">
+                Select a node in the graph to view controls.<br>
+                Or add nodes to the graph to begin.
+            </div>
+        </div>
+
+        <div class="row-buttons" style="padding: 16px; border-top: 1px solid var(--border);">
+            <button id="downloadBtn" class="ui-btn" style="flex:1;" disabled>EXPORT IMG</button>
+            <button id="compareBtn" class="ui-btn" style="flex:1;" disabled>COMPARE</button>
+        </div>
+    </div>
+
+    <!-- RIGHT STAGE -->
+    <div class="main-stage">
+
+        <div class="top-bar">
+            <div class="view-toggle">
+                <button class="view-btn" id="btn-view-graph">Node Graph</button>
+                <button class="view-btn active" id="btn-view-preview">Preview</button>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div style="font-size:10px; color:var(--muted); display:flex; align-items:center; gap:4px;">
+                    <span>ZOOM LEVEL</span>
+                    <input id="hoverZoomSlider" type="range" min="1" max="8" step="0.1" value="1" style="width:60px;">
+                    <span id="hoverZoomValue" style="width:20px; text-align:center;">1x</span>
+                </div>
+
+                <button id="lensToggleBtn" class="ui-btn" style="padding:4px 8px; font-size:9px;">LENS</button>
+
+                <label class="toggle-switch">
+                    <input type="checkbox" id="previewLock">
+                    <span>LOCK PREV</span>
+                </label>
+
+                <div style="font-size:10px; color:var(--muted); display:flex; align-items:center; gap:4px;">
+                    <span>UPSCALE</span>
+                    <input id="upscaleInput" type="text" value="1"
+                        style="width:30px; background:#000; border:1px solid #333; color:#fff; text-align:center;"
+                        min="1" max="10">
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: GRAPH -->
+        <div id="view-graph" class="view-container">
+            <div class="graph-wrapper" id="graphWrapper">
+                <div class="graph-content" id="graphContent">
+                    <svg id="connections-layer"></svg>
+                    <!-- Nodes injected here -->
+                </div>
+
+                <button id="node-menu-trigger" class="ui-btn">+ ADD NODE</button>
+
+                <div id="node-menu">
+                    <div style="font-size:10px; color:var(--muted); margin-bottom:4px; text-transform:uppercase;">Drag
+                        to graph</div>
+                    <!-- Items injected via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: PREVIEW -->
+        <div id="view-preview" class="view-container active">
+            <div class="preview-wrapper" id="previewContainer">
+                <canvas id="displayCanvas"></canvas>
+
+                <div class="overlay-original" id="overlayOriginal">
+                    <canvas id="overlayCanvas"></canvas>
+                </div>
+                <div id="caPin"></div>
+                <div id="zoomLens">
+                    <canvas id="lensCanvas" style="position:absolute; top:0; left:0;"></canvas>
+                </div>
+                <div id="zoomResIndicator"></div>
+            </div>
+        </div>
+
+        <div class="bottom-panel">
+            <div class="bottom-header">
+                <span>Layer Breakdown (Isolated)</span>
+                <span>Click node to isolate</span>
+            </div>
+            <div class="layer-grid" id="layerGrid"></div>
+        </div>
+    </div>
+
+    <!-- Compare Modal -->
+    <div id="compareModal" class="modal-overlay">
+        <div class="modal">
+            <h2 style="margin-top:0; text-align:center;">Comparison & Export</h2>
+            <div style="display: flex; gap: 20px; margin-bottom: 20px; justify-content: center; flex-wrap: wrap;">
+                <div>
+                    <div style="text-align:center; font-size:10px; color:#888; margin-bottom:5px;">ORIGINAL</div>
+                    <canvas id="compareOriginal"
+                        style="max-height: 50vh; max-width: 40vw; border: 1px solid #333;"></canvas>
+                </div>
+                <div>
+                    <div style="text-align:center; font-size:10px; color:#888; margin-bottom:5px;">PROCESSED</div>
+                    <canvas id="compareProcessed"
+                        style="max-height: 50vh; max-width: 40vw; border: 1px solid #333;"></canvas>
+                </div>
+            </div>
+            <div style="text-align: center; display: flex; gap: 10px; justify-content: center;">
+                <button id="exportSideBySide" class="ui-btn">SIDE-BY-SIDE</button>
+                <button id="exportStacked" class="ui-btn">STACKED</button>
+                <button id="closeCompare" class="ui-btn">CLOSE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div id="deleteModal" class="modal-overlay">
+        <div class="modal" style="max-width:300px; text-align:center;">
+            <h3 style="margin-top:0;">Remove Node?</h3>
+            <p style="font-size:12px; color:#aaa;">This will remove the node and all its connections.</p>
+            <div style="margin-top:20px; display:flex; justify-content:center; gap:10px;">
+                <button id="confirmDelete" class="ui-btn" style="background:#800; border-color:#f00;">DELETE</button>
+                <button id="cancelDelete" class="ui-btn">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHADERS -->
+    <script type="x-shader/x-vertex" id="vs-quad">
+        #version 300 es
+        in vec2 a_pos;
+        in vec2 a_uv;
+        out vec2 v_uv;
+        void main() {
+            v_uv = vec2(a_uv.x, 1.0 - a_uv.y);
+            gl_Position = vec4(a_pos, 0.0, 1.0);
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fs-noise-layer">
+        #version 300 es
+        precision highp float;
+        in vec2 v_uv;
+        out vec4 outColor;
+        uniform sampler2D u_base;
+        
+        // Noise Params
+        uniform int u_type; 
+        uniform float u_seed;
+        uniform vec2 u_res;
+        uniform float u_scale;
+        
+        // Blur Params
+        uniform float u_blurAmt;
+        
+        // Blend Params
+        uniform int u_mode; 
+        uniform float u_opacity;
+        uniform float u_str; 
+        
+        // Saturation Params
+        uniform float u_satStr;
+        uniform float u_satImp;
+        
+        // Masking
+        uniform int u_useS; uniform float u_sth; uniform float u_sfa;
+        uniform int u_useH; uniform float u_hth; uniform float u_hfa;
+        
+        // Alpha
+        uniform int u_ignA; uniform float u_ignAstr;
+
+        float hash12(vec2 p) {
+            vec3 p3  = fract(vec3(p.xyx) * .1031);
+            p3 += dot(p3, p3.yzx + 33.33);
+            return fract((p3.x + p3.y) * p3.z);
+        }
+
+        vec3 getBlurredNoise(vec2 uv, float scale, float blur) {
+            vec3 col = vec3(0.0);
+            if (blur < 0.1) {
+                 vec2 pos = uv * u_res / max(1.0, u_scale);
+                 vec2 cell = floor(pos);
+                 float r = hash12(cell + u_seed);
+                 float g = hash12(cell + u_seed + 1.23);
+                 float b = hash12(cell + u_seed + 2.45);
+                 return vec3(r,g,b);
+            }
+            float total = 0.0;
+            for(float x=-2.0; x<=2.0; x++){
+                for(float y=-2.0; y<=2.0; y++){
+                    vec2 offset = vec2(x,y) * blur * 0.005;
+                    vec2 pos = (uv + offset) * u_res / max(1.0, u_scale);
+                    vec2 cell = floor(pos);
+                    float r = hash12(cell + u_seed);
+                    float g = hash12(cell + u_seed + 1.23);
+                    float b = hash12(cell + u_seed + 2.45);
+                    col += vec3(r,g,b);
+                    total += 1.0;
+                }
+            }
+            return col / total;
+        }
+
+        float overlay(float b, float n) {
+            return b < 0.5 ? (2.0 * b * n) : (1.0 - 2.0 * (1.0 - b) * (1.0 - n));
+        }
+
+        void main() {
+            vec4 bc = texture(u_base, v_uv);
+            float lum = dot(bc.rgb, vec3(0.299,0.587,0.114));
+            
+            vec3 nRaw = getBlurredNoise(v_uv, u_scale, u_blurAmt);
+            
+            vec3 nFinal;
+            if (u_type == 1) { nFinal = vec3(nRaw.r); }
+            else if (u_type == 2) { 
+                float centered = (nRaw.r - 0.5) * 2.0;
+                float delta = centered * (u_satStr * (1.0 + u_satImp/100.0));
+                vec3 satColor = mix(vec3(lum), bc.rgb, 1.0 + delta * (u_str/50.0)); 
+                outColor = vec4(satColor, bc.a);
+                return;
+            } else { nFinal = nRaw; }
+
+            vec3 res;
+            if (u_mode == 0) res = mix(bc.rgb, nFinal, u_opacity);
+            else if (u_mode == 1) {
+                res.r = overlay(bc.r, nFinal.r);
+                res.g = overlay(bc.g, nFinal.g);
+                res.b = overlay(bc.b, nFinal.b);
+            }
+            else if (u_mode == 2) res = 1.0 - (1.0 - bc.rgb) * (1.0 - nFinal);
+            else if (u_mode == 3) res = bc.rgb * nFinal;
+            else if (u_mode == 4) res = bc.rgb + nFinal;
+            else if (u_mode == 5) res = abs(bc.rgb - nFinal);
+            else res = bc.rgb;
+
+            float sMask = 0.0;
+            if (u_useS == 1) {
+                float low = u_sth - u_sfa * 0.5;
+                float high = u_sth + u_sfa * 0.5;
+                sMask = 1.0 - smoothstep(low, high, lum);
+            }
+            float hMask = 0.0;
+            if (u_useH == 1) {
+                float low = u_hth - u_hfa * 0.5;
+                float high = u_hth + u_hfa * 0.5;
+                hMask = smoothstep(low, high, lum);
+            }
+            float maskVal = max(sMask, hMask);
+
+            float alphaFactor = 1.0;
+            if (u_ignA == 1) alphaFactor = 1.0 - (u_ignAstr/100.0) * (1.0 - bc.a);
+            
+            float finalOp = u_opacity * maskVal * alphaFactor * (u_str / 50.0); 
+            vec3 finalRGB = mix(bc.rgb, res, clamp(finalOp, 0.0, 1.0));
+
+            outColor = vec4(clamp(finalRGB, 0.0, 1.0), bc.a);
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fs-adjust">
+        #version 300 es
+        precision highp float;
+        in vec2 v_uv;
+        out vec4 outColor;
+        uniform sampler2D u_tex;
+        uniform float u_bright;
+        uniform float u_cont;
+        uniform float u_sat;
+        uniform float u_hdrTol;
+        uniform float u_hdrAmt;
+        uniform float u_warmth;
+        uniform float u_sharp;
+        uniform vec2 u_step;
+
+        void main() {
+            vec4 c = texture(u_tex, v_uv);
+            vec3 rgb = c.rgb;
+            float lum = dot(rgb, vec3(0.299,0.587,0.114));
+            rgb = mix(vec3(lum), rgb, 1.0 + u_sat);
+            rgb = (rgb - 0.5) * (1.0 + u_cont/100.0) + 0.5;
+            rgb += u_bright/100.0;
+            if (u_warmth != 0.0) {
+                vec3 warmColor = vec3(1.0, 0.9, 0.8); 
+                vec3 coolColor = vec3(0.8, 0.9, 1.1); 
+                float t = clamp(u_warmth / 100.0, -1.0, 1.0);
+                vec3 tint = mix(coolColor, warmColor, t * 0.5 + 0.5);
+                float mask = smoothstep(0.0, 1.0, lum);
+                rgb = mix(rgb, rgb * tint, abs(t) * mask);
+            }
+            if (lum < u_hdrTol && u_hdrTol > 0.0) {
+                float f = (u_hdrAmt/100.0) * (1.0 - lum/u_hdrTol);
+                rgb *= (1.0 - f);
+            }
+            if (u_sharp > 0.0) {
+                vec4 sum = vec4(0.0);
+                sum += texture(u_tex, v_uv + vec2(-u_step.x, -u_step.y));
+                sum += texture(u_tex, v_uv + vec2( u_step.x, -u_step.y));
+                sum += texture(u_tex, v_uv + vec2(-u_step.x,  u_step.y));
+                sum += texture(u_tex, v_uv + vec2( u_step.x,  u_step.y));
+                vec4 edge = c - (sum * 0.25);
+                rgb += edge.rgb * (u_sharp / 10.0); 
+            }
+            outColor = vec4(clamp(rgb, 0.0, 1.0), c.a);
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fs-chroma">
+        #version 300 es
+        precision highp float;
+        in vec2 v_uv;
+        out vec4 outColor;
+        uniform sampler2D u_tex;
+        uniform float u_amt;
+        uniform float u_blur;
+        uniform vec2 u_center;
+        uniform float u_radius;
+        uniform float u_falloff;
+
+        void main() {
+            if (u_amt <= 0.0) { outColor = texture(u_tex, v_uv); return; }
+            vec2 dir = v_uv - u_center;
+            float dist = length(dir);
+            float clearMask = 1.0 - smoothstep(u_radius, u_radius + u_falloff, dist);
+            float str = dist * dist * (u_amt / 1000.0); 
+            str *= (1.0 - clearMask); 
+            
+            vec4 result = vec4(0.0);
+            if (u_blur > 0.0) {
+                float totalWeight = 0.0;
+                for(float i = -2.0; i <= 2.0; i++) {
+                    float t = i * u_blur * 0.002; 
+                    float w = exp(-(i*i)/2.0); 
+                    float r = texture(u_tex, v_uv - dir * str + vec2(t, -t)).r;
+                    float g = texture(u_tex, v_uv + vec2(t*0.5, t*0.5)).g; 
+                    float b = texture(u_tex, v_uv + dir * str + vec2(-t, t)).b;
+                    result += vec4(r, g, b, 1.0) * w;
+                    totalWeight += w;
+                }
+                result /= totalWeight;
+                result.a = texture(u_tex, v_uv).a;
+            } else {
+                float r = texture(u_tex, v_uv - dir * str).r;
+                float g = texture(u_tex, v_uv).g;
+                float b = texture(u_tex, v_uv + dir * str).b;
+                float a = texture(u_tex, v_uv).a;
+                result = vec4(r, g, b, a);
+            }
+            outColor = result;
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fs-dither">
+        #version 300 es
+        precision highp float;
+        in vec2 v_uv;
+        out vec4 outColor;
+        uniform sampler2D u_tex;
+        uniform int u_type; 
+        uniform float u_bitDepth; 
+        uniform float u_paletteSize; 
+        uniform float u_str; 
+        uniform float u_scale;
+
+        float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+        
+        float bayer4x4(vec2 uv) {
+            int x = int(mod(uv.x, 4.0));
+            int y = int(mod(uv.y, 4.0));
+            if (x==0&&y==0) return 0.0/16.0; if (x==1&&y==0) return 8.0/16.0; if (x==2&&y==0) return 2.0/16.0; if (x==3&&y==0) return 10.0/16.0;
+            if (x==0&&y==1) return 12.0/16.0; if (x==1&&y==1) return 4.0/16.0; if (x==2&&y==1) return 14.0/16.0; if (x==3&&y==1) return 6.0/16.0;
+            if (x==0&&y==2) return 3.0/16.0; if (x==1&&y==2) return 11.0/16.0; if (x==2&&y==2) return 1.0/16.0; if (x==3&&y==2) return 9.0/16.0;
+            if (x==0&&y==3) return 15.0/16.0; if (x==1&&y==3) return 7.0/16.0; if (x==2&&y==3) return 13.0/16.0; if (x==3&&y==3) return 5.0/16.0;
+            return 0.0;
+        }
+
+        void main() {
+            vec4 c = texture(u_tex, v_uv);
+            vec3 rgb = c.rgb;
+            vec2 coord = v_uv * vec2(800.0, 600.0) / u_scale; 
+            
+            float noise = 0.0;
+            if(u_type == 0) noise = bayer4x4(coord);
+            else noise = hash(coord);
+
+            float levels = pow(2.0, u_bitDepth);
+            vec3 q = floor(rgb * levels) / levels;
+            float offset = (noise - 0.5) * u_str;
+            vec3 dithered = q + offset;
+            
+            outColor = vec4(clamp(dithered, 0.0, 1.0), c.a);
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fs-corruption">
+        #version 300 es
+        precision highp float;
+        in vec2 v_uv;
+        out vec4 outColor;
+        uniform sampler2D u_tex;
+        uniform int u_algo; 
+        uniform float u_iter; 
+        uniform float u_scale;
+
+        void main() {
+            vec2 uv = v_uv;
+            vec4 c = vec4(0.0);
+            
+            if(u_algo == 1) {
+                vec2 pixels = vec2(1.0) / (u_scale * 0.01 + 1.0);
+                vec2 coord = floor(uv * pixels) / pixels;
+                c = texture(u_tex, coord);
+            } 
+            else if (u_algo == 0) {
+                float bSize = 8.0 * u_scale * 0.02 + 1.0;
+                vec2 coord = floor(uv * bSize) / bSize;
+                c = texture(u_tex, coord);
+                c.r = texture(u_tex, coord + vec2(0.01,0.0)).r;
+            }
+            else {
+                c = texture(u_tex, uv);
+                float s = u_scale * 0.05;
+                if(mod(uv.y * s, 1.0) < 0.5) c.rb = texture(u_tex, uv + vec2(0.02, 0.0)).rb;
+            }
+            outColor = c;
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fs-cell">
+        #version 300 es
+        precision highp float;
+        in vec2 v_uv;
+        out vec4 outColor;
+        uniform sampler2D u_tex;
+        uniform float u_levels;
+        uniform float u_bias;
+        uniform float u_gamma;
+        uniform int u_qMode; 
+        uniform int u_edgeMethod; 
+        uniform float u_edgeStr;
+        uniform float u_edgeThick;
+        uniform bool u_colorPreserve;
+
+        vec3 rgb2hsv(vec3 c) {
+            vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+            vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+            vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+            float d = q.x - min(q.w, q.y);
+            float e = 1.0e-10;
+            return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+        }
+
+        void main() {
+            vec4 c = texture(u_tex, v_uv);
+            vec3 rgb = c.rgb;
+            vec3 val = rgb;
+            
+            if(u_qMode == 0) val = vec3(dot(rgb, vec3(0.299,0.587,0.114)));
+            else if(u_qMode == 2) val = vec3(rgb2hsv(rgb).b);
+            
+            val = pow(val, vec3(u_gamma));
+            val = floor(val * u_levels + u_bias) / u_levels;
+            
+            vec3 outRgb = rgb;
+            if(u_qMode == 0 || u_qMode == 2) {
+               if(u_colorPreserve) outRgb = mix(vec3(dot(rgb, vec3(0.299,0.587,0.114))), rgb, val.r); 
+               else outRgb = val;
+            } else {
+                outRgb = val;
+            }
+
+            if(u_edgeMethod > 0) {
+                vec2 step = vec2(0.005) * u_edgeThick;
+                float tl = dot(texture(u_tex, v_uv + vec2(-step.x, -step.y)).rgb, vec3(0.299,0.587,0.114));
+                float tr = dot(texture(u_tex, v_uv + vec2( step.x, -step.y)).rgb, vec3(0.299,0.587,0.114));
+                float bl = dot(texture(u_tex, v_uv + vec2(-step.x,  step.y)).rgb, vec3(0.299,0.587,0.114));
+                float br = dot(texture(u_tex, v_uv + vec2( step.x,  step.y)).rgb, vec3(0.299,0.587,0.114));
+                float edge = 0.0;
+                if(u_edgeMethod == 1) edge = abs(tl + 2.0*tr + br - bl - 2.0*br - br); 
+                if(u_edgeMethod == 2) edge = 4.0 * dot(rgb,vec3(0.299)) - tl-tr-bl-br; 
+                
+                if(edge > 0.05) outRgb = vec3(0.0);
+            }
+
+            outColor = vec4(clamp(outRgb, 0.0, 1.0), c.a);
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fs-halftone">
+        #version 300 es
+        precision highp float;
+        in vec2 v_uv;
+        out vec4 outColor;
+        uniform sampler2D u_tex;
+        uniform float u_size;
+        uniform float u_str;
+        uniform int u_pat; 
+        uniform int u_cMode; 
+        uniform bool u_gray;
+        uniform bool u_invert;
+
+        float pattern(vec2 uv, float size) {
+            uv = mod(uv, size);
+            float d = length(uv - size*0.5);
+            if(u_pat == 1) return abs(uv.x - size*0.5); 
+            if(u_pat == 2) return max(abs(uv.x - size*0.5), abs(uv.y - size*0.5)); 
+            return d; 
+        }
+
+        void main() {
+            vec4 c = texture(u_tex, v_uv);
+            vec2 px = v_uv * vec2(800,600); 
+            float size = u_size * 2.0;
+            
+            vec3 rgb = c.rgb;
+            if(u_cMode == 0) rgb = vec3(dot(rgb, vec3(0.299,0.587,0.114)));
+            
+            vec3 val = 1.0 - smoothstep(size*0.4, size*0.4 + u_str, pattern(px, size) * (1.0 - rgb));
+            
+            if(u_gray) val = vec3(val.r);
+            if(u_invert) val = 1.0 - val;
+            
+            outColor = vec4(val, c.a);
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fs-bilateral">
+        #version 300 es
+        precision highp float;
+        in vec2 v_uv;
+        out vec4 outColor;
+        uniform sampler2D u_tex;
+        uniform float u_rad;
+        uniform float u_cSig; 
+        uniform float u_sSig; 
+
+        void main() {
+            vec4 c = texture(u_tex, v_uv);
+            vec3 sum = vec3(0.0);
+            float totalWeight = 0.0;
+            
+            for(float x=-2.0; x<=2.0; x++){
+                for(float y=-2.0; y<=2.0; y++){
+                    vec2 offset = vec2(x,y) * u_rad;
+                    vec4 s = texture(u_tex, v_uv + offset * 0.005); 
+                    float spaceDist = dot(vec2(x,y), vec2(x,y));
+                    float colorDist = distance(c.rgb, s.rgb);
+                    
+                    float w = exp(-spaceDist/(2.0*u_sSig*u_sSig)) * exp(-colorDist*colorDist/(2.0*u_cSig*u_cSig));
+                    sum += s.rgb * w;
+                    totalWeight += w;
+                }
+            }
+            outColor = vec4(sum/totalWeight, c.a);
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fs-copy">
+        #version 300 es
+        precision highp float;
+        in vec2 v_uv;
+        out vec4 outColor;
+        uniform sampler2D u_tex;
+        void main() {
+            outColor = texture(u_tex, v_uv);
+        }
+    </script>
+
+    <!-- MAIN SCRIPT -->
+    <script>
+        const NODE_TYPES = {
+            'noise': {
+                title: 'Noise Layer',
+                controls: [
+                    {
+                        id: 'group_basics', title: 'Noise Basics', type: 'group', items: [
+                            { id: 'strength', label: 'Strength', type: 'range', min: 0, max: 150, val: 40 },
+                            { id: 'noiseType', label: 'Type', type: 'select', opts: ['Grayscale', 'Color', 'Blend (Sat)'], val: 1 },
+                            { id: 'satStrength', label: 'Sat Strength', type: 'range', min: 0, max: 4, val: 1 },
+                            { id: 'satPerNoise', label: 'Sat Impact', type: 'range', min: -100, max: 100, val: 0 },
+                        ]
+                    },
+                    {
+                        id: 'group_shape', title: 'Shape & Blur', type: 'group', items: [
+                            { id: 'noiseSize', label: 'Scale', type: 'range', min: 0, max: 10, val: 0 },
+                            { id: 'blurriness', label: 'Blurriness', type: 'range', min: 0, max: 100, val: 50 },
+                        ]
+                    },
+                    {
+                        id: 'group_blend', title: 'Blend & Opacity', type: 'group', items: [
+                            { id: 'blendMode', label: 'Mode', type: 'select', opts: ['Normal', 'Overlay', 'Screen', 'Multiply', 'Add', 'Difference'], val: 1 },
+                            { id: 'opacity', label: 'Opacity', type: 'range', min: 0, max: 1, step: 0.01, val: 0.5 },
+                        ]
+                    },
+                    {
+                        id: 'group_mask', title: 'Luminance Masking', type: 'group', items: [
+                            { id: 'enableShadows', label: 'Enable Shadows', type: 'check', val: true },
+                            { id: 'shadowThreshold', label: 'S. Threshold', type: 'range', min: 0, max: 1, step: 0.01, val: 0 },
+                            { id: 'shadowFade', label: 'S. Fade', type: 'range', min: 0, max: 1, step: 0.01, val: 0 },
+                            { id: 'enableHighlights', label: 'Enable Highlights', type: 'check', val: true },
+                            { id: 'highlightThreshold', label: 'H. Threshold', type: 'range', min: 0, max: 1, step: 0.01, val: 0 },
+                            { id: 'highlightFade', label: 'H. Fade', type: 'range', min: 0, max: 1, step: 0.01, val: 0 },
+                        ]
+                    },
+                    {
+                        id: 'group_alpha', title: 'Alpha Channel', type: 'group', items: [
+                            { id: 'ignoreAlphaToggle', label: 'Ignore Alpha', type: 'check', val: true },
+                            { id: 'ignoreAlphaStrength', label: 'Strength', type: 'range', min: 0, max: 100, val: 100 },
+                        ]
+                    }
+                ]
+            },
+            'adjustments': {
+                title: 'Adjustments',
+                controls: [
+                    { id: 'brightness', label: 'Brightness', type: 'range', min: -100, max: 100, val: 0 },
+                    { id: 'contrast', label: 'Contrast', type: 'range', min: -100, max: 200, val: 0 },
+                    { id: 'saturationAdj', label: 'Saturation', type: 'range', min: -100, max: 100, val: 0 },
+                    { id: 'warmth', label: 'Warmth', type: 'range', min: -500, max: 500, val: 0 },
+                    { id: 'sharpen', label: 'Sharpening', type: 'range', min: 0, max: 100, val: 0 },
+                    { id: 'hdrTolerance', label: 'HDR Tol', type: 'range', min: 0, max: 1, step: 0.01, val: 0.35 },
+                    { id: 'hdrAmount', label: 'HDR Amt', type: 'range', min: 0, max: 100, val: 0 },
+                ]
+            },
+            'chroma': {
+                title: 'Chromatic Ab.',
+                controls: [
+                    { id: 'aberrationAmount', label: 'Amount', type: 'range', min: 0, max: 1500, val: 0 },
+                    { id: 'caRadius', label: 'Clear Radius', type: 'range', min: 0, max: 1000, val: 0 },
+                    { id: 'caFalloff', label: 'Falloff', type: 'range', min: 0, max: 500, val: 0 },
+                    { id: 'aberrationBlur', label: 'Edge Blur', type: 'range', min: 0, max: 100, val: 0 },
+                    { id: 'resetCenterBtn', label: 'Reset Center', type: 'action' },
+                    { id: 'caCenterX', label: 'Center X', type: 'hidden', val: 0.5 },
+                    { id: 'caCenterY', label: 'Center Y', type: 'hidden', val: 0.5 }
+                ]
+            },
+            'dither': {
+                title: 'Dithering',
+                controls: [
+                    { id: 'ditherEnable', label: 'Enable', type: 'check', val: false },
+                    { id: 'ditherBitDepth', label: 'Bit Depth', type: 'range', min: 1, max: 8, val: 4 },
+                    { id: 'ditherPaletteSize', label: 'Palette', type: 'range', min: 2, max: 256, val: 16 },
+                    { id: 'ditherStrength', label: 'Strength', type: 'range', min: 0, max: 100, val: 50 },
+                    { id: 'ditherScale', label: 'Scale', type: 'range', min: 1, max: 16, val: 1 },
+                    { id: 'ditherType', label: 'Type', type: 'select', opts: ['Bayer', 'Noise'], val: 0 }
+                ]
+            },
+            'corruption': {
+                title: 'Corruption',
+                controls: [
+                    { id: 'corruptionEnable', label: 'Enable', type: 'check', val: false },
+                    { id: 'corruptionIterations', label: 'Iterations', type: 'range', min: 0, max: 500, val: 0 },
+                    { id: 'corruptionAlgorithm', label: 'Algo', type: 'select', opts: ['JPEG Blocks', 'Pixelation', 'Color Bleed'], val: 0 },
+                    { id: 'corruptionResScale', label: 'Res Scale', type: 'range', min: 1, max: 100, val: 50 }
+                ]
+            },
+            'cell': {
+                title: 'Cell Shading',
+                controls: [
+                    { id: 'cellEnable', label: 'Enable', type: 'check', val: false },
+                    { id: 'cellLevels', label: 'Levels', type: 'range', min: 2, max: 12, val: 4 },
+                    { id: 'cellBias', label: 'Bias', type: 'range', min: -1, max: 1, step: 0.01, val: 0 },
+                    { id: 'cellGamma', label: 'Gamma', type: 'range', min: 0.5, max: 2.2, step: 0.01, val: 1.0 },
+                    { id: 'cellQuantMode', label: 'Quantize', type: 'select', opts: ['Luminance', 'RGB', 'HSV Value'], val: 0 },
+                    { id: 'cellEdgeEnable', label: 'Edges', type: 'check', val: false },
+                    { id: 'cellEdgeStr', label: 'Edge Str', type: 'range', min: 0, max: 1, step: 0.01, val: 0.8 },
+                    { id: 'cellEdgeThick', label: 'Thick', type: 'range', min: 0.5, max: 3, step: 0.1, val: 1.0 },
+                    { id: 'cellEdgeMethod', label: 'Method', type: 'select', opts: ['None', 'Sobel', 'Laplacian'], val: 1 },
+                    { id: 'cellColorPreserve', label: 'Color Preserve', type: 'check', val: false }
+                ]
+            },
+            'halftone': {
+                title: 'Halftoning',
+                controls: [
+                    { id: 'halftoneEnable', label: 'Enable', type: 'check', val: false },
+                    { id: 'halftoneSize', label: 'Dot Size', type: 'range', min: 1, max: 12, step: 0.1, val: 4 },
+                    { id: 'halftoneIntensity', label: 'Intensity', type: 'range', min: 0, max: 1, step: 0.01, val: 0.8 },
+                    { id: 'halftoneSharpness', label: 'Sharpness', type: 'range', min: 0, max: 1, step: 0.01, val: 0.5 },
+                    { id: 'halftonePattern', label: 'Pattern', type: 'select', opts: ['Circle', 'Line', 'Cross', 'Diamond'], val: 0 },
+                    { id: 'halftoneColorMode', label: 'Color Mode', type: 'select', opts: ['Luminance', 'RGB', 'CMY', 'CMYK'], val: 0 },
+                    { id: 'halftoneGray', label: 'Grayscale', type: 'check', val: false },
+                    { id: 'halftoneInvert', label: 'Invert', type: 'check', val: false }
+                ]
+            },
+            'bilateral': {
+                title: 'Bilateral Filter',
+                controls: [
+                    { id: 'bilateralEnable', label: 'Enable', type: 'check', val: false },
+                    { id: 'bilateralRadius', label: 'Radius', type: 'range', min: 1, max: 30, val: 5 },
+                    { id: 'bilateralColorSig', label: 'Color Sigma', type: 'range', min: 0.01, max: 1.0, step: 0.01, val: 0.1 },
+                    { id: 'bilateralSpatialSig', label: 'Space Sigma', type: 'range', min: 0.5, max: 15.0, step: 0.1, val: 2.0 },
+                    { id: 'bilateralHighPrec', label: 'High Precision', type: 'check', val: true }
+                ]
+            }
+        };
+
+        let gl, canvas;
+        let programs = {};
+        let textures = {};
+        let framebuffers = {};
+        let graphState = {
+            nodes: [],
+            connections: [],
+            nextId: 1,
+            selectedNodeId: null,
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+            isDragging: false,
+            lastMouseX: 0,
+            lastMouseY: 0
+        };
+        let sourceImage = null;
+        let sourceTexture = null;
+        let canvasWidth = 0, canvasHeight = 0;
+        let animationId = null;
+        let needsRender = true;
+
+        // Lens & Zoom State
+        let isLensMode = false; // False = Full Zoom, True = Lens Mode
+        let hoverZoomFactor = 1.0;
+        let isDraggingPin = false;
+
+        function initWebGL() {
+            canvas = document.getElementById('displayCanvas');
+            gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true, antialias: false });
+            if (!gl) alert("WebGL2 not supported");
+
+            const buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+                -1, -1, 0, 0, 1, -1, 1, 0, -1, 1, 0, 1,
+                -1, 1, 0, 1, 1, -1, 1, 0, 1, 1, 1, 1
+            ]), gl.STATIC_DRAW);
+
+            const vsSource = document.getElementById('vs-quad').textContent.trim();
+            const shaderIds = ['fs-noise-layer', 'fs-adjust', 'fs-chroma', 'fs-dither', 'fs-corruption', 'fs-cell', 'fs-halftone', 'fs-bilateral', 'fs-copy'];
+
+            shaderIds.forEach(id => {
+                const fsSource = document.getElementById(id).textContent.trim();
+                programs[id.replace('fs-', '')] = createProgram(vsSource, fsSource);
+            });
+
+            resizeCanvas();
+        }
+
+        function createShader(type, source) {
+            const s = gl.createShader(type);
+            gl.shaderSource(s, source);
+            gl.compileShader(s);
+            if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+                console.error(gl.getShaderInfoLog(s));
+                return null;
+            }
+            return s;
+        }
+
+        function createProgram(vsSource, fsSource) {
+            const p = gl.createProgram();
+            const vs = createShader(gl.VERTEX_SHADER, vsSource);
+            const fs = createShader(gl.FRAGMENT_SHADER, fsSource);
+            gl.attachShader(p, vs);
+            gl.attachShader(p, fs);
+            gl.linkProgram(p);
+            if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+                console.error(gl.getProgramInfoLog(p));
+                return null;
+            }
+            gl.useProgram(p);
+            const posLoc = gl.getAttribLocation(p, 'a_pos');
+            const uvLoc = gl.getAttribLocation(p, 'a_uv');
+            gl.enableVertexAttribArray(posLoc);
+            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 16, 0);
+            gl.enableVertexAttribArray(uvLoc);
+            gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 16, 8);
+            return p;
+        }
+
+        function createTexture(width, height, data = null) {
+            const t = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, t);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+            if (data) {
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+            } else {
+                // Allocate empty texture of correct size
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            }
+            return t;
+        }
+
+        function createFramebuffer(tex) {
+            const fb = gl.createFramebuffer();
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+            return fb;
+        }
+
+        function resizeBuffers(width, height) {
+            // Delete old buffers
+            if (textures.a) gl.deleteTexture(textures.a);
+            if (textures.b) gl.deleteTexture(textures.b);
+            if (framebuffers.a) gl.deleteFramebuffer(framebuffers.a);
+            if (framebuffers.b) gl.deleteFramebuffer(framebuffers.b);
+
+            // Create new buffers at correct resolution
+            textures.a = createTexture(width, height);
+            textures.b = createTexture(width, height);
+            framebuffers.a = createFramebuffer(textures.a);
+            framebuffers.b = createFramebuffer(textures.b);
+        }
+
+        function resizeCanvas() {
+            if (sourceImage) {
+                const scale = parseFloat(document.getElementById('upscaleInput').value) || 1;
+                canvasWidth = sourceImage.width * scale;
+                canvasHeight = sourceImage.height * scale;
+            } else {
+                canvasWidth = canvas.clientWidth || 800;
+                canvasHeight = canvas.clientHeight || 600;
+            }
+
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            gl.viewport(0, 0, canvasWidth, canvasHeight);
+
+            // Critical: Ensure Ping-Pong buffers match new size
+            resizeBuffers(canvasWidth, canvasHeight);
+
+            needsRender = true;
+        }
+
+        function updateSourceTexture(img) {
+            sourceImage = img;
+            if (!sourceTexture) sourceTexture = createTexture(img.width, img.height, img);
+            else {
+                gl.bindTexture(gl.TEXTURE_2D, sourceTexture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, img.width, img.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, img);
+            }
+            resizeCanvas();
+
+            if (graphState.nodes.length === 0) {
+                addNode('image', 50, 300);
+                addNode('output', 850, 300);
+            }
+            needsRender = true;
+        }
+
+        function render() {
+            if (!needsRender || !sourceImage) return;
+
+            document.getElementById('loading').style.display = 'block';
+
+            const startNode = graphState.nodes.find(n => n.type === 'image');
+            const endNode = graphState.nodes.find(n => n.type === 'output');
+            let path = [];
+
+            if (startNode && endNode) {
+                path = findPath(startNode, endNode);
+            }
+
+            if (path.length > 0) {
+                // Ping-Pong Setup
+                let readTex = sourceTexture;
+                let writeFb = framebuffers.a;
+                let readIsA = false; // Track state for swap
+
+                for (let i = 1; i < path.length; i++) {
+                    const node = path[i];
+                    const programName = getShaderForNode(node.type);
+                    const prog = programs[programName];
+
+                    gl.useProgram(prog);
+                    gl.activeTexture(gl.TEXTURE0);
+                    gl.bindTexture(gl.TEXTURE_2D, readTex);
+                    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+                    gl.uniform2f(gl.getUniformLocation(prog, 'u_res'), canvasWidth, canvasHeight);
+
+                    bindUniforms(prog, node.data, node.type);
+
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, writeFb);
+                    gl.viewport(0, 0, canvasWidth, canvasHeight);
+                    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+                    // Swap Ping-Pong
+                    if (!readIsA) {
+                        // We read Source (or B). We wrote to A. Next read is A.
+                        readTex = textures.a;
+                        writeFb = framebuffers.b;
+                        readIsA = true;
+                    } else {
+                        // We read A. We wrote to B. Next read is B.
+                        readTex = textures.b;
+                        writeFb = framebuffers.a;
+                        readIsA = false;
+                    }
+                }
+
+                // Final Draw to Screen
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                const copyProg = programs['copy'];
+                gl.useProgram(copyProg);
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, readTex);
+                gl.uniform1i(gl.getUniformLocation(copyProg, 'u_tex'), 0);
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+                updateLayerPreviews(path);
+                updateCAPinPos();
+
+            } else {
+                // No path, just show original
+                const copyProg = programs['copy'];
+                gl.useProgram(copyProg);
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, sourceTexture);
+                gl.uniform1i(gl.getUniformLocation(copyProg, 'u_tex'), 0);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+                document.getElementById('layerGrid').innerHTML = '';
+                document.getElementById('caPin').classList.remove('active');
+            }
+
+            const ovCanvas = document.getElementById('overlayCanvas');
+            if (sourceImage && (ovCanvas.width !== sourceImage.width)) {
+                ovCanvas.width = sourceImage.width;
+                ovCanvas.height = sourceImage.height;
+                ovCanvas.getContext('2d').drawImage(sourceImage, 0, 0);
+            }
+
+            document.getElementById('loading').style.display = 'none';
+            needsRender = false;
+        }
+
+        function updateCAPinPos() {
+            const pin = document.getElementById('caPin');
+            const node = graphState.nodes.find(n => n.id === graphState.selectedNodeId);
+            if (node && node.type === 'chroma') {
+                pin.classList.add('active');
+                const rect = canvas.getBoundingClientRect();
+                const x = node.data.caCenterX * rect.width;
+                const y = (1.0 - node.data.caCenterY) * rect.height;
+                pin.style.left = `${x}px`;
+                pin.style.top = `${y}px`;
+            } else {
+                pin.classList.remove('active');
+            }
+        }
+
+        function findPath(start, end) {
+            let queue = [[start]];
+            let visited = new Set();
+
+            while (queue.length > 0) {
+                let path = queue.shift();
+                let node = path[path.length - 1];
+
+                if (node === end) return path;
+
+                let conns = graphState.connections.filter(c => c.from === node.id);
+                for (let c of conns) {
+                    let next = graphState.nodes.find(n => n.id === c.to);
+                    if (next && !visited.has(next.id)) {
+                        visited.add(next.id);
+                        let newPath = [...path, next];
+                        queue.push(newPath);
+                    }
+                }
+            }
+            return [];
+        }
+
+        function getShaderForNode(type) {
+            if (type === 'noise') return 'noise-layer';
+            if (type === 'chroma') return 'chroma';
+            if (type === 'adjustments') return 'adjust';
+            if (type === 'dither') return 'dither';
+            if (type === 'corruption') return 'corruption';
+            if (type === 'cell') return 'cell';
+            if (type === 'halftone') return 'halftone';
+            if (type === 'bilateral') return 'bilateral';
+            return 'copy';
+        }
+
+        function bindUniforms(prog, data, type) {
+            const set = (loc, val) => {
+                if (Array.isArray(val)) gl.uniform1fv(loc, new Float32Array(val));
+                else if (typeof val === 'boolean') gl.uniform1i(loc, val ? 1 : 0);
+                else gl.uniform1f(loc, val);
+            };
+            gl.uniform2f(gl.getUniformLocation(prog, 'u_origRes'), sourceImage.width, sourceImage.height);
+
+            if (type === 'noise-layer') {
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_type'), data.noiseType);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_seed'), 123.45);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_scale'), data.noiseSize);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_blurAmt'), data.blurriness);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_mode'), data.blendMode);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_opacity'), data.opacity);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_str'), data.strength);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_satStr'), data.satStrength);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_satImp'), data.satPerNoise);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_useS'), data.enableShadows);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_sth'), data.shadowThreshold);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_sfa'), data.shadowFade);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_useH'), data.enableHighlights);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_hth'), data.highlightThreshold);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_hfa'), data.highlightFade);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_ignA'), data.ignoreAlphaToggle);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_ignAstr'), data.ignoreAlphaStrength);
+            }
+            else if (type === 'adjust') {
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_bright'), data.brightness);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_cont'), data.contrast);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_sat'), data.saturationAdj);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_warmth'), data.warmth);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_sharp'), data.sharpen);
+                gl.uniform2f(gl.getUniformLocation(prog, 'u_step'), 1.0 / canvasWidth, 1.0 / canvasHeight);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_hdrTol'), data.hdrTolerance);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_hdrAmt'), data.hdrAmount);
+            }
+            else if (type === 'chroma') {
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_amt'), data.aberrationAmount);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_blur'), data.aberrationBlur);
+                gl.uniform2f(gl.getUniformLocation(prog, 'u_center'), data.caCenterX, data.caCenterY);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_radius'), data.caRadius * 0.001);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_falloff'), data.caFalloff * 0.001);
+            }
+            else if (type === 'dither') {
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_type'), data.ditherType);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_bitDepth'), data.ditherBitDepth);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_paletteSize'), data.ditherPaletteSize);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_str'), data.ditherStrength / 100.0);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_scale'), data.ditherScale);
+            }
+            else if (type === 'corruption') {
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_algo'), data.corruptionAlgorithm);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_iter'), data.corruptionIterations);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_scale'), data.corruptionResScale);
+            }
+            else if (type === 'cell') {
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_levels'), data.cellLevels);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_bias'), data.cellBias);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_gamma'), data.cellGamma);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_qMode'), data.cellQuantMode);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_edgeMethod'), data.cellEdgeMethod);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_edgeStr'), data.cellEdgeStr);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_edgeThick'), data.cellEdgeThick);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_colorPreserve'), data.cellColorPreserve ? 1 : 0);
+            }
+            else if (type === 'halftone') {
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_size'), data.halftoneSize);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_str'), data.halftoneIntensity);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_pat'), data.halftonePattern);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_cMode'), data.halftoneColorMode);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_gray'), data.halftoneGray ? 1 : 0);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_invert'), data.halftoneInvert ? 1 : 0);
+            }
+            else if (type === 'bilateral') {
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_rad'), data.bilateralRadius);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_cSig'), data.bilateralColorSig);
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_sSig'), data.bilateralSpatialSig);
+            }
+        }
+
+        function updateLayerPreviews(path) {
+            const grid = document.getElementById('layerGrid');
+            const existing = Array.from(grid.children);
+            if (existing.length !== path.length - 2) {
+                grid.innerHTML = '';
+                path.forEach((node, idx) => {
+                    if (node.type === 'image' || node.type === 'output') return;
+                    const item = document.createElement('div');
+                    item.className = 'layer-item';
+                    item.dataset.id = node.id;
+                    item.innerHTML = `<div class="layer-title">${NODE_TYPES[node.type].title}</div><canvas class="layer-canvas"></canvas>`;
+                    item.onclick = () => selectNode(node.id);
+                    grid.appendChild(item);
+                });
+            }
+
+            // Render previews off-screen to small buffers
+            let readTex = sourceTexture;
+            let writeFb = framebuffers.a;
+            let readIsA = false;
+
+            for (let i = 1; i < path.length; i++) {
+                const node = path[i];
+                if (node.type === 'output') break;
+
+                const domEl = grid.querySelector(`.layer-item[data-id="${node.id}"] canvas`);
+                if (!domEl) continue;
+
+                const progName = getShaderForNode(node.type);
+                const prog = programs[progName];
+
+                gl.useProgram(prog);
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, readTex); // Preview always starts from source for isolation check
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+                gl.uniform2f(gl.getUniformLocation(prog, 'u_res'), canvasWidth, canvasHeight);
+
+                bindUniforms(prog, node.data, node.type);
+
+                // Render to tiny buffer (reuse FB a at smaller viewport)
+                gl.bindFramebuffer(gl.FRAMEBUFFER, writeFb);
+                gl.viewport(0, 0, 100, 100);
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+                // Read back
+                let pixels = new Uint8Array(100 * 100 * 4);
+                gl.readPixels(0, 0, 100, 100, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+                const ctx = domEl.getContext('2d');
+                const imgData = ctx.createImageData(100, 100);
+                imgData.data.set(pixels);
+                ctx.putImageData(imgData, 0, 0);
+
+                // Swap for next iteration (even though previews are isolated, we reuse buffers)
+                if (!readIsA) { readTex = textures.a; writeFb = framebuffers.b; readIsA = true; }
+                else { readTex = textures.b; writeFb = framebuffers.a; readIsA = false; }
+            }
+
+            // Restore main canvas viewport
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.viewport(0, 0, canvasWidth, canvasHeight);
+        }
+
+        function addNode(type, x, y) {
+            const id = graphState.nextId++;
+            let data = {};
+            const def = NODE_TYPES[type];
+            if (def) {
+                def.controls.forEach(c => {
+                    if (c.items) c.items.forEach(i => data[i.id] = i.val);
+                    else data[c.id] = c.val;
+                });
+            }
+
+            const node = {
+                id, type, x, y, data,
+                inputs: type === 'image' ? 0 : 1,
+                outputs: type === 'output' ? 0 : 1
+            };
+
+            graphState.nodes.push(node);
+            renderNodeDOM(node);
+            if (type !== 'image' && type !== 'output') {
+                updateLayerPreviews([]);
+            }
+            return node;
+        }
+
+        function removeNode(id) {
+            graphState.nodes = graphState.nodes.filter(n => n.id !== id);
+            graphState.connections = graphState.connections.filter(c => c.from !== id && c.to !== id);
+            document.getElementById(`node-${id}`).remove();
+            renderConnections();
+            if (graphState.selectedNodeId === id) deselectNode();
+            needsRender = true;
+            updateLayerPreviews([]);
+        }
+
+        function renderNodeDOM(node) {
+            const el = document.createElement('div');
+            el.className = 'node';
+            el.id = `node-${node.id}`;
+            el.dataset.type = node.type;
+            el.style.left = `${node.x}px`;
+            el.style.top = `${node.y}px`;
+
+            let title = node.type.toUpperCase();
+            if (NODE_TYPES[node.type]) title = NODE_TYPES[node.type].title;
+
+            let html = `<div class="node-header"><span>${title}</span>`;
+            if (node.type !== 'image' && node.type !== 'output') {
+                html += `<div class="node-delete" onclick="confirmDeleteNode(${node.id})">×</div>`;
+            }
+            html += `</div><div class="node-body">`;
+
+            if (node.type !== 'image') html += `<div class="socket input" onmousedown="startConn(event, ${node.id}, 'input')"></div>`;
+            if (node.type !== 'output') html += `<div class="socket output" onmousedown="startConn(event, ${node.id}, 'output')"></div>`;
+
+            html += `</div>`;
+            el.innerHTML = html;
+
+            el.onmousedown = (e) => {
+                if (e.target.classList.contains('socket') || e.target.classList.contains('node-delete')) return;
+                e.stopPropagation();
+                selectNode(node.id);
+                startDragNode(e, node.id);
+            };
+
+            document.getElementById('graphContent').appendChild(el);
+        }
+
+        function selectNode(id) {
+            if (graphState.selectedNodeId) {
+                const prev = document.getElementById(`node-${graphState.selectedNodeId}`);
+                if (prev) prev.classList.remove('selected');
+            }
+            graphState.selectedNodeId = id;
+            const curr = document.getElementById(`node-${id}`);
+            if (curr) curr.classList.add('selected');
+            populateControls(id);
+            needsRender = true;
+        }
+
+        function deselectNode() {
+            if (graphState.selectedNodeId) {
+                const prev = document.getElementById(`node-${graphState.selectedNodeId}`);
+                if (prev) prev.classList.remove('selected');
+                graphState.selectedNodeId = null;
+                document.getElementById('dynamic-controls').innerHTML = '<div class="empty-state">Select a node to edit controls</div>';
+                needsRender = true;
+            }
+        }
+
+        function populateControls(id) {
+            const node = graphState.nodes.find(n => n.id === id);
+            if (!node) return;
+            const container = document.getElementById('dynamic-controls');
+            container.innerHTML = '';
+
+            const def = NODE_TYPES[node.type];
+            if (!def) return;
+
+            def.controls.forEach(group => {
+                const details = document.createElement('details');
+                if (group.type !== 'group') details.open = true;
+
+                const summary = document.createElement('summary');
+                summary.textContent = group.title || group.label;
+                details.appendChild(summary);
+
+                const items = group.items || [group];
+                items.forEach(item => {
+                    if (item.type === 'hidden') return;
+                    const row = document.createElement('div');
+                    row.className = 'control-row';
+
+                    if (item.type === 'range') {
+                        row.innerHTML = `
+                            <label>${item.label}</label>
+                            <input type="range" min="${item.min}" max="${item.max}" step="${item.step || 1}" value="${node.data[item.id]}" data-key="${item.id}">
+                            <input type="text" class="control-value" value="${node.data[item.id]}" readonly>
+                        `;
+                        const range = row.querySelector('input[type=range]');
+                        range.oninput = (e) => {
+                            node.data[item.id] = parseFloat(e.target.value);
+                            row.querySelector('.control-value').value = node.data[item.id];
+                            needsRender = true;
+                        };
+                    } else if (item.type === 'select') {
+                        let opts = item.opts.map((o, i) => `<option value="${i}">${o}</option>`).join('');
+                        row.innerHTML = `
+                            <label>${item.label}</label>
+                            <select class="control-value" data-key="${item.id}">${opts}</select>
+                        `;
+                        const sel = row.querySelector('select');
+                        sel.value = node.data[item.id];
+                        sel.onchange = (e) => {
+                            node.data[item.id] = parseInt(e.target.value);
+                            needsRender = true;
+                        };
+                    } else if (item.type === 'check') {
+                        row.innerHTML = `
+                            <label>${item.label}</label>
+                            <input type="checkbox" data-key="${item.id}" ${node.data[item.id] ? 'checked' : ''}>
+                        `;
+                        const chk = row.querySelector('input');
+                        chk.onchange = (e) => {
+                            node.data[item.id] = e.target.checked;
+                            needsRender = true;
+                        };
+                    } else if (item.type === 'action') {
+                        row.innerHTML = `<button class="ui-btn" style="flex:1; font-size:10px;">${item.label}</button>`;
+                        row.querySelector('button').onclick = () => {
+                            if (item.id === 'resetCenterBtn') {
+                                node.data.caCenterX = 0.5;
+                                node.data.caCenterY = 0.5;
+                                needsRender = true;
+                            }
+                        };
+                    }
+                    details.appendChild(row);
+                });
+                container.appendChild(details);
+            });
+        }
+
+        const graphWrapper = document.getElementById('graphWrapper');
+        const graphContent = document.getElementById('graphContent');
+        const svgLayer = document.getElementById('connections-layer');
+
+        graphWrapper.addEventListener('mousedown', (e) => {
+            if (e.target === graphWrapper || e.target === graphContent || e.target === svgLayer) {
+                deselectNode();
+                startDragGraph(e);
+            }
+        });
+
+        graphWrapper.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomSpeed = 0.05;
+            if (e.deltaY < 0) graphState.scale += zoomSpeed;
+            else graphState.scale -= zoomSpeed;
+            graphState.scale = Math.max(0.1, Math.min(graphState.scale, 3));
+            graphContent.style.transform = `translate(${graphState.offsetX}px, ${graphState.offsetY}px) scale(${graphState.scale})`;
+        });
+
+        function startDragGraph(e) {
+            graphState.isDragging = true;
+            graphState.dragTarget = 'graph';
+            graphState.lastMouseX = e.clientX;
+            graphState.lastMouseY = e.clientY;
+        }
+
+        function startDragNode(e, id) {
+            graphState.isDragging = true;
+            graphState.dragTarget = id;
+            graphState.lastMouseX = e.clientX;
+            graphState.lastMouseY = e.clientY;
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            if (!graphState.isDragging) return;
+            const dx = e.clientX - graphState.lastMouseX;
+            const dy = e.clientY - graphState.lastMouseY;
+
+            if (graphState.dragTarget === 'graph') {
+                graphState.offsetX += dx;
+                graphState.offsetY += dy;
+                graphContent.style.transform = `translate(${graphState.offsetX}px, ${graphState.offsetY}px) scale(${graphState.scale})`;
+            } else {
+                const node = graphState.nodes.find(n => n.id === graphState.dragTarget);
+                if (node) {
+                    node.x += dx;
+                    node.y += dy;
+                    const el = document.getElementById(`node-${node.id}`);
+                    el.style.left = `${node.x}px`;
+                    el.style.top = `${node.y}px`;
+                    renderConnections();
+                }
+            }
+            graphState.lastMouseX = e.clientX;
+            graphState.lastMouseY = e.clientY;
+        });
+
+        window.addEventListener('mouseup', () => {
+            graphState.isDragging = false;
+        });
+
+        let tempLine = null;
+        let connStart = null;
+
+        function startConn(e, nodeId, type) {
+            e.stopPropagation();
+            e.preventDefault();
+            connStart = { nodeId, type };
+
+            tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            tempLine.setAttribute('stroke', '#fff');
+            tempLine.setAttribute('stroke-width', '2');
+            tempLine.setAttribute('fill', 'none');
+            tempLine.setAttribute('stroke-dasharray', '5,5');
+            svgLayer.appendChild(tempLine);
+
+            const moveHandler = (ev) => {
+                const pt1 = getSocketPos(nodeId, type);
+                const rect = graphWrapper.getBoundingClientRect();
+                const mx = (ev.clientX - rect.left - graphState.offsetX) / graphState.scale;
+                const my = (ev.clientY - rect.top - graphState.offsetY) / graphState.scale;
+                const dx = Math.abs(pt1.x - mx) * 0.5;
+                const d = `M ${pt1.x} ${pt1.y} C ${pt1.x + (type === 'output' ? dx : -dx)} ${pt1.y}, ${mx + (type === 'output' ? -dx : dx)} ${my}, ${mx} ${my}`;
+                tempLine.setAttribute('d', d);
+            };
+
+            const upHandler = (ev) => {
+                window.removeEventListener('mousemove', moveHandler);
+                window.removeEventListener('mouseup', upHandler);
+                if (tempLine) tempLine.remove();
+
+                const el = document.elementFromPoint(ev.clientX, ev.clientY);
+                const socket = el ? el.closest('.socket') : null;
+
+                if (socket) {
+                    const endNodeEl = socket.closest('.node');
+                    const endNodeId = parseInt(endNodeEl.id.replace('node-', ''));
+                    const endType = socket.classList.contains('input') ? 'input' : 'output';
+
+                    const isCompatible = (connStart.type === 'output' && endType === 'input') ||
+                        (connStart.type === 'input' && endType === 'output');
+
+                    if (isCompatible && endNodeId !== connStart.nodeId) {
+                        let fromId, toId;
+                        if (connStart.type === 'output') {
+                            fromId = connStart.nodeId;
+                            toId = endNodeId;
+                        } else {
+                            fromId = endNodeId;
+                            toId = connStart.nodeId;
+                        }
+
+                        graphState.connections = graphState.connections.filter(c => c.to !== toId);
+
+                        graphState.connections.push({
+                            id: Date.now(),
+                            from: fromId,
+                            to: toId
+                        });
+                        renderConnections();
+                        needsRender = true;
+                    }
+                }
+                connStart = null;
+            };
+
+            window.addEventListener('mousemove', moveHandler);
+            window.addEventListener('mouseup', upHandler);
+        }
+
+        function getSocketPos(nodeId, type) {
+            const el = document.getElementById(`node-${nodeId}`);
+            const sock = el.querySelector(`.${type}`);
+            const r = sock.getBoundingClientRect();
+            const wr = graphWrapper.getBoundingClientRect();
+            const x = (r.left + r.width / 2 - wr.left - graphState.offsetX) / graphState.scale;
+            const y = (r.top + r.height / 2 - wr.top - graphState.offsetY) / graphState.scale;
+            return { x, y };
+        }
+
+        function renderConnections() {
+            svgLayer.innerHTML = '';
+            graphState.connections.forEach(c => {
+                const p1 = getSocketPos(c.from, 'output');
+                const p2 = getSocketPos(c.to, 'input');
+
+                const dx = Math.abs(p1.x - p2.x) * 0.5;
+                const d = `M ${p1.x} ${p1.y} C ${p1.x + dx} ${p1.y}, ${p2.x - dx} ${p2.y}, ${p2.x} ${p2.y}`;
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', d);
+                path.setAttribute('class', 'connection');
+                path.onclick = (e) => {
+                    graphState.connections = graphState.connections.filter(x => x.id !== c.id);
+                    renderConnections();
+                    needsRender = true;
+                };
+                svgLayer.appendChild(path);
+            });
+        }
+
+        const nodeMenu = document.getElementById('node-menu');
+        document.getElementById('node-menu-trigger').onclick = () => {
+            nodeMenu.classList.toggle('show');
+        };
+
+        Object.keys(NODE_TYPES).forEach(key => {
+            const item = document.createElement('div');
+            item.className = 'menu-item';
+            item.textContent = NODE_TYPES[key].title;
+            item.draggable = true;
+            item.ondragstart = (e) => {
+                e.dataTransfer.setData('type', key);
+            };
+            nodeMenu.appendChild(item);
+        });
+
+        graphWrapper.addEventListener('dragover', (e) => e.preventDefault());
+        graphWrapper.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const type = e.dataTransfer.getData('type');
+            if (!type) return;
+
+            const rect = graphWrapper.getBoundingClientRect();
+            const x = (e.clientX - rect.left - graphState.offsetX) / graphState.scale;
+            const y = (e.clientY - rect.top - graphState.offsetY) / graphState.scale;
+
+            addNode(type, x, y);
+            nodeMenu.classList.remove('show');
+        });
+
+        // --- PREVIEW INTERACTION (ZOOM & LENS & PIN) ---
+
+        const previewContainer = document.getElementById('previewContainer');
+        const zoomLens = document.getElementById('zoomLens');
+        const lensCanvas = document.getElementById('lensCanvas');
+        const lensCtx = lensCanvas.getContext('2d');
+        const caPin = document.getElementById('caPin');
+
+        function updateZoomMode() {
+            if (isLensMode) {
+                // Lens Mode: Reset main canvas, show lens
+                canvas.style.transform = 'none';
+                zoomLens.style.display = 'block';
+            } else {
+                // Full Zoom Mode: Scale main canvas, hide lens
+                canvas.style.transform = `scale(${hoverZoomFactor})`;
+                zoomLens.style.display = 'none';
+            }
+        }
+
+        document.getElementById('lensToggleBtn').onclick = (e) => {
+            isLensMode = !isLensMode;
+            e.target.textContent = isLensMode ? 'LENS' : 'FULL';
+            updateZoomMode();
+        };
+
+        const zoomSlider = document.getElementById('hoverZoomSlider');
+        const zoomValue = document.getElementById('hoverZoomValue');
+        zoomSlider.oninput = (e) => {
+            hoverZoomFactor = parseFloat(e.target.value);
+            zoomValue.textContent = hoverZoomFactor.toFixed(1) + 'x';
+            updateZoomMode();
+        };
+
+        previewContainer.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // CA Pin Drag
+            if (isDraggingPin) {
+                const node = graphState.nodes.find(n => n.id === graphState.selectedNodeId);
+                if (node && node.type === 'chroma') {
+                    // Convert DOM coords (top-left 0,0) to UV (bottom-left 0,0)
+                    const nx = Math.max(0, Math.min(1, x / rect.width));
+                    const ny = Math.max(0, Math.min(1, 1.0 - (y / rect.height)));
+
+                    node.data.caCenterX = nx;
+                    node.data.caCenterY = ny;
+                    caPin.style.left = `${nx * rect.width}px`;
+                    caPin.style.top = `${y}px`;
+                    needsRender = true;
+                }
+            }
+
+            // Lens Zoom Logic
+            if (isLensMode) {
+                zoomLens.style.left = `${x - 90}px`;
+                zoomLens.style.top = `${y - 90}px`;
+
+                const scaleX = canvasWidth / rect.width;
+                const scaleY = canvasHeight / rect.height;
+                const cx = x * scaleX;
+                const cy = y * scaleY;
+
+                const lw = 180; // lens width
+                const sw = lw / hoverZoomFactor;
+                const sh = sw;
+                const sx = cx - sw / 2;
+                const sy = cy - sh / 2;
+
+                lensCanvas.width = lw;
+                lensCanvas.height = lw;
+                lensCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, lw, lw);
+            }
+        });
+
+        caPin.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            isDraggingPin = true;
+        });
+        window.addEventListener('mouseup', () => {
+            isDraggingPin = false;
+        });
+
+        // --- INIT ---
+
+        window.onload = () => {
+            initWebGL();
+            requestAnimationFrame(loop);
+
+            document.getElementById('btn-view-graph').onclick = () => {
+                document.getElementById('btn-view-graph').classList.add('active');
+                document.getElementById('btn-view-preview').classList.remove('active');
+                document.getElementById('view-graph').classList.add('active');
+                document.getElementById('view-preview').classList.remove('active');
+            };
+            document.getElementById('btn-view-preview').onclick = () => {
+                document.getElementById('btn-view-preview').classList.add('active');
+                document.getElementById('btn-view-graph').classList.remove('active');
+                document.getElementById('view-preview').classList.add('active');
+                document.getElementById('view-graph').classList.remove('active');
+                needsRender = true;
+            };
+
+            document.getElementById('imageUpload').onchange = (e) => {
+                const file = e.target.files[0];
+                const img = new Image();
+                img.onload = () => updateSourceTexture(img);
+                img.src = URL.createObjectURL(file);
+            };
+
+            window.confirmDeleteNode = (id) => {
+                document.getElementById('deleteModal').classList.add('show');
+                document.getElementById('confirmDelete').onclick = () => {
+                    removeNode(id);
+                    document.getElementById('deleteModal').classList.remove('show');
+                };
+                document.getElementById('cancelDelete').onclick = () => {
+                    document.getElementById('deleteModal').classList.remove('show');
+                };
+            };
+
+            const compareModal = document.getElementById('compareModal');
+            document.getElementById('compareBtn').onclick = () => {
+                if (!sourceImage) return;
+                compareModal.classList.add('show');
+                const c1 = document.getElementById('compareOriginal');
+                c1.width = sourceImage.width; c1.height = sourceImage.height;
+                c1.getContext('2d').drawImage(sourceImage, 0, 0);
+
+                const c2 = document.getElementById('compareProcessed');
+                c2.width = canvasWidth; c2.height = canvasHeight;
+                c2.getContext('2d').drawImage(canvas, 0, 0);
+            };
+            document.getElementById('closeCompare').onclick = () => compareModal.classList.remove('show');
+
+            document.getElementById('downloadBtn').onclick = () => {
+                if (!sourceImage) return;
+                const link = document.createElement('a');
+                link.download = 'grain_output.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            };
+
+            document.getElementById('upscaleInput').onchange = resizeCanvas;
+        };
+
+        function loop() {
+            render();
+            requestAnimationFrame(loop);
+        }
+    </script>
+</body>
+
+</html>
