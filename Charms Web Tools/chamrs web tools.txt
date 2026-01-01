@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Tools</title>
+    <style>
+        /*
+         * ──────────────────────────────────────────────
+         * GLOBAL STYLES & COLOR VARIABLES
+         * Sets up color palette, resets, and base layout
+         * ──────────────────────────────────────────────
+         */
+        :root {
+            --text-color: #ffffff;
+            --box-bg-color: rgba(0, 0, 0, 0.3);
+            --border-color: #ffffff;
+            --hover-shadow: rgba(255, 255, 255, 0.1);
+        }
+
+        /*
+         * Basic reset for borderless design and smooth transitions
+         * Only transitions on specific properties for performance
+         */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            /* Only apply transition to specific elements to improve mobile performance */
+            transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        body, html {
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            /* Prevent horizontal scrollbars on all devices */
+            overflow-x: hidden; 
+        }
+        
+        /* ------------------------------------------------ */
+        /*
+         * ✨ FIXED BACKGROUND STYLES
+         * Blurred SVG background with fade-in effect
+         * ------------------------------------------------ */
+
+        /* 1. Body starts with solid black (fallback) */
+        body {
+            background-color: #000000;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        /* 2. Background image overlay, blurred and faded in by JS */
+        #background-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 2s ease-in-out;
+            background: linear-gradient(
+                rgba(0, 0, 0, 0.5), /* 50% black overlay */
+                rgba(0, 0, 0, 0.5)  /* 50% black overlay */
+            ), url('background.svg');
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            filter: blur(8px);
+            transform: scale(1.1); /* Slight zoom for better blur effect */
+        }
+        
+        /* .loaded class is added by JS to trigger fade-in transition */
+        #background-overlay.loaded {
+            opacity: 1; /* Full opacity with the dark overlay */
+        }
+
+        /* ------------------------------------------------ */
+        /*
+         * CONTENT WRAPPER STYLES
+         * Main container for header, search, and tool grid
+         * ------------------------------------------------ */
+        .content-wrapper {
+            padding: 1rem;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            position: relative;
+            min-height: 100vh;
+            z-index: 1;
+        }
+
+
+        /*
+         * HEADER CONTAINER
+         * Contains search bar and status text
+         */
+        .header-container {
+            width: 90%;
+            max-width: 800px;
+            margin: 1rem 0;
+            text-align: center;
+            padding: 1rem;
+            position: relative;
+            border-radius: 12px;
+            background-color: rgba(0, 0, 0, 0.4);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header-container p {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 0.5rem;
+        }
+
+        /*
+         * SEARCH BAR STYLES
+         * Modern, rounded, blurred input
+         */
+        .search-bar {
+            width: 90%;
+            max-width: 400px;
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            background-color: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            color: var(--text-color);
+            margin-bottom: 0.5rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-bar::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /*
+         * TOOLS GRID CONTAINER
+         * Responsive grid for all tool cards
+         */
+        .tools-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 0.8rem;
+            max-width: 1000px;
+            padding: 1rem 0.5rem;
+            width: 100%;
+        }
+
+        /*
+         * TOOL BOX STYLES
+         * Each .tool-box is a clickable card with popup info
+         */
+        .tool-box {
+            width: 100%;
+            height: 120px;
+            aspect-ratio: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(20, 20, 20, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            text-decoration: none;
+            color: #ffffff;
+            padding: 0.8rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .tool-box h2 {
+            font-size: 1rem;
+            margin: 0;
+            z-index: 2;
+        }
+
+        .tool-box:hover {
+            transform: translateY(-3px) scale(1.03);
+            background: rgba(60, 60, 60, 0.6);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        /*
+         * INFO POPUP STYLES
+         * Hidden by default, shown on hover/tap
+         */
+
+
+        .tool-box:active {
+            transform: scale(0.98) translateY(0);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .tool-box h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        
+        /* Hide the card title when popup is active (for smooth transition) */
+        .tool-box.is-hovering h2 {
+            opacity: 0;
+            transform: translateY(-20px);
+            visibility: hidden;
+        }
+
+        /*
+         * INFO POPUP OVERLAY
+         * Appears above card, dark background, scales in
+         */
+        .info-popup {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.95); /* Slightly darker overlay for clarity */
+            padding: 1rem;
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.8); /* Scale in effect for better feel */
+            transition: all 0.3s ease;
+            pointer-events: none;
+            border-radius: 8px;
+        }
+        
+        /* Show popup when .is-hovering is set (hover/tap) */
+        .tool-box.is-hovering .info-popup {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+            pointer-events: auto; /* Allow interaction with content if needed */
+        }
+        
+        .info-popup h2 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-popup p {
+            font-size: 0.9rem;
+            font-weight: 300;
+            line-height: 1.4;
+            text-align: center;
+        }
+
+        /* ------------------------------------------------ */
+        /*
+         * MOBILE-SPECIFIC ADJUSTMENTS
+         * Smaller grid, touch-friendly, disables hover effects
+         * ------------------------------------------------ */
+        @media (max-width: 768px) {
+            .content-wrapper {
+                padding: 0.5rem;
+            }
+            
+            .tools-container {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 0.6rem;
+                padding: 0.5rem;
+            }
+            
+            /* Force tool boxes to full width (minus padding) on small screens */
+            .tool-box {
+                width: 95%; /* Adjust width to fit container padding */
+                max-width: 100%;
+                height: 120px; /* Reduced height for better density */
+                margin: 0.25rem auto;
+                
+                /* Reset hover effects, as they interfere with touch */
+                transform: none !important;
+                background-color: var(--box-bg-color) !important;
+            }
+            
+            /* Use the dedicated active state for touch feedback */
+            .tool-box:active {
+                transform: scale(0.98);
+                background-color: rgba(255, 255, 255, 0.1);
+            }
+
+            .tool-box h2 {
+                font-size: 1.3rem; /* Slightly smaller font */
+            }
+        }
+    </style>
+</head>
+<body>
+
+
+        <!--
+            ──────────────────────────────────────────────
+            BLURRED SVG BACKGROUND (fades in on load)
+            ──────────────────────────────────────────────
+        -->
+        <div id="background-overlay"></div>
+
+        <!--
+            ──────────────────────────────────────────────
+            MAIN CONTENT WRAPPER
+            Contains header (search), tool grid, and popups
+            ──────────────────────────────────────────────
+        -->
+        <div class="content-wrapper">
+                <div class="header-container">
+                        <!--
+                            SEARCH BAR (with autocomplete off for mobile)
+                            Status text: all computation is local
+                        -->
+                        <input type="text" id="searchInput" class="search-bar" placeholder="Search for a tool..." autocomplete="off">
+                        <p>all computation is done locally for all tools</p>
+                </div>
+
+                <!--
+                    TOOLS GRID
+                    Each .tool-box is a tool card with popup info
+                -->
+                <div class="tools-container">
+
+            <a href="./image%20border%20sizer.html" class="tool-box" data-id="border-sizer">
+                <h2>Image Border Sizer</h2>
+                <div class="info-popup">
+                    <h2>Image Border Sizer</h2>
+                    <p>Add customizable borders to your images with various styles, colors, and sizes to fit your design needs.</p>
+                </div>
+            </a>
+
+            <a href="./foldercleaner.html" class="tool-box" data-id="folder-cleaner">
+                <h2>Folder Cleaner</h2>
+                <div class="info-popup">
+                    <h2>Folder Cleaner</h2>
+                    <p>Clean and organize your folders by removing duplicate files, empty directories, and temporary files with ease.</p>
+                </div>
+            </a>
+
+            <a href="./image%20to%20ascii%20art.html" class="tool-box" data-id="ascii-art">
+                <h2>Image to ASCII Art</h2>
+                <div class="info-popup">
+                    <h2>Image to ASCII Art</h2>
+                    <p>Convert your images into ASCII art. Customize the output with different characters and color options.</p>
+                </div>
+            </a>
+
+            <a href="./swaper.html" class="tool-box" data-id="color-swapper">
+                <h2>Color Palette Swapper</h2>
+                <div class="info-popup">
+                    <h2>Color Palette Swapper</h2>
+                    <p>Upload an image and swap its colors with a custom or random color palette. Great for creating themed artwork or exploring different color schemes.</p>
+                </div>
+            </a>
+
+
+            <a href="./Mandelbrot.html" class="tool-box" data-id="mandelbrot">
+                <h2>Mandelbrot</h2>
+                <div class="info-popup">
+                    <h2>Mandelbrot</h2>
+                    <p>Upload an image and swap its colors with a custom or random color palette. Great for creating themed artwork or exploring different color schemes.</p>
+                </div>
+            </a>
+
+            <a href="Tiler/index.html" class="tool-box" data-id="tile-maker">
+                <h2>Image Tiler</h2>
+                <div class="info-popup">
+                    <h2>Image Tiler</h2>
+                    <p>Create beautiful tiled patterns from your images. Customize tile size, spacing, and arrangement to create unique repeating patterns and backgrounds.</p>
+                </div>
+            </a>
+
+           
+
+                        <!--
+                            Separator between main and secondary tools
+                        -->
+            <div style="width: 100%; height: 2px; background: rgba(255, 255, 255, 0.2); margin: 2rem 0; grid-column: 1 / -1;"></div>
+            
+            <!-- Heading for secondary tools -->
+            <h3 style="grid-column: 1 / -1; text-align: center; margin: 0.5rem 0 1rem; font-weight: 400; color: rgba(255, 255, 255, 0.7);">Other Tools</h3>
+
+            <!-- Other tools (secondary, smaller cards) -->
+            <a href="./File%20Encryptor/index.html" class="tool-box secondary-tool" data-id="file-encryptor">
+                <h2>File Encryptor</h2>
+                <div class="info-popup">
+                    <h2>File Encryptor/Decryptor</h2>
+                    <p>Securely encrypt and decrypt files using strong encryption algorithms. All processing happens in your browser.</p>
+                </div>
+            </a>
+
+            <a href="./base%20converter.html" class="tool-box secondary-tool" data-id="base-converter">
+                <h2>Base Converter</h2>
+                <div class="info-popup">
+                    <h2>Base Converter</h2>
+                    <p>Convert numbers between different bases (binary, decimal, hexadecimal, etc.) with this easy-to-use tool.</p>
+                </div>
+            </a>
+
+            <a href="./QR%20code%20gen.html" class="tool-box secondary-tool" data-id="qr-generator">
+                <h2>QR Code Generator</h2>
+                <div class="info-popup">
+                    <h2>QR Code Generator</h2>
+                    <p>Create custom QR codes for URLs, text, contact information, and more. Download or share your QR codes easily.</p>
+                </div>
+            </a>
+
+            <a href="./image%20hex%20code.html" class="tool-box secondary-tool" data-id="hex-picker">
+                <h2>Image Color Picker</h2>
+                <div class="info-popup">
+                    <h2>Image Color Picker</h2>
+                    <p>Extract and identify color hex codes from any image. Click on any part of your image to get the exact color code.</p>
+                </div>
+            </a>
+
+            <a href="./zalgo%20gen.html" class="tool-box secondary-tool" data-id="zalgo-gen">
+                <h2>Zalgo Text Generator</h2>
+                <div class="info-popup">
+                    <h2>Zalgo Text Generator</h2>
+                    <p>Create glitchy, corrupted-looking text with various intensity levels. Perfect for creating surreal or horror-themed text effects.</p>
+                </div>
+            </a>
+
+            <a href="./image%20layerer%20V1.html" class="tool-box secondary-tool" data-id="image-layerer">
+                <h2>Image Layerer V1</h2>
+                <div class="info-popup">
+                    <h2>Image Layerer V1</h2>
+                    <p>Layer multiple images together with different blending modes, opacity, and positioning to create stunning composite images.</p>
+                </div>
+            </a>
+
+        </div>
+    </div>
+
+    <script>
+        //
+        // ──────────────────────────────────────────────
+        // INTERACTION & BACKGROUND LOGIC
+        // Handles background fade-in, search, and dual-mode (hover/tap) popups
+        // ──────────────────────────────────────────────
+        //
+
+        // Utility: Detect if device is touch-enabled
+        const isTouchDevice = () => ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('searchInput');
+            const toolBoxes = document.querySelectorAll('.tool-box');
+            const backgroundOverlay = document.getElementById('background-overlay');
+            let hoverTimeout;
+            let currentActiveBox = null; // Track the currently tapped box for touch devices
+
+            // --- BACKGROUND LOADING LOGIC ---
+            // Preload SVG and fade in overlay when loaded
+            const bgImage = new Image();
+            bgImage.src = 'background.svg';
+            bgImage.onload = () => {
+                backgroundOverlay.classList.add('loaded');
+            };
+
+            // --- SEARCH BAR FUNCTIONALITY ---
+            // Filters tool cards by search term (case-insensitive)
+            searchInput.addEventListener('keyup', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                toolBoxes.forEach(box => {
+                    // Check all text content in the card (title and popup)
+                    const title = box.textContent.toLowerCase(); 
+                    if (searchTerm === '' || title.includes(searchTerm)) {
+                        box.style.display = 'flex';
+                    } else {
+                        box.style.display = 'none';
+                    }
+                });
+            });
+
+            // --- DUAL-MODE INTERACTION (Hover for Desktop, Tap for Mobile) ---
+            toolBoxes.forEach(box => {
+                const popup = box.querySelector('.info-popup');
+
+                // --- DESKTOP HOVER LOGIC (with delay) ---
+                box.addEventListener('mouseenter', () => {
+                    if (!isTouchDevice()) {
+                        clearTimeout(hoverTimeout);
+                        hoverTimeout = setTimeout(() => {
+                            box.classList.add('is-hovering');
+                        }, 500); // Reduced delay for better feel
+                    }
+                });
+
+                box.addEventListener('mouseleave', () => {
+                    if (!isTouchDevice()) {
+                        clearTimeout(hoverTimeout);
+                        box.classList.remove('is-hovering');
+                    }
+                });
+                
+                // --- MOBILE/TOUCH LOGIC (Immediate Tap/Click for Info) ---
+                // touchstart: show popup, click: follow link on second tap
+                box.addEventListener('touchstart', (e) => {
+                    // Prevent default context menu on long press
+                    e.preventDefault(); 
+                    // If already active, let click event fire to follow link
+                    if (currentActiveBox === box) {
+                        return; 
+                    }
+                    // On touch, first tap shows popup, second tap follows link
+                    if (isTouchDevice()) {
+                        // Hide previous popup
+                        if (currentActiveBox && currentActiveBox !== box) {
+                            currentActiveBox.classList.remove('is-hovering');
+                        }
+                        // Show current popup
+                        box.classList.add('is-hovering');
+                        currentActiveBox = box;
+                    }
+                }, { passive: true });
+
+                // Prevent immediate link follow after first tap
+                box.addEventListener('click', (e) => {
+                    if (isTouchDevice() && box.classList.contains('is-hovering')) {
+                        // Only allow navigation on second tap
+                        if (currentActiveBox === box) {
+                            return true; 
+                        } else {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
+                    }
+                });
+            });
+            
+            // Global click listener: hide popup if clicking outside any tool card
+            document.addEventListener('click', (e) => {
+                if (isTouchDevice() && currentActiveBox) {
+                    if (!e.target.closest('.tool-box')) {
+                        currentActiveBox.classList.remove('is-hovering');
+                        currentActiveBox = null;
+                    }
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>

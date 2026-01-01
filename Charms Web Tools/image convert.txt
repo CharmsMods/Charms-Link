@@ -3,427 +3,285 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BRUTAL CONVERTER</title>
-    <!-- External Libraries (Preserved) -->
+    <title>Minimal File Converter (Advanced)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    
-    <!-- Fonts for Brutalist Aesthetic -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-
     <style>
-        :root {
-            /* THEME: DARK CREAM BRUTALIST */
-            --bg-cream: #E8E0D5;
-            --bg-paper: #F4F0EA;
-            --ink: #121212;
-            --accent-red: #FF3333;
-            --accent-yellow: #FFD700;
-            --border-width: 3px;
-            --shadow-offset: 6px;
+        /* Custom styles to enforce BORDERLESS, MINIMAL, and B&W */
+        /* REMOVED: * { transition: all 1.0s ease-in-out; } */
+        
+        /* --- EXPLICIT TRANSITIONS FOR SMOOTH MODE SWITCH (1.0s) --- */
+        body, .container,
+        input[type="checkbox"], 
+        .drop-zone, 
+        .message-box.info, .message-box.success, .message-box.error,
+        .file-list-item, 
+        .file-format-select,
+        .global-controls-border, #folder-export-controls,
+        .btn-primary, .btn-secondary {
+            /* Applied the slow transition specifically to the color/border properties */
+            transition: background-color 1.0s ease-in-out, color 1.0s ease-in-out, border-color 1.0s ease-in-out, outline-color 1.0s ease-in-out;
         }
 
-        /* --- GLOBAL RESET & BASE --- */
+        /* Speed up interactions like hover/dragover to keep the site responsive */
+        .drop-zone {
+            /* Override transition for hover/dragover effects to be quick (0.1s) */
+            transition: background-color 0.1s, color 0.1s, border-color 1.0s, outline-color 1.0s; 
+        }
+
+        .drop-zone:hover, .btn-primary:hover, .btn-secondary:hover {
+            /* Keep hover transition fast */
+            transition: transform 0.15s, background-color 0.1s, color 0.1s, outline 0.1s;
+        }
+        /* ----------------------------------------------------------- */
+
+
+        /* --- START DARK MODE DEFAULT STYLES (Default Background: Black, Text: White) --- */
         body {
-            font-family: 'Space Mono', monospace;
-            background-color: var(--bg-cream);
-            color: var(--ink);
-            /* Thick framing for the viewport */
-            border: 20px solid var(--ink);
+            font-family: 'Inter', sans-serif;
+            background-color: #000000; 
+            color: #ffffff; 
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
             min-height: 100vh;
+            padding: 0; 
             margin: 0;
             overflow-x: hidden;
-            transition: background-color 1.0s ease-in-out, color 1.0s ease-in-out, border-color 1.0s ease-in-out;
-        }
-
-        h1, h2, h3, .label-brutal {
-            font-family: 'Space Grotesk', sans-serif;
-            text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-        }
-
-        /* --- UTILITIES --- */
-        .brutal-border {
-            border: var(--border-width) solid var(--ink);
         }
         
-        .brutal-shadow {
-            box-shadow: var(--shadow-offset) var(--shadow-offset) 0px 0px var(--ink);
-            transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
-
-        .brutal-shadow:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: calc(var(--shadow-offset) + 2px) calc(var(--shadow-offset) + 2px) 0px 0px var(--ink);
-        }
-
-        .brutal-shadow:active {
-            transform: translate(2px, 2px);
-            box-shadow: 2px 2px 0px 0px var(--ink);
-        }
-
-        /* --- TRANSITIONS (Preserved & Styled) --- */
-        body, .container, .drop-zone, .message-box, .file-list-item, .file-format-select, 
-        .btn-primary, .btn-secondary, input[type="checkbox"] {
-            transition: background-color 1.0s ease-in-out, color 1.0s ease-in-out, border-color 1.0s ease-in-out, box-shadow 1.0s ease-in-out;
-        }
-
-        /* Interaction speeds (faster) */
-        .drop-zone:hover, .btn-primary:hover, .btn-secondary:hover {
-            transition: transform 0.1s, background-color 0.2s, box-shadow 0.2s;
-        }
-
-        /* --- COMPONENTS --- */
-
         .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background-color: var(--bg-cream);
-            padding: 2rem;
-            position: relative;
-            z-index: 10;
-        }
-
-        /* Header Marquee Effect */
-        .marquee-container {
-            border-bottom: var(--border-width) solid var(--ink);
-            margin-bottom: 2rem;
-            overflow: hidden;
-            white-space: nowrap;
-            padding: 1rem 0;
-            background: var(--ink);
-            color: var(--bg-cream);
+            max-width: 95%; 
+            width: 1200px; 
+            background-color: #000000; 
+            padding: 1rem; 
         }
         
-        .marquee-content {
-            display: inline-block;
-            font-family: 'Space Grotesk';
-            font-size: 3rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            animation: scroll 20s linear infinite;
-        }
-
-        @keyframes scroll {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-50%); }
-        }
-
-        /* Checkbox Styling */
+        /* Checkbox styling relies on CSS for strict B&W outlines */
         input[type="checkbox"] {
-            appearance: none;
-            width: 24px;
-            height: 24px;
-            border: var(--border-width) solid var(--ink);
-            background: var(--bg-paper);
-            cursor: pointer;
-            position: relative;
-            margin: 0;
+            outline: 1px solid #ffffff; /* Dark Mode Outline: ffffff */
+            border: none;
         }
         
-        input[type="checkbox"]:checked {
-            background: var(--ink);
+        /* BORDERS and LINES - Strict #FFFFFF in Dark Mode */
+        .drop-zone, .file-list-item, .global-controls-border, #folder-export-controls {
+            border-color: #ffffff !important;
         }
         
-        input[type="checkbox"]:checked::after {
-            content: '✕';
-            position: absolute;
-            color: var(--bg-cream);
-            font-size: 18px;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-weight: bold;
-        }
-
-        /* Drop Zone */
         .drop-zone {
-            border: var(--border-width) dashed var(--ink);
-            background-color: var(--bg-paper);
-            padding: 4rem 2rem;
-            text-align: center;
+            border: 1px solid #ffffff; 
+            background-color: #000000; 
             cursor: pointer;
-            position: relative;
-            overflow: hidden;
+            padding: 2rem 0; 
+            text-align: center;
         }
 
-        .drop-zone::before {
-            content: "INPUT_ZONE_01";
-            position: absolute;
-            top: 5px;
-            left: 5px;
-            font-size: 0.7rem;
-            font-weight: bold;
-            opacity: 0.5;
+        /* Drop Zone interaction effects */
+        .drop-zone:hover {
+            transform: scale(1.01); 
         }
 
         .drop-zone.dragover {
-            background-color: var(--accent-red) !important; 
-            color: var(--bg-cream) !important;
-            border-style: solid !important;
-            transform: scale(0.99);
-            box-shadow: -4px -4px 0px var(--ink) inset;
+            background-color: #ffffff !important; 
+            color: #000000 !important;
         }
 
-        /* Buttons */
-        .btn-primary, .btn-secondary {
-            font-family: 'Space Grotesk';
-            text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: 1px;
-            padding: 1rem 1.5rem;
-            border: var(--border-width) solid var(--ink);
-            cursor: pointer;
-            text-align: center;
-            display: inline-block;
-            text-decoration: none;
-        }
-
-        .btn-primary {
-            background-color: var(--ink);
-            color: var(--bg-cream);
-            box-shadow: var(--shadow-offset) var(--shadow-offset) 0px 0px #000;
-        }
-        
-        .btn-primary:hover {
-            background-color: var(--accent-red); /* Brutalist Red */
-            color: var(--bg-cream);
-        }
-
-        .btn-secondary {
-            background-color: var(--bg-paper);
-            color: var(--ink);
-            box-shadow: 4px 4px 0px 0px var(--ink);
-        }
-
-        .btn-secondary:hover {
-            background-color: var(--accent-yellow);
-            color: var(--ink);
-        }
-
-        .btn-primary:disabled, .btn-secondary:disabled, .file-format-select:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            box-shadow: none;
-            transform: translate(2px, 2px);
-        }
-
-        /* File List */
-        .file-list-item {
-            background: var(--bg-paper);
-            border-bottom: var(--border-width) solid var(--ink);
-            padding: 1rem;
-            display: grid;
-            grid-template-columns: 1fr auto auto; /* Adjusted for layout */
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .file-list-item:last-child {
-            border-bottom: none;
-        }
-
-        .file-format-select {
-            background-color: var(--bg-cream);
-            border: var(--border-width) solid var(--ink);
-            padding: 0.5rem;
-            font-family: 'Space Mono';
+        .message-box.info, .message-box.success, .message-box.error {
+            background-color: #000000 !important; 
+            color: #ffffff !important; 
             font-weight: bold;
-            text-transform: uppercase;
-            cursor: pointer;
-            box-shadow: 2px 2px 0px var(--ink);
-        }
-
-        /* Messages */
-        .message-box {
-            padding: 0.75rem;
-            border-left: 6px solid var(--ink);
-            background: var(--bg-paper);
             margin-bottom: 0.5rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            font-size: 0.8rem;
+            padding: 0.5rem 0;
+            text-decoration: underline; 
         }
         
-        .message-box.error {
-            border-left-color: var(--accent-red);
-            background-color: #fff0f0;
-            color: var(--accent-red);
+        /* Minimal file list item styling */
+        .file-list-item {
+            border-bottom: 1px solid #ffffff; 
+            opacity: 1; 
+            transform: translateX(0);
+        }
+
+        /* Button hover styles for B&W - INVERTED for Dark Mode */
+        .btn-primary:hover {
+            background-color: #000000 !important; 
+            color: #ffffff !important;
+            outline: 1px solid #ffffff;
+            transform: scale(1.05);
         }
         
-        .message-box.success {
-            border-left-color: var(--ink);
-            background-color: var(--bg-cream);
-        }
-
-        /* --- ANIMATIONS --- */
-        
-        /* Entrance Animation */
-        #main-content {
-            animation: unfold 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            transform-origin: top center;
-        }
-
-        @keyframes unfold {
-            0% { transform: scaleY(0); opacity: 0; }
-            100% { transform: scaleY(1); opacity: 1; }
-        }
-
-        /* List Item Entrance */
-        .file-list-enter {
-            animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            opacity: 0;
-            transform: translateX(20px);
-        }
-
-        @keyframes slideInRight {
-            to { opacity: 1; transform: translateX(0); }
-        }
-
-        /* --- INVERT MODE (The "Void" Toggle) --- */
-        body.void-mode {
-            --bg-cream: #111111;
-            --bg-paper: #1a1a1a;
-            --ink: #E8E0D5;
-            --accent-red: #ff4d4d;
-            --accent-yellow: #ffe600;
-        }
-
-        body.void-mode .marquee-container {
-            background: var(--bg-cream);
-            color: var(--ink);
+        .btn-secondary {
+            background-color: #000000; 
+            color: #ffffff;
+            outline: 1px solid #ffffff;
         }
         
-        body.void-mode .drop-zone.dragover {
-            background-color: var(--accent-yellow) !important;
-            color: var(--ink) !important;
+        .btn-secondary:hover {
+            background-color: #ffffff !important; 
+            color: #000000 !important;
+            outline: none;
+            transform: scale(1.05);
         }
         
-        body.void-mode .message-box.error {
-            background-color: #2a0000;
-            color: #ff9999;
+        /* Dropdown/Select styling */
+        .file-format-select {
+            color: #ffffff; 
+            background-color: #000000; 
+            border: none;
+            outline: 1px solid #ffffff; 
+            padding: 0.25rem 0.5rem; 
+            font-size: 0.75rem; 
         }
+        
+        /* Global controls border */
+        .global-controls-border {
+            border-bottom: 1px solid #ffffff; 
+            padding-bottom: 0.5rem;
+            padding-top: 0.5rem;
+        }
+
+        /* Style for the folder export control block */
+        #folder-export-controls {
+            border-bottom: 1px solid #ffffff; 
+            padding-bottom: 0.5rem;
+            padding-top: 0.5rem;
+        }
+        
+        /* --- END DARK MODE DEFAULT STYLES --- */
+
+
+        /* --- START LIGHT MODE (OLD DEFAULT) OVERRIDES (Background: White, Text: Black) --- */
+        body.light-mode {
+            background-color: #ffffff;
+            color: #000000;
+        }
+        body.light-mode .container {
+            background-color: #ffffff;
+        }
+        
+        /* Checkbox styling for strict B&W outlines */
+        body.light-mode input[type="checkbox"] {
+            outline: 1px solid #000000; /* Light Mode Outline: 000000 */
+        }
+
+        /* BORDERS and LINES - Strict #000000 in Light Mode */
+        body.light-mode .drop-zone, body.light-mode .file-list-item, body.light-mode .global-controls-border, body.light-mode #folder-export-controls {
+             border-color: #000000 !important;
+        }
+        
+        body.light-mode .drop-zone {
+            border: 1px solid #000000;
+            background-color: #ffffff;
+        }
+        body.light-mode .drop-zone.dragover {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        body.light-mode .message-box.info, body.light-mode .message-box.success, body.light-mode .message-box.error {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+        }
+        body.light-mode .file-list-item {
+            border-bottom: 1px solid #000000;
+        }
+        body.light-mode .btn-primary:hover {
+            background-color: #ffffff !important; 
+            color: #000000 !important;
+            outline: 1px solid #000000;
+        }
+        body.light-mode .btn-secondary {
+            background-color: #ffffff; 
+            color: #000000;
+            outline: 1px solid #000000;
+        }
+        body.light-mode .btn-secondary:hover {
+            background-color: #000000 !important; 
+            color: #ffffff !important;
+            outline: none;
+        }
+        body.light-mode .file-format-select {
+            color: #000000;
+            background-color: #ffffff;
+            outline: 1px solid #000000;
+        }
+        body.light-mode .global-controls-border {
+            border-bottom: 1px solid #000000; 
+        }
+        body.light-mode #folder-export-controls {
+            border-bottom: 1px solid #000000; 
+        }
+        /* --- END LIGHT MODE OVERRIDES --- */
 
     </style>
 </head>
-<body class="antialiased selection:bg-black selection:text-white"> 
+<body class="bg-black m-0 p-0 text-white"> 
+    <div id="main-content" class="container space-y-4 opacity-0 transition-opacity duration-500 ease-in">
+        <header class="text-center">
+            <h1 class="text-3xl font-bold mb-0">Multi-File Converter</h1> 
+            <p class="text-sm mt-1 mb-2">Drag & drop **files or folders** or **click to select files** to convert.</p>
+        </header>
 
-    <div id="main-content" class="container">
-        
-        <!-- Marquee Header -->
-        <div class="marquee-container">
-            <div class="marquee-content">
-                MULTI-FILE CONVERTER /// DRAG & DROP SUPPORT /// FOLDER ARCHIVING /// FORMAT TRANSFORMATION /// NO UPLOADS /// LOCAL PROCESSING ONLY /// 
-                MULTI-FILE CONVERTER /// DRAG & DROP SUPPORT /// FOLDER ARCHIVING /// FORMAT TRANSFORMATION /// NO UPLOADS /// LOCAL PROCESSING ONLY ///
-            </div>
-        </div>
-
-        <!-- Top Controls -->
-        <div class="flex justify-between items-center mb-8 border-b-4 border-black pb-4">
-            <div class="text-xs font-bold tracking-widest uppercase opacity-70">
-                System Status: <span id="system-status">READY</span>
-            </div>
-            
-            <div class="flex items-center space-x-3">
-                <label class="text-sm font-bold uppercase cursor-pointer flex items-center gap-2">
-                    <input type="checkbox" id="mode-toggle-checkbox"> 
-                    <span class="brutal-border px-2 py-1 shadow-[2px_2px_0_0_#000]">Void Mode</span>
-                </label>
-            </div>
+        <div class="flex items-center justify-end space-x-2 pb-2">
+            <input type="checkbox" id="mode-toggle-checkbox"> 
+            <label for="mode-toggle-checkbox" class="text-sm font-semibold">Light Mode</label>
         </div>
         
-        <!-- Drop Zone -->
         <input type="file" id="hidden-file-input" multiple class="hidden"> 
-        <div id="drop-zone" class="drop-zone brutal-shadow mb-8 group">
-            <div class="pointer-events-none">
-                <p class="text-2xl md:text-4xl font-bold mb-2 group-hover:text-[var(--accent-red)] transition-colors">INITIATE UPLOAD</p>
-                <p class="font-mono text-sm border-t-2 border-black inline-block pt-1 mt-2">
-                    DRAG FILES/FOLDERS HERE OR CLICK TO BROWSE
-                </p>
-                <div class="mt-4 text-xs uppercase tracking-widest opacity-60">
-                    [Supported: JPG, PNG, WEBP]
-                </div>
-            </div>
+        <div id="drop-zone" class="drop-zone p-4 text-center cursor-pointer">
+            <p class="font-semibold">Click or Drag & Drop Files/Folders Here</p>
+            <p class="text-xs">(.jpg, .png, .gif, and any other file types will be preserved)</p>
         </div>
 
-        <!-- Global Actions -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <button id="convert-btn" class="btn-secondary brutal-shadow w-full" disabled>
-                // EXECUTE CONVERSION
+        <div class="flex items-center justify-end space-x-2 pt-2">
+            <button id="convert-btn" class="btn-secondary font-semibold p-2 transition duration-150" disabled>
+                Convert All Selected
             </button>
-            <button id="export-zip-btn" class="btn-primary brutal-shadow w-full" disabled>
-                // EXPORT ZIP ARCHIVE
+            <button id="export-zip-btn" class="btn-primary bg-white text-black font-semibold p-2 transition duration-150" disabled>
+                Export ZIP Archive
             </button>
         </div>
         
-        <!-- Global Controls -->
-        <div id="global-controls" class="brutal-border bg-[var(--bg-paper)] p-4 mb-4 relative shadow-[4px_4px_0_0_#000]"> 
-            <div class="absolute -top-3 left-4 bg-black text-white px-2 text-xs font-bold uppercase tracking-widest">
-                Global Config
+        <div id="global-controls" class="global-controls-border flex items-center justify-between pt-4 pb-2"> 
+            <div class="flex items-center space-x-2 text-sm font-semibold">
+                <input type="checkbox" id="select-all-checkbox" disabled>
+                <label for="select-all-checkbox">Select/Deselect All Images for Conversion</label>
             </div>
             
-            <div class="flex flex-col md:flex-row justify-between items-center gap-6">
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2">
-                        <input type="checkbox" id="select-all-checkbox" disabled>
-                        <label for="select-all-checkbox" class="font-bold text-sm uppercase">Select All</label>
-                    </div>
-                </div>
-                
-                <div class="flex items-center space-x-3 w-full md:w-auto">
-                    <label for="global-format-select" class="text-xs font-bold uppercase whitespace-nowrap">Target Format:</label>
-                    <select id="global-format-select" class="file-format-select w-full md:w-auto flex-grow" disabled>
+            <div class="flex items-center space-x-2 text-sm font-medium">
+                <label for="global-format-select">Convert All Images To:</label>
+                <select id="global-format-select" class="file-format-select" disabled>
                     </select>
-                </div>
             </div>
         </div>
         
-        <!-- Folder Controls -->
-        <div id="folder-export-controls" class="hidden mb-8">
-            <h3 class="text-lg font-bold uppercase mb-3 flex items-center">
-                <span class="w-2 h-2 bg-black mr-2"></span> Folder Logic
-            </h3> 
-            <div class="flex flex-col space-y-3 border-l-4 border-black pl-4 ml-1">
-                <div class="flex items-center space-x-3 bg-[var(--bg-paper)] p-2">
+        <div id="folder-export-controls" class="space-y-2 hidden">
+            <h3 class="text-sm font-bold pt-1">Folder Export Options:</h3> 
+            <div class="flex flex-col space-y-1 text-xs">
+                <div class="flex items-center space-x-2">
                     <input type="checkbox" id="include-non-image-files" checked> 
-                    <label for="include-non-image-files" class="text-sm cursor-pointer">Attach non-image files (PDF, TXT, etc.) to archive?</label>
+                    <label for="include-non-image-files">Include non-image files (PDFs, TXT, etc.) in the final ZIP?</label>
                 </div>
                 
-                <div id="preserve-structure-option" class="hidden flex items-center space-x-3 pl-4 border-l-2 border-dashed border-gray-400 py-1">
+                <div id="preserve-structure-option" class="flex items-center space-x-2 pl-4 hidden"> 
                     <input type="checkbox" id="preserve-non-image-structure"> 
-                    <label for="preserve-non-image-structure" class="text-xs font-mono opacity-80">Retain directory tree for excluded assets?</label>
+                    <label for="preserve-non-image-structure">Preserve the folder structure for excluded non-image files?</label>
                 </div>
             </div>
         </div>
-
-        <!-- File List Header -->
-        <div class="flex justify-between items-end border-b-4 border-black pb-2 mb-2 mt-8">
-            <h2 class="text-2xl">Files Found: <span id="file-count" class="font-mono text-[var(--accent-red)]">0</span></h2> 
-        </div>
-
-        <!-- Messages -->
-        <div id="message-container" class="mb-4"></div>
-
-        <!-- List -->
-        <ul id="file-list" class="brutal-border border-t-0 bg-[var(--bg-paper)] shadow-[4px_4px_0_0_#000]">
-            <!-- Items injected here -->
-            <li id="empty-state" class="p-8 text-center font-mono text-sm opacity-50 uppercase">
-                [ No Data Loaded ]
-            </li>
-        </ul>
+        <h2 class="text-xl font-bold pt-4 mb-2">Files Added (<span id="file-count">0</span>)</h2> 
+        <div id="message-container" class="space-y-1">
+            </div>
+        <ul id="file-list" class="space-y-1">
+            </ul>
         
-        <div class="pt-8 flex justify-center">
-            <button id="clear-all-btn" class="btn-secondary text-sm px-6 py-2 brutal-shadow" disabled>
-                PURGE ALL DATA
+        <div class="pt-4 flex justify-center">
+            <button id="clear-all-btn" class="btn-secondary font-semibold p-2 transition duration-150 text-sm" disabled>
+                Clear All Files
             </button>
         </div>
     </div>
 
-    <!-- Logic Script -->
     <script>
         // Global variables
         const filesToProcess = []; 
@@ -444,10 +302,11 @@
         const clearAllBtn = document.getElementById('clear-all-btn');
         const selectAllCheckbox = document.getElementById('select-all-checkbox');
         const globalFormatSelect = document.getElementById('global-format-select');
-        const modeToggleCheckbox = document.getElementById('mode-toggle-checkbox');
-        const systemStatus = document.getElementById('system-status');
         
-        // Folder Controls
+        // NEW ELEMENT REFERENCES (Dark Mode Toggle) 
+        const modeToggleCheckbox = document.getElementById('mode-toggle-checkbox');
+        
+        // NEW ELEMENT REFERENCES (Folder Controls)
         const folderExportControls = document.getElementById('folder-export-controls');
         const includeNonImageFilesCheckbox = document.getElementById('include-non-image-files');
         const preserveStructureOptionDiv = document.getElementById('preserve-structure-option');
@@ -460,30 +319,31 @@
             'image/webp': 'webp'
         };
         
-        // --- Functions ---
-
-        function updateSystemStatus(text, type = 'NORMAL') {
-            systemStatus.textContent = text;
-            if(type === 'ERROR') systemStatus.style.color = 'var(--accent-red)';
-            else systemStatus.style.color = 'inherit';
-        }
+        // --- Download Function ---
 
         function downloadSingleFile(index) {
             const item = filesToProcess[index];
             if (item && item.convertedBlob) {
                 const filename = item.relativePath.split('/').pop();
+                
                 const url = URL.createObjectURL(item.convertedBlob);
+                
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = filename; 
+                
                 a.click();
+                
                 URL.revokeObjectURL(url);
-                showGeneralMessage(`Downloaded: ${filename}`, 'success');
+                
+                showGeneralMessage(`Downloaded file: ${filename}`, 'success');
             } else {
-                showGeneralMessage('File not converted or unavailable.', 'error');
+                showGeneralMessage('File not converted or already downloaded.', 'error');
             }
         }
 
+        // --- Global Control Functions ---
+        
         function selectAllConversions(checked) {
             filesToProcess.forEach(item => {
                 if (item.isImage) {
@@ -554,14 +414,18 @@
             }
         }
 
+        // --- Core Functions ---
+
         function isConvertableImage(mimeType) {
             return mimeType.startsWith('image/');
         }
 
         function showGeneralMessage(message, type = 'info') {
             const messageBox = document.createElement('div');
-            messageBox.className = `message-box ${type}`; 
-            messageBox.textContent = `> ${message}`;
+            // Message box style updated to match the Dark Mode default
+            messageBox.className = `message-box ${type} text-sm bg-black p-1 mb-1`; 
+            messageBox.setAttribute('data-message-type', type);
+            messageBox.textContent = message;
             
             if (messageContainer.children.length >= 3) {
                 messageContainer.removeChild(messageContainer.children[0]);
@@ -573,11 +437,10 @@
             const hasFiles = filesToProcess.length > 0;
             const hasImages = filesToProcess.some(f => f.isImage);
             
-            // Handle Empty State
-            const emptyState = document.getElementById('empty-state');
-            if(emptyState) {
-                emptyState.style.display = hasFiles ? 'none' : 'block';
-            }
+            // Get the current mode for styling buttons dynamically
+            const isLightMode = document.body.classList.contains('light-mode');
+            const primaryBtnBase = isLightMode ? 'bg-black text-white' : 'bg-white text-black';
+            const secondaryBtnBase = isLightMode ? 'bg-white text-black' : 'bg-black text-white';
 
             fileCountSpan.textContent = filesToProcess.length;
             
@@ -589,27 +452,37 @@
 
             clearAllBtn.disabled = !hasFiles;
             
+            // --- Global Control Updates ---
             globalFormatSelect.disabled = !hasImages;
             document.getElementById('global-controls').classList.toggle('opacity-50', !hasImages);
             updateSelectAllCheckbox(); 
             
-            // Folder Control Visibility
+            // --- Folder Control Visibility Logic ---
             if (isFolderUpload) {
                 folderExportControls.classList.remove('hidden');
             } else {
                 folderExportControls.classList.add('hidden');
             }
             
+            // Show the structure preservation option ONLY if non-image files are being excluded
             if (!includeNonImageFiles) {
                 preserveStructureOptionDiv.classList.remove('hidden');
             } else {
                 preserveStructureOptionDiv.classList.add('hidden');
             }
+            // ------------------------------------------
+
+            // Update button styling (B&W minimal)
+            convertBtn.className = `btn-secondary font-semibold p-2 transition duration-150 ${convertBtn.disabled ? 'opacity-50 cursor-not-allowed' : secondaryBtnBase}`;
+            exportZipBtn.className = `btn-primary font-semibold p-2 transition duration-150 ${exportZipBtn.disabled ? 'opacity-50 cursor-not-allowed' : primaryBtnBase}`;
+            clearAllBtn.className = `btn-secondary font-semibold p-2 transition duration-150 text-sm ${clearAllBtn.disabled ? 'opacity-50 cursor-not-allowed' : secondaryBtnBase}`;
         }
 
         function addFileEntry(file, relativePath) {
             const isDuplicate = filesToProcess.some(f => f.relativePath === relativePath);
-            if (isDuplicate) return;
+            if (isDuplicate) {
+                return;
+            }
             
             const isImage = isConvertableImage(file.type);
             const initialTargetMime = isImage ? globalFormatSelect.value : 'N/A';
@@ -626,6 +499,7 @@
                 originalName: file.name
             });
             
+            // Detect if this file path suggests a folder upload
             if (relativePath && relativePath.includes('/')) {
                 isFolderUpload = true;
             }
@@ -670,6 +544,7 @@
 
         function handleFiles(dataTransferItems) {
             isFolderUpload = false;
+            
             const items = Array.from(dataTransferItems);
             let totalFilesFound = 0;
 
@@ -685,12 +560,12 @@
                             }
                         });
                     } else if (entry.isDirectory) {
-                        showGeneralMessage(`Scanning Directory: ${entry.name}...`, 'info');
+                        showGeneralMessage(`Processing folder: ${entry.name}...`, 'info');
                         processDirectory(entry).then(() => {
-                            showGeneralMessage(`Directory Scan Complete`, 'success');
+                            showGeneralMessage(`Folder processing complete: ${entry.name}`, 'success');
                             renderFileList();
                         }).catch(error => {
-                            showGeneralMessage(`Error: ${error.message}`, 'error');
+                            showGeneralMessage(`Error reading folder: ${error.message}`, 'error');
                             updateControls();
                         });
                     }
@@ -716,35 +591,39 @@
             
             fileList.innerHTML = '';
             
-            filesToProcess.forEach((item, index) => {
-                // Skip empty state li if it exists (handled in updateControls)
-                if(item.relativePath === 'empty') return;
+            // Get the current mode for styling status text dynamically
+            const isLightMode = document.body.classList.contains('light-mode');
+            const primaryBtnBase = isLightMode ? 'bg-black text-white' : 'bg-white text-black';
+            const secondaryBtnBase = isLightMode ? 'bg-white text-black' : 'bg-black text-white';
 
+            filesToProcess.forEach((item, index) => {
                 const listItem = document.createElement('li');
                 listItem.id = `file-item-${index}`;
                 listItem.setAttribute('data-relative-path', item.relativePath);
 
-                listItem.className = 'file-list-item border-b border-[var(--ink)] last:border-0'; 
+                // listItem inherits color and background from body/container
+                listItem.className = 'file-list-item grid grid-cols-12 gap-2 items-center text-sm transition duration-150'; 
 
                 const isNew = !existingFilePaths.includes(item.relativePath);
                 if (isNew) {
                     listItem.classList.add('file-list-enter'); 
                 }
 
-                // 1. Path
+                // --- 1. File Path (Col 1-7) ---
                 const pathDisplay = document.createElement('div');
-                pathDisplay.className = 'font-mono text-xs md:text-sm overflow-hidden whitespace-nowrap text-ellipsis truncate pr-4';
-                pathDisplay.innerHTML = `<span class="opacity-50 mr-2">${index + 1}.</span> ${item.relativePath}`;
+                pathDisplay.className = 'col-span-7 font-medium overflow-hidden whitespace-nowrap text-ellipsis';
+                pathDisplay.textContent = item.relativePath;
 
-                // 2. Controls (Checkbox + Select)
+                // --- 2. Format Selector (Col 8-10) ---
                 const formatControl = document.createElement('div');
-                formatControl.className = 'flex items-center justify-end gap-2';
+                formatControl.className = 'col-span-3 flex items-center justify-end space-x-2';
                 
                 if (item.isImage) {
                     const select = document.createElement('select');
                     select.id = `select-${index}`;
-                    select.className = 'file-format-select text-xs';
-                    
+                    select.className = 'file-format-select';
+                    select.style.minWidth = '80px'; 
+
                     Object.keys(IMAGE_MIME_MAP).forEach(mime => {
                         const option = document.createElement('option');
                         option.value = mime;
@@ -759,16 +638,17 @@
                         item.targetMimeType = e.target.value;
                         item.conversionStatus = 'Pending'; 
                         item.convertedBlob = null;
-                        const st = document.getElementById(`status-text-${index}`);
-                        if(st) st.textContent = '(Pending)';
+                        document.getElementById(`status-text-${index}`).textContent = '(Pending)';
                         updateControls();
                     });
                     
+                    // Toggle checkbox for conversion
+                    const checkboxDiv = document.createElement('div');
+                    checkboxDiv.className = 'flex items-center space-x-1';
                     const checkbox = document.createElement('input');
                     checkbox.type = 'checkbox';
                     checkbox.checked = item.shouldConvert;
                     checkbox.id = `checkbox-${index}`;
-                    checkbox.title = "Toggle Conversion";
                     checkbox.addEventListener('change', (e) => {
                         item.shouldConvert = e.target.checked;
                         select.disabled = !item.shouldConvert;
@@ -778,54 +658,72 @@
                         } else {
                            item.conversionStatus = 'Pending';
                         }
-                        const st = document.getElementById(`status-text-${index}`);
-                        if(st) st.textContent = `(${item.conversionStatus})`;
+                        document.getElementById(`status-text-${index}`).textContent = `(${item.conversionStatus})`;
                         updateControls();
                     });
+                    const label = document.createElement('label');
+                    label.htmlFor = `checkbox-${index}`;
+                    label.textContent = 'Convert';
+                    label.className = 'text-xs';
 
-                    formatControl.appendChild(checkbox);
+                    formatControl.appendChild(checkboxDiv);
+                    checkboxDiv.appendChild(checkbox);
+                    checkboxDiv.appendChild(label);
                     formatControl.appendChild(select);
                 } else {
-                    const div = document.createElement('div');
-                    div.textContent = 'NO ACTION';
-                    div.className = 'text-xs font-bold uppercase tracking-wider opacity-50 border px-1 border-transparent';
-                    formatControl.appendChild(div);
+                    formatControl.textContent = 'File will be preserved';
+                    formatControl.className = 'col-span-3 text-xs italic text-right';
                 }
                 
-                // 3. Status & Action
+                // --- 3. Status and Remove/Download (Col 11-12) ---
                 const statusAndRemove = document.createElement('div');
-                statusAndRemove.className = 'flex items-center justify-end gap-2 min-w-[100px]';
+                statusAndRemove.className = 'col-span-2 flex items-center justify-end space-x-1';
 
+                // Status Text
                 const statusText = document.createElement('span');
                 statusText.id = `status-text-${index}`;
-                statusText.className = 'text-[10px] font-mono uppercase whitespace-nowrap';
+                statusText.className = 'text-xs'; // Let color inherit
                 statusText.textContent = `(${item.conversionStatus})`;
                 
-                if (item.conversionStatus === 'Success') statusText.style.color = 'green';
-                if (item.conversionStatus === 'Error') statusText.style.color = 'red';
+                // Add conditional status style
+                if (item.conversionStatus === 'Success' || item.conversionStatus === 'Error') {
+                    statusText.classList.add('font-bold');
+                }
+                if (item.conversionStatus === 'Error') {
+                    statusText.classList.add('underline');
+                }
 
+                // Download Button (Only visible if NOT a folder upload AND successful conversion)
                 if (!isFolderUpload && item.conversionStatus === 'Success' && item.isImage) {
                     const downloadBtn = document.createElement('button');
-                    downloadBtn.innerHTML = '↓';
-                    downloadBtn.title = "Download File";
-                    downloadBtn.className = 'w-6 h-6 flex items-center justify-center border border-black font-bold text-xs hover:bg-black hover:text-[var(--bg-cream)] transition-colors';
+                    downloadBtn.textContent = 'Download';
+                    downloadBtn.className = `btn-primary ${primaryBtnBase} text-xs p-1`; 
                     downloadBtn.onclick = () => downloadSingleFile(index);
                     statusAndRemove.appendChild(downloadBtn);
                 }
 
+                // Remove button
                 const removeBtn = document.createElement('button');
-                removeBtn.innerHTML = '✕';
-                removeBtn.title = "Remove from List";
-                removeBtn.className = 'w-6 h-6 flex items-center justify-center border border-black font-bold text-xs hover:bg-[var(--accent-red)] hover:text-white transition-colors';
+                removeBtn.textContent = 'Remove';
+                removeBtn.className = `btn-secondary ${secondaryBtnBase} text-xs p-1 ml-4`; 
                 removeBtn.onclick = () => removeFile(index);
 
                 statusAndRemove.appendChild(statusText);
                 statusAndRemove.appendChild(removeBtn);
 
+
+                // Assemble the list item
                 listItem.appendChild(pathDisplay);
                 listItem.appendChild(formatControl);
                 listItem.appendChild(statusAndRemove);
                 fileList.appendChild(listItem);
+                
+                // Animate entrance
+                if (isNew) {
+                    setTimeout(() => {
+                        listItem.classList.remove('file-list-enter');
+                    }, 50);
+                }
             });
             updateControls();
         }
@@ -833,17 +731,17 @@
         function removeFile(index) {
             const listItem = document.getElementById(`file-item-${index}`);
             if (listItem) {
-                listItem.style.transform = 'translateX(100%)';
-                listItem.style.opacity = '0';
+                listItem.classList.add('opacity-0', 'scale-y-0', 'h-0', 'my-0', 'py-0');
                 
                 setTimeout(() => {
                     const filePath = filesToProcess[index]?.relativePath || 'file';
                     filesToProcess.splice(index, 1);
                     
                     isFolderUpload = filesToProcess.some(f => f.relativePath.includes('/'));
-                    showGeneralMessage(`Removed: ${filePath}`, 'info');
+
+                    showGeneralMessage(`Removed file: ${filePath}`, 'info');
                     renderFileList();
-                }, 300); 
+                }, 400); 
             } else {
                 filesToProcess.splice(index, 1);
                 isFolderUpload = filesToProcess.some(f => f.relativePath.includes('/'));
@@ -863,65 +761,83 @@
                     ctx.drawImage(img, 0, 0);
 
                     canvas.toBlob((blob) => {
-                        if (blob) resolve(blob);
-                        else reject(new Error('Blob creation failed.'));
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            reject(new Error('Failed to create Blob during conversion.'));
+                        }
                     }, targetMimeType, 0.92);
                 };
-                img.onerror = () => reject(new Error('Image load failed.'));
+                img.onerror = (e) => {
+                    reject(new Error('Failed to load image for conversion.'));
+                };
                 
                 const reader = new FileReader();
-                reader.onload = (e) => img.src = e.target.result;
-                reader.onerror = () => reject(new Error('File read failed.'));
+                reader.onload = (e) => {
+                    img.src = e.target.result;
+                };
+                reader.onerror = () => {
+                    reject(new Error('Failed to read file.'));
+                };
                 reader.readAsDataURL(file);
             });
         }
+
+        // --- Event Handlers for NEW Controls (Folder/Mode) ---
         
-        // --- Event Listeners ---
-        
+        // ADDED DARK/LIGHT MODE TOGGLE HANDLER
         modeToggleCheckbox.addEventListener('change', (e) => {
-            document.body.classList.toggle('void-mode');
-            const isVoid = document.body.classList.contains('void-mode');
-            const label = document.querySelector('label[for="mode-toggle-checkbox"] span');
-            
-            if(isVoid) {
-                label.textContent = "Light Mode";
-                label.style.background = "var(--bg-cream)";
-                label.style.color = "var(--ink)";
+            const isLightMode = e.target.checked;
+            if (isLightMode) {
+                document.body.classList.add('light-mode');
             } else {
-                label.textContent = "Void Mode";
-                label.style.background = "var(--ink)";
-                label.style.color = "var(--bg-cream)";
+                document.body.classList.remove('light-mode');
             }
+            // Re-render controls to apply new button/list item styles
+            renderFileList(); 
+            updateControls(); 
+            
+            // FIXED: Removed class-updating logic, now handled by CSS
+            document.querySelector('label[for="mode-toggle-checkbox"]').classList.toggle('text-black', isLightMode);
+            document.querySelector('label[for="mode-toggle-checkbox"]').classList.toggle('text-white', !isLightMode);
         });
+
 
         includeNonImageFilesCheckbox.addEventListener('change', (e) => {
             includeNonImageFiles = e.target.checked;
-            updateControls();
+            updateControls(); // Updates visibility of the secondary checkbox
         });
 
         preserveNonImageStructureCheckbox.addEventListener('change', (e) => {
             preserveEmptyNonImageStructure = e.target.checked;
         });
         
-        selectAllCheckbox.addEventListener('change', (e) => selectAllConversions(e.target.checked));
-        globalFormatSelect.addEventListener('change', (e) => setAllTargetFormats(e.target.value));
+        // --- Other Event Handlers (Unchanged) ---
+        
+        selectAllCheckbox.addEventListener('change', (e) => {
+            selectAllConversions(e.target.checked);
+        });
+        
+        globalFormatSelect.addEventListener('change', (e) => {
+            setAllTargetFormats(e.target.value);
+        });
+
 
         convertBtn.addEventListener('click', async () => {
             if (conversionRunning) return;
 
             conversionRunning = true;
-            updateSystemStatus('PROCESSING...', 'BUSY');
             updateControls();
             
             const filesToConvert = filesToProcess.filter(f => f.isImage && f.shouldConvert);
             if (filesToConvert.length === 0) {
-                 showGeneralMessage('No images selected.', 'info');
+                 showGeneralMessage('No images selected for conversion.', 'info');
                  conversionRunning = false;
                  updateControls();
                  return;
             }
 
-            showGeneralMessage(`Initializing conversion batch: ${filesToConvert.length} units.`, 'info');
+            showGeneralMessage(`Starting conversion of ${filesToConvert.length} images...`, 'info');
 
             let successCount = 0;
             let errorCount = 0;
@@ -935,121 +851,147 @@
                     continue; 
                 }
                 
-                item.conversionStatus = 'Processing...';
-                statusElement.textContent = '(Busy...)';
-                statusElement.style.color = 'orange';
+                item.conversionStatus = 'Converting...';
+                statusElement.textContent = '(Converting...)';
                 
                 const targetExtension = IMAGE_MIME_MAP[item.targetMimeType];
                 
                 try {
                     const convertedBlob = await convertFile(item.file, item.targetMimeType);
+                    
                     item.convertedBlob = convertedBlob;
+                    
                     item.relativePath = item.relativePath.replace(/\.[^/.]+$/, "") + '.' + targetExtension;
+                    
                     item.conversionStatus = 'Success';
                     successCount++;
+                    
                     renderFileList(); 
+
                 } catch (error) {
                     item.conversionStatus = 'Error';
                     item.convertedBlob = null;
                     errorCount++;
-                    showGeneralMessage(`Conversion Fail: ${item.relativePath}`, 'error');
+                    
+                    showGeneralMessage(`Conversion failed for ${item.relativePath}: ${error.message}`, 'error');
                 }
             }
 
             conversionRunning = false;
-            updateSystemStatus('READY', 'NORMAL');
             updateControls(); 
-            showGeneralMessage(`Batch Complete: ${successCount} OK, ${errorCount} ERR.`, 'success');
+            showGeneralMessage(`Conversion complete: ${successCount} successful, ${errorCount} failed.`, 'success');
         });
 
+        /**
+         * MODIFIED: Creates a ZIP file respecting the new folder export controls.
+         */
         exportZipBtn.addEventListener('click', () => {
             const zip = new JSZip();
             const filesToZip = filesToProcess;
 
             if (filesToZip.length === 0) {
-                showGeneralMessage('No files to export.', 'error');
+                showGeneralMessage('No files added to the list to export.', 'error');
                 return;
             }
 
-            showGeneralMessage('Compiling Archive Structure...', 'info');
+            showGeneralMessage('Preparing ZIP file with controlled content and structure...', 'info');
 
             let filesAddedCount = 0;
             const foldersWithContent = new Set();
             const foldersFromExcludedNonImages = new Set();
             
+            // Helper to get parent directory path (e.g., 'path/to/file.txt' -> 'path/to')
             function getParentDirectory(relativePath) {
                 const parts = relativePath.split('/');
-                if (parts.length > 1) return parts.slice(0, -1).join('/');
-                return '';
+                if (parts.length > 1) {
+                    return parts.slice(0, -1).join('/');
+                }
+                return ''; // Root directory
             }
 
+            // Helper to add parent directories to a set (e.g., 'a/b/c' -> 'a', 'a/b', 'a/b/c')
             function addParentPaths(relativePath, set) {
                 let currentPath = '';
                 relativePath.split('/').slice(0, -1).forEach(part => {
-                    currentPath = currentPath.length > 0 ? `${currentPath}/${part}` : part;
+                    if (currentPath.length > 0) {
+                        currentPath += '/' + part;
+                    } else {
+                        currentPath = part;
+                    }
                     set.add(currentPath);
                 });
             }
+
 
             filesToZip.forEach(item => {
                 let fileBlob = item.file; 
                 let pathInZip = item.relativePath;
                 let shouldIncludeFile = false;
                 
+                // 1. Determine inclusion logic
                 if (item.isImage) {
+                    // Images are always included. Use converted blob if available, otherwise original file.
                     fileBlob = item.convertedBlob || item.file; 
                     shouldIncludeFile = true;
-                } else if (!item.isImage && includeNonImageFiles) {
-                    shouldIncludeFile = true;
+                } else if (!item.isImage) {
+                    // Non-images are included only if the toggle is checked.
+                    if (includeNonImageFiles) {
+                        shouldIncludeFile = true;
+                    }
                 }
                 
+                // 2. Add files and track folders with content
                 if (shouldIncludeFile) {
                     if (item.isImage && item.shouldConvert && !item.convertedBlob) {
-                        return; 
+                        showGeneralMessage(`Skipping failed conversion for: ${item.relativePath}`, 'info');
+                        return; // Skip this item entirely
                     }
+                    
                     zip.file(pathInZip, fileBlob);
                     filesAddedCount++;
                     addParentPaths(pathInZip, foldersWithContent);
                 } 
                 
+                // 3. Track folders that contained EXCLUDED non-images
                 if (!item.isImage && !shouldIncludeFile) {
                     addParentPaths(pathInZip, foldersFromExcludedNonImages);
                 }
             });
 
+            // 4. Preserve empty structure if requested
             if (isFolderUpload && !includeNonImageFiles && preserveEmptyNonImageStructure) {
                 foldersFromExcludedNonImages.forEach(folderPath => {
+                    // Only create the folder if it does NOT contain any included files/images
                     if (!foldersWithContent.has(folderPath)) {
+                         // The .folder() method is used to explicitly create a directory entry
                         zip.folder(folderPath); 
                     }
                 });
             }
 
-            updateSystemStatus('GENERATING ZIP...', 'BUSY');
 
             zip.generateAsync({ type: 'blob' })
                 .then(content => {
                     if (content.size > 0 || filesAddedCount > 0) {
-                        saveAs(content, isFolderUpload ? 'brutal_archive.zip' : 'converted_files.zip');
-                        showGeneralMessage(`Archive Generated: ${filesAddedCount} files.`, 'success');
-                        updateSystemStatus('READY', 'NORMAL');
+                        saveAs(content, isFolderUpload ? 'processed_archive.zip' : 'converted_files.zip');
+                        showGeneralMessage(`Successfully created ZIP archive with ${filesAddedCount} files.`, 'success');
                     } else {
-                        showGeneralMessage('Archive Empty.', 'error');
+                        showGeneralMessage('No files or folders were successfully added to the ZIP.', 'error');
                     }
                 })
                 .catch(error => {
-                    showGeneralMessage(`Zip Error: ${error.message}`, 'error');
-                    updateSystemStatus('ERROR', 'ERROR');
+                    showGeneralMessage(`An error occurred during file processing for ZIP: ${error.message}`, 'error');
                 });
         });
 
         clearAllBtn.addEventListener('click', () => {
             if (conversionRunning) {
-                showGeneralMessage('System Busy. Wait for conversion.', 'error');
+                showGeneralMessage('Cannot clear files while conversion is running.', 'error');
                 return;
             }
             filesToProcess.length = 0;
             isFolderUpload = false;
+            // Reset the new controls to their default state
             includeNonImageFiles = true;
             includeNonImageFilesCheckbox.checked = true;
             preserveEmptyNonImageStructure = false;
@@ -1057,22 +999,18 @@
             
             messageContainer.innerHTML = '';
             
-            // Visual clear
-            const items = Array.from(fileList.children);
-            items.forEach((li, i) => {
-                setTimeout(() => {
-                    li.style.opacity = '0';
-                    li.style.transform = 'translateX(-20px)';
-                }, i * 50);
+            Array.from(fileList.children).forEach(li => {
+                li.classList.add('opacity-0', 'scale-y-0', 'h-0', 'my-0', 'py-0');
             });
 
             setTimeout(() => {
                 renderFileList();
-                showGeneralMessage('Memory Purged.', 'info');
-                updateSystemStatus('READY', 'NORMAL');
-            }, 300);
+                showGeneralMessage('File list cleared.', 'info');
+            }, 400);
         });
 
+
+        // Drag and Drop Event Listeners 
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -1098,7 +1036,10 @@
             }
         });
 
-        dropZone.addEventListener('click', () => hiddenFileInput.click());
+        // Click to Upload functionality
+        dropZone.addEventListener('click', () => {
+            hiddenFileInput.click();
+        });
 
         hiddenFileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
@@ -1115,6 +1056,7 @@
             }
         });
 
+        // Initial setup and page load animation
         populateGlobalFormatSelector();
         updateControls();
         mainContent.classList.remove('opacity-0');

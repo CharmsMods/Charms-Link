@@ -16,6 +16,9 @@ html {
 body {
     font-family: 'Courier New', Courier, monospace;
     background-color: #faf4e1;
+    /* Brutalist dot background */
+    background-image: radial-gradient(rgba(0, 0, 0, 0.1) 2px, transparent 2px);
+    background-size: 24px 24px;
     color: #000;
     min-height: 100vh;
     line-height: 1.6;
@@ -141,10 +144,6 @@ body {
 .profile-avatar {
     width: 192px;
     height: 192px;
-    background-color: #000;
-    border-radius: 50%;
-    border: 6px solid #000;
-    box-shadow: 12px 12px 0px 0px rgba(0, 0, 0, 1);
     display: flex;
     align-items: center;
     justify-content: center;
