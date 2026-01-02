@@ -73,8 +73,7 @@ body {
 }
 
 .social-bar.scrolled {
-    top: auto;
-    bottom: 24px;
+    transform: translateY(calc(100vh - 100% - 48px));
 }
 
 .social-links-vertical {
