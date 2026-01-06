@@ -1,0 +1,2010 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>DIGITAL GRAIN STUDIO // BRUTALIST_EDITION</title>
+    <style>
+        :root {
+            /* BRUTALIST PALETTE - Dark Cream */
+            --bg-deep: #1c1917;       /* Dark Stone */
+            --bg-panel: #292524;      /* Lighter Stone */
+            --bg-input: #0c0a09;      /* Almost Black */
+            
+            --fg-main: #e7e5e4;       /* Bone White / Cream */
+            --fg-muted: #a8a29e;      /* Muted Taupe */
+            
+            --accent: #d6d3d1;       /* Off-white for high contrast */
+            --highlight: #ea580c;     /* Burnt Orange for active/drag states */
+            
+            --border-thick: 3px solid var(--fg-main);
+            --border-thin: 1px solid var(--fg-muted);
+            
+            --shadow-hard: 6px 6px 0px #000;
+            --shadow-inset: inset 4px 4px 0px rgba(0,0,0,0.5);
+        }
+
+        /* RESET & BASE */
+        * {
+            box-sizing: border-box;
+            scrollbar-width: auto;
+            scrollbar-color: var(--fg-main) var(--bg-panel);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-panel);
+            border-left: 1px solid var(--fg-muted);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--fg-main);
+            border: 2px solid var(--bg-panel);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--highlight);
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            background: var(--bg-deep);
+            color: var(--fg-main);
+            font-family: 'Courier New', Courier, monospace; /* Strict Monospace */
+            overflow: hidden; /* App-like feel */
+        }
+
+        /* LAYOUT GRID */
+        body {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            padding: 0;
+            font-size: 14px;
+        }
+
+        /* HEADER */
+        .brand-header {
+            background: var(--bg-panel);
+            border-bottom: var(--border-thick);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-transform: uppercase;
+            font-weight: 900;
+            letter-spacing: 2px;
+            box-shadow: 0 4px 0px #000;
+            z-index: 10;
+        }
+
+        .brand-title span {
+            background: var(--fg-main);
+            color: var(--bg-deep);
+            padding: 0 8px;
+            margin-right: 10px;
+        }
+
+        /* MAIN CONTAINER */
+        .app-container {
+            display: grid;
+            grid-template-columns: 420px 1fr; /* Fixed Controls, Fluid Preview */
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* LEFT PANEL: CONTROLS */
+        .controls-panel {
+            background: var(--bg-panel);
+            border-right: var(--border-thick);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+            z-index: 5;
+        }
+
+        /* Upload Section */
+        .upload-zone {
+            border-bottom: var(--border-thick);
+            padding: 20px;
+            text-align: center;
+            background: var(--bg-deep);
+            display: grid;
+            gap: 10px;
+        }
+
+        .upload-btn {
+            background: transparent;
+            border: var(--border-thick);
+            color: var(--fg-main);
+            padding: 15px;
+            font-family: inherit;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: 0.1s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .upload-btn:hover {
+            background: var(--fg-main);
+            color: var(--bg-deep);
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0px #000;
+        }
+
+        .io-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .io-btn {
+            background: var(--bg-input);
+            border: 1px solid var(--fg-muted);
+            color: var(--fg-muted);
+            padding: 8px;
+            font-size: 11px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        .io-btn:hover {
+            border-color: var(--highlight);
+            color: var(--highlight);
+        }
+
+        /* TABS SYSTEM */
+        .tabs-header {
+            display: flex;
+            border-bottom: var(--border-thick);
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: var(--bg-panel);
+            color: var(--fg-muted);
+            border: none;
+            border-right: var(--border-thin);
+            padding: 15px 0;
+            font-family: inherit;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            background: var(--bg-input);
+        }
+
+        .tab-btn:last-child {
+            border-right: none;
+        }
+
+        .tab-btn.active {
+            background: var(--bg-panel);
+            color: var(--fg-main);
+        }
+        
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--highlight);
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* ACCORDIONS / DETAILS */
+        details {
+            border-bottom: 1px solid var(--fg-muted);
+            background: var(--bg-panel);
+        }
+
+        details:last-child {
+            border-bottom: none;
+        }
+
+        summary {
+            background: var(--bg-panel);
+            color: var(--fg-main);
+            padding: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid transparent;
+        }
+
+        summary:hover {
+            background: var(--bg-deep);
+            border-left-color: var(--highlight);
+        }
+
+        summary::after {
+            content: '+';
+            font-size: 18px;
+            font-weight: 900;
+        }
+
+        details[open] summary::after {
+            content: '-';
+        }
+
+        details[open] summary {
+            border-bottom: 1px solid var(--fg-muted);
+        }
+
+        /* CONTROL ROWS */
+        .control-group {
+            padding: 15px;
+            background: var(--bg-deep);
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 10px;
+        }
+
+        .control-row label {
+            flex: 0 0 100px;
+            font-size: 11px;
+            color: var(--fg-muted);
+            text-transform: uppercase;
+        }
+
+        /* CUSTOM SLIDERS */
+        input[type=range] {
+            -webkit-appearance: none;
+            flex: 1;
+            height: 14px;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        input[type=range]:focus {
+            outline: none;
+        }
+
+        /* Track */
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            background: #000;
+            border: 1px solid var(--fg-muted);
+        }
+
+        /* Thumb */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 10px;
+            background: var(--fg-main);
+            margin-top: -7px;
+            border: 1px solid #000;
+            box-shadow: 2px 2px 0px #000;
+        }
+
+        input[type=range]:hover::-webkit-slider-thumb {
+            background: var(--highlight);
+        }
+
+        /* VALUE DISPLAY */
+        .control-value {
+            width: 50px;
+            background: #000;
+            border: 1px solid var(--fg-muted);
+            color: var(--highlight);
+            padding: 2px 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            text-align: right;
+        }
+
+        /* SELECTS */
+        select.control-value {
+            flex: 1;
+            min-width: 120px;
+            background: #000;
+            color: var(--fg-main);
+            cursor: pointer;
+            border: 1px solid var(--fg-muted);
+            appearance: none; /* Hide default arrow */
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23d6d3d1%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px top 50%;
+            background-size: 10px auto;
+        }
+
+        /* CHECKBOXES */
+        input[type=checkbox] {
+            -webkit-appearance: none;
+            appearance: none;
+            background-color: #000;
+            border: 1px solid var(--fg-muted);
+            width: 18px;
+            height: 18px;
+            display: inline-grid;
+            place-content: center;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+
+        input[type=checkbox]::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            transform: scale(0);
+            background-color: var(--highlight);
+            clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+        }
+
+        input[type=checkbox]:checked::before {
+            transform: scale(1);
+        }
+
+        /* DRAGGABLE LAYERS (TAB 2) */
+        .drag-layer {
+            background: var(--bg-input);
+            border: 1px solid var(--fg-muted);
+            margin: 10px;
+            padding: 10px;
+            cursor: grab;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: 0.1s;
+        }
+
+        .drag-layer:hover {
+            border-color: var(--fg-main);
+            background: #000;
+        }
+
+        .drag-layer.dragging {
+            opacity: 1;
+            border: 2px solid var(--highlight);
+            background: var(--highlight);
+            color: #000;
+            box-shadow: 4px 4px 0px #000;
+            transform: translate(2px, 2px);
+        }
+
+        /* BUTTONS */
+        .row-buttons {
+            padding: 20px;
+            background: var(--bg-panel);
+            border-top: var(--border-thick);
+            display: grid;
+            gap: 10px;
+        }
+
+        button.action-btn {
+            background: var(--bg-deep);
+            color: var(--fg-main);
+            border: 2px solid var(--fg-main);
+            padding: 12px;
+            width: 100%;
+            font-family: inherit;
+            font-weight: 900;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+
+        button.action-btn:hover:not(:disabled) {
+            background: var(--fg-main);
+            color: var(--bg-deep);
+            box-shadow: 4px 4px 0px #000;
+            transform: translate(-2px, -2px);
+        }
+        
+        button.action-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-style: dashed;
+        }
+
+        .small-btn {
+            padding: 4px 8px;
+            font-size: 10px;
+            background: #000;
+            border: 1px solid var(--fg-muted);
+            color: var(--fg-muted);
+            cursor: pointer;
+        }
+        
+        .small-btn:hover {
+            color: var(--highlight);
+            border-color: var(--highlight);
+        }
+
+        /* RIGHT PANEL: PREVIEW */
+        .preview-column {
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            gap: 20px;
+            overflow: hidden;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* VIEWPORT */
+        .viewport-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 0; /* Fix flex overflow */
+        }
+
+        .viewport-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 4px;
+        }
+
+        .preview-box {
+            flex: 1;
+            position: relative;
+            border: 4px solid var(--fg-main);
+            background: #000;
+            box-shadow: var(--shadow-hard);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            image-rendering: pixelated; /* Raw look */
+        }
+
+        /* OVERLAYS */
+        .overlay-original {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.5); /* Dim original when overlaying */
+        }
+
+        .overlay-original canvas {
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+        
+        .overlay-original.show canvas {
+            opacity: 1;
+        }
+
+        /* CONTROLS TOP BAR */
+        .top-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .control-pill {
+            border: 1px solid var(--fg-muted);
+            padding: 5px 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-deep);
+        }
+
+        #upscaleInput {
+            width: 40px;
+            background: #000;
+            border: none;
+            color: var(--highlight);
+            font-family: inherit;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* LENS & PIN */
+        #zoomLens {
+            border: 4px solid var(--highlight);
+            box-shadow: 0 0 0 2px #000;
+            background: #000;
+        }
+
+        #caPin {
+            width: 20px;
+            height: 20px;
+            background: var(--highlight);
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 2px #000;
+            position: absolute;
+            transform: translate(-50%, -50%);
+            cursor: crosshair;
+            z-index: 30;
+            display: none;
+        }
+        
+        #caPin.active {
+            display: block;
+        }
+
+        /* LAYER GRID (PREVIEW) */
+        .layer-stack-visual {
+            height: 120px;
+            border: 2px solid var(--fg-muted);
+            background: var(--bg-deep);
+            display: flex;
+            gap: 2px;
+            padding: 2px;
+        }
+
+        .layer-item {
+            flex: 1;
+            border: 1px solid var(--fg-muted);
+            background: #000;
+            cursor: pointer;
+            position: relative;
+            min-width: 40px;
+        }
+
+        .layer-item.active {
+            border-color: var(--highlight);
+        }
+
+        .layer-title {
+            font-size: 8px;
+            text-transform: uppercase;
+            text-align: center;
+            background: var(--bg-panel);
+            padding: 2px 0;
+            color: var(--fg-muted);
+        }
+
+        .layer-canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.7;
+        }
+        
+        .layer-item:hover .layer-canvas {
+            opacity: 1;
+        }
+
+        /* MODAL */
+        .modal-overlay {
+            background: rgba(28, 25, 23, 0.95);
+            border: var(--border-thick);
+            box-shadow: 20px 20px 0px #000;
+        }
+
+        .modal {
+            border: 4px solid var(--fg-main);
+            padding: 0;
+            max-width: 90vw;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            background: var(--bg-panel);
+        }
+
+        .modal h2 {
+            background: var(--fg-main);
+            color: var(--bg-deep);
+            margin: 0;
+            padding: 10px 20px;
+            text-transform: uppercase;
+        }
+
+        .modal-body {
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            background: var(--bg-deep);
+            overflow: auto;
+        }
+        
+        .modal-footer {
+            padding: 15px;
+            background: var(--bg-panel);
+            border-top: 1px solid var(--fg-muted);
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* UTILS */
+        .hidden { display: none !important; }
+        
+        #loading {
+            background: var(--highlight);
+            color: #000;
+            font-weight: bold;
+            padding: 5px 10px;
+            z-index: 100;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+
+        @media (max-width: 900px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+                overflow-y: auto;
+            }
+            .controls-panel {
+                height: auto;
+                max-height: 50vh;
+                border-right: none;
+                border-bottom: var(--border-thick);
+            }
+            .preview-column {
+                min-height: 50vh;
+            }
+            body { overflow: auto; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <header class="brand-header">
+        <div class="brand-title"><span>//</span>DIGITAL GRAIN STUDIO</div>
+        <div style="font-size: 10px; color: var(--fg-muted);">SYS.VER.2.0 // BRUTAL_MODE</div>
+    </header>
+
+    <div id="loading">PROCESSING GPU...</div>
+
+    <div class="app-container">
+        
+        <!-- LEFT: CONTROLS -->
+        <div class="controls-panel">
+            
+            <div class="upload-zone">
+                <label for="imageUpload" class="upload-btn">
+                    <span style="font-size: 24px;">[ FILE_IN ]</span>
+                    <span style="font-size: 10px; letter-spacing: 1px;">LOAD SOURCE IMAGE</span>
+                </label>
+                <input id="imageUpload" type="file" accept="image/*" style="display: none;">
+
+                <div class="io-grid">
+                    <button id="downloadJsonBtn" class="io-btn">Save Config</button>
+                    <button id="uploadJsonTrigger" class="io-btn">Load Config</button>
+                    <input id="jsonUpload" type="file" accept=".json" style="display: none;">
+                </div>
+            </div>
+
+            <!-- TABS -->
+            <div class="tabs-header">
+                <button class="tab-btn active" data-tab="tab-controls">Parameters</button>
+                <button class="tab-btn" data-tab="tab-layers">Pipeline Order</button>
+            </div>
+
+            <!-- TAB 1: CONTROLS -->
+            <div id="tab-controls" class="tab-content active">
+                
+                <!-- Layer 1: Noise Basics -->
+                <details open>
+                    <summary>01 // NOISE_GENERATOR</summary>
+                    <div class="control-group">
+                        <div class="control-row">
+                            <label>Strength</label>
+                            <input id="strength" type="range" min="0" max="150" step="0.1" value="40">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Type</label>
+                            <select id="noiseType" class="control-value">
+                                <option value="1" selected>Grayscale</option>
+                                <option value="0">Color</option>
+                                <option value="2">Blend (Sat)</option>
+                            </select>
+                        </div>
+                        <div class="control-row">
+                            <label>Sat Str</label>
+                            <input id="satStrength" type="range" min="0" max="4" step="0.1" value="1">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Sat Imp</label>
+                            <input id="satPerNoise" type="range" min="-100" max="100" step="1" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Layer 1: Shape -->
+                <details open>
+                    <summary>02 // GEOMETRY</summary>
+                    <div class="control-group">
+                        <div class="control-row">
+                            <label>Scale</label>
+                            <input id="noiseSize" type="range" min="0" max="10" step="1" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Blur</label>
+                            <input id="blurriness" type="range" min="0" max="100" step="1" value="50">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Layer 1: Blend -->
+                <details open>
+                    <summary>03 // COMPOSITING</summary>
+                    <div class="control-group">
+                        <div class="control-row">
+                            <label>Mode</label>
+                            <select id="blendMode" class="control-value">
+                                <option value="0">Normal</option>
+                                <option value="1" selected>Overlay</option>
+                                <option value="2">Screen</option>
+                                <option value="3">Multiply</option>
+                                <option value="4">Add</option>
+                                <option value="5">Difference</option>
+                            </select>
+                        </div>
+                        <div class="control-row">
+                            <label>Opacity</label>
+                            <input id="opacity" type="range" min="0" max="1" step="0.01" value="0.5">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Layer 1: Masking -->
+                <details open>
+                    <summary>04 // LUMINANCE_MASK</summary>
+                    <div class="control-group">
+                        <div class="control-row">
+                            <label>Shadows</label>
+                            <input id="enableShadows" type="checkbox" checked>
+                            <span style="font-size:10px; color:var(--fg-muted);">[ ACTIVE ]</span>
+                        </div>
+                        <div class="control-row">
+                            <label>S. Thresh</label>
+                            <input id="shadowThreshold" type="range" min="0" max="1" step="0.01" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>S. Fade</label>
+                            <input id="shadowFade" type="range" min="0" max="1" step="0.01" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div style="height: 10px; border-bottom: 1px dashed #333; margin: 5px 0;"></div>
+                        <div class="control-row">
+                            <label>Highlights</label>
+                            <input id="enableHighlights" type="checkbox" checked>
+                            <span style="font-size:10px; color:var(--fg-muted);">[ ACTIVE ]</span>
+                        </div>
+                        <div class="control-row">
+                            <label>H. Thresh</label>
+                            <input id="highlightThreshold" type="range" min="0" max="1" step="0.01" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>H. Fade</label>
+                            <input id="highlightFade" type="range" min="0" max="1" step="0.01" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Layer 1: Alpha -->
+                <details>
+                    <summary>05 // ALPHA_CHANNEL</summary>
+                    <div class="control-group">
+                        <div class="control-row">
+                            <label>Ignore A</label>
+                            <input id="ignoreAlphaToggle" type="checkbox" checked>
+                        </div>
+                        <div class="control-row">
+                            <label>Str</label>
+                            <input id="ignoreAlphaStrength" type="range" min="0" max="100" step="1" value="100">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Layer 2: Adjustments -->
+                <details>
+                    <summary>06 // COLOR_GRADE</summary>
+                    <div class="control-group">
+                        <div class="control-row">
+                            <label>Brightness</label>
+                            <input id="brightness" type="range" min="-100" max="100" step="1" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Contrast</label>
+                            <input id="contrast" type="range" min="-100" max="200" step="1" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Saturation</label>
+                            <input id="saturationAdj" type="range" min="-100" max="100" step="1" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Warmth</label>
+                            <input id="warmth" type="range" min="-500" max="500" step="1" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Sharpen</label>
+                            <input id="sharpen" type="range" min="0" max="100" step="1" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Layer 3: HDR -->
+                <details>
+                    <summary>07 // HDR_EMULATION</summary>
+                    <div class="control-group">
+                        <div class="control-row">
+                            <label>Tolerance</label>
+                            <input id="hdrTolerance" type="range" min="0" max="1" step="0.01" value="0.35">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Amount</label>
+                            <input id="hdrAmount" type="range" min="0" max="100" step="1" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Layer 4: CA -->
+                <details>
+                    <summary>08 // CHROMATIC_ABERRATION</summary>
+                    <div class="control-group">
+                        <div class="control-row">
+                            <label>Amt</label>
+                            <input id="aberrationAmount" type="range" min="0" max="1500" step="1" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Radius</label>
+                            <input id="caRadius" type="range" min="0" max="1000" step="1" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Falloff</label>
+                            <input id="caFalloff" type="range" min="0" max="500" step="1" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Blur</label>
+                            <input id="aberrationBlur" type="range" min="0" max="100" step="1" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div style="text-align: right;">
+                            <button id="resetCenterBtn" class="small-btn">RESET_CENTER</button>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Layer: Dithering -->
+                <details>
+                    <summary>09 // DITHERING</summary>
+                    <div class="control-group">
+                        <div class="control-row">
+                            <label>Enable</label>
+                            <input id="ditherEnable" type="checkbox">
+                        </div>
+                        <div class="control-row">
+                            <label>Bit Depth</label>
+                            <input id="ditherBitDepth" type="range" min="1" max="8" step="1" value="4">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Palette</label>
+                            <input id="ditherPaletteSize" type="range" min="2" max="256" step="1" value="16">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Str</label>
+                            <input id="ditherStrength" type="range" min="0" max="100" step="1" value="50">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Scale</label>
+                            <input id="ditherScale" type="range" min="1" max="16" step="1" value="1">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Type</label>
+                            <select id="ditherType" class="control-value">
+                                <option value="0" selected>Bayer</option>
+                                <option value="1">Random</option>
+                            </select>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Layer: Corruption -->
+                <details>
+                    <summary>10 // CORRUPTION</summary>
+                    <div class="control-group">
+                        <div class="control-row">
+                            <label>Enable</label>
+                            <input id="corruptionEnable" type="checkbox">
+                        </div>
+                        <div class="control-row">
+                            <label>Iter</label>
+                            <input id="corruptionIterations" type="range" min="0" max="500" step="1" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Algo</label>
+                            <select id="corruptionAlgorithm" class="control-value">
+                                <option value="0" selected>JPEG Blocks</option>
+                                <option value="1">Pixelation</option>
+                                <option value="2">Color Bleed</option>
+                            </select>
+                        </div>
+                        <div class="control-row">
+                            <label>Res Scale</label>
+                            <input id="corruptionResScale" type="range" min="1" max="100" step="1" value="50">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Layer: Cell Shading -->
+                <details>
+                    <summary>11 // CELL_SHADING</summary>
+                    <div class="control-group">
+                        <div class="control-row">
+                            <label>Enable</label>
+                            <input id="cellEnable" type="checkbox">
+                        </div>
+                        <div class="control-row">
+                            <label>Levels</label>
+                            <input id="cellLevels" type="range" min="2" max="12" step="1" value="4">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Bias</label>
+                            <input id="cellBias" type="range" min="-1" max="1" step="0.01" value="0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Gamma</label>
+                            <input id="cellGamma" type="range" min="0.5" max="2.2" step="0.01" value="1.0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Mode</label>
+                            <select id="cellQuantMode" class="control-value">
+                                <option value="0" selected>Luma</option>
+                                <option value="1">RGB</option>
+                                <option value="2">HSV</option>
+                            </select>
+                        </div>
+                        <div class="control-row">
+                            <label>Band Map</label>
+                            <select id="cellBandMap" class="control-value">
+                                <option value="0" selected>Linear</option>
+                                <option value="1">Smooth</option>
+                                <option value="2">Posterize</option>
+                            </select>
+                        </div>
+                        <div style="height: 5px;"></div>
+                        <div class="control-row">
+                            <label>Edge</label>
+                            <input id="cellEdgeEnable" type="checkbox">
+                        </div>
+                        <div class="control-row">
+                            <label>Edge Str</label>
+                            <input id="cellEdgeStr" type="range" min="0" max="1" step="0.01" value="0.8">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Edge Thick</label>
+                            <input id="cellEdgeThick" type="range" min="0.5" max="3" step="0.1" value="1.0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Method</label>
+                            <select id="cellEdgeMethod" class="control-value">
+                                <option value="0">None</option>
+                                <option value="1" selected>Sobel</option>
+                                <option value="2">Laplacian</option>
+                            </select>
+                        </div>
+                        <div class="control-row">
+                            <label>Color Pres.</label>
+                            <input id="cellColorPreserve" type="checkbox">
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Layer: Halftoning -->
+                <details>
+                    <summary>12 // HALFTONE</summary>
+                    <div class="control-group">
+                        <div class="control-row">
+                            <label>Enable</label>
+                            <input id="halftoneEnable" type="checkbox">
+                        </div>
+                        <div class="control-row">
+                            <label>Dot Size</label>
+                            <input id="halftoneSize" type="range" min="1" max="12" step="0.1" value="4">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Intens</label>
+                            <input id="halftoneIntensity" type="range" min="0" max="1" step="0.01" value="0.8">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Sharp</label>
+                            <input id="halftoneSharpness" type="range" min="0" max="1" step="0.01" value="0.5">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Pattern</label>
+                            <select id="halftonePattern" class="control-value">
+                                <option value="0" selected>Circle</option>
+                                <option value="1">Line</option>
+                                <option value="2">Cross</option>
+                                <option value="3">Diamond</option>
+                            </select>
+                        </div>
+                        <div class="control-row">
+                            <label>Color</label>
+                            <select id="halftoneColorMode" class="control-value">
+                                <option value="0" selected>Luma</option>
+                                <option value="1">RGB</option>
+                                <option value="2">CMY</option>
+                                <option value="3">CMYK</option>
+                            </select>
+                        </div>
+                        <div class="control-row">
+                            <label>Sample</label>
+                            <select id="halftoneSample" class="control-value">
+                                <option value="0" selected>Center</option>
+                                <option value="1">Avg</option>
+                                <option value="2">Rotate</option>
+                            </select>
+                        </div>
+                        <div class="control-row">
+                            <label>Gray</label>
+                            <input id="halftoneGray" type="checkbox">
+                        </div>
+                        <div class="control-row">
+                            <label>Lock</label>
+                            <input id="halftoneScreenLock" type="checkbox" checked>
+                        </div>
+                        <div class="control-row">
+                            <label>Invert</label>
+                            <input id="halftoneInvert" type="checkbox">
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Layer: Bilateral -->
+                <details>
+                    <summary>13 // BILATERAL_FILTER</summary>
+                    <div class="control-group">
+                        <div class="control-row">
+                            <label>Enable</label>
+                            <input id="bilateralEnable" type="checkbox">
+                        </div>
+                        <div class="control-row">
+                            <label>Radius</label>
+                            <input id="bilateralRadius" type="range" min="1" max="30" step="1" value="5">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Col Sig</label>
+                            <input id="bilateralColorSig" type="range" min="0.01" max="1.0" step="0.01" value="0.1">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Spc Sig</label>
+                            <input id="bilateralSpatialSig" type="range" min="0.5" max="15.0" step="0.1" value="2.0">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Iter</label>
+                            <input id="bilateralIter" type="range" min="1" max="20" step="1" value="1">
+                            <input type="text" class="control-value" readonly>
+                        </div>
+                        <div class="control-row">
+                            <label>Hi Prec</label>
+                            <input id="bilateralHighPrec" type="checkbox" checked>
+                        </div>
+                        <div class="control-row">
+                            <label>Kernel</label>
+                            <select id="bilateralKernel" class="control-value">
+                                <option value="0" selected>Gaussian</option>
+                                <option value="1">Box</option>
+                            </select>
+                        </div>
+                        <div class="control-row">
+                            <label>Edge</label>
+                            <select id="bilateralEdgeMode" class="control-value">
+                                <option value="0" selected>Luma</option>
+                                <option value="1">RGB</option>
+                            </select>
+                        </div>
+                    </div>
+                </details>
+
+                <div class="row-buttons">
+                    <button id="downloadBtn" class="action-btn" disabled>DOWNLOAD_FULL_RES</button>
+                    <button id="compareBtn" class="action-btn" disabled>COMPARE_EXPORT</button>
+                </div>
+            </div>
+
+            <!-- TAB 2: LAYERS -->
+            <div id="tab-layers" class="tab-content">
+                <div style="padding: 15px; background: var(--bg-deep); border-bottom: 1px solid var(--fg-muted);">
+                    <span style="font-size:10px; color:var(--highlight);">:: DRAG TO REORDER PIPELINE ::</span>
+                </div>
+                <div id="layer-drag-list">
+                    <!-- JS POPULATED -->
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: PREVIEW -->
+        <div class="preview-column">
+            
+            <div class="viewport-container">
+                <div class="viewport-header">
+                    <h3 style="margin:0; font-size:12px; letter-spacing:1px; color:var(--highlight);">:: MAIN_VIEWPORT ::</h3>
+                    <div class="top-controls">
+                        <div class="control-pill" title="Zoom level">
+                            <span>ZOOM</span>
+                            <input id="hoverZoomSlider" type="range" min="1" max="8" step="0.1" value="1" style="width: 50px;">
+                            <span id="hoverZoomValue" style="width: 25px; text-align: right; color:var(--highlight);">1x</span>
+                        </div>
+                        <button id="lensToggleBtn" class="small-btn">MODE_FULL</button>
+                        <label class="control-pill" style="cursor: pointer; gap: 5px;">
+                            <input type="checkbox" id="previewLock" style="width:auto; height:auto;"> LOCK
+                        </label>
+                        <div class="control-pill" title="Upscale Factor">
+                            <span>SCALE</span>
+                            <input id="upscaleInput" value="1" min="1" max="10">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="preview-box" id="previewContainer">
+                    <canvas id="displayCanvas"></canvas>
+                    <div id="caPin"></div>
+                    <div class="overlay-original" id="overlayOriginal">
+                        <canvas id="overlayCanvas"></canvas>
+                    </div>
+                    <div id="zoomResIndicator" style="position:absolute; bottom:5px; left:5px; background:var(--highlight); color:#000; padding:2px 5px; font-size:10px; display:none;"></div>
+                    <div id="zoomLens" style="position:absolute; width:180px; height:180px; border-radius:50%; overflow:hidden; pointer-events:none; display:none; z-index:25;">
+                        <canvas id="lensCanvas" style="position:absolute; top:0; left:0;"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <h3 style="margin:0; font-size:12px; letter-spacing:1px; color:var(--highlight);">:: LAYER_BREAKDOWN ::</h3>
+                <span style="font-size: 9px; color: var(--fg-muted);">[CLICK TO ISOLATE]</span>
+            </div>
+
+            <div class="layer-stack-visual" id="layerGrid">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- COMPARE MODAL -->
+    <div id="compareModal" class="modal-overlay" style="position: fixed; inset:0; display:none; justify-content:center; align-items:center; z-index:100;">
+        <div class="modal">
+            <h2>// OUTPUT_COMPARE</h2>
+            <div class="modal-body">
+                <div style="display:flex; flex-direction:column; align-items:center; gap:5px;">
+                    <span style="font-size:10px; color:var(--fg-muted);">ORIGINAL_SOURCE</span>
+                    <canvas id="compareOriginal" style="max-height: 50vh; max-width: 40vw; border: 1px solid var(--fg-muted); background:#000;"></canvas>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center; gap:5px;">
+                    <span style="font-size:10px; color:var(--fg-muted);">PROCESSED_OUTPUT</span>
+                    <canvas id="compareProcessed" style="max-height: 50vh; max-width: 40vw; border: 1px solid var(--fg-muted); background:#000;"></canvas>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="exportSideBySide" class="small-btn" style="padding:10px 20px;">EXPORT_SPLIT</button>
+                <button id="exportStacked" class="small-btn" style="padding:10px 20px;">EXPORT_STACK</button>
+                <button id="closeCompare" class="small-btn" style="padding:10px 20px; background:var(--highlight); color:#000; border-color:var(--highlight);">CLOSE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WEBGL SHADERS (LOGIC PRESERVED) -->
+    <script type="x-shader/x-vertex" id="vs-quad">#version 300 es
+in vec2 a_pos;in vec2 a_uv;out vec2 v_uv;void main(){v_uv=a_uv;gl_Position=vec4(a_pos,0.0,1.0);}
+</script>
+    <script type="x-shader/x-fragment" id="fs-adjust">#version 300 es
+precision highp float;in vec2 v_uv;out vec4 outColor;uniform sampler2D u_tex;uniform float u_bright;uniform float u_cont;uniform float u_sat;uniform float u_hdrTol;uniform float u_hdrAmt;uniform float u_warmth;uniform float u_sharp;uniform vec2 u_step;void main(){vec4 c=texture(u_tex,v_uv);vec3 rgb=c.rgb;float lum=dot(rgb,vec3(0.299,0.587,0.114));rgb=mix(vec3(lum),rgb,1.0+u_sat);rgb=(rgb-0.5)*(1.0+u_cont/100.0)+0.5;rgb+=u_bright/100.0;if(u_warmth!=0.0){vec3 warmColor=vec3(1.0,0.9,0.8);vec3 coolColor=vec3(0.8,0.9,1.1);float t=clamp(u_warmth/100.0,-1.0,1.0);vec3 tint=mix(coolColor,warmColor,t*0.5+0.5);float mask=smoothstep(0.0,1.0,lum);rgb=mix(rgb,rgb*tint,abs(t)*mask);}if(u_sharp>0.0){vec4 sum=vec4(0.0);sum+=texture(u_tex,v_uv+vec2(-u_step.x,-u_step.y));sum+=texture(u_tex,v_uv+vec2(u_step.x,-u_step.y));sum+=texture(u_tex,v_uv+vec2(-u_step.x,u_step.y));sum+=texture(u_tex,v_uv+vec2(u_step.x,u_step.y));vec4 edge=c-(sum*0.25);rgb+=edge.rgb*(u_sharp/10.0);}float l=dot(rgb,vec3(0.299,0.587,0.114));if(l<u_hdrTol&&u_hdrTol>0.0){float f=(u_hdrAmt/100.0)*(1.0-l/u_hdrTol);rgb*=(1.0-f);}outColor=vec4(clamp(rgb,0.0,1.0),c.a);}
+</script>
+    <script type="x-shader/x-fragment" id="fs-mask">#version 300 es
+precision highp float;in vec2 v_uv;out vec4 outColor;uniform sampler2D u_tex;uniform int u_useS;uniform int u_useH;uniform float u_sth;uniform float u_sfa;uniform float u_hth;uniform float u_hfa;void main(){vec4 c=texture(u_tex,v_uv);float l=dot(c.rgb,vec3(0.299,0.587,0.114));float sMask=0.0;if(u_useS==1){float low=u_sth-u_sfa*0.5;float high=u_sth+u_sfa*0.5;sMask=1.0-smoothstep(low,high,l);}float hMask=0.0;if(u_useH==1){float low=u_hth-u_hfa*0.5;float high=u_hth+u_hfa*0.5;hMask=smoothstep(low,high,l);}float combined=max(sMask,hMask);outColor=vec4(combined,sMask,hMask,1.0);}
+</script>
+    <script type="x-shader/x-fragment" id="fs-noise">#version 300 es
+precision highp float;in vec2 v_uv;out vec4 outColor;uniform int u_type;uniform float u_seed;uniform vec2 u_res;uniform float u_scale;uniform vec2 u_origRes;float hash12(vec2 p){vec3 p3=fract(vec3(p.xyx)*.1031);p3+=dot(p3,p3.yzx+33.33);return fract((p3.x+p3.y)*p3.z);}void main(){vec2 pos=v_uv*u_origRes;vec2 cell=floor(pos/max(1.0,u_scale));vec3 n;if(u_type==1){float r=hash12(cell+u_seed);n=vec3(r);}else{float r=hash12(cell+u_seed);float g=hash12(cell+u_seed+1.23);float b=hash12(cell+u_seed+2.45);n=vec3(r,g,b);}outColor=vec4(n,1.0);}
+</script>
+    <script type="x-shader/x-fragment" id="fs-blur">#version 300 es
+precision highp float;in vec2 v_uv;out vec4 outColor;uniform sampler2D u_tex;uniform vec2 u_dir;uniform float u_rad;void main(){vec4 color=vec4(0.0);float total=0.0;for(float i=-4.0;i<=4.0;i++){float weight=exp(-(i*i)/(2.0*2.0));vec4 s=texture(u_tex,v_uv+u_dir*i*u_rad);color+=s*weight;total+=weight;}outColor=color/total;}
+</script>
+    <script type="x-shader/x-fragment" id="fs-composite">#version 300 es
+precision highp float;in vec2 v_uv;out vec4 outColor;uniform sampler2D u_base;uniform sampler2D u_noise;uniform sampler2D u_mask;uniform int u_mode;uniform float u_opacity;uniform float u_str;uniform int u_nType;uniform float u_satStr;uniform float u_satImp;uniform int u_ignA;uniform float u_ignAstr;float overlay(float b,float n){return b<0.5?(2.0*b*n):(1.0-2.0*(1.0-b)*(1.0-n));}void main(){vec4 bc=texture(u_base,v_uv);vec4 nc=texture(u_noise,v_uv);vec4 mc=texture(u_mask,v_uv);vec3 n=nc.rgb;vec3 res;vec3 base=bc.rgb;if(u_nType==2){float noiseVal=nc.r;float centered=(noiseVal-0.5)*2.0;float delta=centered*(u_satStr*(1.0+u_satImp/100.0));float lum=dot(base,vec3(0.299,0.587,0.114));vec3 satColor=mix(vec3(lum),base,1.0+delta*(u_str/50.0));res=satColor;}else{vec3 noiseLayer=nc.rgb;if(u_mode==0){res=mix(base,noiseLayer,u_opacity);}else if(u_mode==1){res.r=overlay(base.r,noiseLayer.r);res.g=overlay(base.g,noiseLayer.g);res.b=overlay(base.b,noiseLayer.b);}else if(u_mode==2){res=1.0-(1.0-base)*(1.0-noiseLayer);}else if(u_mode==3){res=base*noiseLayer;}else if(u_mode==4){res=base+noiseLayer;}else if(u_mode==5){res=abs(base-noiseLayer);}float maskVal=mc.r;float alphaFactor=1.0;if(u_ignA==1){alphaFactor=1.0-(u_ignAstr/100.0)*(1.0-bc.a);}float finalOp=u_opacity*maskVal*alphaFactor*(u_str/50.0);res=mix(base,res,clamp(finalOp,0.0,1.0));}outColor=vec4(clamp(res,0.0,1.0),bc.a);}
+</script>
+    <script type="x-shader/x-fragment" id="fs-chroma">#version 300 es
+precision highp float;in vec2 v_uv;out vec4 outColor;uniform sampler2D u_tex;uniform float u_amt;uniform float u_blur;uniform vec2 u_center;uniform float u_radius;uniform float u_falloff;void main(){if(u_amt<=0.0){outColor=texture(u_tex,v_uv);return;}vec2 dir=v_uv-u_center;float dist=length(dir);float clearMask=0.0;if(u_radius>0.0||u_falloff>0.0){clearMask=1.0-smoothstep(u_radius,u_radius+u_falloff,dist);}float str=dist*dist*(u_amt/1000.0);str*=(1.0-clearMask);vec4 result=vec4(0.0);if(u_blur>0.0){float totalWeight=0.0;for(float i=-2.0;i<=2.0;i++){float t=i*u_blur*0.002;float w=exp(-(i*i)/2.0);float r=texture(u_tex,v_uv-dir*str+vec2(t,-t)).r;float g=texture(u_tex,v_uv+vec2(t*0.5,t*0.5)).g;float b=texture(u_tex,v_uv+dir*str+vec2(-t,t)).b;result+=vec4(r,g,b,1.0)*w;totalWeight+=w;}result/=totalWeight;result.a=texture(u_tex,v_uv).a;}else{float r=texture(u_tex,v_uv-dir*str).r;float g=texture(u_tex,v_uv).g;float b=texture(u_tex,v_uv+dir*str).b;float a=texture(u_tex,v_uv).a;result=vec4(r,g,b,a);}outColor=result;}
+</script>
+    <script type="x-shader/x-fragment" id="fs-dither">#version 300 es
+precision highp float;in vec2 v_uv;out vec4 outColor;uniform sampler2D u_tex;uniform int u_enable;uniform int u_bitDepth;uniform int u_paletteSize;uniform float u_strength;uniform float u_scale;uniform int u_type;float rand(vec2 co){return fract(sin(dot(co,vec2(12.9898,78.233)))*43758.5453);}void main(){if(u_enable==0){outColor=texture(u_tex,v_uv);return;}vec4 c=texture(u_tex,v_uv);vec2 pos=v_uv*u_scale;if(u_type==0){float bayer[64];bayer[0]=0.0/64.0;bayer[1]=32.0/64.0;bayer[2]=8.0/64.0;bayer[3]=40.0/64.0;bayer[4]=2.0/64.0;bayer[5]=34.0/64.0;bayer[6]=10.0/64.0;bayer[7]=42.0/64.0;bayer[8]=48.0/64.0;bayer[9]=16.0/64.0;bayer[10]=56.0/64.0;bayer[11]=24.0/64.0;bayer[12]=50.0/64.0;bayer[13]=18.0/64.0;bayer[14]=58.0/64.0;bayer[15]=26.0/64.0;bayer[16]=12.0/64.0;bayer[17]=44.0/64.0;bayer[18]=4.0/64.0;bayer[19]=36.0/64.0;bayer[20]=14.0/64.0;bayer[21]=46.0/64.0;bayer[22]=6.0/64.0;bayer[23]=38.0/64.0;bayer[24]=60.0/64.0;bayer[25]=28.0/64.0;bayer[26]=52.0/64.0;bayer[27]=20.0/64.0;bayer[28]=62.0/64.0;bayer[29]=30.0/64.0;bayer[30]=54.0/64.0;bayer[31]=22.0/64.0;bayer[32]=3.0/64.0;bayer[33]=35.0/64.0;bayer[34]=11.0/64.0;bayer[35]=43.0/64.0;bayer[36]=1.0/64.0;bayer[37]=33.0/64.0;bayer[38]=9.0/64.0;bayer[39]=41.0/64.0;bayer[40]=51.0/64.0;bayer[41]=19.0/64.0;bayer[42]=59.0/64.0;bayer[43]=27.0/64.0;bayer[44]=49.0/64.0;bayer[45]=17.0/64.0;bayer[46]=57.0/64.0;bayer[47]=25.0/64.0;bayer[48]=15.0/64.0;bayer[49]=47.0/64.0;bayer[50]=7.0/64.0;bayer[51]=39.0/64.0;bayer[52]=13.0/64.0;bayer[53]=45.0/64.0;bayer[54]=5.0/64.0;bayer[55]=37.0/64.0;bayer[56]=63.0/64.0;bayer[57]=31.0/64.0;bayer[58]=55.0/64.0;bayer[59]=23.0/64.0;bayer[60]=61.0/64.0;bayer[61]=29.0/64.0;bayer[62]=53.0/64.0;bayer[63]=21.0/64.0;int ix=int(mod(pos.x,8.0));int iy=int(mod(pos.y,8.0));float threshold=bayer[ix+iy*8.0];float noise=(rand(floor(pos))-0.5)*u_strength/100.0;vec3 col=c.rgb+noise;float levels=pow(2.0,float(u_bitDepth));col=floor(col*levels)/(levels-1.0);col=step(threshold,col);outColor=vec4(col,c.a);}else{float r=rand(floor(pos));vec3 col=step(r,c.rgb);outColor=vec4(col,c.a);}}
+</script>
+    <script type="x-shader/x-fragment" id="fs-corruption">#version 300 es
+precision highp float;in vec2 v_uv;out vec4 outColor;uniform sampler2D u_tex;uniform int u_enable;uniform int u_iter;uniform int u_algo;uniform float u_scale;float rand(vec2 co){return fract(sin(dot(co,vec2(12.9898,78.233)))*43758.5453);}void main(){if(u_enable==0){outColor=texture(u_tex,v_uv);return;}vec2 uv=v_uv;for(int i=0;i<500;i++){if(i>=u_iter)break;float r=rand(vec2(float(i),uv.y));if(u_algo==0){float size=0.01*(1.0/u_scale);if(r>0.95)uv.x=floor(uv.x/size)*size;}else if(u_algo==1){if(r>0.5)uv=floor(uv*u_scale)/u_scale;}else if(u_algo==2){if(r>0.98)uv.x+=rand(vec2(float(i),0.0))*0.01;}}outColor=texture(u_tex,uv);}
+</script>
+    <script type="x-shader/x-fragment" id="fs-cell">#version 300 es
+precision highp float;in vec2 v_uv;out vec4 outColor;uniform sampler2D u_tex;uniform int u_enable;uniform float u_levels;uniform float u_bias;uniform float u_gamma;uniform int u_qMode;uniform int u_bMode;uniform int u_eEnable;uniform float u_eStr;uniform float u_eThick;uniform int u_eMethod;uniform int u_cPres;vec3 getLuma(vec3 c){return vec3(dot(c,vec3(0.299,0.587,0.114)));}void main(){if(u_enable==0){outColor=texture(u_tex,v_uv);return;}vec4 c=texture(u_tex,v_uv);vec3 col=c.rgb;vec3 val=col;if(u_qMode==0)val=getLuma(val);else if(u_qMode==2)val=vec3(max(max(val.r,val.g),val.b));val=pow(val,vec3(u_gamma));val+=u_bias;val*=u_levels;if(u_bMode==1){val=smoothstep(0.0,1.0,fract(val))+floor(val);}else if(u_bMode==2){val=floor(val);}else{val=floor(val);}val/=u_levels;val=pow(val,vec3(1.0/u_gamma));if(u_qMode!=1&&!bool(u_cPres))col=mix(col,val,val.r);else col=val;if(bool(u_eEnable)){vec2 step=1.0/vec2(800.0,600.0)*u_eThick;float tl=dot(texture(u_tex,v_uv+vec2(-step.x,-step.y)).rgb,vec3(0.299,0.587,0.114));float tr=dot(texture(u_tex,v_uv+vec2(step.x,-step.y)).rgb,vec3(0.299,0.587,0.114));float bl=dot(texture(u_tex,v_uv+vec2(-step.x,step.y)).rgb,vec3(0.299,0.587,0.114));float br=dot(texture(u_tex,v_uv+vec2(step.x,step.y)).rgb,vec3(0.299,0.587,0.114));float cx=dot(col,vec3(0.299,0.587,0.114));float edge=0.0;if(u_eMethod==1){edge=abs(tl+tr+bl+br-4.0*cx);}else{edge=4.0*cx-tl-tr-bl-br;}col=mix(col,vec3(0.0),smoothstep(0.0,0.2,edge)*u_eStr);}outColor=vec4(col,c.a);}
+</script>
+    <script type="x-shader/x-fragment" id="fs-halftone">#version 300 es
+precision highp float;in vec2 v_uv;out vec4 outColor;uniform sampler2D u_tex;uniform int u_enable;uniform float u_size;uniform float u_intens;uniform float u_sharp;uniform int u_pattern;uniform int u_colorMode;uniform int u_sample;uniform int u_gray;uniform int u_lock;uniform int u_invert;vec4 sample(sampler2D tex,vec2 uv){if(u_sample==0)return texture(tex,uv);if(u_sample==1){vec2 st=1.0/vec2(textureSize(tex,0));vec4 sum=vec4(0.0);sum+=texture(tex,uv+st*vec2(-1,-1));sum+=texture(tex,uv+st*vec2(0,-1));sum+=texture(tex,uv+st*vec2(1,-1));sum+=texture(tex,uv+st*vec2(-1,0));sum+=texture(tex,uv);sum+=texture(tex,uv+st*vec2(1,0));sum+=texture(tex,uv+st*vec2(-1,1));sum+=texture(tex,uv+st*vec2(0,1));sum+=texture(tex,uv+st*vec2(1,1));return sum/9.0;}vec2 pos=uv;if(u_sample==2){pos+=vec2(0.5);}float angle=3.14159/4.0;mat2 rot=mat2(cos(angle),-sin(angle),sin(angle),cos(angle));pos=rot*(pos-0.5)+0.5;return texture(tex,pos);}void main(){if(u_enable==0){outColor=texture(u_tex,v_uv);return;}vec2 uv=v_uv;vec4 tex=sample(u_tex,uv);vec3 col=tex.rgb;if(bool(u_gray))col=vec3(dot(col,vec3(0.299,0.587,0.114)));float val=col.r;if(bool(u_invert))val=1.0-val;val*=u_intens;vec2 grid=uv/vec2(u_size*0.01);vec2 center=fract(grid)-0.5;float dist=length(center);float radius=0.0;if(u_pattern==0)radius=val*0.5;else if(u_pattern==1)radius=step(abs(center.x),val*0.5);else if(u_pattern==2)radius=step(max(abs(center.x),abs(center.y)),val*0.5);else if(u_pattern==3)radius=step((abs(center.x)+abs(center.y)),val*0.5);float shape=smoothstep(0.0,0.01,dist-radius);if(u_pattern!=0)shape=radius;vec3 ht=vec3(shape);if(u_colorMode==1){ht*=tex.rgb;}else if(u_colorMode==2){ht.r*=step(0.66,tex.r);ht.g*=step(0.66,tex.g);ht.b*=step(0.66,tex.b);}else if(u_colorMode==3){float k=1.0-max(max(tex.r,tex.g),tex.b);ht*=vec3(k);}outColor=vec4(ht,tex.a);}
+</script>
+    <script type="x-shader/x-fragment" id="fs-bilateral">#version 300 es
+precision highp float;in vec2 v_uv;out vec4 outColor;uniform sampler2D u_tex;uniform int u_enable;uniform float u_rad;uniform float u_cSig;uniform float u_sSig;uniform int u_iter;uniform int u_hPrec;uniform int u_kernel;uniform int u_edgeMode;void main(){if(u_enable==0){outColor=texture(u_tex,v_uv);return;}vec2 step=1.0/vec2(textureSize(u_tex,0));vec4 sum=vec4(0.0);float totalWeight=0.0;vec4 center=texture(u_tex,v_uv);float centerLum=dot(center.rgb,vec3(0.299,0.587,0.114));for(float x=-3.0;x<=3.0;x++){for(float y=-3.0;y<=3.0;y++){if(abs(x)>u_rad||abs(y)>u_rad)continue;vec4 c=texture(u_tex,v_uv+vec2(x,y)*step);float lum=dot(c.rgb,vec3(0.299,0.587,0.114));float diff=u_edgeMode==0?abs(lum-centerLum):distance(c.rgb,center.rgb);float weight=exp(-(x*x+y*y)/(2.0*u_sSig*u_sSig))*exp(-(diff*diff)/(2.0*u_cSig*u_cSig));sum+=c*weight;totalWeight+=weight;}}outColor=sum/totalWeight;}
+</script>
+    <script type="x-shader/x-fragment" id="fs-copy">#version 300 es
+precision highp float;in vec2 v_uv;out vec4 outColor;uniform sampler2D u_tex;void main(){outColor=texture(u_tex,v_uv);}
+</script>
+
+    <!-- APPLICATION LOGIC -->
+    <script>
+        // Core Application Logic (Preserved from Original)
+        const App = {
+            gl: null,
+            canvas: null,
+            programs: {},
+            textures: {},
+            framebuffers: {},
+            width: 0,
+            height: 0,
+            image: null,
+            layers: ['adjust', 'mask', 'noise', 'blur', 'composite', 'chroma', 'dither', 'corruption', 'cell', 'halftone', 'bilateral'],
+            layerConfig: [
+                { id: 'noise', name: 'Noise Layer' },
+                { id: 'blur', name: 'Blur Pre-comp' },
+                { id: 'composite', name: 'Composite' },
+                { id: 'adjust', name: 'Adjustments' },
+                { id: 'chroma', name: 'Chromatic Ab.' },
+                { id: 'dither', name: 'Dithering' },
+                { id: 'corruption', name: 'Corruption' },
+                { id: 'cell', name: 'Cell Shading' },
+                { id: 'halftone', name: 'Halftone' },
+                { id: 'bilateral', name: 'Bilateral' }
+            ],
+            seed: Math.random() * 1000,
+            needsUpdate: true,
+            caCenter: { x: 0.5, y: 0.5 },
+            isDragging: false,
+
+            init() {
+                this.canvas = document.getElementById('displayCanvas');
+                this.gl = this.canvas.getContext('webgl2', { preserveDrawingBuffer: true });
+                if (!this.gl) return alert('WebGL2 not supported');
+
+                this.setupShaders();
+                this.setupInputs();
+                this.setupDragDrop();
+                this.setupUI();
+                
+                // Initial setup
+                this.render();
+                requestAnimationFrame(this.loop.bind(this));
+            },
+
+            createShader(type, source) {
+                const shader = this.gl.createShader(type);
+                this.gl.shaderSource(shader, source);
+                this.gl.compileShader(shader);
+                if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+                    console.error(this.gl.getShaderInfoLog(shader));
+                    return null;
+                }
+                return shader;
+            },
+
+            createProgram(vsId, fsId) {
+                const vs = this.createShader(this.gl.VERTEX_SHADER, document.getElementById(vsId).textContent);
+                const fs = this.createShader(this.gl.FRAGMENT_SHADER, document.getElementById(fsId).textContent);
+                const prog = this.gl.createProgram();
+                this.gl.attachShader(prog, vs);
+                this.gl.attachShader(prog, fs);
+                this.gl.linkProgram(prog);
+                if (!this.gl.getProgramParameter(prog, this.gl.LINK_STATUS)) {
+                    console.error(this.gl.getProgramInfoLog(prog));
+                    return null;
+                }
+                return prog;
+            },
+
+            setupShaders() {
+                this.programs.quad = this.createProgram('vs-quad', 'fs-copy');
+                this.programs.adjust = this.createProgram('vs-quad', 'fs-adjust');
+                this.programs.mask = this.createProgram('vs-quad', 'fs-mask');
+                this.programs.noise = this.createProgram('vs-quad', 'fs-noise');
+                this.programs.blur = this.createProgram('vs-quad', 'fs-blur');
+                this.programs.composite = this.createProgram('vs-quad', 'fs-composite');
+                this.programs.chroma = this.createProgram('vs-quad', 'fs-chroma');
+                this.programs.dither = this.createProgram('vs-quad', 'fs-dither');
+                this.programs.corruption = this.createProgram('vs-quad', 'fs-corruption');
+                this.programs.cell = this.createProgram('vs-quad', 'fs-cell');
+                this.programs.halftone = this.createProgram('vs-quad', 'fs-halftone');
+                this.programs.bilateral = this.createProgram('vs-quad', 'fs-bilateral');
+
+                // Quad Buffer
+                const buffer = this.gl.createBuffer();
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([
+                    -1, -1, 0, 0,
+                     1, -1, 1, 0,
+                    -1,  1, 0, 1,
+                     1,  1, 1, 1,
+                ]), this.gl.STATIC_DRAW);
+            },
+
+            setupInputs() {
+                const els = document.querySelectorAll('input, select');
+                els.forEach(el => {
+                    el.addEventListener('input', (e) => {
+                        const valDisplay = e.target.nextElementSibling;
+                        if (valDisplay && valDisplay.classList.contains('control-value')) {
+                            valDisplay.value = e.target.value;
+                        }
+                        this.needsUpdate = true;
+                    });
+                });
+
+                document.getElementById('imageUpload').addEventListener('change', (e) => this.loadImage(e.target.files[0]));
+                document.getElementById('downloadJsonBtn').addEventListener('click', () => this.downloadJSON());
+                document.getElementById('uploadJsonTrigger').addEventListener('click', () => document.getElementById('jsonUpload').click());
+                document.getElementById('jsonUpload').addEventListener('change', (e) => this.uploadJSON(e));
+                document.getElementById('downloadBtn').addEventListener('click', () => this.downloadImage());
+                document.getElementById('compareBtn').addEventListener('click', () => this.openCompare());
+                
+                // Preview interactions
+                this.setupPreviewInteractions();
+            },
+
+            loadImage(file) {
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        this.image = img;
+                        this.width = img.width;
+                        this.height = img.height;
+                        this.resizeCanvas();
+                        this.createTexture('image', img);
+                        
+                        document.getElementById('downloadBtn').disabled = false;
+                        document.getElementById('compareBtn').disabled = false;
+                        this.renderLayerPreviews();
+                        this.needsUpdate = true;
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            },
+
+            resizeCanvas() {
+                const display = document.getElementById('displayCanvas');
+                const container = document.getElementById('previewContainer');
+                const aspect = this.width / this.height;
+                const rect = container.getBoundingClientRect();
+                
+                let dw = rect.width;
+                let dh = rect.height;
+                
+                if (dw / dh > aspect) dw = dh * aspect;
+                else dh = dw / aspect;
+
+                display.width = dw;
+                display.height = dh;
+                this.canvas.width = dw;
+                this.canvas.height = dh;
+                
+                this.gl.viewport(0, 0, dw, dh);
+            },
+
+            createTexture(id, source) {
+                const tex = this.gl.createTexture();
+                this.gl.bindTexture(this.gl.TEXTURE_2D, tex);
+                this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+                this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+                this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+                this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+                
+                if (source instanceof Image) {
+                    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, source);
+                }
+                this.textures[id] = tex;
+            },
+
+            createFBO(width, height) {
+                const tex = this.gl.createTexture();
+                this.gl.bindTexture(this.gl.TEXTURE_2D, tex);
+                this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, width, height, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null);
+                this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+                this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+
+                const fbo = this.gl.createFramebuffer();
+                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, fbo);
+                this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, tex, 0);
+                
+                return { fbo, tex };
+            },
+
+            getUniforms(prog) {
+                const uniforms = {};
+                const count = this.gl.getProgramParameter(prog, this.gl.ACTIVE_UNIFORMS);
+                for (let i = 0; i < count; i++) {
+                    const name = this.gl.getActiveUniform(prog, i).name;
+                    uniforms[name] = this.gl.getUniformLocation(prog, name);
+                }
+                return uniforms;
+            },
+
+            renderPass(prog, inputTex, outputFBO, uniforms, width, height) {
+                this.gl.useProgram(prog);
+                const u = this.getUniforms(prog);
+                
+                // Bind Quad
+                const posLoc = this.gl.getAttribLocation(prog, 'a_pos');
+                const uvLoc = this.gl.getAttribLocation(prog, 'a_uv');
+                this.gl.enableVertexAttribArray(posLoc);
+                this.gl.enableVertexAttribArray(uvLoc);
+                this.gl.vertexAttribPointer(posLoc, 2, this.gl.FLOAT, false, 16, 0);
+                this.gl.vertexAttribPointer(uvLoc, 2, this.gl.FLOAT, false, 16, 8);
+
+                // Bind Input
+                this.gl.activeTexture(this.gl.TEXTURE0);
+                this.gl.bindTexture(this.gl.TEXTURE_2D, inputTex);
+                this.gl.uniform1i(u.u_tex, 0);
+
+                // Custom Uniforms
+                if (uniforms) {
+                    for (let k in uniforms) {
+                        if (u[k]) {
+                            const v = uniforms[k];
+                            if (typeof v === 'number') this.gl.uniform1f(u[k], v);
+                            else if (v.length === 2) this.gl.uniform2f(u[k], v[0], v[1]);
+                            else if (v.length === 3) this.gl.uniform3f(u[k], v[0], v[1], v[2]);
+                            else if (typeof v === 'boolean') this.gl.uniform1i(u[k], v ? 1 : 0);
+                        }
+                    }
+                }
+
+                // Output
+                if (outputFBO) {
+                    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, outputFBO.fbo);
+                    this.gl.viewport(0, 0, width, height);
+                } else {
+                    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+                    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+                }
+
+                this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+                return outputFBO ? outputFBO.tex : null;
+            },
+
+            loop() {
+                if (this.needsUpdate && this.image) {
+                    document.getElementById('loading').style.display = 'block';
+                    
+                    // Use small resolution for preview perf, full for download
+                    const w = this.canvas.width;
+                    const h = this.canvas.height;
+                    
+                    // Create Ping-Pong Buffers
+                    if (!this.fbo.main || this.fbo.main.width !== w) {
+                        this.fbo.main = this.createFBO(w, h);
+                        this.fbo.tmp1 = this.createFBO(w, h);
+                        this.fbo.tmp2 = this.createFBO(w, h);
+                    }
+
+                    // 1. Generate Noise
+                    const scale = parseFloat(document.getElementById('noiseSize').value);
+                    const nScale = scale === 0 ? 1.0 : (scale * 10.0);
+                    
+                    this.renderPass(this.programs.noise, null, this.fbo.tmp1, {
+                        u_type: parseInt(document.getElementById('noiseType').value),
+                        u_seed: this.seed,
+                        u_res: [w, h],
+                        u_scale: nScale,
+                        u_origRes: [this.width, this.height]
+                    }, w, h);
+
+                    // 2. Blur Noise
+                    const blurAmt = parseFloat(document.getElementById('blurriness').value) / 1000.0;
+                    let currentTex = this.fbo.tmp1.tex;
+                    if (blurAmt > 0) {
+                        this.renderPass(this.programs.blur, currentTex, this.fbo.tmp2, { u_dir: [blurAmt, 0], u_rad: 4.0 }, w, h);
+                        this.renderPass(this.programs.blur, this.fbo.tmp2.tex, this.fbo.tmp1, { u_dir: [0, blurAmt], u_rad: 4.0 }, w, h);
+                        currentTex = this.fbo.tmp1.tex;
+                    }
+
+                    // 3. Mask Generation (From Original)
+                    this.renderPass(this.programs.mask, this.textures.image, this.fbo.tmp2, {
+                        u_useS: document.getElementById('enableShadows').checked ? 1 : 0,
+                        u_useH: document.getElementById('enableHighlights').checked ? 1 : 0,
+                        u_sth: parseFloat(document.getElementById('shadowThreshold').value),
+                        u_sfa: parseFloat(document.getElementById('shadowFade').value),
+                        u_hth: parseFloat(document.getElementById('highlightThreshold').value),
+                        u_hfa: parseFloat(document.getElementById('highlightFade').value)
+                    }, w, h);
+
+                    // 4. Composite (Image + Noise + Mask)
+                    this.renderPass(this.programs.composite, this.textures.image, this.fbo.main, {
+                        u_noise: currentTex,
+                        u_mask: this.fbo.tmp2.tex,
+                        u_mode: parseInt(document.getElementById('blendMode').value),
+                        u_opacity: parseFloat(document.getElementById('opacity').value),
+                        u_str: parseFloat(document.getElementById('strength').value),
+                        u_nType: parseInt(document.getElementById('noiseType').value),
+                        u_satStr: parseFloat(document.getElementById('satStrength').value),
+                        u_satImp: parseFloat(document.getElementById('satPerNoise').value),
+                        u_ignA: document.getElementById('ignoreAlphaToggle').checked ? 1 : 0,
+                        u_ignAstr: parseFloat(document.getElementById('ignoreAlphaStrength').value)
+                    }, w, h);
+
+                    // 5. Adjustments
+                    currentTex = this.fbo.main.tex;
+                    this.renderPass(this.programs.adjust, currentTex, this.fbo.tmp1, {
+                        u_bright: parseFloat(document.getElementById('brightness').value),
+                        u_cont: parseFloat(document.getElementById('contrast').value),
+                        u_sat: parseFloat(document.getElementById('saturationAdj').value) / 100.0,
+                        u_warmth: parseFloat(document.getElementById('warmth').value),
+                        u_sharp: parseFloat(document.getElementById('sharpen').value),
+                        u_hdrTol: parseFloat(document.getElementById('hdrTolerance').value),
+                        u_hdrAmt: parseFloat(document.getElementById('hdrAmount').value),
+                        u_step: [1.0/this.width, 1.0/this.height]
+                    }, w, h);
+                    currentTex = this.fbo.tmp1.tex;
+
+                    // 6. Chromatic Aberration
+                    const caAmt = parseFloat(document.getElementById('aberrationAmount').value);
+                    if (caAmt > 0) {
+                        this.renderPass(this.programs.chroma, currentTex, this.fbo.tmp2, {
+                            u_amt: caAmt,
+                            u_blur: parseFloat(document.getElementById('aberrationBlur').value),
+                            u_center: [this.caCenter.x, this.caCenter.y],
+                            u_radius: parseFloat(document.getElementById('caRadius').value) / 1000.0,
+                            u_falloff: parseFloat(document.getElementById('caFalloff').value) / 1000.0
+                        }, w, h);
+                        currentTex = this.fbo.tmp2.tex;
+                    }
+
+                    // 7. Bilateral
+                    if (document.getElementById('bilateralEnable').checked) {
+                        this.renderPass(this.programs.bilateral, currentTex, this.fbo.tmp1, {
+                            u_rad: parseFloat(document.getElementById('bilateralRadius').value),
+                            u_cSig: parseFloat(document.getElementById('bilateralColorSig').value),
+                            u_sSig: parseFloat(document.getElementById('bilateralSpatialSig').value),
+                            u_kernel: parseInt(document.getElementById('bilateralKernel').value),
+                            u_edgeMode: parseInt(document.getElementById('bilateralEdgeMode').value)
+                        }, w, h);
+                        currentTex = this.fbo.tmp1.tex;
+                    }
+
+                    // 8. Cell Shading
+                    if (document.getElementById('cellEnable').checked) {
+                        this.renderPass(this.programs.cell, currentTex, this.fbo.tmp2, {
+                            u_levels: parseFloat(document.getElementById('cellLevels').value),
+                            u_bias: parseFloat(document.getElementById('cellBias').value),
+                            u_gamma: parseFloat(document.getElementById('cellGamma').value),
+                            u_qMode: parseInt(document.getElementById('cellQuantMode').value),
+                            u_bMode: parseInt(document.getElementById('cellBandMap').value),
+                            u_eEnable: document.getElementById('cellEdgeEnable').checked ? 1 : 0,
+                            u_eStr: parseFloat(document.getElementById('cellEdgeStr').value),
+                            u_eThick: parseFloat(document.getElementById('cellEdgeThick').value),
+                            u_eMethod: parseInt(document.getElementById('cellEdgeMethod').value),
+                            u_cPres: document.getElementById('cellColorPreserve').checked ? 1 : 0
+                        }, w, h);
+                        currentTex = this.fbo.tmp2.tex;
+                    }
+
+                    // 9. Halftone
+                    if (document.getElementById('halftoneEnable').checked) {
+                        this.renderPass(this.programs.halftone, currentTex, this.fbo.tmp1, {
+                            u_size: parseFloat(document.getElementById('halftoneSize').value),
+                            u_intens: parseFloat(document.getElementById('halftoneIntensity').value),
+                            u_sharp: parseFloat(document.getElementById('halftoneSharpness').value),
+                            u_pattern: parseInt(document.getElementById('halftonePattern').value),
+                            u_colorMode: parseInt(document.getElementById('halftoneColorMode').value),
+                            u_sample: parseInt(document.getElementById('halftoneSample').value),
+                            u_gray: document.getElementById('halftoneGray').checked ? 1 : 0,
+                            u_lock: document.getElementById('halftoneScreenLock').checked ? 1 : 0,
+                            u_invert: document.getElementById('halftoneInvert').checked ? 1 : 0
+                        }, w, h);
+                        currentTex = this.fbo.tmp1.tex;
+                    }
+
+                    // 10. Dither
+                    if (document.getElementById('ditherEnable').checked) {
+                        this.renderPass(this.programs.dither, currentTex, this.fbo.tmp2, {
+                            u_bitDepth: parseInt(document.getElementById('ditherBitDepth').value),
+                            u_paletteSize: parseInt(document.getElementById('ditherPaletteSize').value),
+                            u_strength: parseFloat(document.getElementById('ditherStrength').value),
+                            u_scale: parseFloat(document.getElementById('ditherScale').value),
+                            u_type: parseInt(document.getElementById('ditherType').value)
+                        }, w, h);
+                        currentTex = this.fbo.tmp2.tex;
+                    }
+
+                    // 11. Corruption
+                    if (document.getElementById('corruptionEnable').checked) {
+                        this.renderPass(this.programs.corruption, currentTex, this.fbo.tmp1, {
+                            u_iter: parseInt(document.getElementById('corruptionIterations').value),
+                            u_algo: parseInt(document.getElementById('corruptionAlgorithm').value),
+                            u_scale: parseFloat(document.getElementById('corruptionResScale').value) / 100.0
+                        }, w, h);
+                        currentTex = this.fbo.tmp1.tex;
+                    }
+
+                    // Final Draw to Screen
+                    this.renderPass(this.programs.quad, currentTex, null, {}, w, h);
+                    
+                    document.getElementById('loading').style.display = 'none';
+                    this.needsUpdate = false;
+                }
+                requestAnimationFrame(this.loop.bind(this));
+            },
+
+            render() {
+                this.needsUpdate = true;
+            },
+
+            setupUI() {
+                // Tabs
+                const btns = document.querySelectorAll('.tab-btn');
+                btns.forEach(b => {
+                    b.addEventListener('click', () => {
+                        btns.forEach(x => x.classList.remove('active'));
+                        document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+                        b.classList.add('active');
+                        document.getElementById(b.dataset.tab).classList.add('active');
+                    });
+                });
+
+                // Layer Drag List
+                this.renderLayerList();
+                
+                // Window Resize
+                window.addEventListener('resize', () => {
+                    if(this.image) this.resizeCanvas();
+                    this.render();
+                });
+            },
+
+            renderLayerList() {
+                const list = document.getElementById('layer-drag-list');
+                list.innerHTML = '';
+                this.layerConfig.forEach((layer, idx) => {
+                    const div = document.createElement('div');
+                    div.className = 'drag-layer';
+                    div.draggable = true;
+                    div.innerHTML = `<span>${layer.name}</span> <span>[ :: ]</span>`;
+                    div.dataset.id = layer.id;
+                    
+                    div.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData('text/plain', idx);
+                        div.classList.add('dragging');
+                    });
+                    div.addEventListener('dragend', () => div.classList.remove('dragging'));
+                    
+                    div.addEventListener('dragover', (e) => e.preventDefault());
+                    div.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                        const toIdx = idx;
+                        if (fromIdx !== toIdx) {
+                            const moved = this.layerConfig.splice(fromIdx, 1)[0];
+                            this.layerConfig.splice(toIdx, 0, moved);
+                            this.renderLayerList();
+                            this.render();
+                        }
+                    });
+                    
+                    list.appendChild(div);
+                });
+            },
+
+            setupPreviewInteractions() {
+                const preview = document.getElementById('previewContainer');
+                const pin = document.getElementById('caPin');
+                const overlay = document.getElementById('overlayOriginal');
+                const overlayCanvas = document.getElementById('overlayCanvas');
+                const lock = document.getElementById('previewLock');
+                
+                // Update Overlay Canvas
+                if(this.image) {
+                     overlayCanvas.width = preview.offsetWidth;
+                     overlayCanvas.height = preview.offsetHeight;
+                     const ctx = overlayCanvas.getContext('2d');
+                     ctx.drawImage(this.image, 0, 0, overlayCanvas.width, overlayCanvas.height);
+                }
+
+                // Hover Zoom
+                preview.addEventListener('mousemove', (e) => {
+                    if (lock.checked) return;
+                    
+                    const rect = preview.getBoundingClientRect();
+                    const x = (e.clientX - rect.left) / rect.width;
+                    const y = (e.clientY - rect.top) / rect.height;
+                    
+                    const zoom = parseFloat(document.getElementById('hoverZoomSlider').value);
+                    const lens = document.getElementById('zoomLens');
+                    const lensCanvas = document.getElementById('lensCanvas');
+                    const lensCtx = lensCanvas.getContext('2d');
+                    
+                    if (zoom > 1.1) {
+                        lens.style.display = 'block';
+                        
+                        const mode = document.getElementById('lensToggleBtn').innerText;
+                        if (mode === 'LENS') {
+                            lens.style.left = (e.clientX - rect.left - 90) + 'px';
+                            lens.style.top = (e.clientY - rect.top - 90) + 'px';
+                            
+                            lensCanvas.width = 180;
+                            lensCanvas.height = 180;
+                            lensCtx.fillStyle = '#000';
+                            lensCtx.fillRect(0,0,180,180);
+                            
+                            // Draw zoomed portion
+                            const sx = Math.max(0, (e.clientX - rect.left) - 90/zoom);
+                            const sy = Math.max(0, (e.clientY - rect.top) - 90/zoom);
+                            
+                            lensCtx.drawImage(this.canvas, sx, sy, 180/zoom, 180/zoom, 0, 0, 180, 180);
+                        } else {
+                            lens.style.display = 'none';
+                            // CSS Zoom effect
+                            this.canvas.style.transformOrigin = `${x*100}% ${y*100}%`;
+                            this.canvas.style.transform = `scale(${zoom})`;
+                        }
+                    } else {
+                        lens.style.display = 'none';
+                        this.canvas.style.transform = 'scale(1)';
+                    }
+                });
+
+                preview.addEventListener('mouseleave', () => {
+                   document.getElementById('zoomLens').style.display = 'none';
+                   this.canvas.style.transform = 'scale(1)';
+                });
+                
+                // Pin Logic
+                pin.addEventListener('mousedown', () => {
+                     pin.classList.add('active');
+                });
+                window.addEventListener('mouseup', () => {
+                     if(pin.classList.contains('active')) pin.classList.remove('active');
+                });
+                preview.addEventListener('mousemove', (e) => {
+                    if(pin.classList.contains('active')) {
+                        const rect = preview.getBoundingClientRect();
+                        this.caCenter.x = (e.clientX - rect.left) / rect.width;
+                        this.caCenter.y = (e.clientY - rect.top) / rect.height;
+                        pin.style.left = (this.caCenter.x * 100) + '%';
+                        pin.style.top = (this.caCenter.y * 100) + '%';
+                        this.render();
+                    }
+                });
+                
+                // Show Pin if CA active
+                document.getElementById('aberrationAmount').addEventListener('input', (e) => {
+                    pin.style.display = e.target.value > 0 ? 'block' : 'none';
+                });
+                
+                document.getElementById('resetCenterBtn').addEventListener('click', () => {
+                    this.caCenter = { x: 0.5, y: 0.5 };
+                    pin.style.left = '50%';
+                    pin.style.top = '50%';
+                    this.render();
+                });
+                
+                document.getElementById('lensToggleBtn').addEventListener('click', (e) => {
+                    e.target.innerText = e.target.innerText === 'LENS' ? 'FULL' : 'LENS';
+                });
+
+                // Hover for Original
+                preview.addEventListener('mousedown', () => overlay.classList.add('show'));
+                preview.addEventListener('mouseup', () => overlay.classList.remove('show'));
+                preview.addEventListener('mouseleave', () => overlay.classList.remove('show'));
+            },
+            
+            setupDragDrop() {
+                // Logic handled in renderLayerList
+            },
+
+            renderLayerPreviews() {
+                const grid = document.getElementById('layerGrid');
+                grid.innerHTML = '';
+                
+                // Only render a few representative layers for the preview bar
+                ['Source', 'Noise', 'Color', 'Final'].forEach((name, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'layer-item';
+                    div.innerHTML = `
+                        <div class="layer-title">${name}</div>
+                        <canvas class="layer-canvas" id="preview-layer-${i}"></canvas>
+                    `;
+                    grid.appendChild(div);
+                    
+                    const c = div.querySelector('canvas');
+                    c.width = 100;
+                    c.height = 60;
+                    const ctx = c.getContext('2d');
+                    ctx.drawImage(this.canvas, 0, 0, c.width, c.height);
+                });
+            },
+
+            downloadImage() {
+                // Render at full resolution
+                const scale = parseInt(document.getElementById('upscaleInput').value) || 1;
+                const w = this.width * scale;
+                const h = this.height * scale;
+                
+                // Temporarily resize main canvas to full res for render
+                const tempW = this.canvas.width;
+                const tempH = this.canvas.height;
+                
+                this.canvas.width = w;
+                this.canvas.height = h;
+                this.gl.viewport(0,0,w,h);
+                
+                // Re-run render pass at high res
+                this.needsUpdate = true;
+                // Force a synchronous render (simplified for this demo by just waiting)
+                setTimeout(() => {
+                    const link = document.createElement('a');
+                    link.download = 'grain_output.png';
+                    link.href = this.canvas.toDataURL();
+                    link.click();
+                    
+                    // Restore
+                    this.canvas.width = tempW;
+                    this.canvas.height = tempH;
+                    this.gl.viewport(0,0,tempW,tempH);
+                    this.render();
+                }, 100);
+            },
+            
+            openCompare() {
+                const modal = document.getElementById('compareModal');
+                const origCanvas = document.getElementById('compareOriginal');
+                const procCanvas = document.getElementById('compareProcessed');
+                
+                modal.style.display = 'flex';
+                
+                origCanvas.width = this.width;
+                origCanvas.height = this.height;
+                const ctx = origCanvas.getContext('2d');
+                ctx.drawImage(this.image, 0, 0);
+                
+                procCanvas.width = this.width;
+                procCanvas.height = this.height;
+                const ctx2 = procCanvas.getContext('2d');
+                ctx2.drawImage(this.canvas, 0, 0, this.width, this.height);
+            },
+
+            downloadJSON() {
+                const config = {};
+                document.querySelectorAll('input, select').forEach(el => {
+                    if (el.id) {
+                        config[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+                    }
+                });
+                config.layers = this.layerConfig.map(l => l.id);
+                
+                const blob = new Blob([JSON.stringify(config)], {type: 'application/json'});
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'grain_config.json';
+                link.click();
+            },
+
+            uploadJSON(e) {
+                const file = e.target.files[0];
+                if(!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const config = JSON.parse(ev.target.result);
+                        for (let id in config) {
+                            const el = document.getElementById(id);
+                            if (el) {
+                                if (el.type === 'checkbox') el.checked = config[id];
+                                else el.value = config[id];
+                                
+                                const valDisplay = el.nextElementSibling;
+                                if (valDisplay && valDisplay.classList.contains('control-value')) {
+                                    valDisplay.value = el.value;
+                                }
+                            }
+                        }
+                        this.render();
+                    } catch(err) { alert('Invalid JSON'); }
+                };
+                reader.readAsText(file);
+            }
+        };
+
+        // Compare Modal Controls
+        document.getElementById('closeCompare').addEventListener('click', () => {
+            document.getElementById('compareModal').style.display = 'none';
+        });
+        
+        document.getElementById('exportSideBySide').addEventListener('click', () => {
+            const c = document.createElement('canvas');
+            c.width = this.width * 2;
+            c.height = this.height;
+            const ctx = c.getContext('2d');
+            ctx.drawImage(document.getElementById('compareOriginal'), 0, 0);
+            ctx.drawImage(document.getElementById('compareProcessed'), this.width, 0);
+            const link = document.createElement('a');
+            link.download = 'compare_sidebyside.png';
+            link.href = c.toDataURL();
+            link.click();
+        });
+
+        // Init
+        window.addEventListener('load', () => App.init());
+
+    </script>
+</body>
+</html>
+```</details>

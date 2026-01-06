@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Program Downloads</title>
+    <style>
+        /* 
+         * CREAM BRUTALISM DESIGN SYSTEM
+         * -----------------------------
+         * Core principles: High contrast, thick borders, 
+         * monospaced typography, raw layouts, no soft shadows.
+         */
+
+        :root {
+            /* Palette */
+            --bg-color: #f0f0e6;
+            /* Creamy off-white */
+            --card-bg: #e6e6da;
+            /* Slightly darker cream for contrast */
+            --ink-color: #1a1a1a;
+            /* Near black for text/borders */
+            --accent-color: #ff4500;
+            /* Orange-Red for interactions */
+            --border-width: 3px;
+            --space-unit: 1.5rem;
+            --font-main: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--ink-color);
+            font-family: var(--font-main);
+            margin: 0;
+            padding: 0;
+            line-height: 1.5;
+            border: var(--border-width) solid var(--ink-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* LAYOUT UTILITIES */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--space-unit);
+            width: 100%;
+        }
+
+        /* HEADER STYLING */
+        header {
+            border-bottom: var(--border-width) solid var(--ink-color);
+            padding: 2rem 0;
+            text-align: center;
+            background: var(--card-bg);
+        }
+
+        h1 {
+            font-size: 3rem;
+            text-transform: uppercase;
+            margin: 0;
+            letter-spacing: -2px;
+            font-weight: 900;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-top: 0.5rem;
+            background-color: var(--ink-color);
+            color: var(--bg-color);
+            display: inline-block;
+            padding: 0.2rem 1rem;
+        }
+
+        /* GRID SYSTEM */
+        .program-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--border-width);
+            /* The gap acts as the border thickness */
+            background-color: var(--ink-color);
+            /* Creates the grid lines effect */
+            border: var(--border-width) solid var(--ink-color);
+            margin-top: var(--space-unit);
+        }
+
+        /* CARD DESIGN */
+        .program-card {
+            background-color: var(--bg-color);
+            border: none;
+            /* Borders handled by grid gap */
+            padding: var(--space-unit);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.1s ease;
+            position: relative;
+        }
+
+        .program-card:hover {
+            background-color: var(--card-bg);
+        }
+
+        /* The "Link" area - makes the whole card clickable visually */
+        .card-link {
+            text-decoration: none;
+            color: var(--ink-color);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .card-header {
+            border-bottom: var(--border-width) solid var(--ink-color);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .program-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .version-tag {
+            font-size: 0.8rem;
+            background: var(--ink-color);
+            color: var(--bg-color);
+            padding: 2px 6px;
+        }
+
+        .program-desc {
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            flex-grow: 1;
+        }
+
+        .card-footer {
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-badge {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+
+        .download-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: var(--border-width) solid var(--ink-color);
+            padding: 0.5rem 1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-decoration: none;
+            box-shadow: 4px 4px 0px var(--ink-color);
+            transition: all 0.1s ease;
+            display: inline-block;
+        }
+
+        .download-btn:hover {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px var(--ink-color);
+        }
+
+        .download-btn:active {
+            transform: translate(4px, 4px);
+            box-shadow: none;
+        }
+
+        /* SPECIAL STYLES FOR FILLER CONTENT */
+        .placeholder-text {
+            color: #666;
+            font-style: italic;
+        }
+
+        /* TEMPLATE BLOCK VISIBILITY (Hidden from users, visible in code) */
+        /* The last item in the grid below is the template */
+
+        footer {
+            margin-top: auto;
+            border-top: var(--border-width) solid var(--ink-color);
+            padding: 2rem;
+            text-align: center;
+            font-weight: bold;
+            background: var(--card-bg);
+        }
+
+        /* MARQUEE ANIMATION FOR BRUTALIST FLAIR */
+        .marquee-container {
+            overflow: hidden;
+            white-space: nowrap;
+            border-bottom: var(--border-width) solid var(--ink-color);
+            background: var(--ink-color);
+            color: var(--bg-color);
+            padding: 0.5rem 0;
+        }
+
+        .marquee-content {
+            display: inline-block;
+            animation: scroll 20s linear infinite;
+        }
+
+        @keyframes scroll {
+            0% {
+                transform: translateX(0);
+            }
+
+            100% {
+                transform: translateX(-50%);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- BRUTALIST MARQUEE -->
+    <div class="marquee-container">
+        <div class="marquee-content">
+            2026 Charm? // 2026 Charm? 2026 Charm? // 2026 Charm? // 2026 Charm? // 2026 Charm? // 2026 Charm? // 2026
+            Charm? // 2026 Charm? 2026 Charm? // 2026 Charm? // 2026 Charm? // 2026 Charm? // 2026 Charm? // 2026 Charm?
+            // 2026 Charm? 2026 Charm? // 2026 Charm? // 2026 Charm? // 2026 Charm? // 2026 Charm? //
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header>
+        <div class="container">
+            <h1>Program Downloads</span></h1>
+            <div class="subtitle">SOFTWARE REPOSITORY & DISTRIBUTION</div>
+        </div>
+    </header>
+
+    <!-- MAIN GRID -->
+    <main class="container">
+        <div class="program-grid">
+
+            <!-- ITEM 1: FILLER -->
+            <article class="program-card">
+                <a href="#" class="card-link">
+                    <div class="card-header">
+                        <h2 class="program-title">Venge Modding</h2>
+                        <span class="version-tag">v56</span>
+                    </div>
+                    <p class="program-desc">
+                        A Quick and Easy way to visually mod Venge.io offline
+                    </p>
+                    <div class="card-footer">
+                        <span class="status-badge">Stable</span>
+                        <span class="download-btn">GET INSTALLER</span>
+                    </div>
+                </a>
+            </article>
+
+
+            <!-- END OF TEMPLATE BLOCK -->
+
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer>
+        <p>&copy; 2026 CHARM?. ALL RIGHTS RESERVED. <br> <a href="#" style="color: inherit;">CONTACT ME</a> // <a
+                href="#" style="color: inherit;">GITHUB</a></p>
+    </footer>
+
+</body>
+
+</html>
