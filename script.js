@@ -45,10 +45,14 @@ function initStartupSequence() {
     const overlay = document.getElementById('startupOverlay');
     const startupImg = document.getElementById('startupImage');
     const startupText = document.getElementById('startupText');
+    const startupLoader = document.getElementById('startupLoader');
     const placeholderUrl = "images/load.png"; // USER: Replace with your local image link
     const flashImages = ["images/flash1.png", "images/flash2.webp", "images/flash3.webp"]; // USER: Replace with your local image links
 
     let sequenceFinished = false;
+
+    // Show loader immediately
+    if (startupLoader) startupLoader.classList.add('show');
 
     const terminateStartup = () => {
         if (sequenceFinished) return;
@@ -78,34 +82,48 @@ function initStartupSequence() {
                 setTimeout(() => {
                     startupImg.src = flashImages[2];
                     terminateStartup();
-                }, 250);
-            }, 250);
-        }, 250);
+                }, 400);
+            }, 400);
+        }, 400);
     };
 
     // 5-second timeout fallback (increased to 8s to account for flashes)
     const timeoutId = setTimeout(() => {
         console.log("Startup timed out, loading site normally.");
+        if (startupLoader) startupLoader.classList.remove('show');
         terminateStartup();
     }, 8000);
 
     const startAnimationSequence = () => {
         clearTimeout(timeoutId);
 
-        // 1. Fade from black to image
-        const imgContainer = document.querySelector('.startup-image-container');
-        imgContainer.style.opacity = '1';
-
-        // 2. Start text animation after a delay (1s for image fade + 0.5s pause)
-        setTimeout(() => {
-            startupText.classList.add('animate');
-
-            // 3. Start flash sequence after the text animation ends
-            // Text animation is 1.8s. We wait 2.0s total (1.8s + 0.2s pause)
+        // 1. Fade out loader quickly
+        if (startupLoader) {
+            startupLoader.classList.remove('show');
+            // Small delay for loader fade-out before starting main sequence
             setTimeout(() => {
-                startFlashSequence();
-            }, 2000);
-        }, 1500);
+                proceedAfterLoader();
+            }, 600);
+        } else {
+            proceedAfterLoader();
+        }
+
+        function proceedAfterLoader() {
+            // 2. Fade from black to image
+            const imgContainer = document.querySelector('.startup-image-container');
+            imgContainer.style.opacity = '1';
+
+            // 3. Start text animation after a delay (1s for image fade + 0.5s pause)
+            setTimeout(() => {
+                startupText.classList.add('animate');
+
+                // 4. Start flash sequence after the text animation ends
+                // Text animation is 1.8s. We wait 2.0s total (1.8s + 0.2s pause)
+                setTimeout(() => {
+                    startFlashSequence();
+                }, 2000);
+            }, 1500);
+        }
     };
 
     // Preload all images (Initial + Flashes)
