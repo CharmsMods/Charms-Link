@@ -41,122 +41,111 @@ document.addEventListener('DOMContentLoaded', () => {
 // STARTUP SEQUENCE
 // ============================================
 
-function initStartupSequence() {
+async function initStartupSequence() {
     const overlay = document.getElementById('startupOverlay');
     const startupImg = document.getElementById('startupImage');
     const startupText = document.getElementById('startupText');
     const startupLoader = document.getElementById('startupLoader');
-    const placeholderUrl = "images/load.png"; // USER: Replace with your local image link
-    const flashImages = ["images/flash1.png", "images/flash2.webp", "images/flash3.webp"]; // USER: Replace with your local image links
+    const placeholderUrl = "images/load.png";
+    const flashImages = ["images/flash1.png", "images/flash2.webp", "images/flash3.webp"];
 
-    let sequenceFinished = false;
+    if (!overlay || !startupImg || !startupText) return;
+
+    // Helper: Wait for a specific duration
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // Step 1: Preload all images
+    const preloadImages = () => {
+        return new Promise((resolve) => {
+            const allImages = [placeholderUrl, ...flashImages];
+            let loadedCount = 0;
+
+            // Fallback timeout to ensure we don't get stuck forever
+            const timeoutId = setTimeout(() => {
+                console.warn("Preload timed out. Proceeding...");
+                resolve();
+            }, 8000);
+
+            allImages.forEach(url => {
+                const img = new Image();
+                img.src = url;
+                img.onload = img.onerror = () => {
+                    loadedCount++;
+                    if (loadedCount === allImages.length) {
+                        clearTimeout(timeoutId);
+                        resolve();
+                    }
+                };
+            });
+        });
+    };
+
+    // Step 2: Fade out the loader
+    const hideLoader = async () => {
+        if (!startupLoader) return;
+        startupLoader.classList.remove('show');
+        startupLoader.classList.add('fade-out');
+        await wait(600); // Wait for CSS transition (0.5s + buffer)
+        startupLoader.classList.add('hidden');
+        await wait(200); // Small "black screen" pause for separation
+    };
+
+    // Step 3: Fade in the initial image
+    const fadeInInitialImage = async () => {
+        startupImg.src = placeholderUrl;
+        const imgContainer = document.querySelector('.startup-image-container');
+        if (imgContainer) {
+            imgContainer.style.opacity = '1';
+            await wait(1000); // wait for fade-in transition
+        }
+    };
+
+    // Step 4: Animate and wait for text
+    const runTextAnimation = async () => {
+        startupText.classList.add('animate');
+        await wait(1800); // Length of the CSS animation
+        await wait(200);  // Post-animation pause
+    };
+
+    // Step 5: Flash sequence
+    const runFlashSequence = async () => {
+        for (const url of flashImages) {
+            startupImg.src = url;
+            await wait(400); // Delay between each flash
+        }
+        await wait(800); // Delay after the last flash
+    };
+
+    // Step 6: Reveal the main site
+    const transitionToSite = async () => {
+        overlay.classList.add('fade-out');
+        startupText.classList.add('fade-out');
+        await wait(2000); // Matches the 2s opacity transition in CSS
+        overlay.style.display = 'none';
+    };
+
+    // --- EXECUTE THE STORY ---
 
     // Show loader immediately
     if (startupLoader) startupLoader.classList.add('show');
 
-    const terminateStartup = () => {
-        if (sequenceFinished) return;
-        sequenceFinished = true;
+    // 1. Wait for loading
+    await preloadImages();
 
-        // Wait a moment after the last flash before starting the fade-out
-        setTimeout(() => {
-            overlay.classList.add('fade-out');
-            startupText.classList.add('fade-out'); // Fast fade for the text
+    // 2. Hide loader and clear the stage
+    await hideLoader();
 
-            setTimeout(() => {
-                overlay.style.display = 'none';
-            }, 2000); // Matches the 2s opacity transition in CSS
-        }, 1200); // <--- ADJUST THIS DELAY (How long to show the last flash before fading)
-    };
+    // 3. Show the first image
+    await fadeInInitialImage();
 
-    const startFlashSequence = () => {
-        // Flash 1
-        setTimeout(() => {
-            startupImg.src = flashImages[0];
+    // 4. Run the text animation
+    await runTextAnimation();
 
-            // Flash 2
-            setTimeout(() => {
-                startupImg.src = flashImages[1];
+    // 5. Run the flash images
+    await runFlashSequence();
 
-                // Flash 3 (The one that zooms)
-                setTimeout(() => {
-                    startupImg.src = flashImages[2];
-                    terminateStartup();
-                }, 400);
-            }, 400);
-        }, 400);
-    };
-
-    // 5-second timeout fallback (increased to 8s to account for flashes)
-    const timeoutId = setTimeout(() => {
-        console.log("Startup timed out, loading site normally.");
-        if (startupLoader) startupLoader.classList.remove('show');
-        terminateStartup();
-    }, 8000);
-
-    const startAnimationSequence = () => {
-        clearTimeout(timeoutId);
-
-        // 1. Fade out loader quickly
-        if (startupLoader) {
-            startupLoader.classList.remove('show');
-            startupLoader.classList.add('fade-out');
-
-            // Definitively hide after transition finishes
-            setTimeout(() => {
-                startupLoader.classList.add('hidden');
-                proceedAfterLoader();
-            }, 600); // Matches the 0.5s transition
-        } else {
-            proceedAfterLoader();
-        }
-
-        function proceedAfterLoader() {
-            // 2. Fade from black to image
-            const imgContainer = document.querySelector('.startup-image-container');
-            imgContainer.style.opacity = '1';
-
-            // 3. Start text animation after a delay (1s for image fade + 0.5s pause)
-            setTimeout(() => {
-                startupText.classList.add('animate');
-
-                // 4. Start flash sequence after the text animation ends
-                // Text animation is 1.8s. We wait 2.0s total (1.8s + 0.2s pause)
-                setTimeout(() => {
-                    startFlashSequence();
-                }, 2000);
-            }, 1500);
-        }
-    };
-
-    // Preload all images (Initial + Flashes)
-    const allImages = [placeholderUrl, ...flashImages];
-    let loadedCount = 0;
-
-    allImages.forEach(url => {
-        const img = new Image();
-        img.src = url;
-        img.onload = () => {
-            loadedCount++;
-            if (loadedCount === allImages.length) {
-                startupImg.src = placeholderUrl;
-                startAnimationSequence();
-            }
-        };
-        img.onerror = () => {
-            // If any image fails, we still try to proceed or fallback
-            console.warn(`Failed to preload: ${url}`);
-            loadedCount++;
-            if (loadedCount === allImages.length) {
-                // If all images have been processed (loaded or errored), proceed
-                // We might want to set a default image here if placeholderUrl failed
-                if (startupImg.src === "") { // Only set if not already set by a successful load
-                    startupImg.src = placeholderUrl;
-                }
-                startAnimationSequence();
-            }
-        };
-    });
+    // 6. Goodnight overlay
+    await transitionToSite();
 }
 
 // Initialize startup sequence
