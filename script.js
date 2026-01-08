@@ -46,7 +46,7 @@ async function initStartupSequence() {
     const startupImg = document.getElementById('startupImage');
     const startupText = document.getElementById('startupText');
     const startupLoader = document.getElementById('startupLoader');
-    const placeholderUrl = "images/load.png";
+    const placeholderUrl = "images/load.webp";
     const flashImages = ["images/flash1.png", "images/flash2.webp", "images/flash3.webp"];
 
     if (!overlay || !startupImg || !startupText) return;
