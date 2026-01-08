@@ -1,4 +1,122 @@
 /* ============================================
+   STARTUP OVERLAY
+   ============================================ */
+.startup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #000;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: opacity 2s ease-in-out;
+}
+
+.startup-image-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 1s ease-in-out;
+}
+
+.startup-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.startup-text {
+    position: absolute;
+    bottom: -100px;
+    left: 5%;
+    font-family: 'Courier New', Courier, monospace;
+    /* Placeholder for professional font */
+    font-size: 3rem;
+    font-weight: bold;
+    color: #fff;
+    text-transform: uppercase;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 10000;
+    transition: opacity 0.6s ease-out;
+}
+
+@keyframes fastFadeOut {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
+.startup-text.fade-out {
+    bottom: 50% !important;
+    transform: translateY(50%) !important;
+    animation: none !important;
+    opacity: 0 !important;
+    transition: opacity 0.6s ease-out !important;
+}
+
+@keyframes scrollUpFade {
+    0% {
+        bottom: -100px;
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    100% {
+        bottom: 50%;
+        transform: translateY(50%);
+        opacity: 1;
+    }
+}
+
+.startup-text.animate {
+    animation: scrollUpFade 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.startup-overlay.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ============================================
    BRUTALIST LANDING PAGE - CREAM THEME
    ============================================ */
 
