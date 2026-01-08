@@ -100,10 +100,13 @@ function initStartupSequence() {
         // 1. Fade out loader quickly
         if (startupLoader) {
             startupLoader.classList.remove('show');
-            // Small delay for loader fade-out before starting main sequence
+            startupLoader.classList.add('fade-out');
+
+            // Definitively hide after transition finishes
             setTimeout(() => {
+                startupLoader.classList.add('hidden');
                 proceedAfterLoader();
-            }, 600);
+            }, 600); // Matches the 0.5s transition
         } else {
             proceedAfterLoader();
         }
