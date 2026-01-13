@@ -1,0 +1,36 @@
+CHARM? WEB TOOLS HUB - SUMMARY
+
+1. OVERVIEW
+The "Charm?" hub is a curated collection of powerful, browser-based creative tools designed for high-quality output with simple controls. Built with a passion for visual excellence, the site serves as both a portfolio and a toolkit for creators, modders, and digital artists.
+
+2. MAIN SITE FEATURES (Hub)
+The main site acts as a central gateway to various specialized web applications:
+- Image Tools: A suite of advanced image manipulation features.
+- Multi-Converter: efficient batch conversion for folders and files.
+- Asset Bundler: A specialized tool for bundling HTML, CSS, JS, and image assets.
+- Community Links: Direct access to Venge Modding resources, YouTube, and specialized social communities.
+- About the Creator: Background on "Charm?" (Darynn), including history with Venge.io and a commitment to providing high-quality free tools.
+
+3. FEATURED TOOL: NOISE STUDIO (Digital Grain Studio)
+The Noise Studio is an advanced, GPU-accelerated image workspace that operates directly in the browser. It leverages WebGL2 to provide a real-time, non-destructive editing pipeline designed to produce professional-level results without requiring external software. While it is just one of many tools on the hub, it showcases the site's capability for high-end visual processing.
+
+Key Capabilities:
+- Advanced Noise Engine: Specialized color, grayscale, and saturation-based noise with adjustable scale and blur characteristics.
+- Multi-Layer Render Pipeline: A flexible system allowing users to reorder rendering steps—including Noise, Dithering, Halftoning, and Blur—to create complex, custom effects.
+- Artistic Stylization:
+    * Cell Shading & Edge Detection: Sobel and Laplacian edge detection with adjustable shading levels and gamma curves.
+    * Halftoning: Multiple patterns (Circular, Line, Cross, Diamond) with specialized color modes like CMYK and RGB.
+    * Dithering: Bayer and Noise-based dithering with customizable bit depth and palette sizes.
+    * Corruption Algorithms: Controlled JPEG block artifacts, pixelation, and color bleed effects.
+- Feature-Rich Post-Processing:
+    * Edge-Preserving Bilateral Filtering: Precision smoothing that maintains image details.
+    * HDR Emulation: Adjustable highlight and shadow enhancements.
+    * Chromatic Aberration: Color fringing effects with radial falloff and adjustable center-points.
+- Precision Workflow UI:
+    * Detailed Masking: Isolate effects using Luminance Masks (Shadows/Highlights) or Color Exclusion (Chroma Keying).
+    * Dynamic Preview System: Includes a "Hover Zoom" (up to 8x), a "Lens Zoom" mode, and real-time "Layer Breakdowns" for individual step analysis.
+    * High-Res Export: Supports upscaling up to 10x and multi-view comparison exports.
+    * Project Portability: Save and load complete workspace states via .JSON files.
+
+4. PHILOSOPHY
+All tools on this site are developed with a "Visual First" approach. The goal is to provide tools that feel premium and deliver high-fidelity results while remaining accessible, browser-based, and secure.

@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DNG LUT // GRADER</title>
+  <style>
+    /* BRUTALIST CREAM THEME */
+    :root {
+      --bg-cream: #f0f0eb;
+      --text-black: #080808;
+      --border-thick: 3px solid #080808;
+      --border-thin: 1px solid #080808;
+      --highlight: #e6ffd1; /* Subtle lime accent */
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-cream);
+      color: var(--text-black);
+      font-family: "Courier New", Courier, monospace;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* HEADER */
+    header {
+      border-bottom: var(--border-thick);
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-cream);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      text-transform: uppercase;
+      letter-spacing: -1px;
+      font-weight: 700;
+    }
+
+    /* LAYOUT */
+    main {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 80px);
+    }
+
+    /* SIDEBAR CONTROLS */
+    aside {
+      width: 320px;
+      border-right: var(--border-thick);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      background: #fff;
+      overflow-y: auto;
+    }
+
+    /* CANVAS AREA */
+    section.preview {
+      flex: 1;
+      position: relative;
+      background-color: #e0e0da;
+      background-image: 
+        linear-gradient(45deg, #ccc 25%, transparent 25%), 
+        linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #ccc 75%), 
+        linear-gradient(-45deg, transparent 75%, #ccc 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* CONTROLS */
+    .control-group {
+      border: var(--border-thin);
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .control-group label {
+      font-weight: bold;
+      text-transform: uppercase;
+      font-size: 14px;
+    }
+
+    input[type="file"] {
+      font-family: inherit;
+      font-size: 12px;
+      background: var(--bg-cream);
+      border: var(--border-thin);
+      padding: 10px;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 20px;
+      width: 10px;
+      background: var(--text-black);
+      cursor: pointer;
+      margin-top: -8px;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 4px;
+      background: var(--text-black);
+    }
+
+    button {
+      background: var(--text-black);
+      color: var(--bg-cream);
+      border: none;
+      padding: 15px;
+      font-family: inherit;
+      font-weight: bold;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    button:hover {
+      background: #333;
+    }
+
+    button:disabled {
+      background: #999;
+      cursor: not-allowed;
+    }
+
+    .status-text {
+      font-size: 11px;
+      margin-top: auto;
+      border-top: var(--border-thin);
+      padding-top: 10px;
+      word-wrap: break-word;
+    }
+
+    canvas {
+      max-width: 95%;
+      max-height: 95%;
+      box-shadow: 10px 10px 0px rgba(0,0,0,0.2);
+      background: #000; /* Shows while loading */
+    }
+
+    .no-image {
+      font-size: 14px;
+      background: var(--text-black);
+      color: var(--bg-cream);
+      padding: 10px 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>DNG // LUT // GRADER</h1>
+    <div style="font-size: 12px;">V.1.0 [LOCAL]</div>
+  </header>
+
+  <main>
+    <aside>
+      <div class="control-group">
+        <label>1. SOURCE (DNG)</label>
+        <input type="file" id="dngInput" accept=".dng,.DNG" />
+      </div>
+
+      <div class="control-group">
+        <label>2. LOOK (LUT .CUBE)</label>
+        <input type="file" id="lutInput" accept=".cube,.CUBE" />
+      </div>
+
+      <div class="control-group">
+        <label>3. INTENSITY</label>
+        <input type="range" id="strengthInput" min="0" max="100" value="100" />
+        <div style="text-align: right; font-size: 12px;"><span id="strengthValue">100</span>%</div>
+      </div>
+
+      <div class="control-group" style="margin-top: auto;">
+        <button id="exportBtn" disabled>EXPORT PNG</button>
+      </div>
+
+      <div id="status" class="status-text">SYSTEM READY.</div>
+    </aside>
+
+    <section class="preview">
+      <div id="placeholder" class="no-image">NO IMAGE LOADED</div>
+      <canvas id="canvas"></canvas>
+    </section>
+  </main>
+
+  <script>
+    // ----------------------------------------------------------------------
+    // STATE
+    // ----------------------------------------------------------------------
+    const canvas = document.getElementById("canvas");
+    const gl = canvas.getContext("webgl2", { preserveDrawingBuffer: true });
+    
+    const dngInput = document.getElementById("dngInput");
+    const lutInput = document.getElementById("lutInput");
+    const strengthInput = document.getElementById("strengthInput");
+    const strengthValue = document.getElementById("strengthValue");
+    const exportBtn = document.getElementById("exportBtn");
+    const statusEl = document.getElementById("status");
+    const placeholderEl = document.getElementById("placeholder");
+
+    let imageTexture = null;
+    let lut3DTexture = null;
+    let lutSize = 0;
+    let lutMin = 0.0;
+    let lutMax = 1.0;
+    let originalImageWidth = 0;
+    let originalImageHeight = 0;
+    let lutLoaded = false;
+    let imageLoaded = false;
+
+    // ----------------------------------------------------------------------
+    // NO-DEPENDENCY DNG PARSER (Extracts Embedded JPEG Preview)
+    // ----------------------------------------------------------------------
+    // This bypasses the need for WASM by reading the TIFF structure of the DNG
+    // and extracting the full-resolution preview JPEG.
+    async function loadDNGPreview(file) {
+      setStatus("READING DNG HEADER...");
+      try {
+        const buffer = await file.arrayBuffer();
+        const dataView = new DataView(buffer);
+        
+        // Check Header
+        const byteOrder = dataView.getUint16(0, false); // 0x4D4D (MM) or 0x4949 (II)
+        const isLittleEndian = byteOrder === 0x4949;
+        
+        if (byteOrder !== 0x4D4D && byteOrder !== 0x4949) {
+          throw new Error("Invalid DNG/ TIFF Header.");
+        }
+
+        // Magic number (42)
+        const magic = dataView.getUint16(2, isLittleEndian);
+        if (magic !== 42) throw new Error("Not a valid TIFF/DNG.");
+
+        // Get IFD0 Offset
+        let ifdOffset = dataView.getUint32(4, isLittleEndian);
+
+        // Simple tag parser (scans IFD0 only for preview)
+        let jpegOffset = 0;
+        let jpegLength = 0;
+        let width = 0;
+        let height = 0;
+
+        while (ifdOffset !== 0) {
+          const numEntries = dataView.getUint16(ifdOffset, isLittleEndian);
+          
+          for (let i = 0; i < numEntries; i++) {
+            const entryOffset = ifdOffset + 2 + (i * 12);
+            const tag = dataView.getUint16(entryOffset, isLittleEndian);
+            const type = dataView.getUint16(entryOffset + 2, isLittleEndian);
+            const count = dataView.getUint32(entryOffset + 4, isLittleEndian);
+            const valueOffset = dataView.getUint32(entryOffset + 8, isLittleEndian);
+
+            // Tags we need:
+            // 0x0103: Compression (6 = JPEG)
+            // 0x0111: StripOffsets / 0x0201: JPEGInterchangeFormat
+            // 0x0117: StripByteCounts / 0x0202: JPEGInterchangeFormatLength
+            // 0x0100: Width
+            // 0x0101: Height
+
+            if (tag === 0x0103) {
+               const compression = valueOffset; // if count is small enough, value is inline
+               // We assume JPEG preview (6)
+            } else if (tag === 0x0201) { // JPEGInterchangeFormat
+               jpegOffset = valueOffset;
+            } else if (tag === 0x0202) { // JPEGInterchangeFormatLength
+               jpegLength = valueOffset;
+            } else if (tag === 0x0100) {
+               width = valueOffset;
+            } else if (tag === 0x0101) {
+               height = valueOffset;
+            }
+          }
+
+          // If we found JPEG offset, we are done with this IFD
+          if (jpegOffset > 0 && jpegLength > 0) break;
+
+          // Next IFD
+          ifdOffset = dataView.getUint32(ifdOffset + 2 + (numEntries * 12), isLittleEndian);
+        }
+
+        if (jpegOffset === 0 || jpegLength === 0) {
+          throw new Error("Could not find JPEG preview in this DNG. (Some DNGs use uncompressed RGB which this lightweight parser doesn't support yet).");
+        }
+
+        setStatus("EXTRACTING PREVIEW...");
+        
+        // Extract JPEG blob
+        const jpegData = buffer.slice(jpegOffset, jpegOffset + jpegLength);
+        const blob = new Blob([jpegData], { type: 'image/jpeg' });
+        const url = URL.createObjectURL(blob);
+
+        const img = new Image();
+        img.onload = () => {
+          originalImageWidth = img.width;
+          originalImageHeight = img.height;
+          uploadImageToWebGL(img);
+          URL.revokeObjectURL(url);
+          setStatus(`LOADED: ${img.width}x${img.height}`);
+          imageLoaded = true;
+          render();
+          exportBtn.disabled = false;
+          placeholderEl.style.display = 'none';
+        };
+        img.onerror = () => {
+          throw new Error("Failed to load preview image.");
+        };
+        img.src = url;
+
+      } catch (e) {
+        console.error(e);
+        setStatus("ERROR: " + e.message);
+      }
+    }
+
+    // ----------------------------------------------------------------------
+    // LUT PARSER (Same as before)
+    // ----------------------------------------------------------------------
+    async function parseCubeLUT(file) {
+      setStatus("LOADING LUT...");
+      try {
+        const text = await file.text();
+        const lines = text.split(/\r?\n/).map((s) => s.trim());
+
+        let size = 33;
+        let min = 0.0;
+        let max = 1.0;
+        const data = [];
+
+        const sizeMatch = lines.find((l) => l.toUpperCase().startsWith("LUT_3D_SIZE"));
+        if (sizeMatch) {
+          const parsed = parseInt(sizeMatch.split(/\s+/)[1], 10);
+          if (!Number.isNaN(parsed)) size = parsed;
+        }
+
+        const minMatch = lines.find((l) => l.toUpperCase().startsWith("LUT_3D_INPUT_MIN"));
+        if (minMatch) {
+          const v = parseFloat(minMatch.split(/\s+/)[1]);
+          if (!Number.isNaN(v)) min = v;
+        }
+
+        const maxMatch = lines.find((l) => l.toUpperCase().startsWith("LUT_3D_INPUT_MAX"));
+        if (maxMatch) {
+          const v = parseFloat(maxMatch.split(/\s+/)[1]);
+          if (!Number.isNaN(v)) max = v;
+        }
+
+        for (const line of lines) {
+          if (!line || line.startsWith("#")) continue;
+          const parts = line.split(/\s+/).map((s) => parseFloat(s));
+          if (parts.length >= 3 && !Number.isNaN(parts[0])) {
+            data.push(parts[0], parts[1], parts[2]);
+          }
+        }
+
+        const expected = size * size * size * 3;
+        if (data.length < expected) throw new Error("LUT data incomplete.");
+
+        createLUT3DTexture({
+          size,
+          min,
+          max,
+          data: new Float32Array(data.slice(0, expected)),
+        });
+        
+        lutLoaded = true;
+        setStatus("LUT APPLIED.");
+        render();
+      } catch (e) {
+        console.error(e);
+        setStatus("LUT ERROR: " + e.message);
+      }
+    }
+
+    // ----------------------------------------------------------------------
+    // WebGL2
+    // ----------------------------------------------------------------------
+    const vsSource = `#version 300 es
+      in vec2 a_position;
+      in vec2 a_texCoord;
+      out vec2 v_texCoord;
+      void main() {
+        gl_Position = vec4(a_position * 2.0 - 1.0, 0.0, 1.0);
+        v_texCoord = a_texCoord;
+      }
+    `;
+
+    const fsSource = `#version 300 es
+      precision highp float;
+      precision highp sampler2D;
+      precision highp sampler3D;
+
+      uniform sampler2D u_image;
+      uniform sampler3D u_lut3D;
+      uniform float u_strength;
+      uniform float u_lutMin;
+      uniform float u_lutMax;
+      uniform bool u_hasLut;
+
+      in vec2 v_texCoord;
+      out vec4 outColor;
+
+      vec3 applyLut(vec3 rgb) {
+        vec3 domain = vec3(u_lutMax - u_lutMin);
+        vec3 t = clamp((rgb - vec3(u_lutMin)) / (domain + 1e-6), 0.0, 1.0);
+        return texture(u_lut3D, t).rgb;
+      }
+
+      void main() {
+        vec3 src = texture(u_image, v_texCoord).rgb;
+        vec3 dst = src;
+        if (u_hasLut && u_strength > 0.0) {
+          dst = mix(src, applyLut(src), u_strength);
+        }
+        outColor = vec4(dst, 1.0);
+      }
+    `;
+
+    function createShader(gl, type, source) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, source);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+      return s;
+    }
+
+    const prog = gl.createProgram();
+    gl.attachShader(prog, createShader(gl, gl.VERTEX_SHADER, vsSource));
+    gl.attachShader(prog, createShader(gl, gl.FRAGMENT_SHADER, fsSource));
+    gl.linkProgram(prog);
+
+    const loc = {
+      pos: gl.getAttribLocation(prog, "a_position"),
+      tex: gl.getAttribLocation(prog, "a_texCoord"),
+      img: gl.getUniformLocation(prog, "u_image"),
+      lut: gl.getUniformLocation(prog, "u_lut3D"),
+      str: gl.getUniformLocation(prog, "u_strength"),
+      min: gl.getUniformLocation(prog, "u_lutMin"),
+      max: gl.getUniformLocation(prog, "u_lutMax"),
+      has: gl.getUniformLocation(prog, "u_hasLut"),
+    };
+
+    // Buffers
+    const bufPos = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufPos);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0, 1,0, 0,1, 1,1]), gl.STATIC_DRAW);
+    
+    const bufTex = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufTex);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0, 1,0, 0,1, 1,1]), gl.STATIC_DRAW);
+
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    gl.enableVertexAttribArray(loc.pos);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufPos);
+    gl.vertexAttribPointer(loc.pos, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(loc.tex);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufTex);
+    gl.vertexAttribPointer(loc.tex, 2, gl.FLOAT, false, 0, 0);
+
+    function uploadImageToWebGL(img) {
+      if (imageTexture) gl.deleteTexture(imageTexture);
+      imageTexture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, imageTexture);
+      // Flip Y for WebGL
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    }
+
+    function createLUT3DTexture(lut) {
+      if (lut3DTexture) gl.deleteTexture(lut3DTexture);
+      lut3DTexture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_3D, lut3DTexture);
+      gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGB32F, lut.size, lut.size, lut.size, 0, gl.RGB, gl.FLOAT, lut.data);
+      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+      
+      lutSize = lut.size;
+      lutMin = lut.min;
+      lutMax = lut.max;
+    }
+
+    function render() {
+      if (!imageLoaded) return;
+
+      // Resize canvas to match parent
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+
+      gl.clearColor(0,0,0,0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      gl.useProgram(prog);
+      gl.bindVertexArray(vao);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, imageTexture);
+      gl.uniform1i(loc.img, 0);
+
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_3D, lut3DTexture);
+      gl.uniform1i(loc.lut, 1);
+
+      gl.uniform1f(loc.str, parseInt(strengthInput.value)/100);
+      gl.uniform1f(loc.min, lutMin);
+      gl.uniform1f(loc.max, lutMax);
+      gl.uniform1i(loc.has, lutLoaded ? 1 : 0);
+
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+
+    // ----------------------------------------------------------------------
+    // EXPORT
+    // ----------------------------------------------------------------------
+    function exportPNG() {
+      if (!imageLoaded) return;
+      // Re-render at full resolution for export
+      canvas.width = originalImageWidth;
+      canvas.height = originalImageHeight;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      render();
+
+      const link = document.createElement('a');
+      link.download = 'brutalist-grade.png';
+      link.href = canvas.toDataURL();
+      link.click();
+
+      // Reset view
+      render();
+    }
+
+    // ----------------------------------------------------------------------
+    // EVENTS
+    // ----------------------------------------------------------------------
+    dngInput.addEventListener('change', e => {
+      if(e.target.files[0]) loadDNGPreview(e.target.files[0]);
+    });
+
+    lutInput.addEventListener('change', e => {
+      if(e.target.files[0]) parseCubeLUT(e.target.files[0]);
+    });
+
+    strengthInput.addEventListener('input', () => {
+      strengthValue.textContent = strengthInput.value;
+      render();
+    });
+
+    exportBtn.addEventListener('click', exportPNG);
+
+    window.addEventListener('resize', render);
+
+    function setStatus(msg) {
+      statusEl.textContent = `> ${msg}`;
+    }
+
+    setStatus("SYSTEM READY.");
+  </script>
+</body>
+</html>

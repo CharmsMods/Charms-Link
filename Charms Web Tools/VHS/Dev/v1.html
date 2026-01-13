@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VHS.CAM // SIGNAL_LOSS</title>
+    <style>
+        /* --- RESET & BASE STYLES --- */
+        :root {
+            --bg-color: #050505;
+            --text-color: #eeeeee;
+            --accent-color: #ff0055;
+            --border-color: #ffffff;
+            --panel-bg: rgba(20, 20, 20, 0.95);
+            --font-stack: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-stack);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- LAYOUT --- */
+        #app-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        #source-video {
+            display: none;
+        }
+
+        /* --- UI LAYER --- */
+        .ui-layer {
+            position: absolute;
+            z-index: 10;
+            pointer-events: none;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 1rem;
+            transition: opacity 0.3s ease;
+        }
+
+        body.ui-hidden .ui-layer {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* --- HEADER & STATUS --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: auto;
+        }
+
+        .status-box {
+            background: #000;
+            border: 2px solid var(--border-color);
+            padding: 4px 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rec-indicator {
+            width: 10px;
+            height: 10px;
+            background: #333;
+        }
+
+        .rec-indicator.active {
+            background: var(--accent-color);
+            animation: blink 1s steps(2, start) infinite;
+        }
+
+        @keyframes blink {
+            to {
+                visibility: hidden;
+            }
+        }
+
+        /* --- TOAST --- */
+        #toast {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-color);
+            color: #fff;
+            padding: 8px 16px;
+            border: 2px solid #fff;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+            z-index: 100;
+            white-space: nowrap;
+        }
+
+        #toast.visible {
+            opacity: 1;
+        }
+
+        /* --- CONTROLS PANEL --- */
+        #controls-panel {
+            background: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            pointer-events: auto;
+            max-height: 45vh;
+            width: 100%;
+            max-width: 350px;
+            display: flex;
+            flex-direction: column;
+            align-self: flex-end;
+            /* Bottom on mobile */
+            box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.8);
+        }
+
+        /* --- TABS --- */
+        .tabs {
+            display: flex;
+            background: #000;
+            border-bottom: 2px solid var(--border-color);
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #888;
+            padding: 10px 5px;
+            font-family: var(--font-stack);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-right: 1px solid #333;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            color: #fff;
+            background: #111;
+        }
+
+        .tab-btn.active {
+            color: var(--accent-color);
+            background: #111;
+            font-weight: bold;
+        }
+
+        /* --- CONTROLS CONTENT --- */
+        .tab-content {
+            padding: 10px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .control-group {
+            margin-bottom: 10px;
+        }
+
+        .control-group label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        /* Inputs */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: #444;
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #fff;
+            border: 2px solid #000;
+            cursor: pointer;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #444;
+        }
+
+        /* --- ACTION BUTTONS --- */
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            border-top: 2px solid var(--border-color);
+        }
+
+        button {
+            background: #000;
+            color: #fff;
+            border: none;
+            padding: 15px;
+            font-family: var(--font-stack);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-right: 1px solid #333;
+            font-size: 0.9rem;
+            transition: background 0.1s;
+        }
+
+        button:hover {
+            background: #222;
+        }
+
+        button:active {
+            background: #444;
+        }
+
+        button:last-child {
+            border-right: none;
+        }
+
+        button.record-btn {
+            color: var(--accent-color);
+        }
+
+        button.record-btn.recording {
+            background: var(--accent-color);
+            color: #fff;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        button.record-btn:not(.recording):hover {
+            background: var(--accent-color);
+            color: #fff;
+        }
+
+        /* --- TOGGLE UI --- */
+        #toggle-ui-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 20;
+            width: 44px;
+            height: 44px;
+            background: #000;
+            border: 2px solid #fff;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-family: var(--font-stack);
+            font-size: 0.8rem;
+            pointer-events: auto;
+        }
+
+        body.ui-hidden #toggle-ui-btn {
+            opacity: 0.2;
+            background: transparent;
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        body.ui-hidden #toggle-ui-btn:hover {
+            opacity: 1;
+        }
+
+        /* --- DESKTOP LAYOUT --- */
+        @media (min-width: 768px) {
+            #controls-panel {
+                position: absolute;
+                right: 20px;
+                top: 80px;
+                bottom: auto;
+                height: auto;
+                max-height: 70vh;
+                border: 2px solid #fff;
+            }
+        }
+
+        @media (max-width: 767px) {
+            #controls-panel {
+                border: 2px solid #fff;
+                border-left: none;
+                border-right: none;
+                border-bottom: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="toast">STATUS MESSAGE</div>
+
+    <div id="app-container">
+        <video id="source-video" autoplay playsinline muted></video>
+        <canvas id="output-canvas"></canvas>
+
+        <button id="toggle-ui-btn" title="Toggle Interface">UI</button>
+
+        <div class="ui-layer">
+            <header>
+                <div class="status-box">VHS.SYS // ONLINE</div>
+                <div class="status-box">
+                    REC <div id="rec-dot" class="rec-indicator"></div>
+                    <span id="rec-timer">00:00</span>
+                </div>
+            </header>
+
+            <aside id="controls-panel">
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="tab-signal">Signal</button>
+                    <button class="tab-btn" data-tab="tab-color">Color</button>
+                    <button class="tab-btn" data-tab="tab-noise">Noise</button>
+                    <button class="tab-btn" data-tab="tab-time">Time</button>
+                    <button class="tab-btn" data-tab="tab-optic">Optic</button>
+                </div>
+
+                <!-- Tab: Signal & Scan -->
+                <div id="tab-signal" class="tab-content active">
+                    <div class="control-group">
+                        <label>Sync Drift X <span id="val-drift">0</span></label>
+                        <input type="range" id="param-drift" min="0" max="100" step="0.1" value="0">
+                    </div>
+                    <div class="control-group">
+                        <label>Frame Roll <span id="val-roll">0</span></label>
+                        <input type="range" id="param-roll" min="0" max="100" step="0.1" value="0">
+                    </div>
+                    <div class="control-group">
+                        <label>Vert Jitter <span id="val-vjitter">0.9</span></label>
+                        <input type="range" id="param-vjitter" min="0" max="200" step="0.1" value="0.9">
+                    </div>
+                    <div class="control-group">
+                        <label>Scanlines <span id="val-scan">0.8</span></label>
+                        <input type="range" id="param-scan" min="0" max="1" step="0.01" value="0.06">
+                    </div>
+                    <div class="control-group">
+                        <label>Head Switch Noise <span id="val-head">0</span></label>
+                        <input type="range" id="param-head" min="0" max="10" step="0.01" value="0">
+                    </div>
+                    <div class="control-group">
+                        <label>Signal Resolution <span id="val-signalres">100</span>%</label>
+                        <input type="range" id="param-signalres" min="10" max="100" step="1" value="100">
+                    </div>
+                    <div class="control-group">
+                        <label>Interlace Comb <span id="val-comb">0</span></label>
+                        <input type="range" id="param-comb" min="0" max="10" step="0.1" value="2">
+                    </div>
+                </div>
+
+                <!-- Tab: Color & Luma -->
+                <div id="tab-color" class="tab-content">
+                    <div class="control-group">
+                        <label>RGB Shift <span id="val-rgb">4</span></label>
+                        <input type="range" id="param-rgb" min="0" max="30" step="0.1" value="4">
+                    </div>
+                    <div class="control-group">
+                        <label>Chroma Bleed <span id="val-bleed">0.5</span></label>
+                        <input type="range" id="param-bleed" min="0" max="5" step="0.01" value="0.5">
+                    </div>
+                    <div class="control-group">
+                        <label>Brightness <span id="val-bright">1.0</span></label>
+                        <input type="range" id="param-bright" min="0.5" max="1.5" step="0.01" value="1.0">
+                    </div>
+                    <div class="control-group">
+                        <label>Contrast <span id="val-contrast">1.1</span></label>
+                        <input type="range" id="param-contrast" min="0.5" max="2" step="0.01" value="1.1">
+                    </div>
+                    <div class="control-group">
+                        <label>Saturation <span id="val-saturate">100</span>%</label>
+                        <input type="range" id="param-saturate" min="0" max="300" step="1" value="100">
+                    </div>
+                    <div class="control-group">
+                        <label>Sharpness <span id="val-sharp">0</span></label>
+                        <input type="range" id="param-sharp" min="0" max="2" step="0.01" value="0">
+                    </div>
+                    <div class="control-group">
+                        <label>Tint Bias (Green/Mag) <span id="val-tint">0</span></label>
+                        <input type="range" id="param-tint" min="-50" max="50" step="0.1" value="0">
+                    </div>
+                </div>
+
+                <!-- Tab: Noise & Degradation -->
+                <div id="tab-noise" class="tab-content">
+                    <div class="control-group">
+                        <label>Luma Noise <span id="val-luma">0.2</span></label>
+                        <input type="range" id="param-luma" min="0" max="1" step="0.01" value="0.2">
+                    </div>
+                    <div class="control-group">
+                        <label>Chroma Noise <span id="val-cnoise">0.5</span></label>
+                        <input type="range" id="param-cnoise" min="0" max="2" step="0.01" value="0.5">
+                    </div>
+                    <div class="control-group">
+                        <label>Tape Damage <span id="val-damage">0.2</span></label>
+                        <input type="range" id="param-damage" min="0" max="2" step="0.001" value="0.2">
+                    </div>
+                    <div class="control-group">
+                        <label>Static Bursts <span id="val-static">0.1</span></label>
+                        <input type="range" id="param-static" min="0" max="10" step="0.001" value="0.1">
+                    </div>
+                </div>
+
+                <!-- Tab: Temporal -->
+                <div id="tab-time" class="tab-content">
+                    <div class="control-group">
+                        <label>Ghosting <span id="val-ghost">0.1</span></label>
+                        <input type="range" id="param-ghost" min="0" max="0.9" step="0.01" value="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>Frame Drop Rate <span id="val-drop">0.1</span></label>
+                        <input type="range" id="param-drop" min="0" max="0.8" step="0.001" value="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>Micro Stutter <span id="val-stutter">0.1</span></label>
+                        <input type="range" id="param-stutter" min="0" max="1" step="0.001" value="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>Hunting WB/Exp <span id="val-hunt">0</span></label>
+                        <input type="range" id="param-hunt" min="0" max="0.5" step="0.001" value="0">
+                    </div>
+                </div>
+
+                <!-- Tab: Optics & Distortion -->
+                <div id="tab-optic" class="tab-content">
+                    <div class="control-group">
+                        <label>Edge Detect <span id="val-edge">0</span></label>
+                        <input type="range" id="param-edge" min="0" max="20" step="0.1" value="0">
+                    </div>
+                    <div class="control-group">
+                        <label>Focus Blur <span id="val-blur">0</span></label>
+                        <input type="range" id="param-blur" min="0" max="10" step="0.05" value="0">
+                    </div>
+                    <div class="control-group">
+                        <label>Edge Ringing <span id="val-ring">15</span></label>
+                        <input type="range" id="param-ring" min="0" max="1000" step="0.1" value="15">
+                    </div>
+                    <div class="control-group">
+                        <label>Tape Warp <span id="val-warp">0</span></label>
+                        <input type="range" id="param-warp" min="0" max="50" step="0.1" value="0">
+                    </div>
+                    <div class="control-group">
+                        <label>Barrel Distort <span id="val-distort">0</span></label>
+                        <input type="range" id="param-distort" min="0" max="1" step="0.01" value="0">
+                    </div>
+                    <div class="control-group">
+                        <label>Vignette <span id="val-vig">0.6</span></label>
+                        <input type="range" id="param-vig" min="0" max="2" step="0.01" value="0.6">
+                    </div>
+                    <div class="control-group">
+                        <label>Lens Dirt <span id="val-dirt">10</span></label>
+                        <input type="range" id="param-dirt" min="0" max="2" step="0.01" value="0.7">
+                    </div>
+                    <div class="control-group">
+                        <label>Halation <span id="val-halation">0</span></label>
+                        <input type="range" id="param-halation" min="0" max="1" step="0.01" value="0">
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button id="btn-hide">Hide UI</button>
+                    <button id="btn-record" class="record-btn">START REC</button>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        // --- CORE STATE ---
+        const state = {
+            drift: 0, roll: 0, vjitter: 0.9, scan: 0.8, head: 0, comb: 2,
+            rgb: 4, bleed: 0.5, bright: 1.0, contrast: 1.1, tint: 0,
+            luma: 0.2, cnoise: 0.5, damage: 0.2, static: 0.1,
+            ghost: 0.1, drop: 0.1, stutter: 0.1, hunt: 0,
+            blur: 0, ring: 15, warp: 0, vig: 0.6, dirt: 0.7,
+            saturate: 100, sharp: 0, edge: 0, signalres: 100, distort: 0,
+            halation: 0
+        };
+
+        const runtime = {
+            frameCount: 0,
+            dropNextFrame: false,
+            stutterDuration: 0,
+            syncPhase: 0,
+            lastFrameTime: 0
+        };
+
+        // --- DOM ELEMENTS ---
+        const video = document.getElementById('source-video');
+        const canvas = document.getElementById('output-canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        // UI Refs
+        const inputs = document.querySelectorAll('input[type=range]');
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        // Buttons & Status
+        const btnRecord = document.getElementById('btn-record');
+        const btnHide = document.getElementById('btn-hide');
+        const btnToggleUI = document.getElementById('toggle-ui-btn');
+        const recDot = document.getElementById('rec-dot');
+        const recTimer = document.getElementById('rec-timer');
+        const toast = document.getElementById('toast');
+
+        // Recording & Audio
+        let mediaRecorder, recordedChunks, audioCtx, sourceNode, destNode;
+        let recInterval, startTime;
+
+        // --- ASSET GENERATION ---
+        // Generate Noise Texture (Luma)
+        const noiseCanvas = document.createElement('canvas');
+        const noiseCtx = noiseCanvas.getContext('2d');
+        noiseCanvas.width = 256; noiseCanvas.height = 256;
+        (function genNoise() {
+            const id = noiseCtx.createImageData(256, 256);
+            const d = id.data;
+            for (let i = 0; i < d.length; i += 4) {
+                const val = Math.random() * 255;
+                d[i] = d[i + 1] = d[i + 2] = val; d[i + 3] = 255;
+            }
+            noiseCtx.putImageData(id, 0, 0);
+        })();
+
+        // Generate Chroma Noise Texture
+        const chromaCanvas = document.createElement('canvas');
+        const chromaCtx = chromaCanvas.getContext('2d');
+        chromaCanvas.width = 64; chromaCanvas.height = 64;
+        (function genChroma() {
+            const id = chromaCtx.createImageData(64, 64);
+            const d = id.data;
+            for (let i = 0; i < d.length; i += 4) {
+                if (Math.random() > 0.5) {
+                    d[i] = Math.random() * 255; // R
+                    d[i + 1] = Math.random() * 255; // G
+                    d[i + 2] = Math.random() * 255; // B
+                }
+                d[i + 3] = 150;
+            }
+            chromaCtx.putImageData(id, 0, 0);
+        })();
+
+        // Generate Lens Dirt
+        const dirtCanvas = document.createElement('canvas');
+        const dirtCtx = dirtCanvas.getContext('2d');
+        dirtCanvas.width = 512; dirtCanvas.height = 512;
+        (function genDirt() {
+            dirtCtx.clearRect(0, 0, 512, 512);
+            for (let i = 0; i < 50; i++) {
+                const x = Math.random() * 512;
+                const y = Math.random() * 512;
+                const r = Math.random() * 5 + 1;
+                dirtCtx.beginPath();
+                dirtCtx.arc(x, y, r, 0, Math.PI * 2);
+                dirtCtx.fillStyle = `rgba(200, 200, 180, ${Math.random() * 0.3})`;
+                dirtCtx.fill();
+            }
+            // Smudge
+            dirtCtx.filter = 'blur(4px)';
+            dirtCtx.drawImage(dirtCanvas, 0, 0);
+        })();
+
+        // Offscreen canvas for pixelation reduction
+        const lowResCanvas = document.createElement('canvas');
+        const lowResCtx = lowResCanvas.getContext('2d');
+
+        // --- CAMERA SETUP ---
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: true });
+                video.srcObject = stream;
+                setupAudio(stream);
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    lowResCanvas.width = video.videoWidth;
+                    lowResCanvas.height = video.videoHeight;
+                    requestAnimationFrame(renderLoop);
+                };
+                showToast("CAMERA CONNECTED");
+            } catch (e) {
+                showToast("CAMERA ERROR");
+                console.error(e);
+            }
+        }
+
+        function setupAudio(stream) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            sourceNode = audioCtx.createMediaStreamSource(stream);
+            destNode = audioCtx.createMediaStreamDestination();
+            sourceNode.connect(destNode);
+        }
+
+        // --- RENDER PIPELINE ---
+        function renderLoop(time) {
+            requestAnimationFrame(renderLoop);
+
+            // Frame Drops Logic
+            if (state.drop > 0 && Math.random() < state.drop) return;
+
+            // Stutter Logic
+            if (runtime.stutterDuration > 0) {
+                runtime.stutterDuration--;
+                return; // Freeze frame
+            }
+            if (state.stutter > 0 && Math.random() < state.stutter * 0.1) {
+                runtime.stutterDuration = Math.floor(Math.random() * 5);
+            }
+
+            const w = canvas.width;
+            const h = canvas.height;
+            runtime.frameCount++;
+
+            // 1. CLEAR & GHOSTING (Temporal)
+            // Instead of clearRect, we draw a semi-transparent rect to leave trails
+            if (state.ghost > 0) {
+                ctx.fillStyle = `rgba(5, 5, 5, ${1 - state.ghost})`;
+                ctx.fillRect(0, 0, w, h);
+            } else {
+                ctx.clearRect(0, 0, w, h);
+            }
+
+            // 2. CALCULATE GEOMETRY
+            let dx = 0;
+            let dy = 0;
+            let dw = w;
+            let dh = h;
+
+            // Sync Drift
+            runtime.syncPhase += 0.05;
+            dx += Math.sin(runtime.syncPhase) * state.drift;
+
+            // Vertical Jitter
+            dy += (Math.random() - 0.5) * state.vjitter;
+
+            // Roll
+            dy += (Math.sin(time * 0.002) * state.roll);
+
+            // 3. HUNTING (Exposure/WB)
+            let brightness = state.bright;
+            let contrast = state.contrast;
+            if (state.hunt > 0) {
+                const huntFactor = Math.sin(time * 0.005);
+                brightness += huntFactor * state.hunt;
+                contrast += Math.cos(time * 0.007) * state.hunt;
+            }
+
+            // 4. DRAW BASE VIDEO (With Filters)
+            ctx.save();
+
+            // Construct Filter String
+            let filterStr = `brightness(${brightness}) contrast(${contrast}) saturate(${state.saturate}%)`;
+            if (state.tint !== 0) filterStr += ` sepia(${Math.abs(state.tint) / 50}) hue-rotate(${state.tint > 0 ? 60 : -60}deg)`;
+            if (state.blur > 0) filterStr += ` blur(${state.blur}px)`;
+
+            // Sharpness implementation via contrast and brightness tricks combined with minor unsharp mask logic
+            if (state.sharp > 0) {
+                // We apply a basic sharpening filter by boosting contrast on edges
+                // In canvas 2D, a real unsharp mask is slow, so we use the CSS contrast trick
+                filterStr += ` contrast(${1 + state.sharp * 0.5})`;
+            }
+
+            ctx.filter = filterStr;
+
+            // Handle Resolution Reduction (Pixelation / Signal Res)
+            if (state.signalres < 100) {
+                const scale = state.signalres / 100;
+                const sw = Math.floor(w * scale);
+                const sh = Math.floor(h * scale);
+                lowResCanvas.width = sw;
+                lowResCanvas.height = sh;
+
+                // Draw small
+                lowResCtx.drawImage(video, 0, 0, sw, sh);
+
+                // Disable smoothing for pixel look
+                ctx.imageSmoothingEnabled = false;
+
+                // Draw stretched back to canvas with transforms
+                // Apply Tape Warp if active (sinusoidal scanline offset)
+                if (state.warp > 0) {
+                    for (let y = 0; y < sh; y++) {
+                        const offset = Math.sin((y / sh) * 10 + runtime.syncPhase * 2) * state.warp;
+                        ctx.drawImage(lowResCanvas, 0, y, sw, 1, dx + offset, dy + (y / scale), dw, 1 / scale);
+                    }
+                } else {
+                    ctx.drawImage(lowResCanvas, dx, dy, dw, dh);
+                }
+                ctx.imageSmoothingEnabled = true;
+
+            } else {
+                // Apply Tape Warp directly if no res reduction
+                if (state.warp > 0) {
+                    for (let y = 0; y < h; y += 2) {
+                        const offset = Math.sin((y / h) * 10 + runtime.syncPhase * 2) * state.warp;
+                        ctx.drawImage(video, 0, y, w, 2, dx + offset, dy + y, dw, 2);
+                    }
+                } else {
+                    ctx.drawImage(video, dx, dy, dw, dh);
+                }
+            }
+
+            ctx.restore();
+
+            // 5. BARREL DISTORTION (Simulated)
+            if (state.distort > 0) {
+                ctx.save();
+                // Simple physical simulation: scale corners more than center
+                // In 2D, we can draw the canvas onto itself with a circular clip or several layers
+                // Fast visual trick: Draw the canvas slightly zoomed and apply a multi-pass blend
+                ctx.globalAlpha = 1.0;
+                const dScale = 1 + (state.distort * 0.1);
+                ctx.translate(w / 2, h / 2);
+                ctx.scale(dScale, dScale);
+                ctx.translate(-w / 2, -h / 2);
+                ctx.globalCompositeOperation = 'screen';
+                ctx.globalAlpha = state.distort * 0.5;
+                ctx.drawImage(canvas, 0, 0);
+                ctx.restore();
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = 1.0;
+            }
+
+            // 6. CHROMA ABERRATION (Color Bleed & RGB Shift)
+            if (state.rgb > 0 || state.bleed > 0) {
+                // --- Improved RGB Shift: shift color channels using offscreen canvases ---
+                if (state.rgb > 0) {
+                    // Create offscreen canvases for each channel
+                    const w = canvas.width, h = canvas.height;
+                    const srcImg = ctx.getImageData(0, 0, w, h);
+                    // Red
+                    const rCanvas = document.createElement('canvas');
+                    rCanvas.width = w; rCanvas.height = h;
+                    const rCtx = rCanvas.getContext('2d');
+                    rCtx.putImageData(srcImg, 0, 0);
+                    rCtx.globalCompositeOperation = 'destination-in';
+                    // Mask to red channel
+                    const rMask = rCtx.getImageData(0, 0, w, h);
+                    for (let i = 0; i < rMask.data.length; i += 4) {
+                        rMask.data[i+1] = 0; // G
+                        rMask.data[i+2] = 0; // B
+                    }
+                    rCtx.putImageData(rMask, 0, 0);
+
+                    // Blue
+                    const bCanvas = document.createElement('canvas');
+                    bCanvas.width = w; bCanvas.height = h;
+                    const bCtx = bCanvas.getContext('2d');
+                    bCtx.putImageData(srcImg, 0, 0);
+                    bCtx.globalCompositeOperation = 'destination-in';
+                    // Mask to blue channel
+                    const bMask = bCtx.getImageData(0, 0, w, h);
+                    for (let i = 0; i < bMask.data.length; i += 4) {
+                        bMask.data[i] = 0;   // R
+                        bMask.data[i+1] = 0; // G
+                    }
+                    bCtx.putImageData(bMask, 0, 0);
+
+                    // Green (main image, no shift)
+                    const gCanvas = document.createElement('canvas');
+                    gCanvas.width = w; gCanvas.height = h;
+                    const gCtx = gCanvas.getContext('2d');
+                    gCtx.putImageData(srcImg, 0, 0);
+                    gCtx.globalCompositeOperation = 'destination-in';
+                    // Mask to green channel
+                    const gMask = gCtx.getImageData(0, 0, w, h);
+                    for (let i = 0; i < gMask.data.length; i += 4) {
+                        gMask.data[i] = 0;   // R
+                        gMask.data[i+2] = 0; // B
+                    }
+                    gCtx.putImageData(gMask, 0, 0);
+
+                    // Clear main canvas and composite channels
+                    ctx.clearRect(0, 0, w, h);
+                    ctx.globalAlpha = 1.0;
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.drawImage(rCanvas, -state.rgb, 0);
+                    ctx.drawImage(gCanvas, 0, 0);
+                    ctx.drawImage(bCanvas, state.rgb, 0);
+                    ctx.globalCompositeOperation = 'source-over';
+                }
+
+                // Chroma Bleed (Horizontal Smear)
+                if (state.bleed > 0) {
+                    ctx.globalAlpha = 0.2;
+                    const smear = state.bleed * 5;
+                    ctx.drawImage(canvas, -smear, 0);
+                    ctx.drawImage(canvas, smear, 0);
+                    ctx.globalAlpha = 1.0;
+                }
+            }
+
+            // 6. SCANLINES & INTERLACE
+            if (state.scan > 0) {
+                ctx.fillStyle = `rgba(0, 0, 0, ${state.scan})`;
+                for (let y = 0; y < h; y += 3) {
+                    ctx.fillRect(0, y, w, 1);
+                }
+            }
+
+            if (state.comb > 0) {
+                // Simulate interlace combing by drawing odd lines shifted
+                ctx.globalCompositeOperation = 'hard-light';
+                ctx.globalAlpha = 0.3;
+                // We fake this by drawing the image shifted slightly up
+                // Only on odd scanlines (hard to do selectively in 2D efficiently, 
+                // so we just offset a copy of the whole image slightly)
+                ctx.drawImage(canvas, 0, -state.comb);
+                ctx.globalAlpha = 1.0;
+                ctx.globalCompositeOperation = 'source-over';
+            }
+
+            // 7. NOISE & GRAIN
+            if (state.luma > 0) {
+                ctx.globalCompositeOperation = 'overlay';
+                ctx.globalAlpha = state.luma * 0.5;
+                // Offset pattern for "crawl"
+                const offX = (time * 0.1) % 256;
+                const offY = (time * 0.2) % 256;
+                const pat = ctx.createPattern(noiseCanvas, 'repeat');
+                ctx.fillStyle = pat;
+                ctx.translate(-offX, -offY);
+                ctx.fillRect(0, 0, w, h);
+                ctx.translate(offX, offY);
+                ctx.globalAlpha = 1.0;
+                ctx.globalCompositeOperation = 'source-over';
+            }
+
+            if (state.cnoise > 0) {
+                ctx.globalCompositeOperation = 'color-dodge';
+                ctx.globalAlpha = state.cnoise * 0.4;
+                const pat = ctx.createPattern(chromaCanvas, 'repeat');
+                ctx.fillStyle = pat;
+                ctx.fillRect(0, 0, w, h);
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = 1.0;
+            }
+
+            // 8. ARTIFACTS (Damage, Dropouts, Static, Head Switch)
+
+            // Head Switching (Bottom of frame distortion)
+            if (state.head > 0) {
+                const hsHeight = h * 0.1 * state.head;
+                const hsY = h - hsHeight;
+                // Grab bottom chunk
+                try {
+                    const chunk = ctx.getImageData(0, hsY, w, hsHeight);
+                    // Randomly shift rows in chunk
+                    for (let y = 0; y < hsHeight; y++) {
+                        if (Math.random() > 0.5) {
+                            // Logic to shift rows is expensive in JS loops.
+                            // Visual trick: draw a semi-transparent noise rect over bottom
+                            ctx.fillStyle = `rgba(255,255,255,${Math.random() * state.head})`;
+                            ctx.fillRect(Math.random() * w, hsY + y, Math.random() * 50, 2);
+                        }
+                    }
+                } catch (e) { } // Security errors if dirty canvas
+            }
+
+            // Tape Damage / Dropouts (Horizontal lines)
+            if (state.damage > 0 && Math.random() < state.damage) {
+                const y = Math.random() * h;
+                const len = Math.random() * 100;
+                ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#000';
+                ctx.globalAlpha = 0.6;
+                ctx.fillRect(Math.random() * w, y, len, Math.random() * 4 + 1);
+                ctx.globalAlpha = 1.0;
+            }
+
+            // Static Bursts
+            if (state.static > 0 && Math.random() < state.static) {
+                ctx.fillStyle = '#fff';
+                ctx.globalAlpha = Math.random() * 0.8;
+                ctx.fillRect(0, Math.random() * h, w, Math.random() * 50);
+                ctx.globalAlpha = 1.0;
+            }
+
+            // 9. POST-PROCESS OVERLAYS
+
+
+            // Edge Detection
+            if (state.edge > 0) {
+                ctx.save();
+                // We use an offscreen approach by drawing the canvas on itself with offset and 'difference'
+                // This highlights changes in pixel values (edges)
+                ctx.globalCompositeOperation = 'difference';
+                ctx.drawImage(canvas, 2, 2); // 2px offset for more visible edges
+
+                // To make it "really strong", we apply multiple passes or contrast boost
+                if (state.edge > 5) {
+                    ctx.globalAlpha = (state.edge - 5) / 15;
+                    ctx.drawImage(canvas, -2, -2);
+                }
+
+                // Boost visibility
+                ctx.globalCompositeOperation = 'screen';
+                ctx.globalAlpha = Math.min(1.0, state.edge / 5);
+                ctx.filter = `contrast(${state.edge * 2}) brightness(${state.edge * 0.5})`;
+                ctx.drawImage(canvas, 0, 0);
+
+                ctx.restore();
+            }
+
+            // Edge Ringing (Halo) - Simulated by drawing a blurred, brightened version underneath
+            if (state.ring > 0) {
+                ctx.save();
+                ctx.globalAlpha = Math.min(1, state.ring / 100); // Intensity
+                ctx.filter = `blur(${Math.max(1, state.ring / 40)}px) brightness(2)`;
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.drawImage(canvas, 0, 0);
+                ctx.restore();
+            }
+
+            // Halation effect (soft reddish glow around highlights)
+            if (state.halation > 0) {
+                ctx.save();
+                ctx.globalAlpha = state.halation * 0.6;
+                ctx.filter = `blur(${2 + state.halation * 12}px)`;
+                ctx.globalCompositeOperation = 'lighter';
+                // Tint: draw a red-tinted blurred version of the canvas
+                // Create an offscreen canvas for tinting
+                const halCanvas = document.createElement('canvas');
+                halCanvas.width = canvas.width;
+                halCanvas.height = canvas.height;
+                const hctx = halCanvas.getContext('2d');
+                hctx.drawImage(canvas, 0, 0);
+                hctx.globalCompositeOperation = 'source-atop';
+                hctx.fillStyle = 'rgba(255,80,40,0.7)';
+                hctx.fillRect(0, 0, halCanvas.width, halCanvas.height);
+                ctx.drawImage(halCanvas, 0, 0);
+                ctx.restore();
+            }
+
+            // Vignette
+            if (state.vig > 0) {
+                const grad = ctx.createRadialGradient(w / 2, h / 2, h / 3, w / 2, h / 2, h);
+                grad.addColorStop(0, 'rgba(0,0,0,0)');
+                grad.addColorStop(1, `rgba(0,0,0,${state.vig})`);
+                ctx.fillStyle = grad;
+                ctx.globalCompositeOperation = 'multiply';
+                ctx.fillRect(0, 0, w, h);
+                ctx.globalCompositeOperation = 'source-over';
+            }
+
+            // Lens Dirt
+            if (state.dirt > 0) {
+                ctx.globalCompositeOperation = 'overlay';
+                ctx.globalAlpha = state.dirt;
+                ctx.drawImage(dirtCanvas, 0, 0, w, h);
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = 1.0;
+            }
+
+            // 10. RECORDING OUTPUT
+            // If recording, the canvas stream is captured automatically by MediaRecorder.
+        }
+
+        // --- RECORDING LOGIC ---
+        function toggleRecording() {
+            if (btnRecord.classList.contains('recording')) stopRecording();
+            else startRecording();
+        }
+
+        function startRecording() {
+            const canvasStream = canvas.captureStream(30); // 30 FPS
+            if (destNode && destNode.stream) {
+                const tracks = destNode.stream.getAudioTracks();
+                if (tracks.length) canvasStream.addTrack(tracks[0]);
+            }
+
+            recordedChunks = [];
+            const options = { mimeType: 'video/webm;codecs=vp9' } || { mimeType: 'video/webm' };
+
+            try {
+                mediaRecorder = new MediaRecorder(canvasStream, options);
+            } catch (e) {
+                showToast("RECORDER ERROR");
+                return;
+            }
+
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = saveVideo;
+            mediaRecorder.start();
+
+            btnRecord.textContent = "STOP REC";
+            btnRecord.classList.add('recording');
+            recDot.classList.add('active');
+
+            startTime = Date.now();
+            recInterval = setInterval(() => {
+                const diff = Date.now() - startTime;
+                const m = Math.floor(diff / 60000).toString().padStart(2, '0');
+                const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+                recTimer.textContent = `${m}:${s}`;
+            }, 1000);
+
+            showToast("RECORDING STARTED");
+        }
+
+        function stopRecording() {
+            mediaRecorder.stop();
+            btnRecord.textContent = "START REC";
+            btnRecord.classList.remove('recording');
+            recDot.classList.remove('active');
+            clearInterval(recInterval);
+            recTimer.textContent = "00:00";
+            showToast("PROCESSING...");
+        }
+
+        function saveVideo() {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `VHS_FOOTAGE_${Date.now()}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 100);
+            showToast("VIDEO SAVED");
+        }
+
+        // --- UI HELPERS ---
+        function updateState(id, val) {
+            const key = id.replace('param-', '');
+            if (state.hasOwnProperty(key)) {
+                state[key] = parseFloat(val);
+                const display = document.getElementById(id.replace('param', 'val'));
+                if (display) {
+                    // Show 2 decimals for halation, else as before
+                    if (key === 'halation') display.textContent = state[key].toFixed(2);
+                    else display.textContent = state[key];
+                }
+            }
+        }
+
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.classList.add('visible');
+            setTimeout(() => toast.classList.remove('visible'), 3000);
+        }
+
+
+        // --- INITIALIZE SLIDER DISPLAYS ---
+        function initializeSliderDisplays() {
+            inputs.forEach(input => {
+                updateState(input.id, input.value);
+            });
+        }
+
+        // --- EVENT LISTENERS ---
+        inputs.forEach(input => {
+            input.addEventListener('input', (e) => updateState(e.target.id, e.target.value));
+        });
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabBtns.forEach(b => b.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        btnRecord.addEventListener('click', toggleRecording);
+
+        const toggleUI = () => {
+            document.body.classList.toggle('ui-hidden');
+        };
+        btnHide.addEventListener('click', toggleUI);
+        btnToggleUI.addEventListener('click', toggleUI);
+
+        window.addEventListener('load', () => {
+            initializeSliderDisplays();
+            initCamera();
+        });
+
+    </script>
+</body>
+
+</html>

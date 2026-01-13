@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VHS Effect Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        h1 {
+            text-align: center;
+            color: #ff6b6b;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px rgba(255, 107, 107, 0.7);
+        }
+        .upload-section {
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+        }
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+        .file-input-label {
+            display: block;
+            padding: 12px 20px;
+            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        .file-input-label:hover {
+            background: linear-gradient(45deg, #ff5252, #ff7979);
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.5);
+        }
+        .file-name {
+            margin-top: 10px;
+            font-style: italic;
+            color: #aaa;
+        }
+        .controls {
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #ccc;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        .value-display {
+            text-align: right;
+            font-size: 0.9em;
+            color: #aaa;
+        }
+        button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: linear-gradient(45deg, #45a049, #3d8b40);
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .progress-container {
+            margin-top: 20px;
+            background-color: #2a2a2a;
+            border-radius: 5px;
+            height: 20px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #ff8e8e);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .status {
+            margin-top: 10px;
+            text-align: center;
+            color: #aaa;
+        }
+        .preview-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .preview-box {
+            width: 48%;
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+        }
+        .preview-box h3 {
+            margin-top: 0;
+            text-align: center;
+            color: #ff6b6b;
+        }
+        video, canvas {
+            width: 100%;
+            border-radius: 5px;
+            background-color: #000;
+        }
+        .download-section {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .download-link {
+            display: none;
+            background: linear-gradient(45deg, #2196F3, #0b7dda);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .download-link:hover {
+            background: linear-gradient(45deg, #0b7dda, #0a6ec1);
+            box-shadow: 0 0 15px rgba(33, 150, 243, 0.5);
+        }
+        .info-section {
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+        }
+        .info-section h2 {
+            margin-top: 0;
+            color: #ff6b6b;
+        }
+        .info-section p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .info-section ul {
+            padding-left: 20px;
+        }
+        .info-section li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>VHS Effect Generator</h1>
+    
+    <div class="upload-section">
+        <div class="file-input-wrapper">
+            <input type="file" id="fileInput" accept="video/*">
+            <label for="fileInput" class="file-input-label">Choose Video File</label>
+            <div class="file-name" id="fileName">No file selected</div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <div class="control-group">
+            <label for="resolution">Resolution: <span id="resolutionValue">320x240</span></label>
+            <input type="range" id="resolution" min="1" max="3" value="1">
+            <div class="value-display">1: Low (320x240) | 2: Medium (640x480) | 3: High (720x576)</div>
+        </div>
+        
+        <div class="control-group">
+            <label for="chromaticAberration">Chromatic Aberration: <span id="chromaticValue">3</span>px</label>
+            <input type="range" id="chromaticAberration" min="0" max="10" value="3">
+        </div>
+        
+        <div class="control-group">
+            <label for="scanlines">Scanline Intensity: <span id="scanlinesValue">50</span>%</label>
+            <input type="range" id="scanlines" min="0" max="100" value="50">
+        </div>
+        
+        <div class="control-group">
+            <label for="noise">Noise Level: <span id="noiseValue">20</span>%</label>
+            <input type="range" id="noise" min="0" max="100" value="20">
+        </div>
+        
+        <div class="control-group">
+            <label for="jitter">Frame Jitter: <span id="jitterValue">5</span>%</label>
+            <input type="range" id="jitter" min="0" max="20" value="5">
+        </div>
+        
+        <button id="processButton" disabled>Process Video</button>
+        
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="status" id="status">Ready to process</div>
+    </div>
+    
+    <div class="preview-container">
+        <div class="preview-box">
+            <h3>Original Video</h3>
+            <video id="originalVideo" controls style="display: none;"></video>
+            <div id="originalPlaceholder" style="height: 150px; display: flex; align-items: center; justify-content: center; color: #555;">
+                Original video will appear here
+            </div>
+        </div>
+        
+        <div class="preview-box">
+            <h3>VHS Effect Preview</h3>
+            <canvas id="previewCanvas" style="display: none;"></canvas>
+            <div id="previewPlaceholder" style="height: 150px; display: flex; align-items: center; justify-content: center; color: #555;">
+                VHS preview will appear here
+            </div>
+        </div>
+    </div>
+    
+    <div class="download-section">
+        <a href="#" id="downloadLink" class="download-link">Download Processed Video</a>
+    </div>
+    
+    <div class="info-section">
+        <h2>About VHS Effects</h2>
+        <p>VHS (Video Home System) was a popular analog recording videotape cassette format developed in the 1970s. The distinctive look of VHS tapes has become a popular aesthetic in modern media, often used to evoke nostalgia or create a "found footage" feel.</p>
+        
+        <p>Key characteristics of the VHS look include:</p>
+        <ul>
+            <li><strong>Low Resolution:</strong> VHS tapes typically had around 240-480 lines of resolution, much lower than modern digital video.</li>
+            <li><strong>Chromatic Aberration:</strong> Color channels (red, green, blue) would often separate, creating a color fringe effect.</li>
+            <li><strong>Scanlines:</strong> Horizontal lines visible due to the CRT display technology used with VHS players.</li>
+            <li><strong>Noise and Grain:</strong> Analog recording introduced visual noise and grain to the image.</li>
+            <li><strong>Tracking Errors:</strong> Sometimes the tape would misalign, causing visual distortions at the top or bottom of the screen.</li>
+            <li><strong>Color Bleeding:</strong> Colors would sometimes bleed or smear, especially in high-contrast areas.</li>
+        </ul>
+        
+        <p>This tool recreates these effects digitally to give your videos that authentic VHS aesthetic.</p>
+    </div>
+
+    <script>
+        // DOM Elements
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const processButton = document.getElementById('processButton');
+        const progressBar = document.getElementById('progressBar');
+        const status = document.getElementById('status');
+        const originalVideo = document.getElementById('originalVideo');
+        const originalPlaceholder = document.getElementById('originalPlaceholder');
+        const previewCanvas = document.getElementById('previewCanvas');
+        const previewPlaceholder = document.getElementById('previewPlaceholder');
+        const downloadLink = document.getElementById('downloadLink');
+        
+        // Control Elements
+        const resolutionSlider = document.getElementById('resolution');
+        const resolutionValue = document.getElementById('resolutionValue');
+        const chromaticAberrationSlider = document.getElementById('chromaticAberration');
+        const chromaticValue = document.getElementById('chromaticValue');
+        const scanlinesSlider = document.getElementById('scanlines');
+        const scanlinesValue = document.getElementById('scanlinesValue');
+        const noiseSlider = document.getElementById('noise');
+        const noiseValue = document.getElementById('noiseValue');
+        const jitterSlider = document.getElementById('jitter');
+        const jitterValue = document.getElementById('jitterValue');
+        
+        // Update control values
+        resolutionSlider.addEventListener('input', () => {
+            const resolutions = ['320x240', '640x480', '720x576'];
+            resolutionValue.textContent = resolutions[resolutionSlider.value - 1];
+        });
+        
+        chromaticAberrationSlider.addEventListener('input', () => {
+            chromaticValue.textContent = chromaticAberrationSlider.value;
+        });
+        
+        scanlinesSlider.addEventListener('input', () => {
+            scanlinesValue.textContent = scanlinesSlider.value;
+        });
+        
+        noiseSlider.addEventListener('input', () => {
+            noiseValue.textContent = noiseSlider.value;
+        });
+        
+        jitterSlider.addEventListener('input', () => {
+            jitterValue.textContent = jitterSlider.value;
+        });
+        
+        // File input handling
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                fileName.textContent = file.name;
+                const url = URL.createObjectURL(file);
+                originalVideo.src = url;
+                originalVideo.style.display = 'block';
+                originalPlaceholder.style.display = 'none';
+                processButton.disabled = false;
+                
+                // Show preview when video is loaded
+                originalVideo.addEventListener('loadedmetadata', () => {
+                    showPreview();
+                });
+            }
+        });
+        
+        // Show a preview of the VHS effect
+        function showPreview() {
+            const ctx = previewCanvas.getContext('2d');
+            const resolutions = [[320, 240], [640, 480], [720, 576]]; // Fixed the syntax error here
+            const [width, height] = resolutions[resolutionSlider.value - 1];
+            
+            previewCanvas.width = width;
+            previewCanvas.height = height;
+            previewCanvas.style.display = 'block';
+            previewPlaceholder.style.display = 'none';
+            
+            // Draw a frame from the video
+            originalVideo.currentTime = 1; // Seek to 1 second to avoid black frames
+            originalVideo.addEventListener('seeked', function onSeeked() {
+                ctx.drawImage(originalVideo, 0, 0, width, height);
+                
+                // Apply VHS effects to the preview
+                applyVHSEffect(ctx, width, height);
+                
+                // Remove event listener to prevent multiple calls
+                originalVideo.removeEventListener('seeked', onSeeked);
+            });
+        }
+        
+        // Apply VHS effects to canvas context
+        function applyVHSEffect(ctx, width, height) {
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            const chromaticOffset = parseInt(chromaticAberrationSlider.value);
+            const noiseLevel = parseInt(noiseSlider.value) / 100;
+            const jitterLevel = parseInt(jitterSlider.value) / 100;
+            
+            // Apply chromatic aberration
+            if (chromaticOffset > 0) {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = width;
+                tempCanvas.height = height;
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                // Draw red channel
+                tempCtx.drawImage(previewCanvas, 0, 0);
+                const redData = tempCtx.getImageData(0, 0, width, height).data;
+                
+                // Draw blue channel
+                tempCtx.drawImage(previewCanvas, 0, 0);
+                const blueData = tempCtx.getImageData(0, 0, width, height).data;
+                
+                // Apply chromatic aberration
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        const idx = (y * width + x) * 4;
+                        
+                        // Red channel (shifted left)
+                        const redX = Math.max(0, x - chromaticOffset);
+                        const redIdx = (y * width + redX) * 4;
+                        
+                        // Blue channel (shifted right)
+                        const blueX = Math.min(width - 1, x + chromaticOffset);
+                        const blueIdx = (y * width + blueX) * 4;
+                        
+                        // Apply shifted channels
+                        data[idx] = redData[redIdx];     // R
+                        data[idx + 2] = blueData[blueIdx]; // B
+                        // G remains unchanged
+                    }
+                }
+                
+                ctx.putImageData(imageData, 0, 0);
+            }
+            
+            // Apply noise
+            if (noiseLevel > 0) {
+                for (let i = 0; i < data.length; i += 4) {
+                    const noise = (Math.random() - 0.5) * 255 * noiseLevel;
+                    data[i] = Math.min(255, Math.max(0, data[i] + noise));     // R
+                    data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise)); // G
+                    data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise)); // B
+                }
+                ctx.putImageData(imageData, 0, 0);
+            }
+            
+            // Apply scanlines
+            const scanlineIntensity = parseInt(scanlinesSlider.value) / 100;
+            if (scanlineIntensity > 0) {
+                ctx.fillStyle = `rgba(0, 0, 0, ${scanlineIntensity * 0.5})`;
+                for (let y = 0; y < height; y += 3) {
+                    ctx.fillRect(0, y, width, 1);
+                }
+            }
+            
+            // Apply frame jitter (simulated by slightly offsetting the entire frame)
+            if (jitterLevel > 0) {
+                const jitterX = (Math.random() - 0.5) * width * jitterLevel;
+                const jitterY = (Math.random() - 0.5) * height * jitterLevel;
+                
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = width;
+                tempCanvas.height = height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(previewCanvas, 0, 0);
+                
+                ctx.clearRect(0, 0, width, height);
+                ctx.drawImage(tempCanvas, jitterX, jitterY);
+            }
+        }
+        
+        // Process the entire video
+        processButton.addEventListener('click', async () => {
+            if (!originalVideo.src) return;
+            
+            processButton.disabled = true;
+            status.textContent = 'Processing video...';
+            
+            const resolutions = [[320, 240], [640, 480], [720, 576]]; // Fixed the syntax error here too
+            const [width, height] = resolutions[resolutionSlider.value - 1];
+            
+            // Create a canvas for processing
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            // Create a video element for processing
+            const video = document.createElement('video');
+            video.src = originalVideo.src;
+            video.crossOrigin = 'anonymous';
+            
+            // Wait for video to load
+            await new Promise((resolve) => {
+                video.addEventListener('loadedmetadata', resolve);
+            });
+            
+            // Create a MediaRecorder to record the processed video with supported mimeType
+            const stream = canvas.captureStream(30);
+            let mediaRecorder;
+            let mimeType = '';
+            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+                mimeType = 'video/webm;codecs=vp9';
+            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+                mimeType = 'video/webm;codecs=vp8';
+            } else if (MediaRecorder.isTypeSupported('video/webm')) {
+                mimeType = 'video/webm';
+            } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+                mimeType = 'video/mp4';
+            } else {
+                alert('No supported video format found for recording.');
+                status.textContent = 'Error: No supported video format found.';
+                processButton.disabled = false;
+                return;
+            }
+            try {
+                mediaRecorder = new MediaRecorder(stream, { mimeType });
+            } catch (e) {
+                alert('Failed to create MediaRecorder: ' + e.message);
+                status.textContent = 'Error: Failed to create MediaRecorder.';
+                processButton.disabled = false;
+                return;
+            }
+            const chunks = [];
+            mediaRecorder.ondataavailable = (e) => {
+                chunks.push(e.data);
+            };
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                downloadLink.href = url;
+                downloadLink.download = 'vhs-effect-video.' + (mimeType.includes('mp4') ? 'mp4' : 'webm');
+                downloadLink.style.display = 'block';
+                status.textContent = 'Processing complete! Ready to download.';
+                processButton.disabled = false;
+            };
+            // Start recording
+            mediaRecorder.start();
+            
+            // Process video frames correctly, waiting for seeked event for each frame
+            const duration = video.duration;
+            const frameRate = 30;
+            const frameInterval = 1 / frameRate; // in seconds
+            let currentTime = 0;
+
+            // Ensure video is ready to seek
+            video.pause();
+
+            async function processFrameLoop() {
+                if (currentTime > duration) {
+                    mediaRecorder.stop();
+                    return;
+                }
+
+                // Seek to the correct time and wait for seeked event
+                await new Promise((resolve) => {
+                    function onSeeked() {
+                        video.removeEventListener('seeked', onSeeked);
+                        resolve();
+                    }
+                    video.addEventListener('seeked', onSeeked);
+                    video.currentTime = currentTime;
+                });
+
+                // Draw video frame to canvas
+                ctx.drawImage(video, 0, 0, width, height);
+                // Apply VHS effects
+                applyVHSEffect(ctx, width, height);
+
+                // Update progress
+                const progress = (currentTime / duration) * 100;
+                progressBar.style.width = `${progress}%`;
+                status.textContent = `Processing: ${Math.round(progress)}%`;
+
+                // Move to next frame
+                currentTime += frameInterval;
+
+                // Use setTimeout to avoid blocking UI and allow MediaRecorder to capture
+                setTimeout(processFrameLoop, 0);
+            }
+
+            processFrameLoop();
+        });
+    </script>
+</body>
+</html>

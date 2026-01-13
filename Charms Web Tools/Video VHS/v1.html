@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VHS Effect Generator</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: #181818;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .main-container {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            width: 100vw;
+            max-width: 100vw;
+            box-sizing: border-box;
+            padding: 0;
+        }
+        .top-bar {
+            width: 100vw;
+            background: #232323;
+            padding: 0.5em 1em;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-sizing: border-box;
+            border-bottom: 1px solid #333;
+        }
+        .top-bar h1 {
+            margin: 0;
+            font-size: 1.3em;
+            color: #ff6b6b;
+            letter-spacing: 1px;
+        }
+        .file-input-label {
+            background: #ff6b6b;
+            color: #fff;
+            border-radius: 4px;
+            padding: 0.5em 1.2em;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .file-input-label:hover {
+            background: #ff5252;
+        }
+        .file-input-wrapper input[type=file] {
+            display: none;
+        }
+        .file-name {
+            margin-left: 1em;
+            color: #aaa;
+            font-size: 0.95em;
+        }
+        .editor-area {
+            display: flex;
+            flex-direction: row;
+            width: 100vw;
+            max-width: 100vw;
+            flex: 1 1 auto;
+            align-items: stretch;
+            justify-content: center;
+            gap: 0;
+        }
+        .preview-box {
+            flex: 1 1 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #181818;
+            border-right: 1px solid #232323;
+            min-width: 0;
+            min-height: 0;
+            padding: 0;
+        }
+        .preview-box:last-child {
+            border-right: none;
+        }
+        .preview-title {
+            margin: 0.5em 0 0.5em 0;
+            font-size: 1em;
+            color: #ff6b6b;
+            text-align: center;
+        }
+        .aspect-container {
+            position: relative;
+            width: 95%;
+            max-width: 900px;
+            margin: 0 auto;
+            background: #111;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px #000a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .aspect-inner {
+            width: 100%;
+            height: 0;
+            padding-bottom: 56.25%; /* 16:9 default, will be set dynamically */
+            position: relative;
+        }
+        video, canvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            border-radius: 8px;
+            background: #000;
+            object-fit: contain;
+        }
+        .controls-panel {
+            width: 100vw;
+            max-width: 900px;
+            margin: 0 auto;
+            background: #232323;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 12px #000a;
+            padding: 1.2em 2em 1.2em 2em;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5em 2em;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .control-group {
+            flex: 1 1 180px;
+            min-width: 160px;
+            max-width: 220px;
+        }
+        label {
+            font-size: 1em;
+            color: #eee;
+            margin-bottom: 0.2em;
+            display: block;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        .value-display {
+            text-align: right;
+            font-size: 0.95em;
+            color: #aaa;
+        }
+        .status {
+            width: 100vw;
+            text-align: center;
+            color: #aaa;
+            margin: 0.5em 0 0.5em 0;
+            font-size: 1em;
+        }
+        @media (max-width: 900px) {
+            .editor-area {
+                flex-direction: column;
+            }
+            .preview-box {
+                border-right: none;
+                border-bottom: 1px solid #232323;
+            }
+            .preview-box:last-child {
+                border-bottom: none;
+            }
+        }
+        @media (max-width: 600px) {
+            .controls-panel {
+                flex-direction: column;
+                padding: 1em 0.5em;
+            }
+            .main-container {
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="top-bar">
+            <h1>VHS Effect Editor</h1>
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" accept="video/*">
+                <label for="fileInput" class="file-input-label">Open Video</label>
+                <span class="file-name" id="fileName">No file selected</span>
+            </div>
+        </div>
+        <div class="editor-area">
+            <div class="preview-box" style="width:100%;">
+                <div class="preview-title" id="mainPreviewTitle">VHS Preview (GPU)</div>
+                <div class="aspect-container" id="mainAspect">
+                    <div class="aspect-inner" id="mainAspectInner">
+                        <canvas id="webglCanvas" style="display: none;"></canvas>
+                        <video id="originalVideo" controls style="display: none; position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;background:#000;object-fit:contain;"></video>
+                        <div id="previewPlaceholder" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#555;background:#111;">Video will appear here</div>
+                    </div>
+                </div>
+                <div style="margin-top:0.7em;text-align:center;">
+                    <label style="font-size:1em;color:#eee;cursor:pointer;">
+                        <input type="checkbox" id="toggleOriginal" style="vertical-align:middle;margin-right:0.5em;"> Show Original Video
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="controls-panel">
+            <div class="control-group">
+                <label for="resolution">Resolution <span id="resolutionValue">320x240</span></label>
+                <input type="range" id="resolution" min="1" max="3" value="1">
+                <div class="value-display">1: Low (320x240) | 2: Medium (640x480) | 3: High (720x576)</div>
+            </div>
+            <div class="control-group">
+                <label for="chromaticAberration">Chromatic Aberration <span id="chromaticValue">3</span>px</label>
+                <input type="range" id="chromaticAberration" min="0" max="10" value="3">
+            </div>
+            <div class="control-group">
+                <label for="scanlines">Scanline Intensity <span id="scanlinesValue">50</span>%</label>
+                <input type="range" id="scanlines" min="0" max="100" value="50">
+            </div>
+            <div class="control-group">
+                <label for="noise">Noise Level <span id="noiseValue">20</span>%</label>
+                <input type="range" id="noise" min="0" max="100" value="20">
+            </div>
+            <div class="control-group">
+                <label for="jitter">Frame Jitter <span id="jitterValue">5</span>%</label>
+                <input type="range" id="jitter" min="0" max="100" value="5">
+            </div>
+        </div>
+        <div class="status" id="status">Ready for real-time preview</div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const processButton = document.getElementById('processButton');
+        const progressBar = document.getElementById('progressBar');
+        const status = document.getElementById('status');
+        const originalVideo = document.getElementById('originalVideo');
+        const originalPlaceholder = document.getElementById('originalPlaceholder');
+        const webglCanvas = document.getElementById('webglCanvas');
+        const previewPlaceholder = document.getElementById('previewPlaceholder');
+        const downloadLink = document.getElementById('downloadLink');
+        // Control Elements
+        const resolutionSlider = document.getElementById('resolution');
+        const resolutionValue = document.getElementById('resolutionValue');
+        const chromaticAberrationSlider = document.getElementById('chromaticAberration');
+        const chromaticValue = document.getElementById('chromaticValue');
+        const scanlinesSlider = document.getElementById('scanlines');
+        const scanlinesValue = document.getElementById('scanlinesValue');
+        const noiseSlider = document.getElementById('noise');
+        const noiseValue = document.getElementById('noiseValue');
+        const jitterSlider = document.getElementById('jitter');
+        const jitterValue = document.getElementById('jitterValue');
+
+        // Update control values and aspect ratio
+        function updateResolutionDisplay() {
+            const resolutions = ['320x240', '640x480', '720x576'];
+            resolutionValue.textContent = resolutions[resolutionSlider.value - 1];
+        }
+        resolutionSlider.addEventListener('input', () => {
+            updateResolutionDisplay();
+            updateAspectRatios();
+            showWebGLPreview();
+        });
+        chromaticAberrationSlider.addEventListener('input', () => {
+            chromaticValue.textContent = chromaticAberrationSlider.value;
+        });
+        scanlinesSlider.addEventListener('input', () => {
+            scanlinesValue.textContent = scanlinesSlider.value;
+        });
+        noiseSlider.addEventListener('input', () => {
+            noiseValue.textContent = noiseSlider.value;
+        });
+        jitterSlider.addEventListener('input', () => {
+            jitterValue.textContent = jitterSlider.value;
+        });
+
+        // Update aspect ratio container for main preview
+        function updateAspectRatios() {
+            const resolutions = [[320, 240], [640, 480], [720, 576]];
+            const [w, h] = resolutions[resolutionSlider.value - 1];
+            const ratio = h / w * 100;
+            document.getElementById('mainAspectInner').style.paddingBottom = ratio + '%';
+        }
+        updateResolutionDisplay();
+        updateAspectRatios();
+
+        // File input handling
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                fileName.textContent = file.name;
+                const url = URL.createObjectURL(file);
+                originalVideo.src = url;
+                originalVideo.style.display = 'block';
+                previewPlaceholder.style.display = 'none';
+                // Show preview when video is loaded
+                originalVideo.addEventListener('loadedmetadata', () => {
+                    updateAspectRatios();
+                    showWebGLPreview();
+                }, { once: true });
+            }
+        });
+
+        // --- WebGL VHS Effect Setup (Step 1) ---
+        function showWebGLPreview() {
+            const resolutions = [[320, 240], [640, 480], [720, 576]];
+            const [width, height] = resolutions[resolutionSlider.value - 1];
+            webglCanvas.width = width;
+            webglCanvas.height = height;
+            // Only show one: canvas or video
+            const showOriginal = document.getElementById('toggleOriginal')?.checked;
+            if (showOriginal) {
+                webglCanvas.style.display = 'none';
+                originalVideo.style.display = 'block';
+                document.getElementById('mainPreviewTitle').textContent = 'Original Video';
+            } else {
+                webglCanvas.style.display = 'block';
+                originalVideo.style.display = 'none';
+                document.getElementById('mainPreviewTitle').textContent = 'VHS Preview (GPU)';
+            }
+            previewPlaceholder.style.display = 'none';
+
+            // Set up WebGL context
+            const gl = webglCanvas.getContext('webgl') || webglCanvas.getContext('experimental-webgl');
+            if (!gl) {
+                status.textContent = 'WebGL not supported.';
+                return;
+            }
+
+            // Create a texture for the video
+            const videoTexture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, videoTexture);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+            // Vertex shader
+            const vertexShaderSource = `
+                attribute vec2 a_position;
+                attribute vec2 a_texCoord;
+                varying vec2 v_texCoord;
+                void main() {
+                    gl_Position = vec4(a_position, 0, 1);
+                    v_texCoord = a_texCoord;
+                }
+            `;
+            // VHS effect fragment shader
+            const fragmentShaderSource = `
+                precision mediump float;
+                varying vec2 v_texCoord;
+                uniform sampler2D u_video;
+                uniform float u_chromatic; // px
+                uniform float u_scanlines; // 0-1
+                uniform float u_noise;     // 0-1
+                uniform float u_jitter;    // 0-1
+                uniform float u_time;
+                uniform vec2 u_resolution;
+
+                float rand(vec2 co) {
+                    return fract(sin(dot(co.xy, vec2(12.9898,78.233))) * 43758.5453);
+                }
+
+                void main() {
+                    vec2 uv = v_texCoord;
+                    // Jitter
+                    float jitterX = (rand(vec2(u_time, uv.y)) - 0.5) * u_jitter * 0.03;
+                    float jitterY = (rand(vec2(u_time, uv.x)) - 0.5) * u_jitter * 0.03;
+                    uv.x += jitterX;
+                    uv.y += jitterY;
+
+                    // Chromatic aberration
+                    float px = u_chromatic / u_resolution.x;
+                    float py = u_chromatic / u_resolution.y;
+                    float r = texture2D(u_video, uv + vec2(-px, 0.0)).r;
+                    float g = texture2D(u_video, uv).g;
+                    float b = texture2D(u_video, uv + vec2(px, 0.0)).b;
+                    vec3 color = vec3(r, g, b);
+
+                    // Scanlines
+                    float scan = 1.0 - u_scanlines * 0.5 * (sin(uv.y * u_resolution.y * 3.14159) * 0.5 + 0.5);
+                    color *= scan;
+
+                    // Noise
+                    float n = (rand(uv * u_time) - 0.5) * u_noise;
+                    color += n;
+
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            `;
+            function createShader(gl, type, source) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                    throw new Error(gl.getShaderInfoLog(shader));
+                }
+                return shader;
+            }
+            function createProgram(gl, vsSource, fsSource) {
+                const vs = createShader(gl, gl.VERTEX_SHADER, vsSource);
+                const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+                const program = gl.createProgram();
+                gl.attachShader(program, vs);
+                gl.attachShader(program, fs);
+                gl.linkProgram(program);
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                    throw new Error(gl.getProgramInfoLog(program));
+                }
+                return program;
+            }
+            const program = createProgram(gl, vertexShaderSource, fragmentShaderSource);
+            gl.useProgram(program);
+
+            // Set up rectangle covering the canvas
+            const positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+                -1, -1,  1, -1,  -1, 1,
+                -1, 1,   1, -1,   1, 1
+            ]), gl.STATIC_DRAW);
+            const positionLoc = gl.getAttribLocation(program, 'a_position');
+            gl.enableVertexAttribArray(positionLoc);
+            gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+            // Texture coordinates
+            const texCoordBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+                0, 1,  1, 1,  0, 0,
+                0, 0,  1, 1,  1, 0
+            ]), gl.STATIC_DRAW);
+            const texCoordLoc = gl.getAttribLocation(program, 'a_texCoord');
+            gl.enableVertexAttribArray(texCoordLoc);
+            gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 0, 0);
+
+            // Set the video texture uniform
+            const uVideoLoc = gl.getUniformLocation(program, 'u_video');
+            gl.uniform1i(uVideoLoc, 0);
+
+            // VHS effect uniforms
+            const uChromaticLoc = gl.getUniformLocation(program, 'u_chromatic');
+            const uScanlinesLoc = gl.getUniformLocation(program, 'u_scanlines');
+            const uNoiseLoc = gl.getUniformLocation(program, 'u_noise');
+            const uJitterLoc = gl.getUniformLocation(program, 'u_jitter');
+            const uTimeLoc = gl.getUniformLocation(program, 'u_time');
+            const uResolutionLoc = gl.getUniformLocation(program, 'u_resolution');
+
+            // Render loop
+            function render(time) {
+                if (document.getElementById('toggleOriginal')?.checked) return;
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, videoTexture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, originalVideo);
+                gl.viewport(0, 0, width, height);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+
+                // Set uniforms from UI in real time
+                gl.uniform1f(uChromaticLoc, parseFloat(chromaticAberrationSlider.value));
+                gl.uniform1f(uScanlinesLoc, parseFloat(scanlinesSlider.value) / 100.0);
+                gl.uniform1f(uNoiseLoc, parseFloat(noiseSlider.value) / 100.0);
+                gl.uniform1f(uJitterLoc, parseFloat(jitterSlider.value) / 100.0);
+                gl.uniform1f(uTimeLoc, time * 0.001);
+                gl.uniform2f(uResolutionLoc, width, height);
+
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+                requestAnimationFrame(render);
+            }
+            render(0);
+        }
+
+        // Toggle between VHS and original
+        document.getElementById('toggleOriginal').addEventListener('change', () => {
+            showWebGLPreview();
+        });
+        // ...existing code...
+    </script>
+    </script>
+</body>
+</html>
