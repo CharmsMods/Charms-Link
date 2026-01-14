@@ -1081,6 +1081,11 @@
                         <input id="ditherInvertMask" type="checkbox">
                         <label style="color: var(--muted); margin-left: auto;">Invert</label>
                     </div>
+                    <div class="control-row">
+                        <label>Soft Mask Depth</label>
+                        <input id="ditherSoftMask" type="checkbox" checked>
+                        <label style="color: var(--muted); margin-left: auto;">Enabled</label>
+                    </div>
                 </details>
 
                 <!-- Layer: Corruption 
@@ -1802,15 +1807,35 @@ out vec4 outColor;
 uniform sampler2D u_tex;
 uniform vec2 u_dir; 
 uniform float u_rad;
+uniform int u_blurType; // 0=Gaussian, 1=Box, 2=Motion
 
 void main() {
     vec4 color = vec4(0.0);
     float total = 0.0;
-    for(float i = -4.0; i <= 4.0; i++) {
-        float weight = exp(-(i*i) / (2.0 * 2.0)); 
-        vec4 s = texture(u_tex, v_uv + u_dir * i * u_rad);
-        color += s * weight;
-        total += weight;
+    
+    if (u_blurType == 1) {
+        // Box blur (32 taps)
+        for(float i = -15.0; i <= 16.0; i++) {
+            vec4 s = texture(u_tex, v_uv + u_dir * i * u_rad * 0.5);
+            color += s;
+            total += 1.0;
+        }
+    } else if (u_blurType == 2) {
+        // Motion blur (32 taps, directional)
+        for(float i = -15.0; i <= 16.0; i++) {
+            float weight = 1.0 - abs(i) / 16.0;
+            vec4 s = texture(u_tex, v_uv + u_dir * i * u_rad * 1.0);
+            color += s * weight;
+            total += weight;
+        }
+    } else {
+        // Gaussian blur (32 taps)
+        for(float i = -15.0; i <= 16.0; i++) {
+            float weight = exp(-(i*i) / (2.0 * 5.0 * 5.0)); // Larger sigma for wider kernel
+            vec4 s = texture(u_tex, v_uv + u_dir * i * u_rad * 0.5);
+            color += s * weight;
+            total += weight;
+        }
     }
     outColor = color / total;
 }
@@ -2680,25 +2705,25 @@ void main() {
     float total = 0.0;
     
     if (u_blurType == 1) {
-        // Box blur
-        for(float i = -4.0; i <= 4.0; i++) {
-            vec4 s = texture(u_tex, v_uv + u_dir * i * u_rad);
+        // Box blur (32 taps)
+        for(float i = -15.0; i <= 16.0; i++) {
+            vec4 s = texture(u_tex, v_uv + u_dir * i * u_rad * 0.5);
             color += s;
             total += 1.0;
         }
     } else if (u_blurType == 2) {
-        // Motion blur (directional only)
-        for(float i = -6.0; i <= 6.0; i++) {
-            float weight = 1.0 - abs(i) / 6.0;
-            vec4 s = texture(u_tex, v_uv + u_dir * i * u_rad * 1.5);
+        // Motion blur (32 taps, directional)
+        for(float i = -15.0; i <= 16.0; i++) {
+            float weight = 1.0 - abs(i) / 16.0;
+            vec4 s = texture(u_tex, v_uv + u_dir * i * u_rad * 1.0);
             color += s * weight;
             total += weight;
         }
     } else {
-        // Gaussian blur (default)
-        for(float i = -4.0; i <= 4.0; i++) {
-            float weight = exp(-(i*i) / (2.0 * 2.0)); 
-            vec4 s = texture(u_tex, v_uv + u_dir * i * u_rad);
+        // Gaussian blur (32 taps)
+        for(float i = -15.0; i <= 16.0; i++) {
+            float weight = exp(-(i*i) / (2.0 * 5.0 * 5.0)); 
+            vec4 s = texture(u_tex, v_uv + u_dir * i * u_rad * 0.5);
             color += s * weight;
             total += weight;
         }
@@ -2725,8 +2750,9 @@ uniform float u_bitDepth;
 uniform float u_paletteSize;
 uniform float u_strength;
 uniform float u_scale;
-uniform vec2 u_res;
+uniform float u_res;
 uniform float u_seed;
+uniform int u_softMask; 
 
 float bayer8x8(vec2 pos) {
     int x = int(mod(pos.x, 8.0));
@@ -2772,11 +2798,23 @@ void main() {
     float levels = pow(2.0, u_bitDepth);
     float paletteDiv = 256.0 / u_paletteSize;
     
-    vec3 dithered = col.rgb + threshold * (u_strength / 100.0) * (1.0 / levels);
-    dithered = floor(dithered * levels + 0.5) / levels;
-    dithered = floor(dithered * u_paletteSize + 0.5) / u_paletteSize;
+    // Corrected strength: u_strength is 0-1 from JS, matching fs-dither logic
+    vec3 dithered = col.rgb + threshold * (u_strength) * (1.0 / levels);
     
-    vec3 result = mix(col.rgb, dithered, maskVal);
+    // Low bit-depth quantized color
+    vec3 quantized = floor(dithered * levels + 0.5) / levels;
+    quantized = floor(quantized * u_paletteSize + 0.5) / u_paletteSize;
+    
+    vec3 result;
+    if (u_softMask == 1) {
+        // Goal: Fade between original high-depth and low-depth dithered
+        result = mix(col.rgb, quantized, maskVal);
+    } else {
+        // Goal: Only pattern fades, quantization remains constant in masked area
+        // (This preserves the "low-bit" look but removes the dots)
+        result = mix(quantized - threshold * u_strength * (1.0/levels), quantized, maskVal);
+    }
+    
     outColor = vec4(clamp(result, 0.0, 1.0), col.a);
 }
 </script>
@@ -4175,10 +4213,11 @@ void main() {
                     gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
                     gl.uniform2f(gl.getUniformLocation(prog, 'u_dir'), 1.0 / w, 0.0);
                     gl.uniform1f(gl.getUniformLocation(prog, 'u_rad'), blurAmt * 2.0);
+                    gl.uniform1i(gl.getUniformLocation(prog, 'u_blurType'), parseInt(UI.blurType?.value || 0));
+
                     if (maskTex) {
                         gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, maskTex);
                         gl.uniform1i(gl.getUniformLocation(prog, 'u_mask'), 1);
-                        gl.uniform1i(gl.getUniformLocation(prog, 'u_blurType'), parseInt(UI.blurType?.value || 0));
                     }
                     gl.drawArrays(gl.TRIANGLES, 0, 6);
                     // V Pass
@@ -4186,6 +4225,9 @@ void main() {
                     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, state.textures.blur2);
                     gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
                     gl.uniform2f(gl.getUniformLocation(prog, 'u_dir'), 0.0, 1.0 / h);
+                    gl.uniform1f(gl.getUniformLocation(prog, 'u_rad'), blurAmt * 2.0);
+                    gl.uniform1i(gl.getUniformLocation(prog, 'u_blurType'), parseInt(UI.blurType?.value || 0));
+
                     if (maskTex) {
                         gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, maskTex);
                         gl.uniform1i(gl.getUniformLocation(prog, 'u_mask'), 1);
@@ -4354,6 +4396,7 @@ void main() {
                 if (maskTex) {
                     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, maskTex);
                     gl.uniform1i(gl.getUniformLocation(prog, 'u_mask'), 1);
+                    gl.uniform1i(gl.getUniformLocation(prog, 'u_softMask'), UI.ditherSoftMask?.checked ? 1 : 0);
                 }
 
                 gl.drawArrays(gl.TRIANGLES, 0, 6);
