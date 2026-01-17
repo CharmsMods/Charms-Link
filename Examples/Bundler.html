@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Static Asset Minifier // System Documentation</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* --- CORE VARIABLES & THEME --- */
+        :root {
+            --bg-color: #F0F0EB;
+            --surface-color: #FFFFFF;
+            --ink-color: #121212;
+            --accent-color: #FF3366;
+            --secondary-color: #58CC02;
+            --border-width: 3px;
+            --shadow-offset: 5px;
+            --radius: 0px;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--ink-color);
+            font-family: 'Space Grotesk', sans-serif;
+            overflow-x: hidden;
+            background-image: radial-gradient(var(--ink-color) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        /* --- TYPOGRAPHY --- */
+        h1,
+        h2,
+        h3,
+        h4 {
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* --- BRUTALIST UTILITIES --- */
+        .brutal-shadow {
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--ink-color);
+            border: var(--border-width) solid var(--ink-color);
+            transition: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .brutal-shadow:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: calc(var(--shadow-offset) + 2px) calc(var(--shadow-offset) + 2px) 0px var(--ink-color);
+        }
+
+        .brutal-shadow:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px var(--ink-color);
+        }
+
+        .brutal-card {
+            background: var(--surface-color);
+            border: var(--border-width) solid var(--ink-color);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .brutal-card:hover {
+            background-color: #fff;
+            border-color: var(--accent-color);
+        }
+
+        .brutal-btn {
+            display: inline-block;
+            background: var(--ink-color);
+            color: var(--bg-color);
+            border: var(--border-width) solid var(--ink-color);
+            padding: 12px 32px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            text-align: center;
+            transition: all 0.1s ease-out;
+            box-shadow: 4px 4px 0px var(--accent-color);
+            text-decoration: none;
+        }
+
+        .brutal-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px var(--accent-color);
+            color: #fff;
+        }
+
+        .brutal-btn:active {
+            transform: translate(4px, 4px);
+            box-shadow: 0px 0px 0px var(--accent-color);
+        }
+
+        /* --- ACCORDION (DETAILS) --- */
+        details {
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--ink-color);
+            padding-bottom: 1.5rem;
+        }
+
+        summary {
+            cursor: pointer;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 1.25rem;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: #fff;
+            border: 2px solid var(--ink-color);
+            margin-bottom: 0;
+        }
+
+        summary:hover {
+            background: var(--ink-color);
+            color: #fff;
+        }
+
+        summary::after {
+            content: '+';
+            font-size: 1.5rem;
+            font-weight: 300;
+            transition: transform 0.2s;
+        }
+
+        details[open] summary::after {
+            content: '-';
+            transform: rotate(180deg);
+        }
+
+        details[open] summary {
+            border-bottom: none;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .details-content {
+            background: #fff;
+            border: 2px solid var(--ink-color);
+            border-top: none;
+            padding: 1.5rem;
+        }
+
+        /* --- SCROLLBAR --- */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+            border-left: 2px solid var(--ink-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--ink-color);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color);
+        }
+    </style>
+</head>
+
+<body class="antialiased min-h-screen flex flex-col">
+
+    <!-- HEADER -->
+    <header class="p-6 md:p-8 border-b-[3px] border-[#121212] bg-[#F0F0EB]">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-end">
+            <div>
+                <div class="flex items-center gap-4 mb-2">
+                    <div
+                        class="bg-[#121212] text-[#F0F0EB] px-2 py-1 text-xs font-mono font-bold uppercase tracking-widest">
+                        v2.0.0
+                    </div>
+                    <div class="h-[1px] flex-1 bg-[#121212] min-w-[100px]"></div>
+                </div>
+                <h1 class="text-5xl md:text-7xl font-bold leading-none uppercase tracking-tighter">
+                    Static Asset<br>
+                    <span class="text-[#FF3366]">Minifier</span> & Bundler
+                </h1>
+                <p class="mt-4 max-w-md font-mono text-sm text-[#666] leading-relaxed">
+                    System documentation and capability analysis. Client-side optimization pipeline for frontend
+                    artifacts.
+                </p>
+            </div>
+
+            <div class="mt-6 md:mt-0 text-right">
+                <div class="inline-block p-4 border-[2px] border-[#121212] bg-white font-mono text-xs">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-2 h-2 bg-[#58CC02] rounded-full animate-pulse"></span>
+                        <span class="font-bold uppercase">Bundler: Local</span>
+                    </div>
+                    <div class="text-[#666]">Processing Environment: Browser Local</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-6xl mx-auto w-full p-6 md:p-8 space-y-16">
+
+        <!-- HERO / INTRO -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div>
+                <h2 class="text-3xl font-bold mb-6 border-l-[4px] border-[#121212] pl-4">
+                    Local Processing Utility
+                </h2>
+                <p class="text-lg mb-4 leading-relaxed">
+                    The Static Asset Minifier is a standalone interface designed to reduce the payload size of web
+                    projects without server-side dependencies. It operates entirely within the DOM, utilizing advanced
+                    parsing libraries to strip syntax trees of non-essential characters.
+                </p>
+                <p class="text-lg mb-8 leading-relaxed">
+                    This tool is optimized for workflows requiring strict file isolation, Base64 inlining for
+                    single-file outputs, and automated detection of orphaned binary assets.
+                </p>
+                <a href="../Charms Web Tools/Site Bundler/Current Bundler/bundler gem.html"
+                    class="brutal-btn">Initialize Workspace</a>
+            </div>
+
+            <!-- Abstract Visual Representation of the Minifier -->
+            <div class="brutal-shadow p-6 bg-[#121212] text-white font-mono text-xs overflow-hidden relative h-[300px]">
+                <div class="absolute top-0 left-0 w-full h-1 bg-[#FF3366]"></div>
+                <div class="flex justify-between items-center mb-4 border-b border-[#333] pb-2">
+                    <span class="uppercase tracking-widest text-[#888]">Processing Pipeline</span>
+                    <span class="text-[#58CC02]">Active</span>
+                </div>
+                <div class="space-y-3 opacity-80">
+                    <div class="flex gap-2">
+                        <span class="text-[#FF3366]">></span>
+                        <span>Scanning directory structure...</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <span class="text-[#FF3366]">></span>
+                        <span>Identifying unused assets (Regex match)...</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <span class="text-[#FF3366]">></span>
+                        <span>Converting binary to Base64...</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <span class="text-[#FF3366]">></span>
+                        <span>Minifying AST (Terser/CleanCSS)...</span>
+                    </div>
+                    <div class="flex gap-2 text-[#58CC02]">
+                        <span>></span>
+                        <span>Build complete. Artifacts generated.</span>
+                    </div>
+                </div>
+                <!-- Decorative scan line -->
+                <div class="absolute top-10 left-0 w-full h-[1px] bg-white/10 shadow-[0_0_10px_white] animate-pulse">
+                </div>
+            </div>
+        </section>
+
+        <!-- CAPABILITIES GRID -->
+        <section>
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-4">
+                <span class="w-8 h-8 bg-[#121212] text-white flex items-center justify-center text-sm">01</span>
+                Core Capabilities
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Card 1 -->
+                <article class="brutal-card brutal-shadow">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold">Code Minification</h3>
+                        <span class="font-mono text-[10px] border border-[#121212] px-2 py-1">JS/CSS/HTML</span>
+                    </div>
+                    <p class="text-sm mb-4 leading-relaxed text-[#555]">
+                        Utilizes <strong>html-minifier-terser</strong>, <strong>CleanCSS</strong>, and
+                        <strong>Terser</strong> engines. Removes whitespace, comments, and shortens variable names where
+                        safe.
+                    </p>
+                    <ul class="font-mono text-xs space-y-2 mt-auto border-t border-dashed border-[#121212] pt-4">
+                        <li class="flex justify-between"><span>Mode:</span> <span>Lossless</span></li>
+                        <li class="flex justify-between"><span>Output:</span> <span>Production Ready</span></li>
+                    </ul>
+                </article>
+
+                <!-- Card 2 -->
+                <article class="brutal-card brutal-shadow">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold">Base64 Inlining</h3>
+                        <span class="font-mono text-[10px] border border-[#121212] px-2 py-1">ASSETS</span>
+                    </div>
+                    <p class="text-sm mb-4 leading-relaxed text-[#555]">
+                        Transforms external binary references (PNG, JPG, SVG) into Data URI strings. Reduces HTTP
+                        requests to zero for single-file deliverables.
+                    </p>
+                    <ul class="font-mono text-xs space-y-2 mt-auto border-t border-dashed border-[#121212] pt-4">
+                        <li class="flex justify-between"><span>Format:</span> <span>Data URL Scheme</span></li>
+                        <li class="flex justify-between"><span>Target:</span> <span>HTML/CSS Only</span></li>
+                    </ul>
+                </article>
+
+                <!-- Card 3 -->
+                <article class="brutal-card brutal-shadow">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold">Usage Heuristics</h3>
+                        <span class="font-mono text-[10px] border border-[#121212] px-2 py-1">SCAN</span>
+                    </div>
+                    <p class="text-sm mb-4 leading-relaxed text-[#555]">
+                        Performs a dependency scan across HTML and CSS layers to identify orphaned media files. Ensures
+                        only necessary assets are bundled.
+                    </p>
+                    <ul class="font-mono text-xs space-y-2 mt-auto border-t border-dashed border-[#121212] pt-4">
+                        <li class="flex justify-between"><span>Logic:</span> <span>Regex Analysis</span></li>
+                        <li class="flex justify-between"><span>Result:</span> <span>Cleaned Workspace</span></li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <!-- TECHNICAL BREAKDOWN -->
+        <section class="max-w-4xl mx-auto w-full">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-4">
+                <span class="w-8 h-8 bg-[#121212] text-white flex items-center justify-center text-sm">02</span>
+                Technical Implementation
+            </h2>
+
+            <div class="space-y-6">
+                <!-- Detail 1 -->
+                <details open>
+                    <summary>The Minification Pipeline</summary>
+                    <div class="details-content">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div>
+                                <p class="mb-4">
+                                    The minification process is not merely whitespace removal. It parses the source code
+                                    into an Abstract Syntax Tree (AST). This allows the tool to understand code
+                                    structure rather than just manipulating strings.
+                                </p>
+                                <ul class="list-disc pl-5 space-y-2 font-mono text-sm">
+                                    <li><strong>HTML:</strong> Collapse boolean attributes, remove optional tags, inline
+                                        CSS/JS minification.</li>
+                                    <li><strong>CSS:</strong> Merge rules, optimize selectors, shorten colors (Hex to
+                                        shorthand).</li>
+                                    <li><strong>JS:</strong> Renaming variables, dead code elimination, constant
+                                        folding.</li>
+                                </ul>
+                            </div>
+                            <div class="bg-[#F8F8F3] p-4 border border-[#121212] font-mono text-xs">
+                                <div class="mb-2 font-bold text-[#666]">// INPUT EXAMPLE</div>
+                                <pre class="mb-4 text-[#555]">function hello(name) {
+  return "Hello " + name;
+}</pre>
+                                <div class="mb-2 font-bold text-[#666]">// OUTPUT (Terser)</div>
+                                <pre class="text-[#58CC02]">function hello(o){return"Hello "+o}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Detail 2 -->
+                <details>
+                    <summary>Safe Mutation & JS Logic Preservation</summary>
+                    <div class="details-content">
+                        <div class="mb-4 p-4 bg-[#F0F0EB] border-l-4 border-[#FF3366]">
+                            <strong class="block mb-1">Constraint:</strong>
+                            The inlining algorithm intentionally excludes Javascript files from path replacement to
+                            prevent breaking Fetch API calls, logic variables, or dynamic imports.
+                        </div>
+                        <p class="mb-4">
+                            When switching to "Single HTML Bundle" mode, the system uses RegEx to find file paths in
+                            <code>src=""</code>, <code>href=""</code>, and <code>url()</code> contexts.
+                        </p>
+                        <p>
+                            It scans the HTML and CSS assets. If a media file is found in the workspace, the string path
+                            is swapped for the full Base64 string. Javascript is concatenated and minified, but
+                            <em>not</em> searched for asset paths, ensuring complex application logic remains intact.
+                        </p>
+                    </div>
+                </details>
+
+                <!-- Detail 3 -->
+                <details>
+                    <summary>Dependency Graphing</summary>
+                    <div class="details-content">
+                        <p class="mb-4">
+                            Before any build process runs, the "Usage Heuristic" executes. It compiles all text content
+                            from HTML and CSS layers into a single searchable string.
+                        </p>
+                        <p class="mb-4 font-mono text-sm border border-[#121212] p-3 bg-[#111] text-[#eee]">
+                            Pattern: <code>(src|href)=["']([^"']*\/)?filename["']</code><br>
+                            Pattern: <code>url\(\s*["']?([^"')]*\/)?filename["']?\s*\)</code>
+                        </p>
+                        <p>
+                            If a filename in the asset list does not match these patterns, it is flagged as "Unused."
+                            The user is presented with a modal to either keep the file (future use) or purge it to
+                            reduce bundle size.
+                        </p>
+                    </div>
+                </details>
+            </div>
+        </section>
+
+        <!-- PERFORMANCE / SPECS -->
+        <section>
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-4">
+                <span class="w-8 h-8 bg-[#121212] text-white flex items-center justify-center text-sm">03</span>
+                System Specifications
+            </h2>
+
+            <div class="brutal-card brutal-shadow overflow-hidden">
+                <table class="w-full text-left font-mono text-sm border-collapse">
+                    <thead>
+                        <tr class="bg-[#121212] text-white">
+                            <th class="p-4 uppercase tracking-wider font-normal">Parameter</th>
+                            <th class="p-4 uppercase tracking-wider font-normal">Specification</th>
+                            <th class="p-4 uppercase tracking-wider font-normal">Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#121212]">
+                        <tr class="hover:bg-[#F0F0EB]">
+                            <td class="p-4 font-bold border-l-4 border-[#FF3366]">Execution Context</td>
+                            <td class="p-4">Client-Side Browser</td>
+                            <td class="p-4 text-[#666]">No data leaves the local DOM</td>
+                        </tr>
+                        <tr class="hover:bg-[#F0F0EB]">
+                            <td class="p-4 font-bold border-l-4 border-[#121212]">Supported Imports</td>
+                            <td class="p-4">HTML, CSS, JS</td>
+                            <td class="p-4 text-[#666]">Text-based asset manipulation</td>
+                        </tr>
+                        <tr class="hover:bg-[#F0F0EB]">
+                            <td class="p-4 font-bold border-l-4 border-[#121212]">Media Inlining</td>
+                            <td class="p-4">JPG, PNG, SVG, WEBP, GIF, ICO</td>
+                            <td class="p-4 text-[#666]">Automatic Base64 conversion</td>
+                        </tr>
+                        <tr class="hover:bg-[#F0F0EB]">
+                            <td class="p-4 font-bold border-l-4 border-[#58CC02]">Maximum File Size</td>
+                            <td class="p-4">Browser RAM Dependent</td>
+                            <td class="p-4 text-[#666]">Typical safe limit: ~50MB total</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="mt-16 border-t-[3px] border-[#121212] bg-[#F0F0EB] p-8">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div class="text-left">
+                <h4 class="font-bold text-lg uppercase mb-2">Static Asset Minifier</h4>
+                <p class="font-mono text-xs text-[#666]">
+                    Designed for high-performance frontend delivery.<br>
+                    Brutalist Edition.
+                </p>
+            </div>
+            <div class="flex gap-4 font-mono text-xs font-bold">
+                <span class="px-3 py-1 border border-[#121212]">HTML5</span>
+                <span class="px-3 py-1 border border-[#121212]">WASM READY</span>
+                <span class="px-3 py-1 border border-[#121212]">ALL LOCAL</span>
+            </div>
+        </div>
+    </footer>
+
+</body>
+
+</html>

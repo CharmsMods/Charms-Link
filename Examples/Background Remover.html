@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Key & Patch Engine — Technical Specification</title>
+    <style>
+        /* [DESIGN TOKENS] */
+        :root {
+            /* Theme: Neo-Brutalist Cream */
+            --bg-color: #f2f0e9;
+            /* Cream Paper */
+            --fg-color: #121212;
+            /* Soft Black */
+            --accent-color: #d45d3e;
+            /* Terracotta */
+            --accent-secondary: #4a5d6e;
+            /* Muted Blue-Grey */
+            --border-width: 3px;
+            --hard-shadow: 6px 6px 0px var(--fg-color);
+            --spacing-unit: 24px;
+            --font-main: 'Courier New', Courier, monospace;
+        }
+
+        /* [RESET & BASE] */
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: var(--bg-color);
+            /* Graph paper grid pattern */
+            background-image:
+                linear-gradient(var(--fg-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--fg-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-blend-mode: multiply;
+            background-position: center top;
+
+            color: var(--fg-color);
+            font-family: var(--font-main);
+            line-height: 1.5;
+            -webkit-font-smoothing: none;
+            /* Crisp text for brutalist feel */
+        }
+
+        a {
+            color: var(--fg-color);
+            text-decoration: none;
+            background-image: linear-gradient(var(--fg-color), var(--fg-color));
+            background-position: 0% 100%;
+            background-repeat: no-repeat;
+            background-size: 100% 2px;
+            transition: all 0.2s;
+        }
+
+        a:hover {
+            background-color: var(--accent-color);
+            color: #fff;
+            background-image: none;
+        }
+
+        /* [LAYOUT UTILITIES] */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 var(--spacing-unit);
+            position: relative;
+            z-index: 2;
+        }
+
+        .border-box {
+            border: var(--border-width) solid var(--fg-color);
+            padding: var(--spacing-unit);
+            margin-bottom: var(--spacing-unit);
+            background-color: var(--bg-color);
+            /* To cover grid lines behind */
+            box-shadow: var(--hard-shadow);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .border-box:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 8px 8px 0px var(--accent-color);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--spacing-unit);
+        }
+
+        @media (min-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* [TYPOGRAPHY] */
+        h1,
+        h2,
+        h3,
+        h4 {
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-top: 0;
+            line-height: 1.1;
+        }
+
+        h1 {
+            font-size: clamp(3rem, 8vw, 6rem);
+            margin-bottom: var(--spacing-unit);
+            letter-spacing: -2px;
+            text-shadow: 4px 4px 0px var(--accent-color);
+        }
+
+        h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            background-color: var(--fg-color);
+            color: var(--bg-color);
+            display: inline-block;
+            padding: 8px 16px;
+            border: var(--border-width) solid var(--fg-color);
+            box-shadow: 4px 4px 0px var(--accent-color);
+            transform: rotate(-1deg);
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            margin-bottom: 16px;
+            border-bottom: 3px solid var(--accent-color);
+            padding-bottom: 8px;
+            display: inline-block;
+        }
+
+        p {
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+            max-width: 65ch;
+            font-weight: 500;
+        }
+
+        /* [COMPONENT: BUTTONS] */
+        .btn {
+            display: inline-block;
+            background: transparent;
+            color: var(--fg-color);
+            border: var(--border-width) solid var(--fg-color);
+            padding: 16px 32px;
+            font-family: var(--font-main);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            font-size: 1rem;
+            margin-top: 16px;
+            box-shadow: var(--hard-shadow);
+            transition: all 0.1s steps(2);
+        }
+
+        .btn:hover {
+            background: var(--accent-color);
+            color: #fff;
+            border-color: var(--accent-color);
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px var(--fg-color);
+        }
+
+        .btn:active {
+            transform: translate(4px, 4px);
+            box-shadow: none;
+        }
+
+        .btn-primary {
+            background-color: var(--fg-color);
+            color: var(--bg-color);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-color);
+            color: #fff;
+            border-color: var(--accent-color);
+        }
+
+        /* [COMPONENT: HEADER] */
+        header {
+            padding: var(--spacing-unit) 0;
+            border-bottom: var(--border-width) solid var(--fg-color);
+            margin-bottom: 60px;
+            background-color: var(--bg-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 0px rgba(0, 0, 0, 0.1);
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-color);
+        }
+
+        .nav-title {
+            font-size: 1.5rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            background: var(--accent-color);
+            color: white;
+            padding: 4px 12px;
+            transform: skewX(-10deg);
+            display: inline-block;
+        }
+
+        .status-badge {
+            font-size: 0.8rem;
+            border: var(--border-width) solid var(--fg-color);
+            padding: 6px 12px;
+            text-transform: uppercase;
+            font-weight: bold;
+            background: #fff;
+            box-shadow: 3px 3px 0px var(--fg-color);
+        }
+
+        /* [SECTION: HERO] */
+        .hero {
+            margin-bottom: 80px;
+            border-left: var(--border-width) solid var(--fg-color);
+            padding-left: 24px;
+        }
+
+        .hero p {
+            font-size: 1.4rem;
+            background: #fff;
+            display: inline-block;
+            padding: 4px;
+            border: 1px solid var(--fg-color);
+        }
+
+        /* [SECTION: CAPABILITIES GRID] */
+        .capability-card {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .capability-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            flex-grow: 1;
+        }
+
+        .capability-list li {
+            border-bottom: 2px dashed var(--fg-color);
+            padding: 16px 0;
+            font-size: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+        }
+
+        .capability-list li span:last-child {
+            background: var(--fg-color);
+            color: #fff;
+            padding: 2px 8px;
+            font-size: 0.8rem;
+            transform: rotate(2deg);
+        }
+
+        /* [SECTION: CODE VISUALIZATION] */
+        .code-block {
+            background: #1e1e1e;
+            color: #f0f0f0;
+            padding: 30px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            border: var(--border-width) solid var(--fg-color);
+            margin-top: 24px;
+            box-shadow: 10px 10px 0px var(--accent-secondary);
+            position: relative;
+        }
+
+        .code-block::before {
+            content: "SHADER_CORE.GLSL";
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: var(--accent-color);
+            color: white;
+            padding: 4px 12px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .code-comment {
+            color: #6a9955;
+            font-style: italic;
+        }
+
+        .code-keyword {
+            color: #569cd6;
+            font-weight: bold;
+        }
+
+        /* [SECTION: INTERFACE MOCKUP] */
+        .interface-demo {
+            background: #fff;
+            border: var(--border-width) solid var(--fg-color);
+            padding: 0;
+            font-family: 'Courier New', monospace;
+            min-height: 500px;
+            display: flex;
+            box-shadow: 12px 12px 0px var(--fg-color);
+            overflow: hidden;
+        }
+
+        .mock-sidebar {
+            width: 300px;
+            background: var(--fg-color);
+            color: #fff;
+            border-right: var(--border-width) solid var(--fg-color);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .mock-content {
+            flex: 1;
+            /* Checkerboard pattern for transparency */
+            background-color: #e0e0e0;
+            background-image:
+                linear-gradient(45deg, #ccc 25%, transparent 25%),
+                linear-gradient(-45deg, #ccc 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #ccc 75%),
+                linear-gradient(-45deg, transparent 75%, #ccc 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .mock-control {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 16px;
+        }
+
+        .mock-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            display: block;
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        .mock-slider-track {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .mock-slider-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--accent-color);
+            position: absolute;
+            top: -6px;
+            left: 60%;
+            cursor: pointer;
+        }
+
+        .mock-patch {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: rgba(212, 93, 62, 0.8);
+            border: 3px solid #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #fff;
+            font-weight: bold;
+            box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.2);
+            cursor: grab;
+        }
+
+        /* [FOOTER] */
+        footer {
+            margin-top: 100px;
+            padding: 60px 0;
+            border-top: var(--border-width) solid var(--fg-color);
+            background: #fff;
+            text-align: center;
+        }
+
+        /* [MOBILE] */
+        @media (max-width: 768px) {
+            .interface-demo {
+                flex-direction: column-reverse;
+                min-height: auto;
+            }
+
+            .mock-sidebar {
+                width: 100%;
+                border-right: none;
+                border-top: var(--border-width) solid var(--fg-color);
+            }
+
+            .mock-content {
+                height: 300px;
+            }
+
+            h1 {
+                font-size: 3rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="container">
+            <nav>
+                <div class="nav-title">Engine_v2.0</div>
+                <div class="status-badge">WebGL / GLSL</div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- HERO SECTION -->
+        <section class="hero">
+            <h1>GPU Color Key & Patch Engine</h1>
+            <p>
+                A client-side image processing tool designed for chromatic keying and localized texture patching.
+                Execution occurs entirely in the browser via WebGL fragment shaders, ensuring zero data transit.
+            </p>
+            <div style="margin-top: 32px;">
+                <a href="../Charms Web Tools/Image Tools/Background Remover/Background Remover/background remover and patcher.html"
+                    class="btn btn-primary"
+                    onclick="alert('This is a showcase page for the application specification.'); return false;">Launch
+                    Interface</a>
+            </div>
+        </section>
+
+        <!-- CORE LOGIC -->
+        <section id="capabilities">
+            <div class="grid-2">
+
+                <!-- CARD 1 -->
+                <article class="border-box capability-card">
+                    <h3>01. Chromatic Distance</h3>
+                    <p style="font-size: 1rem;">
+                        Keying logic relies on Euclidean vector distance in RGB color space.
+                    </p>
+                    <ul class="capability-list">
+                        <li><span>Algorithm</span> <span>GLSL Distance()</span></li>
+                        <li><span>Masking</span> <span>Smoothstep Interpolation</span></li>
+                        <li><span>Tolerance</span> <span>Variable Radius</span></li>
+                        <li><span>Blending</span> <span>Linear Alpha Mix</span></li>
+                    </ul>
+                </article>
+
+                <!-- CARD 2 -->
+                <article class="border-box capability-card">
+                    <h3>02. Patch System</h3>
+                    <p style="font-size: 1rem;">
+                        Supports up to 32 independent rectangular patches rendered simultaneously in a single pass.
+                    </p>
+                    <ul class="capability-list">
+                        <li><span>Geometry</span> <span>AABB Collision</span></li>
+                        <li><span>Positioning</span> <span>UV Coordinate Mapping</span></li>
+                        <li><span>Interaction</span> <span>Drag / Resize</span></li>
+                        <li><span>Rendering</span> <span>Conditional Fragment</span></li>
+                    </ul>
+                </article>
+
+                <!-- CARD 3 -->
+                <article class="border-box capability-card">
+                    <h3>03. Data Architecture</h3>
+                    <p style="font-size: 1rem;">
+                        Application state is centralized in a JavaScript object, synchronized to the GPU via Uniform
+                        arrays.
+                    </p>
+                    <ul class="capability-list">
+                        <li><span>Storage</span> <span>Float32Array</span></li>
+                        <li><span>Transport</span> <span>Uniform Vector 4</span></li>
+                        <li><span>State</span> <span>Serializable JSON</span></li>
+                        <li><span>Privacy</span> <span>Local Only</span></li>
+                    </ul>
+                </article>
+
+                <!-- CARD 4 -->
+                <article class="border-box capability-card">
+                    <h3>04. Performance</h3>
+                    <p style="font-size: 1rem;">
+                        Operations are parallelized on the GPU. Performance scales with image resolution, not layer
+                        complexity.
+                    </p>
+                    <ul class="capability-list">
+                        <li><span>Context</span> <span>WebGL 1.0</span></li>
+                        <li><span>Filtering</span> <span>Linear / Mipmap</span></li>
+                        <li><span>Target</span> <span>60 FPS Refresh</span></li>
+                        <li><span>Buffer</span> <span>Preserve Drawing Buffer</span></li>
+                    </ul>
+                </article>
+
+            </div>
+        </section>
+
+        <!-- TECHNICAL BREAKDOWN -->
+        <section style="margin-top: 80px;">
+            <h2>Fragment Shader Logic</h2>
+            <p>
+                The core visual manipulation occurs in the fragment shader. Below is the logic responsible for
+                determining pixel transparency based on color distance and patch overlap.
+            </p>
+
+            <div class="code-block">
+                <span class="code-comment">// Calculate distance from current pixel to target key color</span><br>
+                <span class="code-keyword">float</span> dist = distance(color.rgb, u_targetColor);
+
+                <br><br>
+                <span class="code-comment">// Create a soft mask based on tolerance threshold</span><br>
+                <span class="code-keyword">float</span> mask = 1.0 - smoothstep(0.0, u_tolerance, dist);
+
+                <br><br>
+                <span class="code-comment">// Apply patching system if enabled</span><br>
+                <span class="code-keyword">if</span> (u_patchEnabled) {<br>
+                &nbsp;&nbsp;<span class="code-keyword">for</span> (<span class="code-keyword">int</span> i = 0; i < 32;
+                    i++) { <span class="code-keyword">if</span> (i >= u_numPatches) break;<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;<span class="code-comment">// Check if pixel is within patch bounding
+                        box</span><br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">vec4</span> rect = u_patchRects[i];<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">if</span> (pixelCoord.x >= rect.x && pixelCoord.x
+                    <= rect.x + rect.z &&<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pixelCoord.y >= rect.y && pixelCoord.y <= rect.y
+                            + rect.w) {<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-comment">// Override pixel
+                                color with patch color</span><br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gl_FragColor = vec4(u_patchColors[i],
+                            1.0);<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span
+                                class="code-keyword">return</span>;<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                            &nbsp;&nbsp;}<br>
+                            }
+
+                            <br><br>
+                            <span class="code-comment">// Mix original alpha with calculated transparency</span><br>
+                            <span class="code-keyword">float</span> newAlpha = mix(color.a, u_targetAlpha, mask);<br>
+                            gl_FragColor = vec4(color.rgb * newAlpha, newAlpha);
+            </div>
+        </section>
+
+        <!-- UI VISUALIZATION -->
+        <section style="margin-top: 80px;">
+            <h2>Interface Topology</h2>
+            <p>
+                The workspace is split into a control sidebar and a rendering viewport. The viewport uses a checkerboard
+                pattern to denote alpha transparency.
+            </p>
+
+            <div class="interface-demo">
+                <div class="mock-sidebar">
+                    <div
+                        style="border-bottom: 2px solid #fff; padding-bottom: 12px; font-weight: bold; font-size: 1.2rem; color: var(--accent-color);">
+                        Controls</div>
+
+                    <!-- Mock Control -->
+                    <div class="mock-control">
+                        <span class="mock-label">Target Color</span>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <div style="width:30px; height:30px; background:#000; border:2px solid #fff;"></div>
+                            <span style="font-size:0.8rem; color:#ccc;">#000000</span>
+                        </div>
+                    </div>
+
+                    <!-- Mock Slider -->
+                    <div class="mock-control">
+                        <div style="display:flex; justify-content:space-between;">
+                            <span class="mock-label">Tolerance</span>
+                            <span style="font-size:0.7rem; color:#fff;">12%</span>
+                        </div>
+                        <div class="mock-slider-track">
+                            <div class="mock-slider-thumb" style="left: 12%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Mock Toggle -->
+                    <div class="mock-control" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="mock-label" style="margin:0;">Patch Mode</span>
+                        <div style="width:12px; height:12px; background:var(--accent-color); border: 1px solid #fff;">
+                        </div>
+                    </div>
+
+                    <!-- Active Patch Controls -->
+                    <div class="mock-control" style="opacity: 0.5; border-style: dashed;">
+                        <span class="mock-label">Active Patch</span>
+                        <div style="font-size: 0.7rem; color: #aaa;">Select a patch to edit properties.</div>
+                    </div>
+
+                </div>
+
+                <div class="mock-content">
+                    <span
+                        style="z-index:1; background:#fff; padding:8px; border:3px solid #000; font-weight:bold; transform: rotate(-2deg); box-shadow: 4px 4px 0 rgba(0,0,0,0.2);">[
+                        Viewport ]</span>
+
+                    <!-- Simulated Patch Overlay -->
+                    <div class="mock-patch" style="top: 30%; left: 40%;">
+                        Patch_01
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SPECIFICATIONS -->
+        <section style="margin-top: 80px;">
+            <h2>System Constraints</h2>
+            <div class="border-box" style="background: #fff;">
+                <div class="grid-2">
+                    <div style="border-right: 3px solid #eee; padding-right: 24px;">
+                        <h4
+                            style="background: var(--fg-color); color: #fff; display:inline-block; padding: 4px 8px; margin-bottom: 12px;">
+                            Input Handling</h4>
+                        <p style="font-size: 1rem; margin-bottom: 0;">
+                            The application accepts standard image formats (JPG, PNG).
+                            Upon upload, the source is converted to a WebGL Texture.
+                            Coordinates are normalized to 0.0 - 1.0 UV space for shader processing.
+                        </p>
+                    </div>
+                    <div style="padding-left: 24px;">
+                        <h4
+                            style="background: var(--fg-color); color: #fff; display:inline-block; padding: 4px 8px; margin-bottom: 12px;">
+                            Output</h4>
+                        <p style="font-size: 1rem; margin-bottom: 0;">
+                            The final buffer is preserved using <code>preserveDrawingBuffer: true</code>.
+                            This allows standard <code>canvas.toDataURL()</code> extraction for high-fidelity PNG
+                            downloads with retained alpha channels.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <div class="container">
+            <p style="font-weight: bold; text-transform: uppercase; font-size: 1.2rem;">&copy; GPU Color Key Engine.</p>
+            <p style="font-size: 0.9rem; margin-top: 8px; color: #555;">
+                Local Execution Architecture. No server processing. Client-side WebGL implementation.
+            </p>
+        </div>
+    </footer>
+
+</body>
+
+</html>

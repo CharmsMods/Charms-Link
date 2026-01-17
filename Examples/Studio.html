@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Grain Studio — Technical Overview</title>
+    <style>
+        /* [DESIGN TOKENS] */
+        :root {
+            --bg: #231e12;
+            /* Dark Brown/Black */
+            --fg: #ffffff;
+            /* White */
+            --accent: #c44536;
+            /* Muted Terracotta for interaction */
+            --border-width: 2px;
+            --spacing-unit: 24px;
+            --font-main: 'Courier New', Courier, monospace;
+        }
+
+        /* [RESET & BASE] */
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: var(--bg);
+            color: var(--fg);
+            font-family: var(--font-main);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 4px;
+        }
+
+        a:hover {
+            background-color: var(--fg);
+            color: var(--bg);
+            text-decoration: none;
+        }
+
+        /* [LAYOUT UTILITIES] */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 var(--spacing-unit);
+        }
+
+        .border-box {
+            border: var(--border-width) solid var(--fg);
+            padding: var(--spacing-unit);
+            margin-bottom: var(--spacing-unit);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--spacing-unit);
+        }
+
+        @media (min-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* [TYPOGRAPHY] */
+        h1,
+        h2,
+        h3,
+        h4 {
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-top: 0;
+            letter-spacing: -0.02em;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 5vw, 4rem);
+            line-height: 0.9;
+            margin-bottom: var(--spacing-unit);
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+            border-bottom: var(--border-width) solid var(--fg);
+            padding-bottom: 8px;
+            display: inline-block;
+        }
+
+        p {
+            margin-bottom: 16px;
+            max-width: 65ch;
+        }
+
+        /* [COMPONENT: BUTTONS] */
+        .btn {
+            display: inline-block;
+            background: transparent;
+            color: var(--fg);
+            border: var(--border-width) solid var(--fg);
+            padding: 12px 24px;
+            font-family: var(--font-main);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.1s steps(2);
+            text-align: center;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover {
+            background: var(--fg);
+            color: var(--bg);
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0px var(--accent);
+        }
+
+        .btn:active {
+            transform: translate(0, 0);
+            box-shadow: none;
+        }
+
+        /* [COMPONENT: HEADER] */
+        header {
+            padding: var(--spacing-unit) 0;
+            border-bottom: var(--border-width) solid var(--fg);
+            margin-bottom: 40px;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .status-badge {
+            font-size: 0.75rem;
+            background: var(--fg);
+            color: var(--bg);
+            padding: 4px 8px;
+            text-transform: uppercase;
+        }
+
+        /* [SECTION: HERO] */
+        .hero {
+            margin-bottom: 60px;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* [SECTION: CAPABILITIES GRID] */
+        .capability-card {
+            border: var(--border-width) solid var(--fg);
+            padding: var(--spacing-unit);
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.2s;
+            height: 100%;
+        }
+
+        .capability-card:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .capability-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 12px;
+        }
+
+        .capability-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            flex-grow: 1;
+        }
+
+        .capability-list li {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 0;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .capability-list li span:last-child {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* [SECTION: INTERFACE SIMULATION] */
+        .interface-demo {
+            background: #111;
+            color: #eee;
+            border: var(--border-width) solid var(--fg);
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .mock-controls {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 16px;
+        }
+
+        .mock-sidebar {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            padding: 16px;
+        }
+
+        .mock-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+
+        .mock-slider {
+            flex: 1;
+            height: 4px;
+            background: #444;
+            position: relative;
+        }
+
+        .mock-slider::after {
+            content: '';
+            position: absolute;
+            left: 40%;
+            top: -3px;
+            width: 10px;
+            height: 10px;
+            background: #2a9df4;
+            /* Accent from original tool */
+        }
+
+        .mock-viewport {
+            background: repeating-linear-gradient(45deg, #222 0px, #222 10px, #1e1e1e 10px, #1e1e1e 20px);
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #333;
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* [SECTION: DATA STRUCTURE] */
+        .json-preview {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            white-space: pre;
+            color: #eee;
+            margin-top: 16px;
+        }
+
+        details {
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--fg);
+            padding-bottom: 16px;
+        }
+
+        summary {
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            list-style: none;
+            /* Hide default triangle */
+            position: relative;
+            padding-right: 20px;
+        }
+
+        summary::after {
+            content: '[+]';
+            position: absolute;
+            right: 0;
+            color: var(--accent);
+        }
+
+        details[open] summary::after {
+            content: '[-]';
+        }
+
+        details[open] summary {
+            margin-bottom: 12px;
+        }
+
+        /* [FOOTER] */
+        footer {
+            margin-top: 80px;
+            padding: 40px 0;
+            border-top: var(--border-width) solid var(--fg);
+            text-align: center;
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
+        /* [MOBILE TWEAKS] */
+        @media (max-width: 600px) {
+            .mock-controls {
+                grid-template-columns: 1fr;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="container">
+            <nav>
+                <div style="font-weight: bold; font-size: 1.2rem;">D.G.S. v19</div>
+                <div class="status-badge">Charm?</div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- HERO SECTION -->
+        <section class="hero">
+            <h1>Digital Grain Studio</h1>
+            <p>
+                A GPU-accelerated image processing pipeline running directly in the browser.
+                It utilizes WebGL2 frame buffers to perform real-time compositing, procedural noise generation,
+                and algorithmic corruption without server-side processing.
+            </p>
+            <div style="margin-top: 24px;">
+                <a href="#capabilities" class="btn">Inspect Capabilities</a>
+            </div>
+        </section>
+
+        <!-- CAPABILITIES GRID -->
+        <section id="capabilities">
+            <div class="grid-2">
+
+                <!-- CARD 1 -->
+                <article class="border-box capability-card">
+                    <h3>01. Noise & Texture</h3>
+                    <p style="font-size: 0.9rem;">
+                        Procedural generation based on fragment shaders. Not an overlay, but a calculated texture.
+                    </p>
+                    <ul class="capability-list">
+                        <li><span>Type</span> <span>Grayscale / Color / Blend</span></li>
+                        <li><span>Saturation</span> <span>Variable Impact</span></li>
+                        <li><span>Scale</span> <span>0 - 10px</span></li>
+                        <li><span>Blurriness</span> <span>Post-process Gaussian</span></li>
+                    </ul>
+                </article>
+
+                <!-- CARD 2 -->
+                <article class="border-box capability-card">
+                    <h3>02. Luminance Masking</h3>
+                    <p style="font-size: 0.9rem;">
+                        Selective application of effects based on pixel brightness values.
+                    </p>
+                    <ul class="capability-list">
+                        <li><span>Shadow Threshold</span> <span>0.0 - 1.0</span></li>
+                        <li><span>Shadow Fade</span> <span>Soft Edge Control</span></li>
+                        <li><span>Highlight Threshold</span> <span>0.0 - 1.0</span></li>
+                        <li><span>Invert Logic</span> <span>Boolean Toggle</span></li>
+                    </ul>
+                </article>
+
+                <!-- CARD 3 -->
+                <article class="border-box capability-card">
+                    <h3>03. Optics & Distortion</h3>
+                    <p style="font-size: 0.9rem;">
+                        Simulates physical lens properties and signal errors.
+                    </p>
+                    <ul class="capability-list">
+                        <li><span>Chromatic Aberration</span> <span>RGB Split / Falloff</span></li>
+                        <li><span>Blur Types</span> <span>Gaussian / Box / Motion</span></li>
+                        <li><span>Center Point</span> <span>Interactive 2D Coordinates</span></li>
+                        <li><span>Edge Blur</span> <span>Vignette Simulation</span></li>
+                    </ul>
+                </article>
+
+                <!-- CARD 4 -->
+                <article class="border-box capability-card">
+                    <h3>04. Stylization</h3>
+                    <p style="font-size: 0.9rem;">
+                        Algorithms for reducing color depth and simulating print media.
+                    </p>
+                    <ul class="capability-list">
+                        <li><span>Dithering</span> <span>Bayer / Noise (Random)</span></li>
+                        <li><span>Halftoning</span> <span>Dot Size / Intensity</span></li>
+                        <li><span>Cell Shading</span> <span>Quantize Luma / Sobel Edges</span></li>
+                        <li><span>Corruption</span> <span>JPEG / Pixelation / Bleed</span></li>
+                    </ul>
+                </article>
+
+            </div>
+        </section>
+
+        <!-- TECHNICAL BREAKDOWN -->
+        <section style="margin-top: 60px;">
+            <h2>System Architecture</h2>
+            <p>
+                The application maintains a persistent state object describing the render stack.
+                Changes to input values trigger a re-render of the specific WebGL layer or the entire composite chain.
+            </p>
+
+            <details open>
+                <summary>Adjustments Pipeline</summary>
+                <div class="grid-2">
+                    <div>
+                        <p>Standard image correction logic applied before texture effects.</p>
+                        <ul class="capability-list" style="margin-top: 16px;">
+                            <li><span>Brightness/Contrast</span> <span>-100 to 200</span></li>
+                            <li><span>Warmth</span> <span> +/- 500 Shift</span></li>
+                            <li><span>Sharpening</span> <span>Convolution Kernel</span></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <p><strong>Color Exclusion Module:</strong><br>
+                            Allows masking specific hex colors from adjustments or blurs. Uses vector distance
+                            calculation in shader space.</p>
+                    </div>
+                </div>
+            </details>
+
+            <details>
+                <summary>State Management (JSON)</summary>
+                <p>The entire UI state is serializable. This permits saving workspaces and reloading exact grain
+                    parameters.</p>
+                <div class="json-preview">
+                    {
+                    "noise": {
+                    "strength": 40.0,
+                    "type": 1,
+                    "blendMode": 1
+                    },
+                    "adjust": {
+                    "brightness": 0,
+                    "contrast": 10,
+                    "warmth": -20
+                    },
+                    "ca": {
+                    "amount": 15.0,
+                    "center": [0.5, 0.5]
+                    }
+                    }
+                </div>
+            </details>
+        </section>
+
+        <!-- UI VISUALIZATION -->
+        <section style="margin-top: 60px;">
+            <h2>Interface Topology</h2>
+            <p>
+                The workspace is divided into a control sidebar and a viewport. The sidebar utilizes a tabbed system to
+                separate 'Global Controls' from 'Layer Ordering'.
+            </p>
+
+            <div class="interface-demo">
+                <div class="mock-controls">
+                    <div class="mock-sidebar">
+                        <div
+                            style="border-bottom: 1px solid #444; padding-bottom: 8px; margin-bottom: 12px; font-weight: bold; color: #fff;">
+                            CONTROLS
+                        </div>
+
+                        <!-- Mock Control Group -->
+                        <div style="margin-bottom: 16px;">
+                            <div style="color: #888; font-size: 10px; margin-bottom: 4px;">NOISE BASICS</div>
+                            <div class="mock-row">
+                                <span style="width: 80px;">Strength</span>
+                                <div class="mock-slider"></div>
+                                <span style="width: 30px; text-align: right;">40</span>
+                            </div>
+                            <div class="mock-row">
+                                <span style="width: 80px;">Scale</span>
+                                <div class="mock-slider"></div>
+                                <span style="width: 30px; text-align: right;">0</span>
+                            </div>
+                        </div>
+
+                        <!-- Mock Toggle -->
+                        <div style="margin-bottom: 16px;">
+                            <div style="color: #888; font-size: 10px; margin-bottom: 4px;">LUMINANCE</div>
+                            <div class="mock-row">
+                                <span style="width: 80px;">Shadows</span>
+                                <div style="width: 10px; height: 10px; background: #2a9df4; border: 1px solid #fff;">
+                                </div>
+                                <span style="font-size: 9px; color: #666;">Enable</span>
+                            </div>
+                            <div class="mock-row">
+                                <span style="width: 80px;">Threshold</span>
+                                <div class="mock-slider" style="width: 60%;"></div>
+                            </div>
+                        </div>
+
+                        <button
+                            style="width: 100%; background: #333; border: 1px solid #555; color: #fff; padding: 4px; font-family: inherit; cursor: not-allowed; opacity: 0.5;">
+                            DOWNLOAD .JSON
+                        </button>
+                    </div>
+
+                    <div class="mock-viewport">
+                        [GPU RENDER TARGET]
+                        <div
+                            style="position: absolute; border: 1px dashed #666; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                            <div style="width: 6px; height: 6px; background: #2a9df4; border-radius: 50%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PERFORMANCE -->
+        <section style="margin-top: 60px;">
+            <h2>Performance Constraints</h2>
+            <div class="border-box">
+                <div class="grid-2">
+                    <div>
+                        <h4>High Quality Preview</h4>
+                        <p style="font-size: 0.9rem; margin-bottom: 0;">
+                            By default, the viewport clamps internal textures to 2048px to maintain 60FPS on mid-range
+                            hardware.
+                            Disabling this toggle processes the image at full native resolution.
+                        </p>
+                    </div>
+                    <div>
+                        <h4>Browser Capability</h4>
+                        <p style="font-size: 0.9rem; margin-bottom: 0;">
+                            Max texture size is queried via <code>gl.getParameter(gl.MAX_TEXTURE_SIZE)</code>.
+                            Operations are shader-based; performance scales with pixel count, not layer complexity.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; Digital Grain Studio. WebGL2 Implementation.</p>
+            <p style="font-size: 0.7rem; margin-top: 8px;">No data leaves your local environment. All calculations
+                performed client-side.</p>
+        </div>
+    </footer>
+
+</body>
+
+</html>

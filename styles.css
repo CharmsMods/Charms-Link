@@ -161,7 +161,7 @@ body {
     /* Centers the div on coordinates */
     pointer-events: none;
     /* Allows clicks to pass through */
-    z-index: 10001;
+    z-index: 20000;
     transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1), height 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     /* Smooth expansion */
     display: block !important;
@@ -467,7 +467,7 @@ body {
 }
 
 .bio-content {
-    max-width: 1500px;
+    max-width: 1200px;
     margin: 0 auto;
 }
 
@@ -666,5 +666,171 @@ body {
 @media (min-width: 1025px) {
     .project-grid {
         grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* ============================================
+   SCROLL ANIMATIONS
+   ============================================ */
+
+.reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1), transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+}
+
+.reveal-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Stagger delays for grouped elements */
+.reveal-delay-1 {
+    transition-delay: 0.1s;
+}
+
+.reveal-delay-2 {
+    transition-delay: 0.2s;
+}
+
+.reveal-delay-3 {
+    transition-delay: 0.3s;
+}
+
+
+/* ============================================
+   ARCHITECTURE POPUP
+   ============================================ */
+
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, transparent 20%, rgba(0, 0, 0, 0.4) 100%);
+    backdrop-filter: blur(4px);
+    z-index: 11000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.popup-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.popup-content {
+    background-color: #faf4e1;
+    border: 4px solid #000;
+    padding: 40px;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    box-shadow: 0 0 100px rgba(0, 0, 0, 0.2), 20px 20px 0px #000;
+    transform: scale(0.9) translateY(20px);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.popup-overlay.active .popup-content {
+    transform: scale(1) translateY(0);
+}
+
+.popup-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #000;
+    color: #faf4e1;
+    border: none;
+    font-size: 24px;
+    width: 32px;
+    height: 32px;
+    line-height: 1;
+    cursor: none !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.popup-close:hover {
+    background: #faf4e1;
+    color: #000;
+    border: 2px solid #000;
+}
+
+.popup-title {
+    font-size: 32px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    padding-bottom: 8px;
+    border-bottom: 4px solid #000;
+}
+
+.popup-links {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.popup-link {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: #000;
+    border: 3px solid #000;
+    padding: 16px;
+    background: #faf4e1;
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateX(-20px);
+}
+
+.popup-overlay.active .popup-link {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.popup-overlay.active .popup-link:nth-child(1) {
+    transition-delay: 0.1s;
+}
+
+.popup-overlay.active .popup-link:nth-child(2) {
+    transition-delay: 0.2s;
+}
+
+.popup-link:hover {
+    background: #000;
+    color: #faf4e1;
+    transform: scale(1.02);
+    box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.1);
+}
+
+.link-text {
+    font-size: 20px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.link-sub {
+    font-size: 12px;
+    opacity: 0.7;
+    margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+    .popup-content {
+        padding: 24px;
+    }
+
+    .link-text {
+        font-size: 16px;
     }
 }

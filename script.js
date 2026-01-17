@@ -151,6 +151,39 @@ async function initStartupSequence() {
 // Initialize startup sequence
 initStartupSequence();
 
+
+// ============================================
+// ARCHITECTURE POPUP LOGIC
+// ============================================
+
+const architectureBtn = document.getElementById('architectureBtn');
+const architectureOverlay = document.getElementById('architectureOverlay');
+const closePopup = document.getElementById('closePopup');
+
+if (architectureBtn && architectureOverlay) {
+    architectureBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        architectureOverlay.classList.add('active');
+    });
+
+    closePopup.addEventListener('click', () => {
+        architectureOverlay.classList.remove('active');
+    });
+
+    architectureOverlay.addEventListener('click', (e) => {
+        if (e.target === architectureOverlay) {
+            architectureOverlay.classList.remove('active');
+        }
+    });
+
+    // Handle escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && architectureOverlay.classList.contains('active')) {
+            architectureOverlay.classList.remove('active');
+        }
+    });
+}
+
 // ============================================
 // CUSTOM CURSOR LOGIC
 // ============================================
@@ -164,7 +197,7 @@ if (cursor) {
     });
 
     // Handle hover states for interactive elements
-    const interactiveElements = 'a, button, .project-card, .social-icon';
+    const interactiveElements = 'a, button, .project-card, .social-icon, .popup-link, .popup-close';
 
     document.addEventListener('mouseover', (e) => {
         if (e.target.closest(interactiveElements)) {
@@ -178,3 +211,26 @@ if (cursor) {
         }
     });
 }
+
+// ============================================
+// SCROLL ANIMATION OBSERVER
+// ============================================
+
+const revealObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('reveal-visible');
+        } else {
+            entry.target.classList.remove('reveal-visible');
+        }
+    });
+}, {
+    root: null,
+    threshold: 0.15, // Trigger when 15% visible
+    rootMargin: "0px"
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const revealElements = document.querySelectorAll('.reveal-on-scroll');
+    revealElements.forEach(el => revealObserver.observe(el));
+});
