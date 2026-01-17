@@ -1,1 +1,982 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Image Color Fader</title><script src="https://cdn.tailwindcss.com"></script><style>*{box-sizing:border-box}body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background-color:#000!important;color:#fff!important;min-height:100vh}.canvas-container{background:#000;border-radius:.75rem;padding:1rem;border:2px solid #fff}canvas{background-color:#fff;max-width:100%;max-height:75vh;width:auto;height:auto;display:block;border-radius:.5rem;box-shadow:0 10px 25px rgba(255,255,255,.1);border:1px solid #fff;margin:0 auto}input[type=file]{display:none}.custom-file-upload{display:inline-flex;align-items:center;padding:.75rem 1.5rem;background:#666;color:#fff;border:2px solid #999;border-radius:.5rem;font-weight:600;cursor:pointer;transition:all .3s ease;text-decoration:none;font-size:.875rem}.custom-file-upload:hover{background:#555;border-color:#888;transform:translateY(-1px);box-shadow:0 4px 12px rgba(255,255,255,.3)}.action-btn{padding:.5rem 1rem;border:none;border-radius:.5rem;font-weight:600;font-size:.875rem;cursor:pointer;transition:all .3s ease;color:#fff}.action-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(255,255,255,.3)}.bg-gray-600{background-color:#666}.hover\:bg-gray-700:hover{background-color:#555}.control-section{margin-bottom:.5rem}.control-section:last-child{margin-bottom:0}.control-title{font-size:.875rem;font-weight:600;color:#fff;margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.05em}.toggle-container{display:flex;align-items:center;cursor:pointer;user-select:none}.toggle-input{appearance:none;width:2.5rem;height:1.25rem;background-color:#000;border-radius:.625rem;position:relative;cursor:pointer;transition:background-color .3s ease;margin-right:.75rem;border:2px solid #fff}.toggle-input:checked{background-color:#ccc;border-color:#999}.toggle-input.disabled{background-color:#000;border-color:#fff;cursor:not-allowed;opacity:.3}.toggle-input.disabled:checked{background-color:#000;border-color:#fff}.toggle-container.disabled{cursor:not-allowed;opacity:.5}.toggle-input::before{content:'';position:absolute;width:.875rem;height:.875rem;border-radius:50%;background-color:#fff;top:50%;left:.125rem;transform:translateY(-50%);transition:transform .3s ease;box-shadow:0 2px 4px rgba(0,0,0,.2)}.toggle-input:checked::before{transform:translateY(-50%) translateX(1.25rem)}.toggle-input.disabled::before{background-color:#fff;opacity:.5}.toggle-label{font-size:.875rem;color:#fff;font-weight:500}.slider-container{margin-top:.5rem}.custom-slider{width:100%;height:.375rem;border-radius:.1875rem;background:#fff;outline:0;appearance:none;cursor:pointer;transition:background .3s ease}.custom-slider::-webkit-slider-thumb{appearance:none;width:1.25rem;height:1.25rem;border-radius:50%;background:#ccc;cursor:pointer;border:2px solid #000;box-shadow:0 2px 6px rgba(255,255,255,.3);transition:all .3s ease}.custom-slider::-webkit-slider-thumb:hover{transform:scale(1.1);box-shadow:0 4px 12px rgba(255,255,255,.5)}.custom-slider::-moz-range-thumb{width:1.25rem;height:1.25rem;border-radius:50%;background:#ccc;cursor:pointer;border:2px solid #000;box-shadow:0 2px 6px rgba(255,255,255,.3)}.color-picker{width:2.5rem;height:2rem;border:2px solid #fff;border-radius:.375rem;cursor:pointer;background:0 0;transition:border-color .3s ease}.color-picker:hover{border-color:#ccc}.copy-btn{padding:.25rem .5rem;background:#000;color:#ccc;border:1px solid #fff;border-radius:.25rem;font-size:.75rem;font-weight:500;cursor:pointer;transition:all .3s ease}.copy-btn:hover{background:#fff;border-color:#ccc;color:#000}#message-box{backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1)}#message-box.bg-green-100{background:rgba(255,255,255,.1);border-color:#fff;color:#fff}#message-box.bg-red-100{background:rgba(0,0,0,.1);border-color:#fff;color:#fff}#message-box.bg-blue-100{background:rgba(128,128,128,.1);border-color:#fff;color:#fff}@media (max-width:1280px){.canvas-container{margin-bottom:2rem}}@media (max-width:640px){.custom-file-upload{width:100%;justify-content:center;margin-bottom:1rem}.action-btn{flex:1}}.accordion-content{overflow:hidden;transition:max-height .3s ease;max-height:0}.accordion.active .accordion-content{max-height:1000px}.shape-controls{overflow:hidden;transition:max-height .3s ease;max-height:0}.shape-controls.active{max-height:2000px}.arrow{transition:transform .3s ease}.accordion.active .arrow{transform:rotate(180deg)}</style></head><body class="min-h-screen"><div id="message-box" class="fixed top-4 left-4 z-50 hidden p-4 text-sm rounded-lg shadow-lg max-w-sm" role="alert"><span class="font-medium" id="message-text"></span></div><div id="performance-warning" class="fixed top-4 right-4 z-50 hidden p-4 text-sm rounded-lg shadow-lg max-w-sm bg-gray-800 border border-gray-600 text-gray-200" role="alert"><div class="flex items-start"><div class="flex-shrink-0"><svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg></div><div class="ml-3"><h3 class="text-sm font-medium">Performance Mode</h3><p class="mt-1 text-xs">Real-time preview disabled due to slow processing. Use the Preview button to see changes, or re-enable real-time mode if desired.</p><button id="dismiss-warning" class="mt-2 text-xs text-gray-400 hover:text-gray-300 underline">Dismiss</button></div></div></div><header class="bg-black border-b border-white py-6"><div class="container mx-auto px-6"><h1 class="text-3xl font-bold text-center text-white"></h1></div></header><div class="container mx-auto px-6 py-8 max-w-7xl"><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-black rounded-lg p-6 border border-white"><div class="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4"><label for="imageUpload" class="custom-file-upload">Upload Image</label> <input type="file" id="imageUpload" accept="image/*"><div class="flex gap-3 flex-wrap"><button id="previewButton" class="action-btn bg-gray-600 hover:bg-gray-700 hidden">Preview</button> <button id="resetButton" class="action-btn bg-gray-600 hover:bg-gray-700">Reset</button> <button id="applyButton" class="action-btn bg-gray-600 hover:bg-gray-700">Apply</button> <button id="downloadButton" class="action-btn bg-gray-600 hover:bg-gray-700">Download</button></div></div><div class="canvas-container"><canvas id="imageCanvas" class="w-full h-auto"></canvas></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div class="bg-black rounded-lg p-6 border border-white"><h2 class="text-xl font-semibold text-white mb-6">Color Tools</h2><div class="accordion control-section"><h3 class="accordion-header control-title cursor-pointer flex justify-between items-center">Preview <span class="arrow">▼</span></h3><div class="accordion-content"><label class="toggle-container"><input type="checkbox" id="realtimePreviewToggle" class="toggle-input" checked="checked"> <span class="toggle-label">Real-time Preview</span></label><p class="text-xs text-white opacity-70 mt-2">Updates preview as you adjust settings</p></div></div><div class="accordion control-section"><h3 class="accordion-header control-title cursor-pointer flex justify-between items-center">Selected Color <span class="arrow">▼</span></h3><div class="accordion-content"><div class="flex items-center space-x-3 mb-3"><div id="colorSwatch" class="w-12 h-12 border-2 border-white rounded-lg shadow-sm" style="background-color:#fff"></div><div class="flex-1"><div class="flex items-center justify-between mb-1"><span class="text-sm text-white">Hex: <span id="hexDisplay" class="text-white font-mono">#FFFFFF</span></span> <button id="copyHexButton" class="copy-btn" title="Copy hex value">Copy</button></div><div class="flex items-center justify-between"><span class="text-sm text-white">RGB: <span id="rgbDisplay" class="text-white font-mono">rgb(255, 255, 255)</span></span> <button id="copyRgbButton" class="copy-btn" title="Copy RGB value">Copy</button></div><div class="mt-2"><span class="text-sm text-white">Resolution: <span id="resolutionDisplay" class="text-white font-mono">No image</span></span></div></div></div></div></div><div class="accordion control-section"><h3 class="accordion-header control-title cursor-pointer flex justify-between items-center">Selection Mode <span class="arrow">▼</span></h3><div class="accordion-content"><div class="space-y-3"><label class="toggle-container"><input type="checkbox" id="areaSelectionToggle" class="toggle-input"> <span class="toggle-label">Area Selection (Flood Fill)</span></label><p class="text-xs text-white opacity-70 mt-2">Target only the connected area you click on.</p></div></div></div><div class="accordion control-section"><h3 class="accordion-header control-title cursor-pointer flex justify-between items-center">Mode <span class="arrow">▼</span></h3><div class="accordion-content"><div class="space-y-3"><label class="toggle-container"><input type="checkbox" id="colorReplacementToggle" class="toggle-input"> <span class="toggle-label">Replace with Color</span></label><div id="colorPickerContainer" class="hidden pl-6"><div class="flex items-center space-x-3"><input type="color" id="replacementColorPicker" value="#ff0000" class="color-picker"> <span class="text-sm text-white">Color: <span id="replacementColorDisplay" class="text-white font-mono">#FF0000</span></span></div></div></div></div></div><div class="accordion control-section"><h3 class="accordion-header control-title cursor-pointer flex justify-between items-center">Opacity <span class="arrow">▼</span></h3><div class="accordion-content"><div class="slider-container"><input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0" class="custom-slider"><div class="flex justify-between text-xs text-white opacity-70 mt-1"><span>0%</span> <span>100%</span></div></div></div></div><div class="accordion control-section"><h3 class="accordion-header control-title cursor-pointer flex justify-between items-center">Tolerance <span class="arrow">▼</span></h3><div class="accordion-content"><label class="toggle-container"><input type="checkbox" id="toleranceToggle" class="toggle-input" checked="checked"> <span class="toggle-label">Enable Tolerance Mode</span></label><div id="toleranceSliderContainer" class="mt-3 pl-6"><div class="slider-container"><label class="text-sm text-white mb-2 block">Strength</label> <input type="range" id="toleranceStrengthSlider" min="0" max="100" step="1" value="20" class="custom-slider"><div class="flex justify-between text-xs text-white opacity-70 mt-1"><span>Low</span> <span>High</span></div></div></div></div></div><div class="accordion control-section"><h3 class="accordion-header control-title cursor-pointer flex justify-between items-center">Selection <span class="arrow">▼</span></h3><div class="accordion-content"><label class="toggle-container"><input type="checkbox" id="invertSelectionToggle" class="toggle-input"> <span class="toggle-label">Invert Selection</span></label><p class="text-xs text-white opacity-70 mt-2">Applies effect to all colors EXCEPT the selection.</p></div></div><div class="accordion control-section"><h3 class="accordion-header control-title cursor-pointer flex justify-between items-center">Edge Smoothing <span class="arrow">▼</span></h3><div class="accordion-content"><label class="toggle-container"><input type="checkbox" id="antiAliasingToggle" class="toggle-input" checked="checked"> <span class="toggle-label">Enable Edge Smoothing</span></label><div id="smoothingSliderContainer" class="mt-3 pl-6"><div class="slider-container"><label class="text-sm text-white mb-2 block">Factor</label> <input type="range" id="smoothingFactorSlider" min="0.1" max="1.0" step="0.05" value="1.0" class="custom-slider"><div class="flex justify-between text-xs text-white opacity-70 mt-1"><span>Sharp</span> <span>Smooth</span></div></div></div></div></div></div><div class="bg-black rounded-lg p-6 border border-white"><h2 class="text-xl font-semibold text-white mb-6">Shape Tools</h2><label class="toggle-container mb-4"><input type="checkbox" id="shapeModeToggle" class="toggle-input"> <span class="toggle-label">Enable Shape Replace Mode</span></label><p class="text-xs text-white opacity-70 mt-2 mb-4">Replace or erase parts of the image with a shape. In this mode, clicks pick replacement color.</p><div id="shapeControls" class="shape-controls"><div class="accordion control-section"><h3 class="accordion-header control-title cursor-pointer flex justify-between items-center">Shape Type <span class="arrow">▼</span></h3><div class="accordion-content"><select id="shapeTypeSelect" class="bg-black border border-white text-white p-2 rounded-lg w-full"><option value="rectangle">Rectangle</option><option value="ellipse">Ellipse</option></select></div></div><div class="accordion control-section"><h3 class="accordion-header control-title cursor-pointer flex justify-between items-center">Position (Center) <span class="arrow">▼</span></h3><div class="accordion-content"><div class="slider-container mb-4"><label class="text-sm text-white mb-2 block">X</label> <input type="range" id="shapeXSlider" min="0" max="0" step="1" value="0" class="custom-slider"><div class="flex justify-between text-xs text-white opacity-70 mt-1"><span>0</span> <span id="shapeXMax">0</span></div></div><div class="slider-container"><label class="text-sm text-white mb-2 block">Y</label> <input type="range" id="shapeYSlider" min="0" max="0" step="1" value="0" class="custom-slider"><div class="flex justify-between text-xs text-white opacity-70 mt-1"><span>0</span> <span id="shapeYMax">0</span></div></div></div></div><div class="accordion control-section"><h3 class="accordion-header control-title cursor-pointer flex justify-between items-center">Dimensions <span class="arrow">▼</span></h3><div class="accordion-content"><div class="slider-container mb-4"><label class="text-sm text-white mb-2 block">Width</label> <input type="range" id="shapeWidthSlider" min="10" max="8000" step="1" value="50" class="custom-slider"><div class="flex justify-between text-xs text-white opacity-70 mt-1"><span>10</span> <span>8000</span></div></div><div class="slider-container"><label class="text-sm text-white mb-2 block">Height</label> <input type="range" id="shapeHeightSlider" min="10" max="8000" step="1" value="50" class="custom-slider"><div class="flex justify-between text-xs text-white opacity-70 mt-1"><span>10</span> <span>8000</span></div></div></div></div><div class="accordion control-section"><h3 class="accordion-header control-title cursor-pointer flex justify-between items-center">Falloff Fade <span class="arrow">▼</span></h3><div class="accordion-content"><div class="slider-container"><input type="range" id="falloffSlider" min="0" max="200" step="1" value="0" class="custom-slider"><div class="flex justify-between text-xs text-white opacity-70 mt-1"><span>Hard</span> <span>Soft</span></div></div></div></div><div class="accordion control-section"><h3 class="accordion-header control-title cursor-pointer flex justify-between items-center">Replacement <span class="arrow">▼</span></h3><div class="accordion-content"><label class="toggle-container"><input type="checkbox" id="shapeEraseToggle" class="toggle-input"> <span class="toggle-label">Erase (Transparent)</span></label><div id="shapeColorPickerContainer" class="mt-3 pl-6"><div class="flex items-center space-x-3"><input type="color" id="shapeReplacementColorPicker" value="#ff0000" class="color-picker"> <span class="text-sm text-white">Color: <span id="shapeReplacementColorDisplay" class="text-white font-mono">#FF0000</span></span></div></div></div></div><div class="accordion control-section"><h3 class="accordion-header control-title cursor-pointer flex justify-between items-center">Shape Preview <span class="arrow">▼</span></h3><div class="accordion-content"><label class="toggle-container"><input type="checkbox" id="shapeRealtimeToggle" class="toggle-input" checked="checked"> <span class="toggle-label">Real-time Shape Preview</span></label><p class="text-xs text-white opacity-70 mt-2">Updates on every slider move (may be slow for large shapes).</p></div></div></div></div></div></div></div><script>const imageUpload=document.getElementById("imageUpload"),imageCanvas=document.getElementById("imageCanvas"),ctx=imageCanvas.getContext("2d",{willReadFrequently:!0}),opacitySlider=document.getElementById("opacitySlider"),toleranceToggle=document.getElementById("toleranceToggle"),toleranceSliderContainer=document.getElementById("toleranceSliderContainer"),toleranceStrengthSlider=document.getElementById("toleranceStrengthSlider"),invertSelectionToggle=document.getElementById("invertSelectionToggle"),antiAliasingToggle=document.getElementById("antiAliasingToggle"),smoothingSliderContainer=document.getElementById("smoothingSliderContainer"),smoothingFactorSlider=document.getElementById("smoothingFactorSlider"),hexDisplay=document.getElementById("hexDisplay"),rgbDisplay=document.getElementById("rgbDisplay"),resolutionDisplay=document.getElementById("resolutionDisplay"),colorSwatch=document.getElementById("colorSwatch"),resetButton=document.getElementById("resetButton"),downloadButton=document.getElementById("downloadButton"),applyButton=document.getElementById("applyButton"),messageBox=document.getElementById("message-box"),messageText=document.getElementById("message-text"),copyHexButton=document.getElementById("copyHexButton"),copyRgbButton=document.getElementById("copyRgbButton"),colorReplacementToggle=document.getElementById("colorReplacementToggle"),colorPickerContainer=document.getElementById("colorPickerContainer"),replacementColorPicker=document.getElementById("replacementColorPicker"),replacementColorDisplay=document.getElementById("replacementColorDisplay"),realtimePreviewToggle=document.getElementById("realtimePreviewToggle"),previewButton=document.getElementById("previewButton"),performanceWarning=document.getElementById("performance-warning"),dismissWarning=document.getElementById("dismiss-warning"),areaSelectionToggle=document.getElementById("areaSelectionToggle"),shapeModeToggle=document.getElementById("shapeModeToggle"),shapeControls=document.getElementById("shapeControls"),shapeTypeSelect=document.getElementById("shapeTypeSelect"),shapeXSlider=document.getElementById("shapeXSlider"),shapeYSlider=document.getElementById("shapeYSlider"),shapeWidthSlider=document.getElementById("shapeWidthSlider"),shapeHeightSlider=document.getElementById("shapeHeightSlider"),falloffSlider=document.getElementById("falloffSlider"),shapeEraseToggle=document.getElementById("shapeEraseToggle"),shapeColorPickerContainer=document.getElementById("shapeColorPickerContainer"),shapeReplacementColorPicker=document.getElementById("shapeReplacementColorPicker"),shapeReplacementColorDisplay=document.getElementById("shapeReplacementColorDisplay"),shapeRealtimeToggle=document.getElementById("shapeRealtimeToggle"),shapeXMax=document.getElementById("shapeXMax"),shapeYMax=document.getElementById("shapeYMax");let originalImage=new Image,originalImageData=null,selectedColor=null,selectedAreaPixels=new Set,isAreaSelectionMode=!1,isRealtimePreviewEnabled=!0,isShapeModeEnabled=!1,isShapeRealtimeEnabled=!0,performanceCheckCount=0,totalProcessingTime=0,isPerformanceModeActive=!1,shapeCenterX=0,shapeCenterY=0,shapeWidth=50,shapeHeight=50,falloff=0,shapeType="rectangle",isShapeErase=!1,shapeReplacementColor={r:255,g:0,b:0};function showMessage(e,a){messageBox.classList.remove("hidden","bg-green-100","text-green-800","bg-red-100","text-red-800","bg-blue-100","text-blue-800"),messageText.textContent=e,"success"===a?messageBox.classList.add("bg-green-100","text-green-800"):"error"===a?messageBox.classList.add("bg-red-100","text-red-800"):messageBox.classList.add("bg-blue-100","text-blue-800"),setTimeout(()=>{messageBox.classList.add("hidden")},5e3)}function rgbToHex(e,a,t){return"#"+((1<<24)+(e<<16)+(a<<8)+t).toString(16).slice(1).toUpperCase()}function hexToRgb(e){const a=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(e);return a?{r:parseInt(a[1],16),g:parseInt(a[2],16),b:parseInt(a[3],16)}:null}function colorDistance(e,a){const t=e.r-a.r,l=e.g-a.g,o=e.b-a.b;return Math.sqrt(.3*t*t+.59*l*l+.11*o*o)}function applyOpacityGamma(e){return Math.pow(e,2.2)}function smoothInterpolation(e,a){return e=Math.max(0,Math.min(1,e)),a<=.3?(1-Math.cos(e*Math.PI))/2:a<=.7?e*e*(3-2*e):e*e*e*(e*(6*e-15)+10)}function runFloodFill(e,a,t,l){if(!originalImageData)return;selectedAreaPixels.clear();const o=originalImageData.width,i=originalImageData.height,n=new Array(o*i).fill(!1),r=[{x:e,y:a}],s=(e,a)=>a*o+e,c=e=>{const a=originalImageData.data;return{r:a[4*e],g:a[4*e+1],b:a[4*e+2]}};for(;r.length>0;){const{x:e,y:a}=r.shift(),d=s(e,a);if(e<0||e>=o||a<0||a>=i||n[d])continue;colorDistance(t,c(d))<=l&&(n[d]=!0,selectedAreaPixels.add(`${e},${a}`),r.push({x:e+1,y:a}),r.push({x:e-1,y:a}),r.push({x:e,y:a+1}),r.push({x:e,y:a-1}))}}function applyShapeReplacement(e){if(!isShapeModeEnabled)return e;const a=e.data,t=e.width,l=e.height,o=shapeWidth/2,i=shapeHeight/2,n=Math.max(0,Math.floor(shapeCenterX-o-falloff)),r=Math.min(t-1,Math.ceil(shapeCenterX+o+falloff)),s=Math.max(0,Math.floor(shapeCenterY-i-falloff)),c=Math.min(l-1,Math.ceil(shapeCenterY+i+falloff));for(let e=s;e<=c;e++)for(let l=n;l<=r;l++){const n=4*(e*t+l);let r,s=0,c=(l-shapeCenterX)/o,d=(e-shapeCenterY)/i;if(r="rectangle"===shapeType?Math.max(Math.abs(c),Math.abs(d)):Math.sqrt(c*c+d*d),r<=1)s=1;else if(falloff>0&&r<=1+falloff/Math.min(o,i)){s=1-smoothInterpolation((r-1)/(falloff/Math.min(o,i)),.5)}s>0&&(isShapeErase?a[n+3]=Math.round(a[n+3]*(1-s)):(a[n]=Math.round(a[n]+(shapeReplacementColor.r-a[n])*s),a[n+1]=Math.round(a[n+1]+(shapeReplacementColor.g-a[n+1])*s),a[n+2]=Math.round(a[n+2]+(shapeReplacementColor.b-a[n+2])*s)))}return e}function applyFilter(e=!1){if(!isRealtimePreviewEnabled&&!e)return;const a=performance.now();if(!originalImageData)return void(originalImage.src&&ctx.drawImage(originalImage,0,0));let t=new ImageData(new Uint8ClampedArray(originalImageData.data),originalImageData.width,originalImageData.height);if(t=applyShapeReplacement(t),selectedColor){const e=t.data,a=parseFloat(opacitySlider.value),l=toleranceToggle.checked,o=invertSelectionToggle.checked,i=parseFloat(toleranceStrengthSlider.value),n=colorReplacementToggle.checked,r=n?hexToRgb(replacementColorPicker.value):null,s=antiAliasingToggle.checked;isAreaSelectionMode=areaSelectionToggle.checked;for(let c=0;c<e.length;c+=4){const d=e[c],g=e[c+1],h=e[c+2],p=originalImageData.data[c+3];let m=0;if(isAreaSelectionMode){const e=`${c/4%t.width},${Math.floor(c/4/t.width)}`;if(selectedAreaPixels.has(e))if(s&&l&&i>0){const e=colorDistance(selectedColor,{r:d,g:g,b:h});if(e<=i){const a=parseFloat(smoothingFactorSlider.value),t=i*a,l=i-t;if(e<=l)m=o?0:1;else{const i=smoothInterpolation((e-l)/t,a);m=o?i:1-i}}else m=o?0:1}else m=o?0:1;else m=o?1:0}else{const e=l?colorDistance(selectedColor,{r:d,g:g,b:h}):d===selectedColor.r&&g===selectedColor.g&&h===selectedColor.b?0:1/0;if(l)if(e<=i)if(s&&i>0){const a=parseFloat(smoothingFactorSlider.value),t=i*a,l=i-t;if(e<=l)m=o?0:1;else{const i=smoothInterpolation((e-l)/t,a);m=o?i:1-i}}else m=o?0:1;else m=o?1:0;else m=0===e?o?0:1:o?1:0}if(m>0)if(n)e[c]=Math.round(d+(r.r-d)*m),e[c+1]=Math.round(g+(r.g-g)*m),e[c+2]=Math.round(h+(r.b-h)*m),e[c+3]=p;else{const t=applyOpacityGamma(a);e[c+3]=p*(1-t*m)}else e[c+3]=p}}ctx.putImageData(t,0,0);const l=performance.now()-a;if(isRealtimePreviewEnabled&&!e)if(performanceCheckCount++,totalProcessingTime+=l,l>750)showPerformanceWarning();else if(performanceCheckCount>=2){totalProcessingTime/performanceCheckCount>750&&showPerformanceWarning(),performanceCheckCount=0,totalProcessingTime=0}}function loadImage(e){const a=e.target.files[0];if(!a)return;const t=new FileReader;t.onload=function(e){originalImage=new Image,originalImage.onload=function(){imageCanvas.width=originalImage.width,imageCanvas.height=originalImage.height,resolutionDisplay.textContent=`${originalImage.width} × ${originalImage.height}`,ctx.drawImage(originalImage,0,0),originalImageData=ctx.getImageData(0,0,imageCanvas.width,imageCanvas.height),showMessage("Image loaded successfully! Click on the image to pick a color or enable Shape Mode.","success"),selectedColor=null,opacitySlider.value=0,toleranceToggle.checked=!0,toleranceSliderContainer.classList.remove("hidden"),toleranceStrengthSlider.value=20,invertSelectionToggle.checked=!1,antiAliasingToggle.checked=!0,smoothingSliderContainer.classList.remove("hidden"),smoothingFactorSlider.value=1,colorReplacementToggle.checked=!1,colorPickerContainer.classList.add("hidden"),replacementColorPicker.value="#ff0000",replacementColorDisplay.textContent="#FF0000",areaSelectionToggle.checked=!1,selectedAreaPixels.clear(),hexDisplay.textContent="#FFFFFF",rgbDisplay.textContent="rgb(255, 255, 255)",colorSwatch.style.backgroundColor="#FFFFFF",isShapeModeEnabled=!1,shapeModeToggle.checked=!1,shapeControls.classList.remove("active"),shapeTypeSelect.value="rectangle",shapeXSlider.max=originalImage.width,shapeXSlider.value=originalImage.width/2,shapeYSlider.max=originalImage.height,shapeYSlider.value=originalImage.height/2,shapeXMax.textContent=originalImage.width,shapeYMax.textContent=originalImage.height,shapeWidthSlider.value=50,shapeHeightSlider.value=50,falloffSlider.value=0,shapeEraseToggle.checked=!1,shapeReplacementColorPicker.value="#ff0000",shapeReplacementColorDisplay.textContent="#FF0000",shapeRealtimeToggle.checked=!0,isRealtimePreviewEnabled=!0,realtimePreviewToggle.checked=!0,realtimePreviewToggle.classList.remove("disabled"),realtimePreviewToggle.parentElement.classList.remove("disabled"),previewButton.classList.add("hidden"),hidePerformanceWarning(),performanceCheckCount=0,totalProcessingTime=0,isPerformanceModeActive=!1,updateShapeState()},originalImage.src=e.target.result},t.readAsDataURL(a)}function pickColor(e){if(!originalImageData)return void showMessage("Please upload an image first.","info");const a=imageCanvas.getBoundingClientRect(),t=imageCanvas.width/a.width,l=imageCanvas.height/a.height,o=Math.floor((e.clientX-a.left)*t),i=Math.floor((e.clientY-a.top)*l),n=ctx.getImageData(o,i,1,1).data,r={r:n[0],g:n[1],b:n[2]};if(isShapeModeEnabled){shapeReplacementColor=r;const e=rgbToHex(r.r,r.g,r.b);shapeReplacementColorPicker.value=e,shapeReplacementColorDisplay.textContent=e.toUpperCase(),showMessage("Replacement color picked for shape!","info"),applyFilter(!0)}else{if(selectedColor=r,hexDisplay.textContent=rgbToHex(selectedColor.r,selectedColor.g,selectedColor.b),rgbDisplay.textContent=`rgb(${selectedColor.r}, ${selectedColor.g}, ${selectedColor.b})`,colorSwatch.style.backgroundColor=`rgb(${selectedColor.r}, ${selectedColor.g}, ${selectedColor.b})`,isAreaSelectionMode=areaSelectionToggle.checked,isAreaSelectionMode){const e=parseFloat(toleranceStrengthSlider.value);runFloodFill(o,i,selectedColor,e),showMessage("Area picked! Adjust settings to see the effect.","info")}else selectedAreaPixels.clear(),showMessage("Color picked! Adjust settings.","info");applyFilter(!0)}}function showPerformanceWarning(){isPerformanceModeActive||(isPerformanceModeActive=!0,performanceWarning.classList.remove("hidden"),isRealtimePreviewEnabled=!1,realtimePreviewToggle.checked=!1,realtimePreviewToggle.classList.add("disabled"),realtimePreviewToggle.parentElement.classList.add("disabled"),previewButton.classList.remove("hidden"),showMessage("Real-time preview disabled due to performance","info"))}function hidePerformanceWarning(){performanceWarning.classList.add("hidden")}function toggleRealtimePreview(e){isRealtimePreviewEnabled=e,e?(previewButton.classList.add("hidden"),realtimePreviewToggle.classList.remove("disabled"),realtimePreviewToggle.parentElement.classList.remove("disabled"),performanceCheckCount=0,totalProcessingTime=0,isPerformanceModeActive=!1):previewButton.classList.remove("hidden")}function updateShapeState(e=!1){shapeCenterX=parseFloat(shapeXSlider.value),shapeCenterY=parseFloat(shapeYSlider.value),shapeWidth=parseFloat(shapeWidthSlider.value),shapeHeight=parseFloat(shapeHeightSlider.value),falloff=parseFloat(falloffSlider.value),shapeType=shapeTypeSelect.value,isShapeErase=shapeEraseToggle.checked,shapeReplacementColor=hexToRgb(shapeReplacementColorPicker.value),isShapeModeEnabled&&(isShapeRealtimeEnabled||e)&&applyFilter()}function resetImage(){originalImage.src?(ctx.drawImage(originalImage,0,0),originalImageData=ctx.getImageData(0,0,imageCanvas.width,imageCanvas.height),selectedColor=null,opacitySlider.value=0,toleranceToggle.checked=!0,toleranceSliderContainer.classList.remove("hidden"),toleranceStrengthSlider.value=20,invertSelectionToggle.checked=!1,antiAliasingToggle.checked=!0,smoothingSliderContainer.classList.remove("hidden"),smoothingFactorSlider.value=1,colorReplacementToggle.checked=!1,colorPickerContainer.classList.add("hidden"),replacementColorPicker.value="#ff0000",replacementColorDisplay.textContent="#FF0000",areaSelectionToggle.checked=!1,selectedAreaPixels.clear(),hexDisplay.textContent="#FFFFFF",rgbDisplay.textContent="rgb(255, 255, 255)",colorSwatch.style.backgroundColor="#FFFFFF",isShapeModeEnabled=!1,shapeModeToggle.checked=!1,shapeControls.classList.remove("active"),shapeTypeSelect.value="rectangle",shapeXSlider.value=imageCanvas.width/2,shapeYSlider.value=imageCanvas.height/2,shapeWidthSlider.value=50,shapeHeightSlider.value=50,falloffSlider.value=0,shapeEraseToggle.checked=!1,shapeReplacementColorPicker.value="#ff0000",shapeReplacementColorDisplay.textContent="#FF0000",shapeRealtimeToggle.checked=!0,isRealtimePreviewEnabled=!0,realtimePreviewToggle.checked=!0,realtimePreviewToggle.classList.remove("disabled"),realtimePreviewToggle.parentElement.classList.remove("disabled"),previewButton.classList.add("hidden"),hidePerformanceWarning(),performanceCheckCount=0,totalProcessingTime=0,isPerformanceModeActive=!1,showMessage("Image reset to original state.","info")):showMessage("No image loaded to reset.","info")}function applyChanges(){originalImageData?(originalImageData=ctx.getImageData(0,0,imageCanvas.width,imageCanvas.height),selectedColor=null,opacitySlider.value=0,toleranceToggle.checked=!0,toleranceSliderContainer.classList.remove("hidden"),toleranceStrengthSlider.value=20,invertSelectionToggle.checked=!1,antiAliasingToggle.checked=!0,smoothingSliderContainer.classList.remove("hidden"),smoothingFactorSlider.value=1,colorReplacementToggle.checked=!1,colorPickerContainer.classList.add("hidden"),replacementColorPicker.value="#ff0000",replacementColorDisplay.textContent="#FF0000",areaSelectionToggle.checked=!1,selectedAreaPixels.clear(),hexDisplay.textContent="#FFFFFF",rgbDisplay.textContent="rgb(255, 255, 255)",colorSwatch.style.backgroundColor="#FFFFFF",isShapeModeEnabled=!1,shapeModeToggle.checked=!1,shapeControls.classList.remove("active"),shapeTypeSelect.value="rectangle",shapeXSlider.value=imageCanvas.width/2,shapeYSlider.value=imageCanvas.height/2,shapeWidthSlider.value=50,shapeHeightSlider.value=50,falloffSlider.value=0,shapeEraseToggle.checked=!1,shapeReplacementColorPicker.value="#ff0000",shapeReplacementColorDisplay.textContent="#FF0000",shapeRealtimeToggle.checked=!0,isRealtimePreviewEnabled=!0,realtimePreviewToggle.checked=!0,realtimePreviewToggle.classList.remove("disabled"),realtimePreviewToggle.parentElement.classList.remove("disabled"),previewButton.classList.add("hidden"),hidePerformanceWarning(),performanceCheckCount=0,totalProcessingTime=0,isPerformanceModeActive=!1,showMessage("Changes applied! Ready for new edits.","success")):showMessage("Please upload an image first.","info")}function downloadImage(){if(!originalImageData)return void showMessage("Please upload and edit an image first.","info");const e=imageCanvas.toDataURL("image/png"),a=document.createElement("a");a.href=e,a.download="edited-image.png",a.click(),showMessage("Image downloaded!","success")}async function copyToClipboard(e,a){try{await navigator.clipboard.writeText(e),showMessage(`${a} copied!`,"success")}catch(e){showMessage("Copy failed.","error")}}imageUpload.addEventListener("change",loadImage),imageCanvas.addEventListener("click",pickColor),opacitySlider.addEventListener("input",()=>{isRealtimePreviewEnabled&&applyFilter()}),toleranceToggle.addEventListener("change",()=>{toleranceSliderContainer.classList.toggle("hidden",!toleranceToggle.checked),isRealtimePreviewEnabled&&applyFilter()}),toleranceStrengthSlider.addEventListener("input",()=>{isRealtimePreviewEnabled&&applyFilter()}),invertSelectionToggle.addEventListener("change",()=>{isRealtimePreviewEnabled&&applyFilter()}),antiAliasingToggle.addEventListener("change",()=>{smoothingSliderContainer.classList.toggle("hidden",!antiAliasingToggle.checked),isRealtimePreviewEnabled&&applyFilter()}),smoothingFactorSlider.addEventListener("input",()=>{isRealtimePreviewEnabled&&applyFilter()}),resetButton.addEventListener("click",resetImage),downloadButton.addEventListener("click",downloadImage),applyButton.addEventListener("click",applyChanges),copyHexButton.addEventListener("click",()=>copyToClipboard(hexDisplay.textContent,"Hex")),copyRgbButton.addEventListener("click",()=>copyToClipboard(rgbDisplay.textContent,"RGB")),colorReplacementToggle.addEventListener("change",()=>{colorPickerContainer.classList.toggle("hidden",!colorReplacementToggle.checked),isRealtimePreviewEnabled&&applyFilter()}),replacementColorPicker.addEventListener("input",()=>{replacementColorDisplay.textContent=replacementColorPicker.value.toUpperCase(),isRealtimePreviewEnabled&&applyFilter()}),realtimePreviewToggle.addEventListener("change",()=>toggleRealtimePreview(realtimePreviewToggle.checked)),previewButton.addEventListener("click",()=>applyFilter(!0)),dismissWarning.addEventListener("click",hidePerformanceWarning),areaSelectionToggle.addEventListener("change",()=>{isRealtimePreviewEnabled&&applyFilter()}),shapeModeToggle.addEventListener("change",()=>{isShapeModeEnabled=shapeModeToggle.checked,shapeControls.classList.toggle("active",shapeModeToggle.checked),showMessage(isShapeModeEnabled?"Shape Mode enabled. Click image to pick replacement color.":"Shape Mode disabled.","info"),applyFilter()}),shapeTypeSelect.addEventListener("change",()=>updateShapeState()),shapeEraseToggle.addEventListener("change",()=>updateShapeState()),shapeReplacementColorPicker.addEventListener("input",()=>{shapeReplacementColorDisplay.textContent=shapeReplacementColorPicker.value.toUpperCase(),updateShapeState()}),shapeRealtimeToggle.addEventListener("change",()=>{isShapeRealtimeEnabled=shapeRealtimeToggle.checked});const shapeSliders=[shapeXSlider,shapeYSlider,shapeWidthSlider,shapeHeightSlider,falloffSlider];shapeSliders.forEach(e=>{e.addEventListener("input",()=>{isShapeRealtimeEnabled&&updateShapeState()}),e.addEventListener("mouseup",()=>{isShapeRealtimeEnabled||updateShapeState(!0)})});const accordionHeaders=document.querySelectorAll(".accordion-header");accordionHeaders.forEach(e=>{e.addEventListener("click",()=>{e.parentElement.classList.toggle("active")})}),window.onload=()=>{imageCanvas.width=600,imageCanvas.height=400,ctx.fillStyle="#e2e8f0",ctx.fillRect(0,0,600,400),ctx.font="24px Inter",ctx.textAlign="center",ctx.fillStyle="#64748b",ctx.fillText("Upload an image to get started",300,200)}</script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU Color Keying Tool</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --primary-color: #3b82f6;
+            --text-color: #e0e0e0;
+            --secondary-text: #a0a0a0;
+            --border-radius: 8px;
+            --spacing: 16px;
+            --slider-track: #333;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            /* Prevent body scroll, handle internally */
+        }
+
+        /* Header */
+        header {
+            background-color: var(--surface-color);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #333;
+            height: 60px;
+        }
+
+        h1 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        /* Main Layout */
+        main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            height: calc(100vh - 60px);
+        }
+
+        /* Sidebar Controls */
+        aside {
+            width: 320px;
+            background-color: var(--surface-color);
+            padding: 2rem;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: var(--secondary-text);
+            margin-bottom: 0.25rem;
+        }
+
+        .value-display {
+            font-family: monospace;
+            color: var(--primary-color);
+        }
+
+        /* Upload Button */
+        .file-input-wrapper {
+            position: relative;
+            width: 100%;
+            height: 50px;
+            border: 2px dashed #444;
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background-color 0.2s;
+            text-align: center;
+            color: var(--secondary-text);
+            font-size: 0.9rem;
+        }
+
+        .file-input-wrapper:hover {
+            border-color: var(--primary-color);
+            color: var(--text-color);
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+
+        input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        /* Sliders */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        input[type="range"]:focus {
+            outline: none;
+        }
+
+        /* Slider Track */
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            background: var(--slider-track);
+            border-radius: 3px;
+        }
+
+        /* Slider Thumb */
+        input[type="range"]::-webkit-slider-thumb {
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            -webkit-appearance: none;
+            margin-top: -6px;
+            /* center thumb */
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        /* Color Preview Box */
+        .color-preview {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .color-swatch {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--border-radius);
+            border: 1px solid #444;
+            background-color: transparent;
+            /* Default */
+            background-image:
+                linear-gradient(45deg, #eee 25%, transparent 25%),
+                linear-gradient(-45deg, #eee 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #eee 75%),
+                linear-gradient(-45deg, transparent 75%, #eee 75%);
+            background-size: 10px 10px;
+            background-position: 0 0, 0 5px, 5px -5px, -5px 0px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .color-swatch-inner {
+            width: 100%;
+            height: 100%;
+            background-color: black;
+        }
+
+        .instruction-text {
+            font-size: 0.85rem;
+            color: var(--secondary-text);
+            line-height: 1.4;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        /* Canvas Area */
+        .canvas-container {
+            flex: 1;
+            background-color: #000;
+            background-image:
+                linear-gradient(45deg, #333 25%, transparent 25%),
+                linear-gradient(-45deg, #333 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #333 75%),
+                linear-gradient(-45deg, transparent 75%, #333 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            cursor: crosshair;
+            /* Support checkerboard through transparency */
+            background-image:
+                linear-gradient(45deg, #1a1a1a 25%, transparent 25%),
+                linear-gradient(-45deg, #1a1a1a 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #1a1a1a 75%),
+                linear-gradient(-45deg, transparent 75%, #1a1a1a 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            image-rendering: pixelated;
+            /* Keeps zoomed picking sharp */
+        }
+
+        /* Initial State Message */
+        .empty-state {
+            text-align: center;
+            color: var(--secondary-text);
+            pointer-events: none;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            main {
+                flex-direction: column;
+                height: auto;
+                overflow-y: auto;
+            }
+
+            aside {
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid #333;
+            }
+
+            .canvas-container {
+                min-height: 400px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Color Remover</h1>
+    </header>
+
+    <main>
+        <!-- Sidebar -->
+        <aside>
+            <div class="control-group">
+                <div class="file-input-wrapper">
+                    <span>Click to Upload Image</span>
+                    <input type="file" id="imageInput" accept="image/*">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-header">
+                    <span>Picked Color</span>
+                </div>
+                <div class="color-preview">
+                    <div class="color-swatch">
+                        <div class="color-swatch-inner" id="colorSwatch"></div>
+                    </div>
+                    <span id="colorHex">#000000</span>
+                </div>
+                <div class="instruction-text">
+                    Click on the image to select the color you want to modify.
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-header">
+                    <span>Transparency</span>
+                    <span class="value-display" id="alphaVal">0%</span>
+                </div>
+                <input type="range" id="alphaSlider" min="0" max="100" value="0" step="1">
+            </div>
+
+            <div class="control-group">
+                <div class="control-header">
+                    <span>Color Tolerance</span>
+                    <span class="value-display" id="toleranceVal">10%</span>
+                </div>
+                <input type="range" id="toleranceSlider" min="0" max="100" value="10" step="1">
+            </div>
+
+            <div class="control-group" style="border-top: 1px solid #333; padding-top: 1rem;">
+                <div class="control-header">
+                    <span style="color: #fff; font-weight: bold;">Patching Tool</span>
+                </div>
+                <label id="patchToggleLabel"
+                    style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.9rem;">
+                    <input type="checkbox" id="patchModeToggle"> Enable Patching Mode
+                </label>
+                <div id="patchSettings" style="display: none; flex-direction: column; gap: 1rem; margin-top: 0.5rem;">
+                    <button id="addPatchBtn" style="
+                        padding: 8px;
+                        background: #333;
+                        border: 1px solid #555;
+                        color: white;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 0.85rem;
+                    ">+ Add New Patch</button>
+
+                    <div id="patchList" style="
+                        max-height: 150px;
+                        overflow-y: auto;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 5px;
+                        padding: 5px;
+                        background: #1a1a1a;
+                        border: 1px solid #333;
+                        border-radius: 4px;
+                    ">
+                        <!-- Patch items will be added here -->
+                    </div>
+
+                    <div id="activePatchControls"
+                        style="display: none; flex-direction: column; gap: 0.8rem; border-top: 1px solid #333; padding-top: 0.8rem;">
+                        <div class="instruction-text">
+                            Drag to move, Shift+Drag to resize.
+                        </div>
+                        <div class="control-header">
+                            <span>Patch Color</span>
+                        </div>
+                        <div class="color-preview">
+                            <div class="color-swatch">
+                                <div class="color-swatch-inner" id="patchSwatch" style="background-color: #ff0000;">
+                                </div>
+                            </div>
+                            <span id="patchHex">#FF0000</span>
+                        </div>
+                        <div class="control-header">
+                            <span>Patch Size</span>
+                            <span class="value-display" id="patchSizeVal">100px</span>
+                        </div>
+                        <input type="range" id="patchSizeSlider" min="10" max="2000" value="100">
+
+                        <button id="deletePatchBtn" style="
+                            padding: 6px;
+                            background: #442222;
+                            border: 1px solid #663333;
+                            color: #ffaaaa;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 0.8rem;
+                            margin-top: 5px;
+                        ">Delete Active Patch</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <button id="resetBtn" style="
+                    padding: 10px;
+                    background: #2a2a2a;
+                    border: 1px solid #444;
+                    color: white;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    transition: background 0.2s;
+                    width: 100%;
+                  ">Reset Settings</button>
+                <button id="downloadBtn" style="
+                    margin-top: 10px;
+                    padding: 12px;
+                    background: var(--primary-color);
+                    border: none;
+                    color: white;
+                    font-weight: bold;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    transition: opacity 0.2s, transform 0.1s;
+                    width: 100%;
+                  ">Download Result</button>
+            </div>
+        </aside>
+
+        <!-- Canvas Area -->
+        <div class="canvas-container" id="canvasContainer">
+            <div class="empty-state" id="emptyState">
+                <p>No image loaded</p>
+                <p style="font-size: 0.8em; margin-top: 5px;">Upload an image to start</p>
+            </div>
+            <canvas id="glCanvas"></canvas>
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        /**
+         * GPU CHROMA KEY TOOL
+         * Uses WebGL (GLSL) to perform color replacement and fading on the GPU.
+         */
+
+        const canvas = document.getElementById('glCanvas');
+        const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
+        const imageInput = document.getElementById('imageInput');
+        const emptyState = document.getElementById('emptyState');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        // UI Elements
+        const alphaSlider = document.getElementById('alphaSlider');
+        const alphaVal = document.getElementById('alphaVal');
+        const toleranceSlider = document.getElementById('toleranceSlider');
+        const toleranceVal = document.getElementById('toleranceVal');
+        const colorSwatch = document.getElementById('colorSwatch');
+        const colorHex = document.getElementById('colorHex');
+        const resetBtn = document.getElementById('resetBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        // Patching Elements
+        const patchModeToggle = document.getElementById('patchModeToggle');
+        const patchSettings = document.getElementById('patchSettings');
+        const addPatchBtn = document.getElementById('addPatchBtn');
+        const patchList = document.getElementById('patchList');
+        const activePatchControls = document.getElementById('activePatchControls');
+        const patchSwatch = document.getElementById('patchSwatch');
+        const patchHex = document.getElementById('patchHex');
+        const patchSizeSlider = document.getElementById('patchSizeSlider');
+        const patchSizeVal = document.getElementById('patchSizeVal');
+        const deletePatchBtn = document.getElementById('deletePatchBtn');
+
+        // State
+        let originalImage = null;
+        let texture = null;
+        let program = null;
+        let positionBuffer = null;
+        let texCoordBuffer = null;
+
+        // Patching State
+        let patchEnabled = false;
+        const MAX_PATCHES = 32;
+        let patches = []; // Array of {x, y, w, h, color: [r,g,b]}
+        let selectedPatchIndex = -1;
+
+        let isDraggingPatch = false;
+        let isResizingPatch = false;
+        let dragOffset = { x: 0, y: 0 };
+
+        // Off-screen canvas for precise color picking
+        const offScreenCanvas = document.createElement('canvas');
+        const offScreenCtx = offScreenCanvas.getContext('2d', { willReadFrequently: true });
+
+        // Parameters
+        let targetColor = [0.0, 0.0, 0.0]; // RGB 0-1
+        let targetAlpha = 1.0; // 0-1 (Opaque by default)
+        let tolerance = 0.1; // 0-1
+
+        // Initial Setup
+        canvas.style.display = 'none';
+
+        if (!gl) {
+            alert('Unable to initialize WebGL. Your browser may not support it.');
+        }
+
+        // --- WebGL Shaders ---
+
+        const vsSource = `
+            attribute vec2 a_position;
+            attribute vec2 a_texCoord;
+            varying vec2 v_texCoord;
+            void main() {
+                gl_Position = vec4(a_position, 0.0, 1.0);
+                v_texCoord = a_texCoord;
+            }
+        `;
+
+        const fsSource = `
+            precision mediump float;
+            uniform sampler2D u_image;
+            uniform vec3 u_targetColor;
+            uniform float u_targetAlpha;
+            uniform float u_tolerance;
+            
+            // Multi-Patch Uniforms
+            uniform bool u_patchEnabled;
+            uniform int u_numPatches;
+            uniform vec4 u_patchRects[32]; // x, y, width, height
+            uniform vec3 u_patchColors[32];
+            uniform vec2 u_resolution;
+
+            varying vec2 v_texCoord;
+
+            void main() {
+                vec2 pixelCoord = v_texCoord * u_resolution;
+                // Since UV 0 is at the top in our mapping, pixelCoord.y is already 0 at top.
+                
+                vec4 color = texture2D(u_image, v_texCoord);
+                
+                if (u_patchEnabled) {
+                    for (int i = 0; i < 32; i++) {
+                        if (i >= u_numPatches) break;
+                        vec4 rect = u_patchRects[i];
+                        if (pixelCoord.x >= rect.x && pixelCoord.x <= rect.x + rect.z &&
+                            pixelCoord.y >= rect.y && pixelCoord.y <= rect.y + rect.w) {
+                            gl_FragColor = vec4(u_patchColors[i], 1.0);
+                            return;
+                        }
+                    }
+                }
+
+                float dist = distance(color.rgb, u_targetColor);
+                float mask = 1.0 - smoothstep(0.0, u_tolerance, dist);
+                float newAlpha = mix(color.a, u_targetAlpha, mask);
+                gl_FragColor = vec4(color.rgb * newAlpha, newAlpha);
+            }
+        `;
+
+        // --- WebGL Boilerplate ---
+
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            return shader;
+        }
+
+        function createProgram(gl, vs, fs) {
+            const vertexShader = createShader(gl, gl.VERTEX_SHADER, vs);
+            const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fs);
+            const prog = gl.createProgram();
+            gl.attachShader(prog, vertexShader);
+            gl.attachShader(prog, fragmentShader);
+            gl.linkProgram(prog);
+            return prog;
+        }
+
+        function initWebGL() {
+            program = createProgram(gl, vsSource, fsSource);
+            positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+            texCoordBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0]), gl.STATIC_DRAW);
+        }
+
+        function createTexture(image) {
+            const tex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+            return tex;
+        }
+
+        function render() {
+            if (!originalImage || !program) return;
+            if (canvas.width !== originalImage.width || canvas.height !== originalImage.height) {
+                canvas.width = originalImage.width;
+                canvas.height = originalImage.height;
+            }
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.useProgram(program);
+
+            const posLoc = gl.getAttribLocation(program, "a_position");
+            gl.enableVertexAttribArray(posLoc);
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+            const texLoc = gl.getAttribLocation(program, "a_texCoord");
+            gl.enableVertexAttribArray(texLoc);
+            gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+            gl.vertexAttribPointer(texLoc, 2, gl.FLOAT, false, 0, 0);
+
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.uniform1i(gl.getUniformLocation(program, "u_image"), 0);
+
+            gl.uniform3fv(gl.getUniformLocation(program, "u_targetColor"), targetColor);
+            gl.uniform1f(gl.getUniformLocation(program, "u_targetAlpha"), targetAlpha);
+            gl.uniform1f(gl.getUniformLocation(program, "u_tolerance"), (parseFloat(tolerance) / 100.0) * 1.5);
+
+            // Multi-Patch Uniforms
+            gl.uniform1i(gl.getUniformLocation(program, "u_patchEnabled"), patchEnabled);
+            gl.uniform1i(gl.getUniformLocation(program, "u_numPatches"), patches.length);
+            gl.uniform2f(gl.getUniformLocation(program, "u_resolution"), canvas.width, canvas.height);
+
+            if (patches.length > 0) {
+                const rectData = new Float32Array(MAX_PATCHES * 4);
+                const colorData = new Float32Array(MAX_PATCHES * 3);
+                for (let i = 0; i < patches.length; i++) {
+                    rectData[i * 4 + 0] = patches[i].x;
+                    rectData[i * 4 + 1] = patches[i].y;
+                    rectData[i * 4 + 2] = patches[i].w;
+                    rectData[i * 4 + 3] = patches[i].h;
+                    colorData[i * 3 + 0] = patches[i].color[0];
+                    colorData[i * 3 + 1] = patches[i].color[1];
+                    colorData[i * 3 + 2] = patches[i].color[2];
+                }
+                gl.uniform4fv(gl.getUniformLocation(program, "u_patchRects"), rectData);
+                gl.uniform3fv(gl.getUniformLocation(program, "u_patchColors"), colorData);
+            }
+
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+        }
+
+        // --- Patch Management ---
+
+        function addPatch() {
+            if (patches.length >= MAX_PATCHES) {
+                alert(`Maximum of ${MAX_PATCHES} patches reached.`);
+                return;
+            }
+
+            const size = parseInt(patchSizeSlider.value) || 100;
+            const newPatch = {
+                x: originalImage ? (originalImage.width - size) / 2 : 50,
+                y: originalImage ? (originalImage.height - size) / 2 : 50,
+                w: size,
+                h: size,
+                color: [1.0, 0.0, 0.0] // Red default
+            };
+
+            patches.push(newPatch);
+            selectPatch(patches.length - 1);
+            render();
+        }
+
+        function selectPatch(index) {
+            selectedPatchIndex = index;
+            updatePatchListUI();
+
+            if (index === -1) {
+                activePatchControls.style.display = 'none';
+            } else {
+                activePatchControls.style.display = 'flex';
+                const p = patches[index];
+                patchSizeSlider.value = p.w;
+                patchSizeVal.textContent = p.w + 'px';
+
+                const r = Math.round(p.color[0] * 255);
+                const g = Math.round(p.color[1] * 255);
+                const b = Math.round(p.color[2] * 255);
+                const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+
+                patchSwatch.style.backgroundColor = `rgb(${r},${g},${b})`;
+                patchHex.textContent = hex;
+            }
+        }
+
+        function deletePatch(index) {
+            patches.splice(index, 1);
+            if (selectedPatchIndex === index) {
+                selectedPatchIndex = patches.length > 0 ? 0 : -1;
+            } else if (selectedPatchIndex > index) {
+                selectedPatchIndex--;
+            }
+            selectPatch(selectedPatchIndex);
+            render();
+        }
+
+        function updatePatchListUI() {
+            patchList.innerHTML = '';
+            patches.forEach((p, i) => {
+                const item = document.createElement('div');
+                item.style.cssText = `
+                    padding: 6px 10px;
+                    background: ${i === selectedPatchIndex ? '#333' : '#222'};
+                    border: 1px solid ${i === selectedPatchIndex ? 'var(--primary-color)' : '#444'};
+                    border-radius: 4px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    cursor: pointer;
+                    font-size: 0.85rem;
+                    color: white;
+                `;
+                item.onclick = () => selectPatch(i);
+
+                const label = document.createElement('span');
+                label.textContent = `Patch ${i + 1}`;
+                item.appendChild(label);
+
+                const colorDot = document.createElement('div');
+                colorDot.style.cssText = `
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    background: rgb(${p.color[0] * 255}, ${p.color[1] * 255}, ${p.color[2] * 255});
+                    border: 1px solid #666;
+                `;
+                item.appendChild(colorDot);
+
+                patchList.appendChild(item);
+            });
+
+            if (patches.length === 0) {
+                patchList.innerHTML = '<div style="color: #666; font-size: 0.8rem; text-align: center; padding: 10px;">No patches added</div>';
+            }
+        }
+
+        // --- Interaction ---
+
+        const loupe = document.createElement('div');
+        loupe.style.cssText = `position:fixed;width:80px;height:80px;border:2px solid white;border-radius:50%;pointer-events:none;display:none;z-index:1000;box-shadow:0 0 10px rgba(0,0,0,0.5);background-color:black;`;
+        document.body.appendChild(loupe);
+
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: Math.floor((e.clientX - rect.left) / rect.width * canvas.width),
+                y: Math.floor((e.clientY - rect.top) / rect.height * canvas.height)
+            };
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            if (!originalImage) return;
+            const pos = getMousePos(e);
+
+            if (isDraggingPatch && selectedPatchIndex !== -1) {
+                const p = patches[selectedPatchIndex];
+                p.x = Math.max(0, Math.min(canvas.width - p.w, pos.x - dragOffset.x));
+                p.y = Math.max(0, Math.min(canvas.height - p.h, pos.y - dragOffset.y));
+                render();
+                return;
+            }
+            if (isResizingPatch && selectedPatchIndex !== -1) {
+                const p = patches[selectedPatchIndex];
+                p.w = Math.max(10, Math.min(canvas.width - p.x, pos.x - p.x));
+                p.h = Math.max(10, Math.min(canvas.height - p.y, pos.y - p.y));
+
+                // Square resize
+                const size = Math.max(p.w, p.h);
+                p.w = Math.min(size, canvas.width - p.x);
+                p.h = Math.min(size, canvas.height - p.y);
+
+                patchSizeSlider.value = p.w;
+                patchSizeVal.textContent = p.w + 'px';
+                render();
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                loupe.style.display = 'block';
+                loupe.style.left = (e.clientX + 20) + 'px';
+                loupe.style.top = (e.clientY - 40) + 'px';
+                const safeX = Math.max(0, Math.min(canvas.width - 1, pos.x));
+                const safeY = Math.max(0, Math.min(canvas.height - 1, pos.y));
+                const data = offScreenCtx.getImageData(safeX, safeY, 1, 1).data;
+                loupe.style.backgroundColor = `rgb(${data[0]}, ${data[1]}, ${data[2]})`;
+
+                if (patchEnabled) {
+                    let overAny = false;
+                    for (let i = patches.length - 1; i >= 0; i--) {
+                        const p = patches[i];
+                        if (pos.x >= p.x && pos.x <= p.x + p.w && pos.y >= p.y && pos.y <= p.y + p.h) {
+                            overAny = true;
+                            break;
+                        }
+                    }
+                    canvas.style.cursor = overAny ? 'move' : 'crosshair';
+                }
+            } else {
+                loupe.style.display = 'none';
+            }
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (!originalImage) return;
+            const pos = getMousePos(e);
+            if (patchEnabled) {
+                // Hit test in reverse order (top-most first)
+                for (let i = patches.length - 1; i >= 0; i--) {
+                    const p = patches[i];
+                    if (pos.x >= p.x && pos.x <= p.x + p.w && pos.y >= p.y && pos.y <= p.y + p.h) {
+                        selectPatch(i);
+                        if (e.shiftKey) isResizingPatch = true;
+                        else {
+                            isDraggingPatch = true;
+                            dragOffset.x = pos.x - p.x;
+                            dragOffset.y = pos.y - p.y;
+                        }
+                        loupe.style.display = 'none';
+                        return;
+                    }
+                }
+            }
+            pickColor(e);
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDraggingPatch = isResizingPatch = false;
+        });
+
+        function pickColor(e) {
+            const pos = getMousePos(e);
+            const safeX = Math.max(0, Math.min(canvas.width - 1, pos.x));
+            const safeY = Math.max(0, Math.min(canvas.height - 1, pos.y));
+            const [r, g, b] = offScreenCtx.getImageData(safeX, safeY, 1, 1).data;
+            const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+
+            if (patchEnabled && selectedPatchIndex !== -1) {
+                const p = patches[selectedPatchIndex];
+                p.color = [r / 255, g / 255, b / 255];
+                patchSwatch.style.backgroundColor = `rgb(${r},${g},${b})`;
+                patchHex.textContent = hex;
+                updatePatchListUI();
+            } else {
+                targetColor = [r / 255, g / 255, b / 255];
+                colorSwatch.style.backgroundColor = `rgb(${r},${g},${b})`;
+                colorHex.textContent = hex;
+            }
+            render();
+        }
+
+        // --- Listeners ---
+
+        addPatchBtn.addEventListener('click', addPatch);
+        deletePatchBtn.addEventListener('click', () => {
+            if (selectedPatchIndex !== -1) {
+                deletePatch(selectedPatchIndex);
+            }
+        });
+
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            loadingOverlay.style.display = 'flex';
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    originalImage = img;
+                    emptyState.style.display = 'none';
+                    canvas.style.display = 'block';
+                    offScreenCanvas.width = img.width;
+                    offScreenCanvas.height = img.height;
+                    offScreenCtx.drawImage(img, 0, 0);
+                    if (texture) gl.deleteTexture(texture);
+                    texture = createTexture(img);
+
+                    // Center all existing patches to new image dimensions if they are out of bounds
+                    patches.forEach(p => {
+                        p.x = Math.min(p.x, img.width - p.w);
+                        p.y = Math.min(p.y, img.height - p.h);
+                        p.x = Math.max(0, p.x);
+                        p.y = Math.max(0, p.y);
+                    });
+
+                    render();
+                    loadingOverlay.style.display = 'none';
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        patchModeToggle.addEventListener('change', (e) => {
+            patchEnabled = e.target.checked;
+            patchSettings.style.display = patchEnabled ? 'flex' : 'none';
+            if (patchEnabled && patches.length === 0) {
+                addPatch();
+            }
+            render();
+        });
+
+        patchSizeSlider.addEventListener('input', (e) => {
+            if (selectedPatchIndex !== -1) {
+                const p = patches[selectedPatchIndex];
+                const val = parseInt(e.target.value);
+                p.w = p.h = val;
+
+                // Clamp to canvas if possible
+                if (originalImage) {
+                    p.w = p.h = Math.min(val, originalImage.width - p.x, originalImage.height - p.y);
+                }
+
+                patchSizeVal.textContent = p.w + 'px';
+                render();
+            }
+        });
+
+        alphaSlider.addEventListener('input', (e) => {
+            alphaVal.textContent = e.target.value + '%';
+            targetAlpha = 1.0 - (e.target.value / 100.0);
+            render();
+        });
+
+        toleranceSlider.addEventListener('input', (e) => {
+            toleranceVal.textContent = e.target.value + '%';
+            tolerance = e.target.value;
+            render();
+        });
+
+        resetBtn.addEventListener('click', () => {
+            alphaSlider.value = 0; alphaVal.textContent = '0%'; targetAlpha = 1.0;
+            toleranceSlider.value = 10; toleranceVal.textContent = '10%'; tolerance = 10;
+            targetColor = [0, 0, 0]; colorSwatch.style.backgroundColor = 'black'; colorHex.textContent = '#000000';
+
+            // Clear patches
+            patches = [];
+            selectPatch(-1);
+
+            render();
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (!originalImage) return;
+            render();
+            const link = document.createElement('a');
+            link.download = `gpu-patch-${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+
+        initWebGL();
+        window.addEventListener('resize', () => { if (originalImage) render(); });
+
+        // Force defaults
+        patchModeToggle.checked = false;
+        patchEnabled = false;
+        patchSettings.style.display = 'none';
+    </script>
+</body>
+
+</html>

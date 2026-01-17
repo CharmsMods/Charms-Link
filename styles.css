@@ -140,6 +140,39 @@ body {
     color: #000;
     min-height: 100vh;
     line-height: 1.6;
+    cursor: none !important;
+}
+
+/* 1. Hide the default browser cursor everywhere */
+* {
+    cursor: none !important;
+}
+
+/* 2. Style the custom cursor element */
+#cursor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 25px;
+    height: 25px;
+    background: #fff;
+    mix-blend-mode: difference;
+    transform: translate3d(-50%, -50%, 0);
+    /* Centers the div on coordinates */
+    pointer-events: none;
+    /* Allows clicks to pass through */
+    z-index: 10001;
+    transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1), height 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    /* Smooth expansion */
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* 3. Style for when the cursor is hovering over interactive elements */
+#cursor.hovered {
+    width: 50px;
+    height: 50px;
 }
 
 /* Text Selection */

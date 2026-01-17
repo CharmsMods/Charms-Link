@@ -150,3 +150,31 @@ async function initStartupSequence() {
 
 // Initialize startup sequence
 initStartupSequence();
+
+// ============================================
+// CUSTOM CURSOR LOGIC
+// ============================================
+
+const cursor = document.getElementById('cursor');
+
+if (cursor) {
+    // Track mouse movement
+    document.addEventListener('mousemove', (e) => {
+        cursor.style.transform = `translate3d(calc(${e.clientX}px - 50%), calc(${e.clientY}px - 50%), 0)`;
+    });
+
+    // Handle hover states for interactive elements
+    const interactiveElements = 'a, button, .project-card, .social-icon';
+
+    document.addEventListener('mouseover', (e) => {
+        if (e.target.closest(interactiveElements)) {
+            cursor.classList.add('hovered');
+        }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+        if (e.target.closest(interactiveElements)) {
+            cursor.classList.remove('hovered');
+        }
+    });
+}

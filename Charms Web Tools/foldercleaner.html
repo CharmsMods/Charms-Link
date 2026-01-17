@@ -1,205 +1,483 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Empty Folder Cleaner & Downloader</title>
+    <title>Empty Folder Cleaner // Brutalist Edition</title>
+
+    <!-- Load Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap"
+        rel="stylesheet">
+
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load JSZip for ZIP creation -->
+
+    <!-- Load JSZip -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brutal: {
+                            cream: '#F2E9D8',
+                            black: '#121212',
+                            accent: '#FF4500', // Orange-Red for alerts
+                            green: '#2E8B57',  // SeaGreen for success
+                            gray: '#6B6B6B'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Space Grotesk', 'sans-serif'],
+                        mono: ['Space Mono', 'monospace'],
+                    },
+                    boxShadow: {
+                        'hard': '6px 6px 0px 0px #121212',
+                        'hard-sm': '3px 3px 0px 0px #121212',
+                        'hard-hover': '2px 2px 0px 0px #121212',
+                        'none': 'none'
+                    },
+                    animation: {
+                        'spin-slow': 'spin 10s linear infinite',
+                        'bounce-sm': 'bounce-small 0.5s infinite alternate',
+                        'pulse-hard': 'pulse-hard 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'slide-in': 'slide-in 0.3s ease-out forwards',
+                    },
+                    keyframes: {
+                        'bounce-small': {
+                            '0%': { transform: 'translateY(0)' },
+                            '100%': { transform: 'translateY(-3px)' },
+                        },
+                        'pulse-hard': {
+                            '0%, 100%': { opacity: '1' },
+                            '50%': { opacity: '0.7' },
+                        },
+                        'slide-in': {
+                            '0%': { opacity: '0', transform: 'translateX(-10px)' },
+                            '100%': { opacity: '1', transform: 'translateX(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        /* Custom Black/White Styling */
         body {
-            background-color: #000000; /* Pure Black */
-            color: #FFFFFF; /* Pure White */
-            font-family: 'Inter', sans-serif;
+            background-color: #F2E9D8;
+            color: #121212;
+            overflow-x: hidden;
         }
-        .container-card {
-            background-color: #000000; /* Pure Black */
-            border: 1px solid #FFFFFF; /* Minimal White Boundary */
+
+        /* Brutalist Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
         }
-        .log-container {
-            min-height: 50vh; /* EXPANDED: Changed from fixed 300px to min 50% viewport height */
-            overflow-y: auto;
-            background-color: #000000; /* Pure Black */
-            border: 1px solid #FFFFFF; /* Minimal White Boundary */
+
+        ::-webkit-scrollbar-track {
+            background: #F2E9D8;
+            border: 2px solid #121212;
         }
-        /* Style for the log table rows */
-        .log-row {
-            display: flex;
-            padding: 4px 8px;
-            border-bottom: 1px solid #222; /* Subtle divider */
-            font-family: monospace;
-            font-size: 0.85rem;
+
+        ::-webkit-scrollbar-thumb {
+            background: #121212;
+            border: 2px solid #F2E9D8;
         }
-        .path-col {
-            flex: 3;
-            min-width: 0; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #333;
         }
-        .contents-col {
-            flex: 1;
-            text-align: center;
+
+        /* Utility Classes */
+        .brutalist-border {
+            border: 4px solid #121212;
         }
-        .status-col {
-            flex: 1;
-            text-align: right;
-            font-weight: bold; /* All statuses are bold in this theme */
+
+        .brutalist-border-thin {
+            border: 2px solid #121212;
         }
-        /* New Black/White Status Indicators */
-        .status-kept { color: #FFFFFF; } /* White for kept files */
-        .status-empty { color: #FF0000; font-weight: bold; } /* Bright red for EMPTY for critical visibility */
-        .status-folder-kept { color: #AAAAAA; } /* Light gray for kept folders */
-        .status-action { color: #FFFFFF; text-decoration: underline; } /* Underline for actions */
-        
-        /* Drag area uses a dashed white line */
+
+        /* Drag Area Animation */
         .drag-area {
-            border: 2px dashed #FFFFFF;
-            transition: all 0.2s;
+            background-image: repeating-linear-gradient(45deg,
+                    #F2E9D8,
+                    #F2E9D8 10px,
+                    #E8DFCD 10px,
+                    #E8DFCD 20px);
+            transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
+
         .drag-area.active {
-            background-color: #111111;
+            border-color: #FF4500;
+            background-color: #ffe6d6;
+            transform: scale(0.99);
+            box-shadow: 0 0 0 10px rgba(255, 69, 0, 0.2);
         }
 
-        /* Button styling for high contrast */
-        .high-contrast-button {
-            border: 2px solid #FFFFFF;
-            background-color: #000000;
-            color: #FFFFFF;
-        }
-        .high-contrast-button:hover:not(:disabled) {
-            background-color: #FFFFFF;
-            color: #000000;
-        }
-        .high-contrast-button:disabled {
-            border-color: #555555;
-            color: #555555;
-            cursor: not-allowed;
+        .drag-area.active .drag-icon {
+            animation: bounce-small 0.3s infinite;
         }
 
+        /* Log Row Styling */
+        .log-row {
+            border-bottom: 2px solid #121212;
+            transition: background-color 0.1s;
+        }
+
+        .log-row:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .log-row:last-child {
+            border-bottom: none;
+        }
+
+        /* Progress Bar - Brutalist Block */
+        .progress-container {
+            border: 4px solid #121212;
+            height: 24px;
+            width: 100%;
+            background: #F2E9D8;
+            position: relative;
+        }
+
+        .progress-fill {
+            background-color: #121212;
+            height: 100%;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
     </style>
 </head>
-<body class="p-6">
 
-    <div class="max-w-4xl mx-auto space-y-6">
+<body class="min-h-screen p-4 md:p-8 flex flex-col items-center">
 
-        <!-- Header & Title Section -->
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-white mb-2"> Empty Folder Cleaner & Downloader</h1>
-            <p class="text-gray-400"> Drag and Drop Required to detect all empty folders.</p>
+    <div class="max-w-5xl w-full space-y-8">
+
+        <!-- Header -->
+        <header class="text-center space-y-2">
+            <div class="inline-block border-4 border-black bg-white px-4 py-1 rotate-1 transform shadow-hard">
+                <span class="font-mono text-sm font-bold">V 2.0 // OPTIMIZED</span>
+            </div>
+            <h1 class="text-5xl md:text-7xl font-bold tracking-tighter uppercase mt-4">
+                Folder <span
+                    class="bg-brutal-black text-brutal-cream px-2 inline-block transform -rotate-2">Cleaner</span>
+            </h1>
+            <p class="font-mono text-lg md:text-xl text-brutal-gray max-w-2xl mx-auto mt-4">
+                Drag & Drop folders to identify empty directories and download a clean ZIP archive.
+                <br>
+                <span class="text-xs text-brutal-accent font-bold uppercase">Warning: Handles Large Sets via Lazy
+                    Loading</span>
+            </p>
         </header>
 
-        <!-- Control Panel Card -->
-        <div id="control-panel" class="container-card p-6 rounded-lg">
-            
-            <!-- Upload Area -->
-            <!-- NOTE: Removed cursor-pointer and onclick from this div. It only handles drag events now. -->
-            <div id="drag-drop-area" class="drag-area text-center p-12 rounded-lg transition">
-                <p class="text-xl font-semibold mb-2">Drag & Drop a Folder Here</p>
-                <p class="text-sm text-gray-400">
-                    
-                    <span class="underline cursor-pointer" onclick="document.getElementById('folderInput').click()"></span>
-                </p>
-                <!-- The input is hidden and only activated by the explicit span link above -->
-                <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden" onchange="handleFolderUpload(event)">
-            </div>
-            <p id="folderNameDisplay" class="text-center text-sm mt-3 text-gray-300 hidden">Ready to scan: <span class="font-bold text-white"></span></p>
-            <div id="loadingIndicator" class="text-center text-sm text-yellow-500 mt-2 hidden">
-                Scanning folder structure... please wait.
-            </div>
+        <!-- Main Control Panel -->
+        <main class="space-y-6">
 
-            <!-- Action Buttons -->
-            <div class="mt-6 flex justify-center space-x-4">
-                <button id="scanButton" onclick="scanForEmptyFolders()"
-                    class="px-8 py-3 font-semibold rounded-lg shadow-md transition duration-150 high-contrast-button"
-                    disabled>
-                    1. Scan for Empty Folders
-                </button>
-                <button id="downloadButton" onclick="cleanAndDownloadZip()"
-                    class="px-8 py-3 font-semibold rounded-lg shadow-md transition duration-150 high-contrast-button"
-                    disabled>
-                    2. Clean & Download ZIP
-                </button>
-            </div>
-        </div>
-        
-        <!-- Processing Status & Log Section -->
-        <div class="space-y-3">
-            <h2 class="text-2xl font-semibold">Processing Status Log (<span id="fileCountDisplay">0</span> Items)</h2>
-            <div class="container-card p-2 rounded-lg">
-                
-                <!-- Log Header -->
-                <div class="log-row font-bold text-sm border-b-2 border-white sticky top-0 bg-[#000000] z-10">
-                    <div class="path-col">File / Folder Path</div>
-                    <div class="contents-col">Content Type</div>
-                    <div class="status-col">Status / Action</div>
+            <!-- Input Section -->
+            <div id="control-panel" class="bg-white brutalist-border shadow-hard p-1 md:p-8 relative overflow-hidden">
+                <!-- Decorative BG Element -->
+                <div class="absolute -top-10 -right-10 w-32 h-32 border-4 border-black opacity-20 rotate-45"></div>
+
+                <div id="drag-drop-area"
+                    class="drag-area brutalist-border p-12 text-center cursor-pointer group relative">
+                    <div class="pointer-events-none relative z-10">
+                        <div
+                            class="drag-icon text-6xl mb-4 transition-transform group-hover:scale-110 group-hover:rotate-12">
+                            📂
+                        </div>
+                        <h3 class="text-2xl font-bold uppercase tracking-wide">Drag Folder Here</h3>
+                        <p class="font-mono text-sm mt-2 text-brutal-gray">or click to browse (limited detection)</p>
+                    </div>
+
+                    <!-- Hidden Input -->
+                    <input type="file" id="folderInput" webkitdirectory directory multiple
+                        class="absolute inset-0 opacity-0 cursor-pointer z-20" onchange="handleFolderUpload(event)">
                 </div>
 
-                <!-- Log Body -->
-                <div id="logOutput" class="log-container rounded-md">
-                    <div class="p-2 text-gray-500">Awaiting folder upload...</div>
+                <!-- Status Line -->
+                <div
+                    class="flex flex-col md:flex-row justify-between items-center mt-6 px-2 font-mono text-sm border-b-2 border-black pb-4">
+                    <div id="folderNameDisplay" class="font-bold hidden">
+                        TARGET: <span id="targetName" class="bg-black text-white px-2 py-1 ml-2">UNKNOWN</span>
+                    </div>
+                    <div id="loadingIndicator"
+                        class="hidden flex items-center text-brutal-black font-bold animate-pulse-hard">
+                        <span class="inline-block w-3 h-3 bg-black mr-2"></span>
+                        SCANNING FILE SYSTEM...
+                    </div>
                 </div>
+
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                    <div class="border-2 border-black p-3 bg-brutal-cream">
+                        <div class="text-xs font-mono uppercase">Total Files</div>
+                        <div id="fileCountDisplay" class="text-3xl font-bold">0</div>
+                    </div>
+                    <div class="border-2 border-black p-3 bg-brutal-cream">
+                        <div class="text-xs font-mono uppercase">Empty Folders</div>
+                        <div id="emptyCountDisplay" class="text-3xl font-bold text-brutal-accent">0</div>
+                    </div>
+                    <div class="border-2 border-black p-3 bg-brutal-cream">
+                        <div class="text-xs font-mono uppercase">Est. Size</div>
+                        <div id="sizeDisplay" class="text-xl font-bold truncate">0 MB</div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="mt-8 flex flex-col md:flex-row gap-4 justify-center">
+                    <button id="scanButton" onclick="scanForEmptyFolders()" disabled
+                        class="px-8 py-4 bg-white border-4 border-black text-xl font-bold uppercase tracking-widest shadow-hard hover:shadow-hard-hover hover:translate-x-[2px] hover:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 transition-all">
+                        1. Scan System
+                    </button>
+                    <button id="downloadButton" onclick="cleanAndDownloadZip()" disabled
+                        class="px-8 py-4 bg-brutal-black text-brutal-cream border-4 border-black text-xl font-bold uppercase tracking-widest shadow-hard hover:shadow-hard-hover hover:translate-x-[2px] hover:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 transition-all">
+                        2. Clean & Zip
+                    </button>
+                </div>
+            </div>
+
+            <!-- Log Terminal -->
+            <div class="bg-white brutalist-border shadow-hard flex flex-col h-[500px]">
+                <div class="bg-black text-brutal-cream p-3 flex justify-between items-center font-mono text-sm">
+                    <span class="uppercase font-bold">Console Output</span>
+                    <div class="flex gap-2">
+                        <div class="w-3 h-3 rounded-full bg-brutal-accent"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
+                        <div class="w-3 h-3 rounded-full bg-brutal-green"></div>
+                    </div>
+                </div>
+
+                <!-- Log Headers -->
+                <div
+                    class="grid grid-cols-12 gap-4 p-3 bg-brutal-cream border-b-4 border-black font-mono text-xs uppercase font-bold text-center">
+                    <div class="col-span-6 text-left">Path</div>
+                    <div class="col-span-2">Type</div>
+                    <div class="col-span-4">Status</div>
+                </div>
+
+                <!-- Log Content -->
+                <div id="logOutput" class="flex-1 overflow-y-auto p-0 font-mono text-sm bg-brutal-cream/50">
+                    <div class="p-4 text-center text-gray-500 italic">Waiting for input...</div>
+                </div>
+
+                <!-- Progress Bar (Hidden by default) -->
+                <div id="progressContainer" class="hidden p-4 bg-white border-t-4 border-black">
+                    <div class="flex justify-between font-mono text-xs uppercase mb-1">
+                        <span id="progressText">Processing...</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress-container">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="text-center font-mono text-xs mt-12 opacity-60">
+            CLIENT-SIDE PROCESSING // NO DATA LEAVES YOUR DEVICE
+        </footer>
+    </div>
+
+    <!-- Notification Modal -->
+    <div id="modal" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white border-4 border-black shadow-hard p-8 max-w-md w-full transform transition-all scale-100">
+            <h3 class="text-2xl font-bold mb-4 uppercase border-b-2 border-black pb-2">System Warning</h3>
+            <p id="modalMessage" class="font-mono mb-6">Message goes here.</p>
+            <div class="text-right">
+                <button onclick="closeModal()"
+                    class="px-6 py-2 bg-brutal-black text-white font-bold border-2 border-black uppercase hover:bg-gray-800 transition">
+                    Acknowledge
+                </button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- Global State ---
-        // filesToProcess: Stores objects { file: File, path: 'relative/path/to/file.ext' }
-        let filesToProcess = [];
-        // detectedFolderPaths: Stores all unique folder paths encountered during traversal, including empty ones.
+        /**
+         * GLOBAL STATE
+         * Optimized to store FileSystemEntries instead of File objects initially
+         * to prevent memory overflow during the scanning phase.
+         */
+        let fileEntries = []; // Array of { entry: FileSystemFileEntry, path: string }
         let detectedFolderPaths = new Set();
-        // foldersWithContent: Stores paths for folders that contain at least one file.
         let foldersWithContent = new Set();
-        
+
         let topLevelName = '';
         let isDragAndDrop = false;
+        let totalEstimatedSize = 0; // In bytes
 
-        // DOM element references
+        // --- DOM Elements ---
         const logOutput = document.getElementById('logOutput');
         const scanButton = document.getElementById('scanButton');
         const downloadButton = document.getElementById('downloadButton');
         const folderNameDisplay = document.getElementById('folderNameDisplay');
-        const fileCountDisplay = document.getElementById('fileCountDisplay');
+        const targetName = document.getElementById('targetName');
         const loadingIndicator = document.getElementById('loadingIndicator');
+        const dragArea = document.getElementById('drag-drop-area');
 
-        // --- Utility Functions ---
+        // Stats
+        const fileCountDisplay = document.getElementById('fileCountDisplay');
+        const emptyCountDisplay = document.getElementById('emptyCountDisplay');
+        const sizeDisplay = document.getElementById('sizeDisplay');
+
+        // Progress
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const progressPercent = document.getElementById('progressPercent');
+
+        // --- Core Utilities ---
 
         function resetState() {
-            filesToProcess = [];
+            fileEntries = [];
             detectedFolderPaths = new Set();
             foldersWithContent = new Set();
             topLevelName = '';
             isDragAndDrop = false;
-            logOutput.innerHTML = '<div class="p-2 text-gray-500">Ready for a new scan...</div>';
+            totalEstimatedSize = 0;
+
+            logOutput.innerHTML = '<div class="p-4 text-center text-gray-500 font-mono animate-pulse">System Ready.</div>';
+
             scanButton.disabled = true;
             downloadButton.disabled = true;
             folderNameDisplay.classList.add('hidden');
             loadingIndicator.classList.add('hidden');
-            fileCountDisplay.textContent = '0';
+
+            updateStats(0, 0, 0);
+            hideProgress();
         }
 
-        function appendToLog(path, contents, status, statusClass) {
+        function updateStats(files, empty, size) {
+            fileCountDisplay.textContent = files;
+            emptyCountDisplay.textContent = empty;
+
+            let sizeStr = '';
+            if (size < 1024 * 1024) sizeStr = (size / 1024).toFixed(2) + ' KB';
+            else sizeStr = (size / (1024 * 1024)).toFixed(2) + ' MB';
+
+            sizeDisplay.textContent = sizeStr;
+        }
+
+        function showModal(msg) {
+            document.getElementById('modalMessage').textContent = msg;
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+
+        function appendLog(path, type, status, statusClass = '') {
             const row = document.createElement('div');
-            row.className = 'log-row';
-            row.innerHTML = `
-                <div class="path-col" title="${path}">${path}</div>
-                <div class="contents-col">${contents}</div>
-                <div class="status-col ${statusClass}">${status}</div>
-            `;
+            row.className = 'grid grid-cols-12 gap-4 p-3 log-row items-center animate-slide-in';
+
+            // Path
+            const pathDiv = document.createElement('div');
+            pathDiv.className = 'col-span-6 truncate text-left';
+            pathDiv.title = path;
+            pathDiv.textContent = path;
+
+            // Type
+            const typeDiv = document.createElement('div');
+            typeDiv.className = 'col-span-2 text-center text-xs font-bold uppercase border-2 border-black py-1 w-16 mx-auto';
+            typeDiv.textContent = type;
+
+            // Status
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `col-span-4 text-center font-bold text-sm ${statusClass}`;
+            statusDiv.textContent = status;
+
+            row.appendChild(pathDiv);
+            row.appendChild(typeDiv);
+            row.appendChild(statusDiv);
+
             logOutput.appendChild(row);
+
+            // Keep log clean (limit to 500 entries to save DOM memory)
+            if (logOutput.children.length > 500) {
+                logOutput.removeChild(logOutput.children[0]);
+            }
+
             logOutput.scrollTop = logOutput.scrollHeight;
         }
 
+        function showProgress(text) {
+            progressContainer.classList.remove('hidden');
+            progressText.textContent = text;
+            progressFill.style.width = '0%';
+            progressPercent.textContent = '0%';
+        }
+
+        function hideProgress() {
+            progressContainer.classList.add('hidden');
+        }
+
+        function updateProgress(percent, text) {
+            progressFill.style.width = `${percent}%`;
+            progressPercent.textContent = `${Math.round(percent)}%`;
+            if (text) progressText.textContent = text;
+        }
+
+        // --- Logic: Directory Traversal (The Memory Optimized Way) ---
+
         /**
-         * Extracts all parent folder paths from a file's relative path.
-         * @param {string} filePath - The file's relative path.
-         * @returns {void} Adds paths to the foldersWithContent Set.
+         * Recursively reads directory entries.
+         * Crucial: Stores FileEntry references, not full File Blobs, during the scan phase.
          */
+        function readDirectoryEntry(entry, pathPrefix = '') {
+            return new Promise(async (resolve, reject) => {
+                if (entry.isFile) {
+                    const fullPath = pathPrefix + entry.name;
+
+                    // Store the entry reference. We will read the file blob ONLY during ZIP creation.
+                    fileEntries.push({ entry: entry, path: fullPath });
+
+                    // Estimate size if available (some browsers provide this on entry)
+                    if (entry.size) totalEstimatedSize += entry.size;
+
+                    markParentFolders(fullPath);
+                    resolve();
+                } else if (entry.isDirectory) {
+                    const dirPath = pathPrefix + entry.name + '/';
+                    detectedFolderPaths.add(dirPath);
+
+                    const reader = entry.createReader();
+                    let entries = [];
+
+                    const readAllEntries = () => {
+                        reader.readEntries(async (results) => {
+                            if (!results.length) {
+                                // All entries read. Recurse.
+                                // Using a slight timeout allows the UI to breathe if the folder is huge
+                                const entryPromises = entries.map(childEntry => readDirectoryEntry(childEntry, dirPath));
+                                await Promise.all(entryPromises);
+                                resolve();
+                            } else {
+                                entries = entries.concat(results);
+                                // Prevent UI lockup for massive folders
+                                if (entries.length % 100 === 0) {
+                                    setTimeout(readAllEntries, 0);
+                                } else {
+                                    readAllEntries();
+                                }
+                            }
+                        }, reject);
+                    };
+                    readAllEntries();
+                } else {
+                    resolve();
+                }
+            });
+        }
+
         function markParentFolders(filePath) {
             const parts = filePath.split('/');
             const dirParts = parts.slice(0, -1);
@@ -212,67 +490,12 @@
             }
         }
 
-        // --- Empty Folder Detection Core Logic ---
+        // --- Event Handlers ---
 
-        /**
-         * 🏆 CORE FIX: Recursively traverses the directory entry obtained via drag-and-drop.
-         * This ensures every folder, including empty ones, is recorded in 'detectedFolderPaths'.
-         * @param {FileSystemEntry} entry - The current file system entry (file or directory).
-         * @param {string} pathPrefix - The relative path leading to this entry.
-         * @returns {Promise<void>} Resolves when the entire branch is processed.
-         */
-        function readDirectoryEntry(entry, pathPrefix = '') {
-            return new Promise(async (resolve, reject) => {
-                if (entry.isFile) {
-                    // File: Get the File object and store for later processing/zipping.
-                    entry.file(file => {
-                        const fullPath = pathPrefix + file.name;
-                        filesToProcess.push({ file: file, path: fullPath });
-                        markParentFolders(fullPath); // Mark parent folders as having content
-                        resolve();
-                    }, reject);
-                } else if (entry.isDirectory) {
-                    const dirPath = pathPrefix + entry.name + '/';
-                    detectedFolderPaths.add(dirPath); // Mark the folder itself
-                    
-                    const reader = entry.createReader();
-                    let entries = [];
-
-                    // Function to read all entries from the directory (needed for large directories)
-                    const readAllEntries = () => {
-                        reader.readEntries(async (results) => {
-                            if (!results.length) {
-                                // Base case: all entries read for this directory. Process them.
-                                const entryPromises = entries.map(childEntry => 
-                                    readDirectoryEntry(childEntry, dirPath)
-                                );
-                                await Promise.all(entryPromises);
-                                resolve();
-                            } else {
-                                // Recursive step: more entries exist, read again.
-                                entries = entries.concat(results);
-                                readAllEntries();
-                            }
-                        }, reject);
-                    };
-
-                    readAllEntries();
-                } else {
-                    resolve(); // Ignore other types of entries
-                }
-            });
-        }
-
-        // --- Handler Functions ---
-
-        /**
-         * Primary handler for drag-and-drop. Uses the webkitGetAsEntry API.
-         */
         async function handleDrop(e) {
             e.preventDefault();
             dragArea.classList.remove('active');
             resetState();
-            
             loadingIndicator.classList.remove('hidden');
 
             const items = e.dataTransfer.items;
@@ -281,7 +504,6 @@
                 return;
             }
 
-            // Use the first item that is a file or folder entry
             let itemEntry = null;
             for (let i = 0; i < items.length; i++) {
                 const entry = items[i].webkitGetAsEntry();
@@ -292,7 +514,7 @@
             }
 
             if (!itemEntry || !itemEntry.isDirectory) {
-                appendToLog('Upload Failed', 'N/A', 'ERROR: Drop a single folder.', 'status-empty');
+                showModal('ERROR: Please drop a single folder.');
                 loadingIndicator.classList.add('hidden');
                 return;
             }
@@ -301,201 +523,204 @@
             topLevelName = itemEntry.name;
 
             try {
-                // Read the directory recursively
                 await readDirectoryEntry(itemEntry);
-                
-                folderNameDisplay.querySelector('span').textContent = topLevelName;
-                folderNameDisplay.classList.remove('hidden');
-                fileCountDisplay.textContent = filesToProcess.length;
 
-                appendToLog(`Successfully processed ${topLevelName}/`, 'N/A', 'Ready to Scan (D&D)', 'status-action');
+                // Safety Check
+                const sizeMB = totalEstimatedSize / (1024 * 1024);
+                if (sizeMB > 1024) { // > 1GB warning
+                    showModal(`WARNING: Large folder detected (${sizeMB.toFixed(0)}MB). This may use significant browser memory. Proceed with caution.`);
+                }
+
+                targetName.textContent = topLevelName;
+                folderNameDisplay.classList.remove('hidden');
+                updateStats(fileEntries.length, 0, totalEstimatedSize);
+
+                appendLog(`Loaded: ${topLevelName}/`, 'ROOT', 'SCANNED', 'text-brutal-black');
                 scanButton.disabled = false;
+
             } catch (error) {
-                console.error("Error reading directory entry:", error);
-                appendToLog('Error reading directory structure. See console.', 'N/A', 'FATAL ERROR', 'status-empty');
+                console.error(error);
+                appendLog('Critical Error', 'ERR', error.message, 'text-red-600 font-bold');
             } finally {
                 loadingIndicator.classList.add('hidden');
             }
         }
 
-        /**
-         * Fallback handler for the input element method (cannot detect empty folders).
-         */
         function handleFolderUpload(event) {
             resetState();
             const files = event.target.files;
             if (files.length === 0) return;
 
-            // Display warning for the user
-            appendToLog('⚠️ Input Method Used', 'N/A', 'WARNING', 'status-empty');
-            appendToLog('Empty folders cannot be detected using "Click to Select".', 'N/A', 'Use Drag & Drop instead.', 'status-empty');
-            
-            // Revert to old file-list logic (filesToProcess will only contain files)
-            filesToProcess = Array.from(files).map(file => ({
-                file: file, 
+            // Fallback Warning
+            appendLog('WARNING', 'INFO', 'Using legacy input (Empty folders NOT detected)', 'text-orange-600 font-bold');
+
+            fileEntries = Array.from(files).map(file => ({
+                entry: file, // Note: Input element gives File objects, not Entries
                 path: file.webkitRelativePath
             }));
-            
-            // Get the name of the top-level folder
-            const firstFilePath = filesToProcess[0]?.path;
-            topLevelName = (firstFilePath && firstFilePath.indexOf('/') !== -1) 
-                ? firstFilePath.substring(0, firstFilePath.indexOf('/')) 
-                : "Folder Upload (Limited)";
 
-            folderNameDisplay.querySelector('span').textContent = topLevelName;
+            totalEstimatedSize = Array.from(files).reduce((acc, f) => acc + f.size, 0);
+
+            const firstPath = fileEntries[0]?.path;
+            topLevelName = firstPath ? firstPath.split('/')[0] : "Folder";
+
+            targetName.textContent = topLevelName + " (Limited)";
             folderNameDisplay.classList.remove('hidden');
-            fileCountDisplay.textContent = filesToProcess.length;
+            updateStats(fileEntries.length, 0, totalEstimatedSize);
 
-            appendToLog('Upload complete (limited).', 'N/A', 'Ready to Scan', 'status-action');
             scanButton.disabled = false;
         }
 
-        /**
-         * Scans the collected files and directories to determine which are truly empty.
-         */
+        // --- Logic: Analysis & Zipping ---
+
         function scanForEmptyFolders() {
             scanButton.disabled = true;
             downloadButton.disabled = true;
             logOutput.innerHTML = ''; // Clear log
-            
+
             let emptyFolders = [];
 
-            // 1. If using D&D, all folder paths are in detectedFolderPaths
             if (isDragAndDrop) {
-                // Log all files as kept first (similar to previous version)
-                filesToProcess.forEach(item => {
-                    appendToLog(item.path, 'File', 'Scanned (Kept)', 'status-kept');
+                // 1. Process Files
+                fileEntries.forEach(item => {
+                    appendLog(item.path, 'FILE', 'KEEP', 'text-gray-500');
                 });
-                
-                // Determine empty folders by comparing detected folders vs folders with content
+
+                // 2. Process Folders
                 const sortedFolders = Array.from(detectedFolderPaths).sort();
-                
+
                 sortedFolders.forEach(folderPath => {
                     if (!foldersWithContent.has(folderPath)) {
                         emptyFolders.push(folderPath);
-                        appendToLog(
-                            folderPath, 
-                            'Folder', 
-                            ' EMPTY! (Marked for Deletion) ', 
-                            'status-empty'
-                        );
+                        appendLog(folderPath, 'FOLDER', 'EMPTY (DELETE)', 'text-brutal-accent');
                     } else {
-                        appendToLog(
-                            folderPath, 
-                            'Folder', 
-                            'Scanned (Has Files)', 
-                            'status-folder-kept'
-                        );
+                        // Optional: Don't log non-empty folders to reduce noise, or log as 'HAS FILES'
+                        // appendLog(folderPath, 'FOLDER', 'KEEP', 'text-gray-400'); 
                     }
                 });
 
             } else {
-                 // 2. If using the limited input method, we can only log files.
-                filesToProcess.forEach(item => {
-                    appendToLog(item.path, 'File', 'Scanned (Kept)', 'status-kept');
+                fileEntries.forEach(item => {
+                    appendLog(item.path, 'FILE', 'KEEP', 'text-gray-500');
                 });
-                appendToLog('No empty folder scan performed (limited input).', 'N/A', 'SKIPPED', 'status-empty');
+                appendLog('System Check', 'INFO', 'Skipped folder check (Input Method)', 'text-orange-600');
             }
 
-            // 3. Final summary
-            const filesKept = filesToProcess.length;
-            const foldersRemoved = emptyFolders.length;
+            // Summary
+            appendLog('--- SCAN COMPLETE ---', 'SUM', 'RESULTS', 'font-black border-t-2 border-black pt-2');
+            appendLog(`Files Kept: ${fileEntries.length}`, 'DATA', 'OK', 'text-brutal-green');
+            appendLog(`Empty Folders: ${emptyFolders.length}`, 'DATA', 'FOUND', 'text-brutal-accent');
 
-            appendToLog('--- Scan Summary ---', '', '', 'status-action');
-            appendToLog(`Files to Keep: ${filesKept}`, 'N/A', 'PRESERVED', 'status-kept');
-            appendToLog(`Empty Folders Found: ${foldersRemoved}`, 'N/A', 'TO DELETE', 'status-empty');
-            
-            if (filesKept > 0) {
+            if (fileEntries.length > 0) {
                 downloadButton.disabled = false;
-            } else if (foldersRemoved > 0) {
-                downloadButton.disabled = false;
-                // If only empty folders were detected and marked, the ZIP will be empty but the user can download it.
-            } else {
-                appendToLog('No files or empty folders found.', '', '', 'text-gray-400');
             }
         }
 
-        /**
-         * Creates a ZIP archive using only the files found in the processed list.
-         */
-        async function cleanAndDownloadZip() {
+        function cleanAndDownloadZip() {
             downloadButton.disabled = true;
             scanButton.disabled = true;
-            
-            appendToLog('--- ZIP Generation Starting ---', '', '', 'status-action');
+
+            showProgress('Initializing ZIP Compression...');
 
             const zip = new JSZip();
-            const filesToZip = filesToProcess.length;
-            let filesProcessed = 0;
-            
-            for (const item of filesToProcess) {
-                try {
-                    // Use FileReader to read the file content as binary string
-                    const content = await readFileAsBinaryString(item.file);
-                    zip.file(item.path, content, { binary: true });
-                    filesProcessed++;
-                    
-                    if (filesProcessed % 10 === 0 || filesProcessed === filesToZip) {
-                        appendToLog(`[Progress] Added ${filesProcessed}/${filesToZip} files.`, 'N/A', 'Processing...', 'status-action');
-                    }
-                } catch (error) {
-                    console.error('Error reading file:', item.path, error);
-                    appendToLog(item.path, 'N/A', 'ERROR: Read Failed', 'status-empty');
+            const totalFiles = fileEntries.length;
+            let processedCount = 0;
+
+            // Async Processor to avoid freezing UI
+            const processNextFile = () => {
+                if (processedCount >= totalFiles) {
+                    finalizeZip(zip, topLevelName);
+                    return;
                 }
-            }
 
-            // Generate the final ZIP content
-            appendToLog('Generating final ZIP file...', 'N/A', 'COMPRESSING', 'status-action');
-            const content = await zip.generateAsync({ type: "blob" });
+                const item = fileEntries[processedCount];
+                const percent = (processedCount / totalFiles) * 100;
+                updateProgress(percent, `Zipping: ${item.path}`);
 
-            // Trigger the download
-            const downloadLink = document.createElement('a');
-            downloadLink.href = URL.createObjectURL(content);
-            downloadLink.download = `${topLevelName}_Cleaned.zip`;
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-            
-            appendToLog('--- Download Complete ---', 'N/A', 'SUCCESS', 'status-kept');
-
-            // Re-enable for new operation
-            scanButton.disabled = false; 
-            downloadButton.disabled = false;
-        }
-
-        /**
-         * Reads a file as a binary string (used for accurate ZIP preservation) with exponential backoff.
-         */
-        function readFileAsBinaryString(file, retries = 3) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = (e) => {
-                    if (retries > 0) {
-                        console.warn(`File read failed for ${file.name}. Retrying in ${4000/retries}ms...`);
-                        setTimeout(() => readFileAsBinaryString(file, retries - 1).then(resolve).catch(reject), 4000/retries);
+                // Helper to advance the counter and UI loop
+                const next = (success = true) => {
+                    processedCount++;
+                    // Yield to main thread occasionally
+                    if (processedCount % 50 === 0) {
+                        setTimeout(processNextFile, 0);
                     } else {
-                        reject(e);
+                        processNextFile();
                     }
                 };
-                reader.readAsBinaryString(file);
+
+                // Lazy Load: Convert Entry/File to Blob NOW
+                if (item.entry instanceof File) {
+                    // Standard input file (already a blob)
+                    zip.file(item.path, item.entry, { binary: true });
+                    next();
+                } else {
+                    // Drag & Drop entry (needs conversion)
+                    item.entry.file(file => {
+                        zip.file(item.path, file, { binary: true });
+                        next();
+                    }, err => {
+                        console.error(err);
+                        appendLog(item.path, 'ERR', 'Read Failed', 'text-red-600');
+                        next(false);
+                    });
+                }
+            };
+
+            // Start processing queue
+            processNextFile();
+        }
+
+        function finalizeZip(zip, folderName) {
+            updateProgress(100, 'Generating Final Archive...');
+
+            zip.generateAsync({ type: "blob" }, (metadata) => {
+                if (metadata.percent) {
+                    updateProgress(metadata.percent, 'Compressing...');
+                }
+            }).then(content => {
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${folderName}_cleaned.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                appendLog('DOWNLOAD STARTED', 'ZIP', 'SUCCESS', 'text-brutal-green text-xl');
+                hideProgress();
+
+                scanButton.disabled = false;
+                downloadButton.disabled = false;
+            }).catch(err => {
+                showModal('ZIP Generation Failed: ' + err.message);
+                hideProgress();
+                scanButton.disabled = false;
+                downloadButton.disabled = false;
             });
         }
 
-        // --- Drag and Drop Event Listeners ---
-        const dragArea = document.getElementById('drag-drop-area');
-        dragArea.addEventListener('dragover', (e) => {
+        // --- Drag & Drop Listeners ---
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dragArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
             e.preventDefault();
-            dragArea.classList.add('active');
-        });
+            e.stopPropagation();
+        }
 
-        dragArea.addEventListener('dragleave', () => {
-            dragArea.classList.remove('active');
+        dragArea.addEventListener('dragenter', () => dragArea.classList.add('active'));
+        dragArea.addEventListener('dragover', () => dragArea.classList.add('active'));
+        dragArea.addEventListener('dragleave', (e) => {
+            // Only remove if we actually left the container
+            if (!dragArea.contains(e.relatedTarget)) {
+                dragArea.classList.remove('active');
+            }
         });
-
         dragArea.addEventListener('drop', handleDrop);
-        
-    </script>
 
+    </script>
 </body>
+
 </html>

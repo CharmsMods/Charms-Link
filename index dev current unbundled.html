@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charm? - World • Color • Passion</title>
+    <link rel="icon" type="image/png" href="pfp.png">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="loader.css">
+</head>
+
+<body>
+    <div id="cursor"></div>
+    <!-- Startup Overlay -->
+    <div id="startupOverlay" class="startup-overlay">
+        <div id="startupLoader" class="loader-container">
+            <div class="loader">
+                <span class="loader-text">loading</span>
+                <span class="load"></span>
+            </div>
+        </div>
+        <div class="startup-image-container">
+            <img id="startupImage" class="startup-image" src="" alt="">
+        </div>
+        <div id="startupText" class="startup-text">Welcome to a New World</div>
+    </div>
+
+    <!-- Fixed Social Bar -->
+    <div class="social-bar" id="socialBar">
+        <div class="social-links-vertical">
+            <a href="https://discord.com/users/1198452446456983605" target="_blank" rel="noopener noreferrer"
+                class="social-icon" aria-label="Discord">
+                <svg viewBox="0 0 127.14 96.36" fill="currentColor">
+                    <path
+                        d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.86.66,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+                </svg>
+            </a>
+            <a href="https://www.youtube.com/channel/UC6FGVP7ft-zfwfyVVRtbMCA" target="_blank" rel="noopener noreferrer"
+                class="social-icon" aria-label="YouTube">
+                <svg viewBox="0 0 576 512" fill="currentColor">
+                    <path
+                        d="M549.7 124.1c-6.3-23.7-24.8-42.3-48.3-48.6C458.8 64 288 64 288 64S117.2 64 74.6 75.5c-23.5 6.3-42 24.9-48.3 48.6-11.4 42.9-11.4 132.3-11.4 132.3s0 89.4 11.4 132.3c6.3 23.7 24.8 41.5 48.3 47.8C117.2 448 288 448 288 448s170.8 0 213.4-11.5c23.5-6.3 42-24.2 48.3-47.8 11.4-42.9 11.4-132.3 11.4-132.3s0-89.4-11.4-132.3zm-317.5 213.5V175.2l142.7 81.2-142.7 81.2z" />
+                </svg>
+            </a>
+            <a href="https://www.twitch.tv/xxcharmxxx" target="_blank" rel="noopener noreferrer" class="social-icon"
+                aria-label="Twitch">
+                <svg viewBox="0 0 512 512" fill="currentColor">
+                    <path
+                        d="M391.2,103.5H352.5v109.7h38.6zM285,103H246.2V212.8H285ZM120.8,0,24.8,91.9V420H141.4V512l96.1-92h73.6l155.3-155.1V0ZM449.1,237.2l-40.4,40.5H340.3l-67.2,67.2v-67.2H202.3V37.9H449.1Z" />
+                </svg>
+            </a>
+            <a href="https://www.instagram.com/itscharmfr?igsh=MTAwMDBobjFxazlkYQ==" target="_blank"
+                rel="noopener noreferrer" class="social-icon" aria-label="Instagram">
+                <svg viewBox="0 0 448 512" fill="currentColor">
+                    <path
+                        d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7-29.5 9-99.5 9-132.1s2.7 102.7-9 132.1z" />
+                </svg>
+            </a>
+        </div>
+    </div>
+
+    <main class="main-container">
+        <!-- Hero Section -->
+        <section class="hero-section" id="hero">
+            <div class="hero-content">
+                <!-- Profile Header -->
+                <div class="profile-header">
+                    <div class="profile-avatar">
+                        <img src="pfp.png" alt="Charm? Profile Picture" class="profile-pfp">
+                    </div>
+                    <div class="profile-text">
+                        <h1 class="main-title">CHARM?</h1>
+                        <p class="subtitle">World • Color • Passion</p>
+                    </div>
+                </div>
+
+                <!-- Project Grid -->
+                <div class="project-grid">
+                    <a href="Image Tools Landing/Current/index.html" target="_blank" rel="noopener noreferrer"
+                        class="project-card" style="background-color: #e07a5f;">
+                        <div class="project-image">
+                            <span class="project-letter">I</span>
+                        </div>
+                        <div class="project-info">
+                            <h3 class="project-title">Image Tools</h3>
+                            <p class="project-desc">Powerful image manipulation tools</p>
+                        </div>
+                    </a>
+
+                    <a href="Charms Web Tools/image-converter.html" target="_blank" rel="noopener noreferrer"
+                        class="project-card" style="background-color: #3d405b;">
+                        <div class="project-image">
+                            <span class="project-letter">C</span>
+                        </div>
+                        <div class="project-info">
+                            <h3 class="project-title">Converter</h3>
+                            <p class="project-desc">Multi Folder/File Image Converter</p>
+                        </div>
+                    </a>
+
+                    <a href="Charms Web Tools/Site Bundler/Current Bundler/bundler gem.html" target="_blank"
+                        rel="noopener noreferrer" class="project-card" style="background-color: #81b29a;">
+                        <div class="project-image">
+                            <span class="project-letter">H</span>
+                        </div>
+                        <div class="project-info">
+                            <h3 class="project-title">HTML/CSS/JS/Image Bundler</h3>
+                            <p class="project-desc">Bundle your web assets efficiently</p>
+                        </div>
+                    </a>
+
+                    <a href="Charms Web Tools/Charms Web Tools.html" target="_blank" rel="noopener noreferrer"
+                        class="project-card" style="background-color: #f2cc8f;">
+                        <div class="project-image">
+                            <span class="project-letter">O</span>
+                        </div>
+                        <div class="project-info">
+                            <h3 class="project-title">Other Powerful Tools</h3>
+                            <p class="project-desc">Explore more useful tools</p>
+                        </div>
+                    </a>
+
+                    <a href="https://charmsmods.github.io/Charms-Main-Site/" target="_blank" rel="noopener noreferrer"
+                        class="project-card" style="background-color: #d62828;">
+                        <div class="project-image">
+                            <span class="project-letter">V</span>
+                        </div>
+                        <div class="project-info">
+                            <h3 class="project-title">Venge Modding</h3>
+                            <p class="project-desc">Venge Modding Hub</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Scroll Indicator -->
+            <button class="scroll-indicator" onclick="scrollToBio()" aria-label="Scroll to bio">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"
+                    stroke-linejoin="miter">
+                    <path d="M19 9L12 16L5 9" />
+                </svg>
+            </button>
+        </section>
+
+        <!-- Bio Section -->
+        <section class="bio-section" id="bio">
+            <div class="bio-content">
+                <h2 class="bio-title">About Me</h2>
+
+                <div class="bio-text">
+                    <p>Hey, I'm <span class="highlight">Darynn</span>, but I go by <span class="highlight">Charm?</span>
+                        online. You might have seen me on <span class="highlight">YouTube</span> playing some games or
+                        making edits of those games.</p>
+
+                    <div class="bio-image-container">
+                        <img src="2nd Section Images/vengeio.png" alt="Venge.io Gameplay" class="bio-image">
+                    </div>
+
+                    <p>My journey started around a year ago when I discovered <span class="bordered">Venge.io</span>, a
+                        niche browser shooter game with a <span class="bordered">Discord server</span>. For most of the
+                        time in my life that I've had
+                        a PC, I've been extremely passionate about <span class="bordered">shooter games</span>, and when
+                        I found Venge.io, I fell in
+                        love with the community and the game.</p>
+
+                    <p>I contributed to the community by making the only website for <span class="bordered">automatic
+                            modding</span> of the game,
+                        where you could upload assets and textures, or make them on the site and export them as a mod,
+                        compatible with both browser and client at the same time! I also made several of my own mods, a
+                        few of which have become <span class="highlight">community favorites</span>.</p>
+
+                    <div class="bio-image-container">
+                        <img src="2nd Section Images/finals.png" alt="The Finals Gameplay" class="bio-image">
+                    </div>
+
+                    <p>After a while, I moved on from consistently playing Venge and began trying other shooter games,
+                        while still contributing to the community and maintaining my site. Recently, I have immensely
+                        enjoyed playing two games: <span class="highlight">The FINALS</span> and <span
+                            class="highlight">Banana Shooter</span>. These games have kept me busy over the past few
+                        weeks as I hope to become skilled at a <span class="bordered">competitive level</span> in The
+                        Finals.</p>
+
+                    <p>Meanwhile, while playing shooter games, I have begun to grow an online community through <span
+                            class="highlight">YouTube</span>,
+                        <span class="highlight">Instagram</span>, <span class="highlight">Discord</span>, and more
+                        recently, <span class="highlight">Twitch</span>. I currently balance playing shooter games,
+                        making
+                        updates to this website, and creating content on YouTube and posting to Instagram.
+                    </p>
+
+                    <p>Over the past 6 months, I have created this entire complex of websites for you to enjoy as much
+                        as you want. I have a strong passion for all things <span class="highlight">visual</span>, so
+                        the tools I create are dedicated
+                        to providing you with the highest-quality output at a simple control level, compared to
+                        something paid or a sketchy site online (this isn't one, I promise).</p>
+
+
+                    <div class="bio-image-container">
+                        <img src="2nd Section Images/me.png" alt="New Image" class="bio-image">
+                    </div>
+
+
+                    <div class="cta-box">
+                        <span>Please feel free to explore!</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <p>© 2026 Charm? — Built with Passion</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

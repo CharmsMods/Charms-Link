@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CHAMRS TOOLS // INDEX</title>
-    
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap"
+        rel="stylesheet">
 
     <style>
         /* 
@@ -39,7 +42,8 @@
             transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
 
-        body, html {
+        body,
+        html {
             height: 100%;
             font-family: 'Space Mono', monospace;
             color: var(--ink);
@@ -47,13 +51,54 @@
             background-color: var(--bg-cream);
         }
 
+        /* 1. Hide the default browser cursor everywhere */
+        * {
+            cursor: none !important;
+        }
+
+        /* 2. Style the custom cursor element */
+        #cursor {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 20px;
+            height: 20px;
+            background: #d47449;
+            /* Solid rust color */
+            border: 2px solid #fff;
+            /* White border for contrast */
+            border-radius: 50%;
+            transform: translate3d(-50%, -50%, 0);
+            /* Centers the div on coordinates */
+            pointer-events: none;
+            /* Allows clicks to pass through */
+            z-index: 10001;
+            transition: width 0.1s, height 0.1s, background 0.2s;
+            /* Smooth expansion */
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        /* 3. Style for when the cursor is hovering over interactive elements */
+        #cursor.hovered {
+            width: 50px;
+            height: 50px;
+            background: #d47449;
+            border: none;
+        }
+
         /* Thick Viewport Frame */
         body {
             border: 25px solid var(--ink);
             position: relative;
+            cursor: none !important;
         }
 
-        h1, h2, h3, .label-brutal {
+        h1,
+        h2,
+        h3,
+        .label-brutal {
             font-family: 'Space Grotesk', sans-serif;
             text-transform: uppercase;
             font-weight: 700;
@@ -75,17 +120,20 @@
             z-index: -1;
             opacity: 1;
             /* Technical Grid Pattern */
-            background-image: 
+            background-image:
                 linear-gradient(var(--ink) 1px, transparent 1px),
                 linear-gradient(90deg, var(--ink) 1px, transparent 1px);
             background-size: 40px 40px;
             background-color: var(--bg-cream);
         }
-        
+
         #background-overlay::after {
             content: "";
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background: radial-gradient(circle at center, transparent 0%, var(--bg-cream) 90%);
             opacity: 0.7;
         }
@@ -121,7 +169,8 @@
         }
 
         /* Decorative Corner Markers */
-        .header-container::before, .header-container::after {
+        .header-container::before,
+        .header-container::after {
             content: '';
             position: absolute;
             width: 10px;
@@ -129,8 +178,16 @@
             background: var(--accent-red);
             border: 2px solid var(--ink);
         }
-        .header-container::before { top: -6px; left: -6px; }
-        .header-container::after { bottom: -6px; right: -6px; }
+
+        .header-container::before {
+            top: -6px;
+            left: -6px;
+        }
+
+        .header-container::after {
+            bottom: -6px;
+            right: -6px;
+        }
 
         .header-container p {
             font-size: 0.75rem;
@@ -168,7 +225,7 @@
         }
 
         .search-bar::placeholder {
-            color: rgba(0,0,0,0.4);
+            color: rgba(0, 0, 0, 0.4);
             text-transform: uppercase;
         }
 
@@ -181,7 +238,8 @@
             display: grid;
             /* Responsive Grid Logic */
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 2rem; /* Thick gaps for brutalist feel */
+            gap: 2rem;
+            /* Thick gaps for brutalist feel */
             max-width: 1200px;
             width: 100%;
         }
@@ -201,9 +259,11 @@
             text-align: center;
             text-decoration: none;
             color: var(--ink);
-            height: 180px; /* Fixed height for uniformity */
+            height: 180px;
+            /* Fixed height for uniformity */
             padding: 1.5rem;
-            overflow: hidden; /* Critical for shutter effect */
+            overflow: hidden;
+            /* Critical for shutter effect */
             cursor: pointer;
             transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.2s;
             box-shadow: 4px 4px 0px var(--ink);
@@ -215,7 +275,7 @@
             background: #fff;
             border-color: var(--ink);
         }
-        
+
         .tool-box:active {
             transform: translate(2px, 2px);
             box-shadow: 0px 0px 0px var(--ink);
@@ -251,13 +311,15 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: var(--ink); /* High contrast overlay */
+            background: var(--ink);
+            /* High contrast overlay */
             color: var(--bg-cream);
             padding: 1.5rem;
             z-index: 5;
-            
+
             /* Animation States */
-            transform: translateY(100%); /* Hidden below the card */
+            transform: translateY(100%);
+            /* Hidden below the card */
             transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             pointer-events: none;
         }
@@ -267,7 +329,7 @@
             transform: translateY(0);
             pointer-events: auto;
         }
-        
+
         .info-popup h2 {
             font-size: 1.2rem;
             margin-bottom: 1rem;
@@ -322,17 +384,19 @@
          * ──────────────────────────────────────────────
          */
         @media (max-width: 768px) {
-            body { border-width: 10px; }
-            
+            body {
+                border-width: 10px;
+            }
+
             .tools-container {
                 grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
                 gap: 1rem;
             }
-            
+
             .tool-box {
                 height: 140px;
             }
-            
+
             .tool-box h2 {
                 font-size: 1.1rem;
             }
@@ -344,34 +408,37 @@
         }
     </style>
 </head>
-<body>
 
-        <!--
+<body>
+    <div id="cursor"></div>
+
+    <!--
             ──────────────────────────────────────────────
             GRID BACKGROUND (Pure CSS, no images required)
             ──────────────────────────────────────────────
         -->
-        <div id="background-overlay"></div>
+    <div id="background-overlay"></div>
 
-        <!--
+    <!--
             ──────────────────────────────────────────────
             MAIN CONTENT WRAPPER
             ──────────────────────────────────────────────
         -->
-        <div class="content-wrapper">
-                <div class="header-container">
-                        <!--
+    <div class="content-wrapper">
+        <div class="header-container">
+            <!--
                             SEARCH BAR
                         -->
-                        <input type="text" id="searchInput" class="search-bar" placeholder="> SEARCH DATABASE..." autocomplete="off">
-                        <p>/// ALL COMPUTATION IS DONE LOCALLY ///</p>
-                </div>
+            <input type="text" id="searchInput" class="search-bar" placeholder="> SEARCH DATABASE..."
+                autocomplete="off">
+            <p>/// ALL COMPUTATION IS DONE LOCALLY ///</p>
+        </div>
 
-                <!--
+        <!--
                     TOOLS GRID
                     Note: IDs and Classes preserved for JS compatibility
                 -->
-                <div class="tools-container">
+        <div class="tools-container">
 
             <!-- PRIMARY TOOLS -->
             <a href="./image%20border%20sizer.html" class="tool-box" data-id="border-sizer">
@@ -422,15 +489,15 @@
                 </div>
             </a>
 
-         
 
-                        <!--
+
+            <!--
                             BRUTALIST SEPARATOR
                         -->
             <div class="separator-line">
                 <div class="section-label">Secondary Modules</div>
             </div>
-            
+
             <!-- SECONDARY TOOLS -->
             <a href="./File%20Encryptor/index.html" class="tool-box secondary-tool" data-id="file-encryptor">
                 <h2>File Encryptor</h2>
@@ -521,7 +588,7 @@
                 const searchTerm = e.target.value.toLowerCase();
                 toolBoxes.forEach(box => {
                     // Check all text content
-                    const title = box.textContent.toLowerCase(); 
+                    const title = box.textContent.toLowerCase();
                     if (searchTerm === '' || title.includes(searchTerm)) {
                         box.style.display = 'flex';
                     } else {
@@ -548,12 +615,12 @@
                         box.classList.remove('is-hovering');
                     }
                 });
-                
+
                 // --- MOBILE/TOUCH LOGIC ---
                 box.addEventListener('touchstart', (e) => {
-                    e.preventDefault(); 
+                    e.preventDefault();
                     if (currentActiveBox === box) {
-                        return; 
+                        return;
                     }
                     if (isTouchDevice()) {
                         if (currentActiveBox && currentActiveBox !== box) {
@@ -567,7 +634,7 @@
                 box.addEventListener('click', (e) => {
                     if (isTouchDevice() && box.classList.contains('is-hovering')) {
                         if (currentActiveBox === box) {
-                            return true; 
+                            return true;
                         } else {
                             e.preventDefault();
                             e.stopPropagation();
@@ -575,7 +642,7 @@
                     }
                 });
             });
-            
+
             // Global click listener: hide popup if clicking outside
             document.addEventListener('click', (e) => {
                 if (isTouchDevice() && currentActiveBox) {
@@ -585,8 +652,34 @@
                     }
                 }
             });
+
+            // --- CUSTOM CURSOR LOGIC ---
+            const cursor = document.getElementById('cursor');
+
+            if (cursor) {
+                // Track mouse movement
+                document.addEventListener('mousemove', (e) => {
+                    cursor.style.transform = `translate3d(calc(${e.clientX}px - 50%), calc(${e.clientY}px - 50%), 0)`;
+                });
+
+                // Handle hover states for interactive elements
+                const interactiveElements = 'a, button, .tool-box, .search-bar';
+
+                document.addEventListener('mouseover', (e) => {
+                    if (e.target.closest(interactiveElements)) {
+                        cursor.classList.add('hovered');
+                    }
+                });
+
+                document.addEventListener('mouseout', (e) => {
+                    if (e.target.closest(interactiveElements)) {
+                        cursor.classList.remove('hovered');
+                    }
+                });
+            }
         });
     </script>
 
 </body>
+
 </html>

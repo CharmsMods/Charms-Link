@@ -31,7 +31,39 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            cursor: crosshair;
+            cursor: none !important;
+        }
+
+        /* 1. Hide the default browser cursor everywhere */
+        * {
+            cursor: none !important;
+        }
+
+        /* 2. Style the custom cursor element */
+        #cursor {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 25px;
+            height: 25px;
+            background: #fff;
+            mix-blend-mode: difference;
+            transform: translate3d(-50%, -50%, 0);
+            /* Centers the div on coordinates */
+            pointer-events: none;
+            /* Allows clicks to pass through */
+            z-index: 10001;
+            transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1), height 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            /* Smooth expansion */
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        /* 3. Style for when hovering over interactive elements */
+        #cursor.hovered {
+            width: 50px;
+            height: 50px;
         }
 
         body {
@@ -281,6 +313,7 @@
 </head>
 
 <body>
+    <div id="cursor"></div>
 
     <!-- Image Layers (Background) -->
     <div class="bg-container">
@@ -542,6 +575,31 @@
             requestAnimationFrame(animate);
         }
         requestAnimationFrame(animate);
+
+        // --- CUSTOM CURSOR LOGIC ---
+        const cursor = document.getElementById('cursor');
+
+        if (cursor) {
+            // Track mouse movement
+            document.addEventListener('mousemove', (e) => {
+                cursor.style.transform = `translate3d(calc(${e.clientX}px - 50%), calc(${e.clientY}px - 50%), 0)`;
+            });
+
+            // Handle hover states for interactive elements
+            const interactiveElements = 'a, button, .card, .brand-title';
+
+            document.addEventListener('mouseover', (e) => {
+                if (e.target.closest(interactiveElements)) {
+                    cursor.classList.add('hovered');
+                }
+            });
+
+            document.addEventListener('mouseout', (e) => {
+                if (e.target.closest(interactiveElements)) {
+                    cursor.classList.remove('hovered');
+                }
+            });
+        }
 
     </script>
 </body>
