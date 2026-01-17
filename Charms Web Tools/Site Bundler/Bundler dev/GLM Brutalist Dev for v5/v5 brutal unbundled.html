@@ -108,6 +108,16 @@
       border-left: 4px solid transparent;
       background: rgba(255, 255, 255, 0.4);
       border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      transition: all 0.2s;
+    }
+
+    .asset-item:hover .asset-controls {
+      opacity: 1;
+    }
+
+    .asset-controls {
+      opacity: 0;
+      transition: opacity 0.2s;
     }
 
     .asset-item:hover {
@@ -229,7 +239,7 @@
       <div>
         <div class="flex items-center gap-4 mb-2">
           <div class="bg-[#121212] text-[#F0F0EB] px-2 py-1 text-xs font-bold font-mono uppercase tracking-widest">
-            v2.0.0</div>
+            v2.1.0</div>
           <div class="h-[2px] flex-1 bg-[#121212]"></div>
         </div>
         <h1 class="text-4xl md:text-6xl font-bold uppercase tracking-tighter leading-none">
@@ -237,12 +247,24 @@
           <span class="text-[#FF3366]">Minifier</span> & Bundler
         </h1>
       </div>
-      <div class="max-w-xs">
-        <p class="text-sm font-mono leading-relaxed border-l-2 border-[#121212] pl-3">
-          // High-performance frontend pipeline.<br>
-          // Supports bulk imports, Base64 inlining, & safe mutation.<br>
-          // Drag & drop files to begin.
-        </p>
+      <div class="max-w-xs flex flex-col items-end gap-2">
+        <div class="flex gap-2">
+          <button id="importProjectBtn"
+            class="bg-[#121212] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-2 hover:bg-[#58CC02] transition-colors flex items-center gap-2"
+            title="Import Project JSON">
+            <span>📂</span> OPEN
+          </button>
+          <button id="exportProjectBtn"
+            class="bg-[#121212] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-2 hover:bg-[#FF3366] transition-colors flex items-center gap-2"
+            title="Export Project JSON">
+            <span>💾</span> SAVE
+          </button>
+          <input type="file" id="projectInput" accept=".json" class="hidden">
+        </div>
+        <button id="openHelp"
+          class="text-[10px] font-bold uppercase tracking-widest border-[2px] border-[#121212] px-3 py-1 hover:bg-[#121212] hover:text-white transition-all">
+          [?] HOW TO USE
+        </button>
       </div>
     </div>
   </header>
@@ -358,29 +380,66 @@
       <section id="output" class="tab-content hidden p-6 md:p-10 flex flex-col h-full gap-8">
 
         <!-- Config Bar -->
-        <div
-          class="flex flex-wrap items-end gap-6 p-6 bg-[#F8F8F3] border-[3px] border-[#121212] shadow-[6px_6px_0_#121212]">
-          <div class="flex flex-col gap-2">
-            <label class="text-[10px] font-bold uppercase tracking-widest text-[#666]">Build Configuration</label>
-            <div class="relative">
-              <select id="mode"
-                class="brutal-input px-4 py-3 text-sm font-bold appearance-none pr-10 cursor-pointer w-64">
-                <option value="inline">Single HTML Bundle (Inline)</option>
-                <option value="separate">Multi-file Minification</option>
-              </select>
-              <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none font-bold">▼</div>
+        <div class="flex flex-col gap-6 p-6 bg-[#F8F8F3] border-[3px] border-[#121212] shadow-[6px_6px_0_#121212]">
+
+          <!-- Row 1: Mode & Build -->
+          <div class="flex flex-wrap items-end justify-between gap-4">
+            <div class="flex flex-col gap-2">
+              <label class="text-[10px] font-bold uppercase tracking-widest text-[#666]">Build Mode</label>
+              <div class="relative">
+                <select id="mode"
+                  class="brutal-input px-4 py-3 text-sm font-bold appearance-none pr-10 cursor-pointer w-64">
+                  <option value="inline">Single HTML Bundle (Inline)</option>
+                  <option value="separate">Multi-file Minification</option>
+                </select>
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none font-bold">▼</div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+              <div id="build-status" class="hidden text-[#FF3366] font-bold font-mono text-sm uppercase animate-pulse">
+                // OPTIMIZING...
+              </div>
+              <button id="build"
+                class="bg-[#121212] hover:bg-[#FF3366] text-white text-sm font-black py-4 px-12 uppercase tracking-widest shadow-[4px_4px_0_#FF3366] hover:shadow-[6px_6px_0_#FF3366] hover:translate-x-[-2px] hover:translate-y-[-2px] transition-all flex items-center gap-2">
+                <span id="buildIcon">⚡</span> Run Build
+              </button>
             </div>
           </div>
 
-          <div class="flex-1"></div>
+          <!-- Row 2: Advanced Options -->
+          <div class="pt-4 border-t border-[#ccc] grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Toggles -->
+            <div class="flex flex-col gap-3">
+              <label class="text-[10px] font-bold uppercase tracking-widest text-[#666]">Optimization</label>
+              <div class="flex items-center gap-4">
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" id="optMinify" checked class="w-4 h-4 accent-[#FF3366]">
+                  <span class="text-xs font-mono font-bold">Enable Minification</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" id="optComments" checked class="w-4 h-4 accent-[#FF3366]">
+                  <span class="text-xs font-mono font-bold">Remove Comments</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" id="optConsole" checked class="w-4 h-4 accent-[#FF3366]">
+                  <span class="text-xs font-mono font-bold">Drop Console</span>
+                </label>
+              </div>
+            </div>
 
-          <button id="build"
-            class="bg-[#121212] hover:bg-[#FF3366] text-white text-sm font-black py-4 px-12 uppercase tracking-widest shadow-[4px_4px_0_#FF3366] hover:shadow-[6px_6px_0_#FF3366] hover:translate-x-[-2px] hover:translate-y-[-2px] transition-all flex items-center gap-2">
-            <span id="buildIcon">⚡</span> Run Build
-          </button>
-          <div id="build-status"
-            class="hidden text-[#FF3366] font-bold font-mono text-sm uppercase self-center mb-1 animate-pulse">
-            // OPTIMIZING...
+            <!-- Filenames -->
+            <div class="flex flex-col gap-3">
+              <label class="text-[10px] font-bold uppercase tracking-widest text-[#666]">Change Target Filenames</label>
+              <div class="flex gap-2">
+                <input id="outNameH" class="brutal-input p-2 text-xs w-full" placeholder="index.min.html"
+                  value="index.min.html">
+                <input id="outNameC" class="brutal-input p-2 text-xs w-full" placeholder="styles.min.css"
+                  value="styles.min.css">
+                <input id="outNameJ" class="brutal-input p-2 text-xs w-full" placeholder="scripts.min.js"
+                  value="scripts.min.js">
+              </div>
+            </div>
           </div>
         </div>
 
@@ -390,13 +449,20 @@
             <div class="border-[3px] border-[#121212] h-[400px] bg-white shadow-[4px_4px_0_#121212] flex flex-col">
               <div class="bg-[#121212] text-white px-4 py-2 text-xs font-mono flex justify-between items-center">
                 <span>LIVE PREVIEW</span>
-                <button id="togglePreview"
-                  class="hover:text-[#FF3366] transition-colors text-[10px] border border-[#555] px-2 py-0.5">TOGGLE</button>
+                <div class="flex items-center gap-2">
+                  <button id="openNewTab"
+                    class="hover:text-[#58CC02] transition-colors text-[10px] border border-[#555] px-2 py-0.5">NEW
+                    TAB</button>
+                  <button id="togglePreview"
+                    class="hover:text-[#FF3366] transition-colors text-[10px] border border-[#555] px-2 py-0.5">TOGGLE
+                    PREVIEW</button>
+                </div>
               </div>
               <div id="previewBox" class="flex-1 overflow-hidden bg-white relative">
                 <iframe id="previewFrame" class="w-full h-full border-none"></iframe>
               </div>
             </div>
+
           </div>
 
           <!-- Right Column: Downloads -->
@@ -404,25 +470,25 @@
             <h3 class="text-xs font-black uppercase border-b-2 border-[#121212] pb-1 mb-4">Output Artifacts</h3>
 
             <button id="downH"
-              class="w-full group text-left p-4 border-[3px] border-[#121212] bg-white hover:bg-[#121212] hover:text-white transition-all">
+              class="w-full group text-left p-4 border-[3px] border-[#121212] bg-white hover:bg-[#121212] hover:text-white transition-all hidden">
               <div class="flex justify-between items-center">
-                <span class="font-bold font-mono text-sm">index.min.html</span>
+                <span id="lblH" class="font-bold font-mono text-sm">index.min.html</span>
                 <span class="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↓</span>
               </div>
             </button>
 
             <button id="downC"
-              class="w-full group text-left p-4 border-[3px] border-[#121212] bg-white hover:bg-[#121212] hover:text-white transition-all">
+              class="w-full group text-left p-4 border-[3px] border-[#121212] bg-white hover:bg-[#121212] hover:text-white transition-all hidden">
               <div class="flex justify-between items-center">
-                <span class="font-bold font-mono text-sm">styles.min.css</span>
+                <span id="lblC" class="font-bold font-mono text-sm">styles.min.css</span>
                 <span class="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↓</span>
               </div>
             </button>
 
             <button id="downJ"
-              class="w-full group text-left p-4 border-[3px] border-[#121212] bg-white hover:bg-[#121212] hover:text-white transition-all">
+              class="w-full group text-left p-4 border-[3px] border-[#121212] bg-white hover:bg-[#121212] hover:text-white transition-all hidden">
               <div class="flex justify-between items-center">
-                <span class="font-bold font-mono text-sm">scripts.min.js</span>
+                <span id="lblJ" class="font-bold font-mono text-sm">scripts.min.js</span>
                 <span class="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↓</span>
               </div>
             </button>
@@ -432,6 +498,40 @@
                 class="w-full bg-[#FF3366] text-white font-black uppercase text-xs py-4 shadow-[4px_4px_0_#121212] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all">
                 Download Bundle
               </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diff View Container -->
+        <div id="diffContainer"
+          class="border-[3px] border-[#121212] bg-white shadow-[4px_4px_0_#121212] flex flex-col mt-6 w-[95vw] relative left-1/2 -translate-x-1/2">
+          <div class="bg-[#121212] text-white px-4 py-2 text-xs font-mono flex justify-between items-center">
+            <span>CODE DIFFERENCE</span>
+            <div class="flex items-center gap-3">
+              <label class="flex items-center gap-1 cursor-pointer select-none">
+                <input type="checkbox" id="diffCollapseBase64" checked class="w-3 h-3 accent-[#FF3366]">
+                <span class="text-[10px]">COLLAPSE BASE64</span>
+              </label>
+              <label class="flex items-center gap-1 cursor-pointer select-none">
+                <input type="checkbox" id="diffWrap" checked class="w-3 h-3 accent-[#FF3366]">
+                <span class="text-[10px]">WRAP TEXT</span>
+              </label>
+            </div>
+          </div>
+          <div class="flex-1 flex flex-col md:flex-row h-[600px] border-t border-[#333]">
+            <!-- OriginalPane -->
+            <div class="flex-1 min-w-0 flex flex-col border-b md:border-b-0 md:border-r border-[#333]">
+              <div class="bg-[#eee] px-2 py-1 text-[10px] font-bold text-[#555] uppercase border-b border-[#ccc]">
+                Original (Combined)</div>
+              <pre id="diffOriginal"
+                class="flex-1 p-4 font-mono text-xs overflow-auto text-[#444] leading-relaxed whitespace-pre-wrap"></pre>
+            </div>
+            <!-- OutputPane -->
+            <div class="flex-1 min-w-0 flex flex-col">
+              <div class="bg-[#eee] px-2 py-1 text-[10px] font-bold text-[#555] uppercase border-b border-[#ccc]">
+                Build Output</div>
+              <pre id="diffOutput"
+                class="flex-1 p-4 font-mono text-xs overflow-auto text-[#444] leading-relaxed whitespace-pre-wrap"></pre>
             </div>
           </div>
         </div>
@@ -494,14 +594,54 @@
     </div>
   </div>
 
+  <!-- HELP MODAL -->
+  <div id="helpModalOverlay" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+    <div class="modal-content w-full max-w-2xl max-h-[85vh] flex flex-col">
+      <div class="p-6 border-b-[3px] border-[#121212] bg-[#F8F8F3] flex justify-between items-start">
+        <h2 class="text-2xl font-black uppercase tracking-tighter">System Manual</h2>
+        <button id="closeHelp" class="text-xl font-bold hover:text-[#FF3366]">✕</button>
+      </div>
+      <div class="p-8 overflow-y-auto space-y-6 font-mono text-sm">
+        <div>
+          <h3 class="font-bold text-[#FF3366] uppercase mb-2">> 1. Asset Order Matters</h3>
+          <p class="text-[#555]">
+            Files are processed in the order shown in the Workspace list.
+            <br>- <strong>CSS:</strong> Lower files can override earlier ones.
+            <br>- <strong>JS:</strong> Dependencies must appear <em>before</em> the scripts that use them.
+            <br>Use the <span class="bg-[#121212] text-white px-1 text-xs">↑</span> <span
+              class="bg-[#121212] text-white px-1 text-xs">↓</span> arrows to reorder.
+          </p>
+        </div>
+        <div>
+          <h3 class="font-bold text-[#FF3366] uppercase mb-2">> 2. Entry Point</h3>
+          <p class="text-[#555]">
+            The <strong>FIRST</strong> HTML file in the list is treated as the "Entry Point".
+            <br>All other content (CSS, JS, inlined images) is injected into this file.
+          </p>
+        </div>
+        <div>
+          <h3 class="font-bold text-[#FF3366] uppercase mb-2">> 3. Protected Build</h3>
+          <p class="text-[#555]">
+            Unused images are detected automatically. You will be asked to confirm their deletion before building to
+            keep bundle size small.
+            <br><strong>Note:</strong> JS minification is performed safely without mutating variable names that might
+            reference DOM elements.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { minify as minifyHTML } from "https://esm.sh/html-minifier-terser";
     import CleanCSS from "https://esm.sh/clean-css";
     import { minify as minifyJS } from "https://esm.sh/terser";
+    import * as Diff from "https://esm.sh/diff";
 
     let assets = [];
     let activeAssetId = null;
     let outputs = { html: "", css: "", js: "" };
+    let originalCombined = "";
 
     // UI Elements
     const logBox = document.getElementById("logBox");
@@ -533,6 +673,15 @@
       logBox.scrollTop = logBox.scrollHeight;
     };
 
+    const formatBytes = (bytes, decimals = 1) => {
+      if (!+bytes) return '0 B';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+    };
+
     const renderAssetList = () => {
       assetList.innerHTML = '';
       assetCount.innerText = assets.length;
@@ -548,28 +697,70 @@
       noAssetPrompt.classList.add('hidden');
       editorHeader.classList.remove('hidden');
 
-      assets.forEach(asset => {
+      // Identify Entry Point (first HTML)
+      const firstHtmlId = assets.find(a => a.type === 'html')?.id;
+
+      assets.forEach((asset, index) => {
         const div = document.createElement('div');
-        div.className = `asset-item px-4 py-3 cursor-pointer flex justify-between items-center ${asset.id === activeAssetId ? 'active' : ''}`;
+        div.className = `asset-item px-4 py-3 cursor-pointer flex justify-between items-center group relative ${asset.id === activeAssetId ? 'active' : ''}`;
+
+        // Calculate size (approximation for text)
+        const size = asset.type === 'media' ? asset.content.length * 0.75 : new Blob([asset.content]).size; // Base64 approx or Text blob
+        const sizeStr = formatBytes(size);
 
         let icon = '📄';
         if (asset.type === 'css') icon = '🎨';
         if (asset.type === 'js') icon = '⚡';
         if (asset.type === 'media') icon = '🖼️';
 
+        const isEntryPoint = asset.id === firstHtmlId;
+
         div.innerHTML = `
-      <div class="flex items-center gap-3 overflow-hidden">
-        <span class="text-lg">${icon}</span>
-        <span class="text-xs font-mono truncate ${asset.id === activeAssetId ? 'text-[#121212]' : 'text-[#666]'}">${asset.name}</span>
-      </div>
-      <span class="text-[9px] border border-[#121212] px-1.5 font-bold uppercase text-[#555]">${asset.type}</span>
-    `;
-        div.onclick = () => selectAsset(asset.id);
+          <div class="flex items-center gap-3 overflow-hidden flex-1" onclick="selectAsset('${asset.id}')">
+            <span class="text-lg">${icon}</span>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-mono font-bold truncate ${asset.id === activeAssetId ? 'text-[#121212]' : 'text-[#666]'} group-hover:text-[#121212] transition-colors">${asset.name}</span>
+                ${isEntryPoint ? '<span class="text-[8px] bg-[#121212] text-white px-1 font-bold uppercase tracking-wider">ENTRY</span>' : ''}
+              </div>
+              <span class="text-[9px] text-[#888] font-mono">${sizeStr} • ${asset.type.toUpperCase()}</span>
+            </div>
+          </div>
+          
+          <div class="asset-controls flex items-center gap-1 pl-2">
+             <button onclick="moveAsset('${asset.id}', -1)" class="p-1 hover:bg-[#121212] hover:text-white rounded text-[#555] transition-colors" title="Move Up">↑</button>
+             <button onclick="moveAsset('${asset.id}', 1)" class="p-1 hover:bg-[#121212] hover:text-white rounded text-[#555] transition-colors" title="Move Down">↓</button>
+             <button onclick="duplicateAsset('${asset.id}')" class="p-1 hover:bg-[#121212] hover:text-white rounded text-[#555] transition-colors" title="Duplicate">❐</button>
+             <button onclick="renameAsset('${asset.id}')" class="p-1 hover:bg-[#121212] hover:text-white rounded text-[#555] transition-colors" title="Rename">✎</button>
+          </div>
+        `;
         assetList.appendChild(div);
       });
     };
 
-    const selectAsset = (id) => {
+    // --- TOAST SYSTEM ---
+    const showToast = (msg, type = 'info') => {
+      const toast = document.createElement('div');
+      const color = type === 'error' ? '#FF3366' : '#58CC02';
+      toast.className = `fixed bottom-8 right-8 bg-[#121212] text-white px-6 py-4 font-bold uppercase tracking-wider shadow-[4px_4px_0_${color}] transition-all duration-300 transform translate-y-20 opacity-0 z-[200] border-l-4 border-[${color}]`;
+      toast.innerHTML = `<span style="color:${color}">></span> ${msg}`;
+      document.body.appendChild(toast);
+
+      // Animate in
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-20', 'opacity-0');
+      });
+
+      // Remove
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    };
+
+    // --- ASSET ACTIONS ---
+
+    window.selectAsset = (id) => {
       if (!id) {
         activeAssetId = null;
         renderAssetList();
@@ -599,11 +790,116 @@
       renderAssetList();
     };
 
+    window.moveAsset = (id, direction) => {
+      const index = assets.findIndex(a => a.id === id);
+      if (index < 0) return;
+
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= assets.length) return;
+
+      // Swap
+      [assets[index], assets[newIndex]] = [assets[newIndex], assets[index]];
+      renderAssetList();
+    };
+
+    window.renameAsset = (id) => {
+      const asset = assets.find(a => a.id === id);
+      if (!asset) return;
+
+      const newName = prompt("Rename asset:", asset.name);
+      if (newName && newName.trim() !== "") {
+        asset.name = newName.trim();
+        if (activeAssetId === id) currentFileName.innerText = asset.name;
+        renderAssetList();
+      }
+    };
+
+    window.duplicateAsset = (id) => {
+      const asset = assets.find(a => a.id === id);
+      if (!asset) return;
+
+      const newId = crypto.randomUUID();
+      const newName = asset.name.replace(/(\.[^.]*)?$/, " (Copy)$1");
+
+      assets.push({
+        id: newId,
+        type: asset.type,
+        name: newName,
+        content: asset.content
+      });
+
+      log(`Duplicated: ${asset.name} -> ${newName}`);
+      showToast("Asset Duplicated");
+      selectAsset(newId);
+    };
+
+    // --- PERSISTENCE ---
+
+    document.getElementById("exportProjectBtn").onclick = () => {
+      // Save current edit first
+      const current = assets.find(a => a.id === activeAssetId);
+      if (current && current.type !== 'media') current.content = mainEditor.value;
+
+      const data = JSON.stringify(assets);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bundler-project-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+
+      URL.revokeObjectURL(url);
+      log("Project exported successfully.");
+      showToast("Project Saved");
+    };
+
+    document.getElementById("importProjectBtn").onclick = () => {
+      document.getElementById("projectInput").click();
+    };
+
+    document.getElementById("projectInput").onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if (!Array.isArray(data)) throw new Error("Invalid project file format");
+
+          assets = data;
+          activeAssetId = null;
+
+          log("Project imported successfully.");
+          showToast("Project Loaded", "success");
+
+          if (assets.length > 0) selectAsset(assets[0].id);
+          else renderAssetList();
+
+        } catch (err) {
+          console.error(err);
+          log(`<span class="text-[#FF3366]">Import Error:</span> ${err.message}`);
+          showToast("Load Failed: Invalid File", "error");
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = ''; // Reset
+    };
+
     const addAsset = (type, name, content) => {
       const id = crypto.randomUUID();
       assets.push({ id, type, name, content });
-      log(`Successfully imported: <span class="text-[#58CC02] font-bold">${name}</span>`);
+      log(`Imported: <span class="text-[#58CC02] font-bold">${name}</span>`);
       selectAsset(id);
+    };
+
+    // Help Modal Logic
+    const helpModal = document.getElementById("helpModalOverlay");
+    document.getElementById("openHelp").onclick = () => helpModal.classList.remove('hidden');
+    document.getElementById("closeHelp").onclick = () => helpModal.classList.add('hidden');
+    helpModal.onclick = (e) => {
+      if (e.target === helpModal) helpModal.classList.add('hidden');
     };
 
     // Controls
@@ -760,6 +1056,73 @@
       }
     };
 
+    // --- DIFF SYSTEM ---
+    const diffContainer = document.getElementById("diffContainer");
+    const previewBox = document.getElementById("previewBox");
+    const diffOriginal = document.getElementById("diffOriginal");
+    const diffOutput = document.getElementById("diffOutput");
+
+    const generateDiff = () => {
+      if (!outputs.html) return;
+
+      const collapse = document.getElementById("diffCollapseBase64").checked;
+      const wrap = document.getElementById("diffWrap").checked;
+
+      diffOriginal.className = `flex-1 p-4 font-mono text-xs overflow-auto text-[#444] leading-relaxed ${wrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'}`;
+      diffOutput.className = `flex-1 p-4 font-mono text-xs overflow-auto text-[#444] leading-relaxed ${wrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'}`;
+
+      let strOrig = originalCombined || "";
+      let strOut = outputs.html || "";
+
+      // Base64 Collapse Logic
+      if (collapse) {
+        const b64Regex = /data:image\/[^;]+;base64,[a-zA-Z0-9+/=]+/g;
+        const replacement = '[...BASE64 DATA REMOVED FOR CLARITY...]';
+        strOrig = strOrig.replace(b64Regex, replacement);
+        strOut = strOut.replace(b64Regex, replacement);
+      }
+
+      // Diffing (Word mode is best balance for minified code)
+      const diff = Diff.diffWords(strOrig, strOut);
+
+      // Render Output Highlighted
+      let outHtml = '';
+      diff.forEach(part => {
+        // Only show added or unchanged in Output pane
+        const color = part.added ? 'bg-green-200 text-green-900 font-bold' :
+          part.removed ? 'hidden' : 'text-gray-500';
+        if (part.removed) return;
+        outHtml += `<span class="${color}">${part.value.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`;
+      });
+
+      // Render Original HL
+      let origHtml = '';
+      diff.forEach(part => {
+        // Only show removed or unchanged in Original pane
+        const color = part.removed ? 'bg-red-200 text-red-900 font-bold' :
+          part.added ? 'hidden' : 'text-gray-500';
+        if (part.added) return;
+        origHtml += `<span class="${color}">${part.value.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`;
+      });
+
+      diffOriginal.innerHTML = origHtml;
+      diffOutput.innerHTML = outHtml;
+    };
+
+    document.getElementById("openNewTab").onclick = () => {
+      if (!outputs.html) {
+        showToast("Build first to preview in new tab!", true);
+        return;
+      }
+      const blob = new Blob([outputs.html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    };
+
+
+    document.getElementById("diffCollapseBase64").onchange = generateDiff;
+    document.getElementById("diffWrap").onchange = generateDiff;
+
     const executeBuild = async () => {
       const htmlSource = assets.find(a => a.type === 'html');
       if (!htmlSource) {
@@ -769,26 +1132,57 @@
 
       buildStatus.classList.remove('hidden');
       log("Starting protected build sequence...");
+      showToast("Build Started...");
 
       const mode = document.getElementById("mode").value;
+      const enableMinify = document.getElementById("optMinify").checked;
+      const removeComments = document.getElementById("optComments").checked;
+      const dropConsole = document.getElementById("optConsole").checked;
+
       let finalHTML = htmlSource.content;
       let combinedCSS = assets.filter(a => a.type === 'css').map(a => a.content).join('\n');
       let combinedJS = assets.filter(a => a.type === 'js').map(a => a.content).join('\n');
       const mediaAssets = assets.filter(a => a.type === 'media');
 
+      // Store "Original" state (Raw Combined) for Diff
+      // We perform basic assembly on a copy to show what the "Source" looks like before optimization
+      let tempHtmlForDiff = finalHTML;
+      let tempCssForDiff = combinedCSS;
+
       try {
-        // 1. Minification (Standard)
-        if (combinedCSS) {
-          combinedCSS = new CleanCSS().minify(combinedCSS).styles;
-        }
-        if (combinedJS) {
-          // JS is minified but NOT mutated for images to prevent breaking logic
-          combinedJS = (await minifyJS(combinedJS)).code;
+        // 1. Minification & Asset Cleaning - CONDITIONAL
+        if (enableMinify) {
+          if (combinedCSS) {
+            combinedCSS = new CleanCSS().minify(combinedCSS).styles;
+          }
+          if (combinedJS) {
+            const terserOptions = { compress: { drop_console: dropConsole } };
+            combinedJS = (await minifyJS(combinedJS, terserOptions)).code;
+          }
+        } else {
+          log("Minification skipped (Combine Only Mode). Running partial optimization...");
+
+          // Independent Cleaning Passes
+          if (removeComments && combinedCSS) {
+            // Safe Regex for CSS comment stripping (non-destructive to whitespace)
+            combinedCSS = combinedCSS.replace(/\/\*[\s\S]*?\*\//g, '');
+          }
+
+          if ((removeComments || dropConsole) && combinedJS) {
+            // Use Terser in "Clean" mode (beautify + mangle false)
+            const cleanOptions = {
+              compress: { drop_console: dropConsole, defaults: false },
+              mangle: false,
+              format: { beautify: true, comments: !removeComments }
+            };
+            combinedJS = (await minifyJS(combinedJS, cleanOptions)).code;
+          }
         }
 
         // 2. Inlining (ONLY HTML & CSS)
+        // Apply to BOTH Final and Diff-Source so diff focuses on code changes, not missing assets
         if (mode === 'inline' && mediaAssets.length > 0) {
-          log(`Inlining ${mediaAssets.length} assets into HTML/CSS...`);
+          log(`Inlining ${mediaAssets.length} assets...`);
           mediaAssets.forEach(media => {
             const escapedName = media.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const pathRegex = new RegExp(`(['"\\(])(?:[^'"\\(\\)]*?\\/)?${escapedName}(['"\\)])`, 'g');
@@ -797,32 +1191,70 @@
             finalHTML = finalHTML.replace(pathRegex, replaceFn);
             if (combinedCSS) combinedCSS = combinedCSS.replace(pathRegex, replaceFn);
 
-            // !! JS MUTATION REMOVED !!
-            // This prevents the tool from breaking fetch calls or logic variables in JS.
+            // Apply to Diff Source too
+            tempHtmlForDiff = tempHtmlForDiff.replace(pathRegex, replaceFn);
+            if (tempCssForDiff) tempCssForDiff = tempCssForDiff.replace(pathRegex, replaceFn);
           });
         }
 
         if (mode === 'inline') {
+          // Final Assembly
           if (combinedCSS) finalHTML = finalHTML.replace('</head>', `<style>${combinedCSS}</style></head>`);
           if (combinedJS) finalHTML = finalHTML.replace('</body>', `<script>${combinedJS}<\/script></body>`);
+
+          // Diff Source Assembly
+          if (tempCssForDiff) tempHtmlForDiff = tempHtmlForDiff.replace('</head>', `<style>${tempCssForDiff}</style></head>`);
+          // Note: We use the RAW JS for the Diff Source, not the combined/minified one
+          const rawJS = assets.filter(a => a.type === 'js').map(a => a.content).join('\n');
+          if (rawJS) tempHtmlForDiff = tempHtmlForDiff.replace('</body>', `<script>${rawJS}<\/script></body>`);
         }
 
-        // 3. Final HTML Compression
-        finalHTML = await minifyHTML(finalHTML, {
-          collapseWhitespace: true,
-          removeComments: true,
-          minifyCSS: true,
-          minifyJS: true
-        });
+        originalCombined = tempHtmlForDiff;
+
+        // 3. Final HTML Processing - CONDITIONAL
+        if (enableMinify) {
+          finalHTML = await minifyHTML(finalHTML, {
+            collapseWhitespace: true,
+            removeComments: removeComments,
+            minifyCSS: true,
+            minifyJS: true
+          });
+        } else if (removeComments) {
+          // Clean Only pass for HTML
+          finalHTML = await minifyHTML(finalHTML, {
+            collapseWhitespace: false,
+            removeComments: true,
+            minifyCSS: false,
+            minifyJS: false
+          });
+        }
 
         outputs = { html: finalHTML, css: combinedCSS, js: combinedJS };
         document.getElementById("previewFrame").srcdoc = finalHTML;
 
+        // Always Update Diff View
+        generateDiff();
+
+        // Update Download Text
+        const nH = document.getElementById("outNameH").value || 'index.min.html';
+        const nC = document.getElementById("outNameC").value || 'styles.min.css';
+        const nJ = document.getElementById("outNameJ").value || 'scripts.min.js';
+
+        document.getElementById("lblH").innerText = nH;
+        document.getElementById("lblC").innerText = nC;
+        document.getElementById("lblJ").innerText = nJ;
+
+        document.getElementById("downH").classList.remove('hidden');
+        if (outputs.css) document.getElementById("downC").classList.remove('hidden');
+        if (outputs.js) document.getElementById("downJ").classList.remove('hidden');
+
         log("<span class='text-[#58CC02] font-bold'>Build Complete.</span> Outputs generated.");
+        showToast("Build Success!", "success");
         document.querySelector('[data-tab="output"]').click();
 
       } catch (err) {
         log(`<span class="text-[#FF3366]">Error:</span> ${err.message}`);
+        showToast("Build Failed", "error");
       } finally {
         buildStatus.classList.add('hidden');
       }
@@ -837,13 +1269,13 @@
       a.click();
     };
 
-    document.getElementById("downH").onclick = () => dl("index.min.html", outputs.html);
-    document.getElementById("downC").onclick = () => dl("styles.min.css", outputs.css);
-    document.getElementById("downJ").onclick = () => dl("scripts.min.js", outputs.js);
+    document.getElementById("downH").onclick = () => dl(document.getElementById("outNameH").value || 'index.min.html', outputs.html);
+    document.getElementById("downC").onclick = () => dl(document.getElementById("outNameC").value || 'styles.min.css', outputs.css);
+    document.getElementById("downJ").onclick = () => dl(document.getElementById("outNameJ").value || 'scripts.min.js', outputs.js);
     document.getElementById("downA").onclick = () => {
-      dl("index.min.html", outputs.html);
-      if (outputs.css) dl("styles.min.css", outputs.css);
-      if (outputs.js) dl("scripts.min.js", outputs.js);
+      dl(document.getElementById("outNameH").value || 'index.min.html', outputs.html);
+      if (outputs.css) dl(document.getElementById("outNameC").value || 'styles.min.css', outputs.css);
+      if (outputs.js) dl(document.getElementById("outNameJ").value || 'scripts.min.js', outputs.js);
     };
 
     document.getElementById("togglePreview").onclick = () => {
