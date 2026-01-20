@@ -5,7 +5,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Digital Grain Studio — GPU Accelerated</title>
-    <script src="ffmpeg.js" async></script>
     <style>
         /* [DESIGN SYSTEM] Global CSS Variables
            Purpose: Standardizes colors, spacing, and transition speeds across the UI.
@@ -608,22 +607,17 @@
             <span class="muted">WebGL2 Accelerated Pipeline</span>
 
             <div style="margin:10px 0; border: 1px dashed var(--border); padding: 10px; text-align: center;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                     <label for="imageUpload" style="cursor: pointer; display: block; background: #1a1a1a; padding: 8px; border-radius: 4px; border: 1px solid var(--border);">
                         <span style="font-size: 24px; display: block; margin-bottom: 5px;">📂</span>
-                        <span style="font-size: 12px; color: var(--accent);">IMAGE</span>
+                        <span style="font-size: 12px; color: var(--accent);">LOAD IMAGE</span>
                     </label>
                     <label id="loadFolderBtn" style="cursor: pointer; display: block; background: #1a1a1a; padding: 8px; border-radius: 4px; border: 1px solid var(--border);">
                         <span style="font-size: 24px; display: block; margin-bottom: 5px;">🗂️</span>
-                        <span style="font-size: 12px; color: var(--accent);">FOLDER</span>
-                    </label>
-                    <label for="videoUpload" style="cursor: pointer; display: block; background: #1a1a1a; padding: 8px; border-radius: 4px; border: 1px solid var(--border);">
-                        <span style="font-size: 24px; display: block; margin-bottom: 5px;">🎞️</span>
-                        <span style="font-size: 12px; color: var(--accent);">VIDEO</span>
+                        <span style="font-size: 12px; color: var(--accent);">LOAD FOLDER</span>
                     </label>
                 </div>
                 <input id="imageUpload" type="file" accept="image/*" style="display: none;">
-                <input id="videoUpload" type="file" accept="video/mp4" style="display: none;">
 
                 <div id="image-navigation" style="display: none; margin-top: 10px; flex-direction: column; align-items: center; justify-content: center; gap: 10px;">
                     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;">
@@ -2784,7 +2778,7 @@ uniform float u_bitDepth;
 uniform float u_paletteSize;
 uniform float u_strength;
 uniform float u_scale;
-uniform vec2 u_res;
+uniform float u_res;
 uniform float u_seed;
 uniform int u_softMask; 
 
@@ -2948,9 +2942,6 @@ void main() {
             imageFiles: [],       // Array of image file handles for multi-image mode
             currentImageIndex: 0, // Index for the imageFiles array
             isMultiImageMode: false, // Are we editing a single image or a folder?
-            isVideoMode: false,   // Is the source a video?
-            videoFramerate: 30,   // Framerate of the loaded video
-            ffmpeg: null,         // ffmpeg.wasm instance
             isExporting: false,   // Is a batch export in progress?
             playInterval: null,   // Interval ID for the play feature
             isPlaying: false,     // Is the animation playing?
@@ -3517,7 +3508,6 @@ void main() {
                 const file = e.target.files[0];
                 if (!file) return;
                 state.isMultiImageMode = false;
-                state.isVideoMode = false;
                 state.imageFiles = [file];
                 state.currentImageIndex = 0;
                 loadImageFromFile(file).then(updateUIMode);
@@ -3577,17 +3567,13 @@ void main() {
             
             // Download button now handles both modes
             UI.downloadBtn.addEventListener('click', () => {
-                if (state.isVideoMode) {
-                    exportVideo();
-                } else if (state.isMultiImageMode && state.imageFiles.length > 1) {
+                if (state.isMultiImageMode && state.imageFiles.length > 1) {
                     downloadAllImages();
                 } else {
                     downloadSingleImage();
                 }
             });
 
-            UI.videoUpload = document.getElementById('videoUpload');
-            UI.videoUpload.addEventListener('change', loadVideo);
             UI.downloadCurrentBtn = document.getElementById('downloadCurrentBtn');
             UI.compareBtn.addEventListener('click', openCompare);
             UI.downloadCurrentBtn.addEventListener('click', downloadSingleImage);
@@ -3816,7 +3802,6 @@ void main() {
                 if (imageFiles.length > 0) {
                     state.imageFiles = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
                     state.isMultiImageMode = true;
-                    state.isVideoMode = false;
                     state.currentImageIndex = 0;
                     await loadImageFromFile(state.imageFiles[0]);
                     updateUIMode();
@@ -3830,214 +3815,6 @@ void main() {
                 }
             }
         }
-
-        async function loadVideo(e) {
-            const videoFile = e.target.files[0];
-            if (!videoFile) return;
-
-            const overlay = UI['export-overlay'];
-            const status = UI['export-status'];
-            overlay.style.display = 'flex';
-            status.textContent = 'Initializing FFmpeg...';
-
-            try {
-                if (!state.ffmpeg) {
-                    const { createFFmpeg, fetchFile } = FFmpeg;
-                    state.ffmpeg = createFFmpeg({
-                        corePath: 'ffmpeg-core.js',
-                        log: true,
-                    });
-                }
-                const ffmpeg = state.ffmpeg;
-                if (!ffmpeg.isLoaded()) {
-                    await ffmpeg.load();
-                }
-
-                status.textContent = 'Loading video into memory...';
-                ffmpeg.FS('writeFile', videoFile.name, await FFmpeg.fetchFile(videoFile));
-
-                // Get video info, specifically framerate
-                status.textContent = 'Getting video information...';
-                let infoLog = '';
-                const messages = [];
-                ffmpeg.setLogger(({ type, message }) => {
-                    messages.push(message);
-                    if (type === 'fferr') infoLog += message + '\n';
-                });
-                try {
-                    await ffmpeg.run('-i', videoFile.name);
-                } catch(e) {
-                    // FFmpeg throws an error when run with just -i, this is expected.
-                    // We just need the log output.
-                }
-                
-                const fpsMatch = infoLog.match(/, (\d+(\.\d+)?) fps,/);
-                if (fpsMatch && fpsMatch[1]) {
-                    state.videoFramerate = parseFloat(fpsMatch[1]);
-                } else {
-                    state.videoFramerate = 30; // fallback
-                    console.warn('Could not determine video framerate from metadata, defaulting to 30fps.');
-                }
-                
-                let totalFrames = 0;
-                const durationMatch = infoLog.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
-                if (durationMatch) {
-                    const hours = parseInt(durationMatch[1]);
-                    const minutes = parseInt(durationMatch[2]);
-                    const seconds = parseInt(durationMatch[3]);
-                    const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-                    totalFrames = Math.floor(totalSeconds * state.videoFramerate);
-                }
-                
-                status.textContent = 'DECODING VIDEO...';
-                ffmpeg.setLogger(({ type, message }) => {
-                    if (type === 'fferr' && totalFrames > 0) {
-                        const frameMatch = message.match(/frame=\s*(\d+)/);
-                        if (frameMatch) {
-                            const currentFrame = parseInt(frameMatch[1]);
-                            const progress = Math.round((currentFrame / totalFrames) * 100);
-                            status.textContent = `DECODING VIDEO: ${progress}%`;
-                        }
-                    }
-                });
-
-                await ffmpeg.run('-i', videoFile.name, '-vsync', '0', 'frame-%d.png');
-                
-                status.textContent = 'Loading frames into application...';
-                const imageFiles = [];
-                const files = ffmpeg.FS('readdir', '/');
-                const frameFiles = files.filter(f => f.startsWith('frame-') && f.endsWith('.png')).sort((a, b) => {
-                    const numA = parseInt(a.match(/(\d+)/)[0]);
-                    const numB = parseInt(b.match(/(\d+)/)[0]);
-                    return numA - numB;
-                });
-
-                for (const fileName of frameFiles) {
-                    const data = ffmpeg.FS('readFile', fileName);
-                    const blob = new Blob([data.buffer], { type: 'image/png' });
-                    const file = new File([blob], fileName, { type: 'image/png' });
-                    imageFiles.push(file);
-                    ffmpeg.FS('unlink', fileName);
-                }
-                
-                ffmpeg.FS('unlink', videoFile.name);
-
-
-                if (imageFiles.length > 0) {
-                    state.imageFiles = imageFiles;
-                    state.isMultiImageMode = true;
-                    state.isVideoMode = true;
-                    state.currentImageIndex = 0;
-                    await loadImageFromFile(state.imageFiles[0]);
-                    updateUIMode();
-                } else {
-                    alert('Could not extract any frames from the video.');
-                }
-
-            } catch (err) {
-                console.error(err);
-                alert('An error occurred while processing the video. Check the console for details.');
-            } finally {
-                ffmpeg.setLogger(null);
-                overlay.style.display = 'none';
-            }
-        }
-        
-        async function exportVideo() {
-            if (!state.ffmpeg || !state.ffmpeg.isLoaded()) {
-                alert('FFmpeg is not ready. Please load a video first.');
-                return;
-            }
-            const ffmpeg = state.ffmpeg;
-
-            state.isExporting = true;
-            const overlay = UI['export-overlay'];
-            overlay.style.display = 'flex';
-            
-            const stopExportHandler = () => { state.isExporting = false; };
-            UI.stopExportBtn.addEventListener('click', stopExportHandler);
-
-            const originalIndex = state.currentImageIndex;
-            const status = UI['export-status'];
-
-            try {
-                // 1. Render all frames and write to MEMFS
-                for (let i = 0; i < state.imageFiles.length; i++) {
-                    if (!state.isExporting) {
-                        alert('Export cancelled.');
-                        break;
-                    }
-                    
-                    status.textContent = `RENDERING FRAME ${i + 1}/${state.imageFiles.length}...`;
-
-                    await loadImageFromFile(state.imageFiles[i]);
-                    // Use original image dimensions for export buffer
-                    reallocateBuffers(true); 
-                    renderFrame(true);
-
-                    const blob = await new Promise(resolve => state.canvas.toBlob(resolve, 'image/png'));
-                    const arrayBuffer = await blob.arrayBuffer();
-                    const fileName = `frame-${String(i + 1).padStart(5, '0')}.png`;
-                    ffmpeg.FS('writeFile', fileName, new Uint8Array(arrayBuffer));
-                }
-
-                if (state.isExporting) {
-                    // 2. Encode video with FFmpeg
-                    status.textContent = 'ENCODING VIDEO... (This may take a while)';
-                    
-                    let totalFrames = state.imageFiles.length;
-                     ffmpeg.setLogger(({ type, message }) => {
-                        console.log(message);
-                        if (type === 'fferr' && totalFrames > 0) {
-                            const frameMatch = message.match(/frame=\s*(\d+)/);
-                            if (frameMatch) {
-                                const currentFrame = parseInt(frameMatch[1]);
-                                const progress = Math.round((currentFrame / totalFrames) * 100);
-                                status.textContent = `ENCODING VIDEO: ${progress}%`;
-                            }
-                        }
-                    });
-
-                    const framerate = String(state.videoFramerate);
-                    // Using a higher CRF value for better compression/speed in browser, 18 is visually lossless
-                    await ffmpeg.run('-framerate', framerate, '-i', 'frame-%05d.png', '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', 'output.mp4');
-                    
-                    // 3. Download the result
-                    status.textContent = 'Finishing up...';
-                    const data = ffmpeg.FS('readFile', 'output.mp4');
-                    const videoBlob = new Blob([data.buffer], { type: 'video/mp4' });
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(videoBlob);
-a.download = 'export.mp4';
-                    a.click();
-                    URL.revokeObjectURL(a.href);
-                }
-
-            } catch (err) {
-                console.error(err);
-                alert('An error occurred during video export. Check the console for details.');
-            } finally {
-                // 4. Cleanup
-                status.textContent = 'Cleaning up...';
-                for (let i = 0; i < state.imageFiles.length; i++) {
-                    const fileName = `frame-${String(i + 1).padStart(5, '0')}.png`;
-                    try { ffmpeg.FS('unlink', fileName); } catch(e) {}
-                }
-                try { ffmpeg.FS('unlink', 'output.mp4'); } catch(e) {}
-
-                ffmpeg.setLogger(null);
-                state.isExporting = false;
-                overlay.style.display = 'none';
-                UI.stopExportBtn.removeEventListener('click', stopExportHandler);
-                
-                await loadImageFromFile(state.imageFiles[originalIndex]);
-                state.currentImageIndex = originalIndex;
-                updateUIMode();
-                reallocateBuffers(false);
-                requestRender();
-            }
-        }
-
 
         async function changeImage(direction) {
             if (!state.isMultiImageMode || state.imageFiles.length === 0) return;
@@ -4075,11 +3852,7 @@ a.download = 'export.mp4';
             if (state.isMultiImageMode && state.imageFiles.length > 1) {
                 nav.style.display = 'flex';
                 UI.imageCounter.textContent = `Image ${state.currentImageIndex + 1} of ${state.imageFiles.length}`;
-                if (state.isVideoMode) {
-                    UI.downloadBtn.textContent = `EXPORT AS MP4`;
-                } else {
-                    UI.downloadBtn.textContent = `DOWNLOAD ALL (${state.imageFiles.length})`;
-                }
+                UI.downloadBtn.textContent = `DOWNLOAD ALL (${state.imageFiles.length})`;
                 scrubber.max = state.imageFiles.length - 1;
                 scrubber.value = state.currentImageIndex;
             } else {
@@ -4306,7 +4079,6 @@ a.download = 'export.mp4';
 
             // Bind global attributes
             Object.values(state.programs).forEach(p => {
-                if (!p) return; // Skip failed programs
                 gl.useProgram(p);
                 const posLoc = gl.getAttribLocation(p, 'a_pos');
                 const uvLoc = gl.getAttribLocation(p, 'a_uv');
@@ -5250,19 +5022,10 @@ a.download = 'export.mp4';
         function createProgram(gl, vsId, fsId) {
             const vs = createShader(gl, 'vs-quad', vsId);
             const fs = createShader(gl, 'fs-fragment', fsId);
-            if (!vs || !fs) {
-                console.error(`Failed to create shaders for program using ${vsId} and ${fsId}`);
-                return null;
-            }
             const p = gl.createProgram();
             gl.attachShader(p, vs);
             gl.attachShader(p, fs);
             gl.linkProgram(p);
-            if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
-                console.error(`Link Error in ${fsId}:`, gl.getProgramInfoLog(p));
-                gl.deleteProgram(p);
-                return null;
-            }
             return p;
         }
 
