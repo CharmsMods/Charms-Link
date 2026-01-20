@@ -1,11 +1,16 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
   <meta charset="UTF-8">
   <title>STATIC ASSET MINIFIER // BRUTALIST EDITION</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="lib/tailwind.min.js"></script>
+  <script src="lib/clean-css.js"></script>
+  <script src="lib/html-minifier.js"></script>
+  <script src="lib/terser.js"></script>
+  <script src="lib/diff.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -70,6 +75,73 @@
     .brutal-input:focus {
       background: #fffbeb;
       border-color: var(--accent-color);
+    }
+
+    /* --- LOADING OVERLAY --- */
+    #loadingOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(18, 18, 18, 0.95);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #FFF;
+      font-family: 'JetBrains Mono', monospace;
+
+      /* Visibility Transition State */
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    #loadingOverlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .loader-box {
+      width: 60px;
+      height: 60px;
+      border: 5px solid #FF3366;
+      animation: spin 1s infinite cubic-bezier(0.79, 0.14, 0.15, 0.86);
+      margin-bottom: 2rem;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      50% {
+        transform: rotate(180deg);
+        background: #FF3366;
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loading-text {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      animation: blink 0.8s infinite alternate;
+    }
+
+    @keyframes blink {
+      from {
+        opacity: 1;
+      }
+
+      to {
+        opacity: 0.5;
+      }
     }
 
     /* --- LAYOUT COMPONENTS --- */
@@ -425,6 +497,16 @@
                   <input type="checkbox" id="optConsole" checked class="w-4 h-4 accent-[#FF3366]">
                   <span class="text-xs font-mono font-bold">Drop Console</span>
                 </label>
+                </label>
+              </div>
+              <!-- CDN Toggle -->
+              <div class="mt-2 pt-2 border-t border-[#ccc]">
+                <label class="flex items-center gap-2 cursor-pointer select-none opacity-50" id="cdnToggleContainer"
+                  title="Checking connectivity...">
+                  <input type="checkbox" id="optCDN" class="w-4 h-4 accent-[#58CC02]" disabled>
+                  <span class="text-xs font-mono font-bold text-[#58CC02]">USE CDN LIBS (vLatest)</span>
+                </label>
+                <div id="cdnStatus" class="text-[9px] text-[#888] font-mono mt-0.5">Checking internet...</div>
               </div>
             </div>
 
@@ -494,6 +576,10 @@
             </button>
 
             <div class="pt-4 border-t border-dashed border-[#121212]">
+              <label id="zipToggleLabel" class="flex items-center gap-2 cursor-pointer select-none mb-3">
+                <input type="checkbox" id="optZip" checked class="w-4 h-4 accent-[#FF3366]">
+                <span class="text-xs font-mono font-bold">Download as ZIP</span>
+              </label>
               <button id="downA"
                 class="w-full bg-[#FF3366] text-white font-black uppercase text-xs py-4 shadow-[4px_4px_0_#121212] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all">
                 Download Bundle
@@ -506,7 +592,21 @@
         <div id="diffContainer"
           class="border-[3px] border-[#121212] bg-white shadow-[4px_4px_0_#121212] flex flex-col mt-6 w-[95vw] relative left-1/2 -translate-x-1/2">
           <div class="bg-[#121212] text-white px-4 py-2 text-xs font-mono flex justify-between items-center">
-            <span>CODE DIFFERENCE</span>
+            <div class="flex items-center gap-2">
+              <span>CODE DIFFERENCE</span>
+              <!-- Diff Tabs -->
+              <div class="flex ml-4 border border-[#555]">
+                <button id="diffTabHtml"
+                  class="diff-tab px-3 py-1 text-[10px] font-bold bg-[#333] hover:bg-[#FF3366] transition-colors active"
+                  data-type="html">HTML</button>
+                <button id="diffTabCss"
+                  class="diff-tab px-3 py-1 text-[10px] font-bold bg-[#222] hover:bg-[#FF3366] transition-colors border-l border-[#555]"
+                  data-type="css">CSS</button>
+                <button id="diffTabJs"
+                  class="diff-tab px-3 py-1 text-[10px] font-bold bg-[#222] hover:bg-[#FF3366] transition-colors border-l border-[#555]"
+                  data-type="js">JS</button>
+              </div>
+            </div>
             <div class="flex items-center gap-3">
               <label class="flex items-center gap-1 cursor-pointer select-none">
                 <input type="checkbox" id="diffCollapseBase64" checked class="w-3 h-3 accent-[#FF3366]">
@@ -521,15 +621,17 @@
           <div class="flex-1 flex flex-col md:flex-row h-[600px] border-t border-[#333]">
             <!-- OriginalPane -->
             <div class="flex-1 min-w-0 flex flex-col border-b md:border-b-0 md:border-r border-[#333]">
-              <div class="bg-[#eee] px-2 py-1 text-[10px] font-bold text-[#555] uppercase border-b border-[#ccc]">
-                Original (Combined)</div>
+              <div id="diffOriginalLabel"
+                class="bg-[#eee] px-2 py-1 text-[10px] font-bold text-[#555] uppercase border-b border-[#ccc]">
+                Original HTML</div>
               <pre id="diffOriginal"
                 class="flex-1 p-4 font-mono text-xs overflow-auto text-[#444] leading-relaxed whitespace-pre-wrap"></pre>
             </div>
             <!-- OutputPane -->
             <div class="flex-1 min-w-0 flex flex-col">
-              <div class="bg-[#eee] px-2 py-1 text-[10px] font-bold text-[#555] uppercase border-b border-[#ccc]">
-                Build Output</div>
+              <div id="diffOutputLabel"
+                class="bg-[#eee] px-2 py-1 text-[10px] font-bold text-[#555] uppercase border-b border-[#ccc]">
+                Build Output HTML</div>
               <pre id="diffOutput"
                 class="flex-1 p-4 font-mono text-xs overflow-auto text-[#444] leading-relaxed whitespace-pre-wrap"></pre>
             </div>
@@ -632,16 +734,122 @@
     </div>
   </div>
 
-  <script type="module">
-    import { minify as minifyHTML } from "https://esm.sh/html-minifier-terser";
-    import CleanCSS from "https://esm.sh/clean-css";
-    import { minify as minifyJS } from "https://esm.sh/terser";
-    import * as Diff from "https://esm.sh/diff";
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="loader-box"></div>
+    <div class="loading-text">PROCESSING...</div>
+    <div id="loadingSubtext" class="text-sm text-gray-400 mt-2 font-mono hidden"></div>
+  </div>
+
+  <script>
+    // Library fallback and initialization
+    var tailwind = window.tailwind || null;
+
+    // HTML Minifier
+    var HTMLMinifier = window.HTMLMinifier || null;
+    var minifyHTML = (HTMLMinifier && HTMLMinifier.minify) ? HTMLMinifier.minify : function (h) { console.warn('HTMLMinifier not loaded'); return h; };
+
+    // CleanCSS
+    var CleanCSS = window.CleanCSS || function () { console.warn('CleanCSS not loaded'); return { minify: function (c) { return { styles: c }; } }; };
+
+    // Terser
+    var Terser = window.Terser || null;
+    console.log('Terser Object:', Terser);
+    var minifyJS = (Terser && Terser.minify) ? Terser.minify : null;
+    if (!minifyJS) console.warn('Terser.minify is missing!');
+
+    // Diff
+    var Diff = window.Diff || null;
+
+    // Connectivity State
+    let cdnAvailable = false;
+    const cdnToggle = document.getElementById('optCDN');
+    const cdnContainer = document.getElementById('cdnToggleContainer');
+    const cdnStatus = document.getElementById('cdnStatus');
+
+    const checkConnectivity = async () => {
+      try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 2000);
+        // Cache-Busting Check
+        await fetch(`https://esm.sh/clean-css?t=${Date.now()}`, { method: 'HEAD', signal: controller.signal });
+        clearTimeout(id);
+
+        cdnAvailable = true;
+        cdnToggle.disabled = false;
+        cdnContainer.classList.remove('opacity-50');
+        cdnContainer.title = "Switch to CDN versions";
+        cdnStatus.innerText = "Online. CDN Available.";
+        cdnStatus.classList.add('text-[#58CC02]');
+        cdnStatus.classList.remove('text-[#888]');
+      } catch (e) {
+        cdnAvailable = false;
+        cdnToggle.disabled = true;
+        cdnToggle.checked = false;
+        cdnContainer.classList.add('opacity-50');
+        cdnContainer.title = "Offline or CDN Unreachable";
+        cdnStatus.innerText = "Offline / CDN Unreachable";
+      }
+    };
+
+    window.addEventListener('load', checkConnectivity);
+
+    // Hybrid Library Resolver
+    const resolveLibraries = async () => {
+      const useCDN = cdnToggle.checked;
+
+      if (!useCDN) {
+        return {
+          CleanCSS: window.CleanCSS,
+          minifyHTML: (window.HTMLMinifier && window.HTMLMinifier.minify) ? window.HTMLMinifier.minify : null,
+          minifyJS: (window.Terser && window.Terser.minify) ? window.Terser.minify : null
+        };
+      }
+
+      // CDN Mode - Sequential Loading with Timeout & Cache Busting
+      log("Initializing CDN download (Network Forced)...");
+
+      const session = Date.now(); // Unique ID for this build session
+
+      const loadWithTimeout = async (url, name) => {
+        // Append Timestamp to force network check and avoid offline-cache confusion
+        const forcedUrl = `${url}?v=${session}`;
+
+        log(`Fetching ${name}...`);
+        try {
+          // 15s Timeout
+          const importPromise = import(forcedUrl);
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Timeout fetching ${name}`)), 15000));
+          return await Promise.race([importPromise, timeoutPromise]);
+        } catch (e) {
+          throw new Error(`Failed to load ${name}: ${e.message}`);
+        }
+      };
+
+      try {
+        const cssMod = await loadWithTimeout("https://esm.sh/clean-css", "CleanCSS");
+        const htmlMod = await loadWithTimeout("https://esm.sh/html-minifier-terser", "HTMLMinifier");
+        const jsMod = await loadWithTimeout("https://esm.sh/terser", "Terser");
+
+        log("All CDN libraries loaded successfully.");
+
+        return {
+          CleanCSS: cssMod.default,
+          minifyHTML: htmlMod.minify,
+          minifyJS: jsMod.minify
+        };
+      } catch (e) {
+        console.error("CDN Resolution Failed:", e);
+        throw e;
+      }
+    };
 
     let assets = [];
     let activeAssetId = null;
     let outputs = { html: "", css: "", js: "" };
-    let originalCombined = "";
+    let originals = { html: "", css: "", js: "" };
+    let currentDiffTab = 'html';
 
     // UI Elements
     const logBox = document.getElementById("logBox");
@@ -1061,9 +1269,27 @@
     const previewBox = document.getElementById("previewBox");
     const diffOriginal = document.getElementById("diffOriginal");
     const diffOutput = document.getElementById("diffOutput");
+    const diffOriginalLabel = document.getElementById("diffOriginalLabel");
+    const diffOutputLabel = document.getElementById("diffOutputLabel");
 
-    const generateDiff = () => {
-      if (!outputs.html) return;
+    const generateDiff = (type = currentDiffTab) => {
+      currentDiffTab = type;
+
+      // Update tab styling
+      document.querySelectorAll('.diff-tab').forEach(tab => {
+        tab.classList.remove('active', 'bg-[#333]');
+        tab.classList.add('bg-[#222]');
+      });
+      const activeTab = document.getElementById(`diffTab${type.charAt(0).toUpperCase() + type.slice(1)}`);
+      if (activeTab) {
+        activeTab.classList.add('active', 'bg-[#333]');
+        activeTab.classList.remove('bg-[#222]');
+      }
+
+      // Update labels
+      const typeLabel = type.toUpperCase();
+      diffOriginalLabel.textContent = `Original ${typeLabel}`;
+      diffOutputLabel.textContent = `Build Output ${typeLabel}`;
 
       const collapse = document.getElementById("diffCollapseBase64").checked;
       const wrap = document.getElementById("diffWrap").checked;
@@ -1071,8 +1297,14 @@
       diffOriginal.className = `flex-1 p-4 font-mono text-xs overflow-auto text-[#444] leading-relaxed ${wrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'}`;
       diffOutput.className = `flex-1 p-4 font-mono text-xs overflow-auto text-[#444] leading-relaxed ${wrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'}`;
 
-      let strOrig = originalCombined || "";
-      let strOut = outputs.html || "";
+      let strOrig = originals[type] || "";
+      let strOut = outputs[type] || "";
+
+      if (!strOrig && !strOut) {
+        diffOriginal.innerHTML = '<span class="text-[#888] italic">No content available</span>';
+        diffOutput.innerHTML = '<span class="text-[#888] italic">No content available</span>';
+        return;
+      }
 
       // Base64 Collapse Logic
       if (collapse) {
@@ -1109,6 +1341,11 @@
       diffOutput.innerHTML = outHtml;
     };
 
+    // Tab click handlers
+    document.getElementById("diffTabHtml").onclick = () => generateDiff('html');
+    document.getElementById("diffTabCss").onclick = () => generateDiff('css');
+    document.getElementById("diffTabJs").onclick = () => generateDiff('js');
+
     document.getElementById("openNewTab").onclick = () => {
       if (!outputs.html) {
         showToast("Build first to preview in new tab!", true);
@@ -1123,65 +1360,145 @@
     document.getElementById("diffCollapseBase64").onchange = generateDiff;
     document.getElementById("diffWrap").onchange = generateDiff;
 
+    const getBuildConfig = () => {
+      const isCDN = document.getElementById('optCDN').checked;
+      return {
+        mode: document.getElementById("mode").value,
+        minify: document.getElementById("optMinify").checked,
+        comments: document.getElementById("optComments").checked,
+        console: document.getElementById("optConsole").checked,
+        useCDN: isCDN,
+      };
+    };
+
     const executeBuild = async () => {
+      const config = getBuildConfig();
       const htmlSource = assets.find(a => a.type === 'html');
-      if (!htmlSource) {
-        log("<span class='text-[#FF3366]'>Error:</span> No HTML entry found.");
+      // Relaxed check: We allow build if ANY asset exists, not just HTML
+      if (assets.length === 0) {
+        log("<span class='text-[#FF3366]'>Error:</span> No assets to build.");
         return;
+      }
+      if (!htmlSource) {
+        log("<span class='text-yellow-500'>Note:</span> No HTML file found. Processing standalone CSS/JS.");
       }
 
       buildStatus.classList.remove('hidden');
+
+      // Show Loading Overlay
+      const overlay = document.getElementById('loadingOverlay');
+      const subtext = document.getElementById('loadingSubtext');
+
+      overlay.classList.add('active');
+
+
+      if (config.useCDN) {
+        subtext.innerText = "Downloading libraries from CDN...";
+        subtext.classList.remove('hidden');
+      } else {
+        subtext.classList.add('hidden');
+      }
+
+      // Allow UI to render the overlay before blocking
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
       log("Starting protected build sequence...");
       showToast("Build Started...");
 
-      const mode = document.getElementById("mode").value;
-      const enableMinify = document.getElementById("optMinify").checked;
-      const removeComments = document.getElementById("optComments").checked;
-      const dropConsole = document.getElementById("optConsole").checked;
+      // RESOLVE LIBRARIES (Hybrid)
+      let Libs = {};
+      const libStart = performance.now();
+      try {
+        if (config.useCDN) {
+          log(`<span class="text-[#58CC02] font-bold">MODE: CDN (Fetching libraries...)</span>`);
+        } else {
+          log(`<span class="text-[#888] font-bold">MODE: LOCAL (Using bundled scripts)</span>`);
+        }
 
-      let finalHTML = htmlSource.content;
+        Libs = await resolveLibraries();
+
+        const libTime = (performance.now() - libStart).toFixed(0);
+        if (config.useCDN) log(`Libs loaded in ${libTime}ms`);
+
+      } catch (e) {
+        log(`<span class="text-[#FF3366]">Lib Error:</span> ${e.message}`);
+        overlay.classList.remove('active');
+        return;
+      }
+
+      // Local references for this build scope
+      const _CleanCSS = Libs.CleanCSS;
+      const _minifyHTML = Libs.minifyHTML;
+      const _minifyJS = Libs.minifyJS;
+
+      let finalHTML = htmlSource ? htmlSource.content : "";
       let combinedCSS = assets.filter(a => a.type === 'css').map(a => a.content).join('\n');
       let combinedJS = assets.filter(a => a.type === 'js').map(a => a.content).join('\n');
       const mediaAssets = assets.filter(a => a.type === 'media');
 
       // Store "Original" state (Raw Combined) for Diff
-      // We perform basic assembly on a copy to show what the "Source" looks like before optimization
+      // We store each file type separately for the tabbed diff view
       let tempHtmlForDiff = finalHTML;
       let tempCssForDiff = combinedCSS;
+      let tempJsForDiff = combinedJS;
 
       try {
         // 1. Minification & Asset Cleaning - CONDITIONAL
-        if (enableMinify) {
+        // 1. Minification & Asset Cleaning - CONDITIONAL
+        if (config.minify) {
           if (combinedCSS) {
-            combinedCSS = new CleanCSS().minify(combinedCSS).styles;
+            if (typeof _CleanCSS === 'function') {
+              log("Minifying CSS...");
+              const originalSize = combinedCSS.length;
+              combinedCSS = new _CleanCSS().minify(combinedCSS).styles;
+              log(`CSS Minified: ${formatBytes(originalSize)} &rarr; ${formatBytes(combinedCSS.length)}`);
+            } else {
+              log("<span class='text-yellow-500'>Warning:</span> CleanCSS not found. CSS minification skipped.");
+            }
           }
           if (combinedJS) {
-            const terserOptions = { compress: { drop_console: dropConsole } };
-            combinedJS = (await minifyJS(combinedJS, terserOptions)).code;
+            if (typeof _minifyJS === 'function') {
+              log("Minifying JS...");
+              const originalSize = combinedJS.length;
+              const terserOptions = { compress: { drop_console: config.console } };
+              combinedJS = (await _minifyJS(combinedJS, terserOptions)).code;
+              log(`JS Minified: ${formatBytes(originalSize)} &rarr; ${formatBytes(combinedJS.length)}`);
+            } else {
+              log("<span class='text-yellow-500'>Warning:</span> Terser not found. JS minification skipped.");
+            }
           }
         } else {
-          log("Minification skipped (Combine Only Mode). Running partial optimization...");
+          log("Minification disabled. Checking for partial optimizations...");
 
           // Independent Cleaning Passes
-          if (removeComments && combinedCSS) {
-            // Safe Regex for CSS comment stripping (non-destructive to whitespace)
+          if (config.comments && combinedCSS) {
+            log("Removing CSS comments...");
             combinedCSS = combinedCSS.replace(/\/\*[\s\S]*?\*\//g, '');
           }
 
-          if ((removeComments || dropConsole) && combinedJS) {
-            // Use Terser in "Clean" mode (beautify + mangle false)
-            const cleanOptions = {
-              compress: { drop_console: dropConsole, defaults: false },
-              mangle: false,
-              format: { beautify: true, comments: !removeComments }
-            };
-            combinedJS = (await minifyJS(combinedJS, cleanOptions)).code;
+          if ((config.comments || config.console) && combinedJS) {
+            if (typeof _minifyJS === 'function') {
+              const action = [];
+              if (config.comments) action.push("comments");
+              if (config.console) action.push("console logs");
+              log(`Cleaning JS (${action.join(', ')})...`);
+
+              // Use Terser in "Clean" mode (beautify + mangle false)
+              const cleanOptions = {
+                compress: { drop_console: config.console, defaults: false },
+                mangle: false,
+                format: { beautify: true, comments: !config.comments }
+              };
+              combinedJS = (await _minifyJS(combinedJS, cleanOptions)).code;
+            } else {
+              log("<span class='text-yellow-500'>Warning:</span> Terser unavailable for cleaning JS.");
+            }
           }
         }
 
         // 2. Inlining (ONLY HTML & CSS)
         // Apply to BOTH Final and Diff-Source so diff focuses on code changes, not missing assets
-        if (mode === 'inline' && mediaAssets.length > 0) {
+        if (config.mode === 'inline' && mediaAssets.length > 0) {
           log(`Inlining ${mediaAssets.length} assets...`);
           mediaAssets.forEach(media => {
             const escapedName = media.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -1197,36 +1514,66 @@
           });
         }
 
-        if (mode === 'inline') {
-          // Final Assembly
-          if (combinedCSS) finalHTML = finalHTML.replace('</head>', `<style>${combinedCSS}</style></head>`);
-          if (combinedJS) finalHTML = finalHTML.replace('</body>', `<script>${combinedJS}<\/script></body>`);
+        if (config.mode === 'inline') {
+          // Final Assembly - Inline mode
+          if (combinedCSS && finalHTML) finalHTML = finalHTML.replace('</head>', `<style>${combinedCSS}</style></head>`);
+          if (combinedJS && finalHTML) finalHTML = finalHTML.replace('</body>', `<script>${combinedJS}<\/script></body>`);
 
           // Diff Source Assembly
-          if (tempCssForDiff) tempHtmlForDiff = tempHtmlForDiff.replace('</head>', `<style>${tempCssForDiff}</style></head>`);
+          if (tempCssForDiff && tempHtmlForDiff) tempHtmlForDiff = tempHtmlForDiff.replace('</head>', `<style>${tempCssForDiff}</style></head>`);
           // Note: We use the RAW JS for the Diff Source, not the combined/minified one
           const rawJS = assets.filter(a => a.type === 'js').map(a => a.content).join('\n');
-          if (rawJS) tempHtmlForDiff = tempHtmlForDiff.replace('</body>', `<script>${rawJS}<\/script></body>`);
+          if (rawJS && tempHtmlForDiff) tempHtmlForDiff = tempHtmlForDiff.replace('</body>', `<script>${rawJS}<\/script></body>`);
+        } else if (config.mode === 'separate' && finalHTML) {
+          // Multi-file mode - Inject link and script references
+          const cssFilename = document.getElementById('outNameC').value || 'styles.min.css';
+          const jsFilename = document.getElementById('outNameJ').value || 'scripts.min.js';
+
+          if (combinedCSS) {
+            finalHTML = finalHTML.replace('</head>', `<link rel="stylesheet" href="${cssFilename}">\n</head>`);
+          }
+          if (combinedJS) {
+            finalHTML = finalHTML.replace('</body>', `<script src="${jsFilename}"><\/script>\n</body>`);
+          }
+
+          log(`Linked: ${cssFilename}, ${jsFilename}`);
         }
 
-        originalCombined = tempHtmlForDiff;
+        // Populate originals for tabbed diff view
+        originals.html = tempHtmlForDiff || "";
+        originals.css = tempCssForDiff || "";
+        originals.js = tempJsForDiff || "";
 
         // 3. Final HTML Processing - CONDITIONAL
-        if (enableMinify) {
-          finalHTML = await minifyHTML(finalHTML, {
-            collapseWhitespace: true,
-            removeComments: removeComments,
-            minifyCSS: true,
-            minifyJS: true
-          });
-        } else if (removeComments) {
-          // Clean Only pass for HTML
-          finalHTML = await minifyHTML(finalHTML, {
-            collapseWhitespace: false,
-            removeComments: true,
-            minifyCSS: false,
-            minifyJS: false
-          });
+        if (finalHTML) {
+          if (config.minify) {
+            if (typeof _minifyHTML === 'function') {
+              log("Minifying HTML...");
+              const origHtmlSize = finalHTML.length;
+              finalHTML = await _minifyHTML(finalHTML, {
+                collapseWhitespace: true,
+                removeComments: config.comments,
+                minifyCSS: true,
+                minifyJS: true
+              });
+              log(`HTML Minified: ${formatBytes(origHtmlSize)} &rarr; ${formatBytes(finalHTML.length)}`);
+            } else {
+              log("<span class='text-yellow-500'>Warning:</span> HTMLMinifier not found. HTML minification skipped.");
+            }
+          } else if (config.comments) {
+            // Clean Only pass for HTML
+            if (typeof _minifyHTML === 'function') {
+              log("Cleaning HTML comments...");
+              finalHTML = await _minifyHTML(finalHTML, {
+                collapseWhitespace: false,
+                removeComments: true,
+                minifyCSS: false,
+                minifyJS: false
+              });
+            } else {
+              log("<span class='text-yellow-500'>Warning:</span> HTMLMinifier not found. Comment removal skipped.");
+            }
+          }
         }
 
         outputs = { html: finalHTML, css: combinedCSS, js: combinedJS };
@@ -1257,6 +1604,7 @@
         showToast("Build Failed", "error");
       } finally {
         buildStatus.classList.add('hidden');
+        document.getElementById('loadingOverlay').classList.remove('active');
       }
     };
 
@@ -1272,11 +1620,66 @@
     document.getElementById("downH").onclick = () => dl(document.getElementById("outNameH").value || 'index.min.html', outputs.html);
     document.getElementById("downC").onclick = () => dl(document.getElementById("outNameC").value || 'styles.min.css', outputs.css);
     document.getElementById("downJ").onclick = () => dl(document.getElementById("outNameJ").value || 'scripts.min.js', outputs.js);
-    document.getElementById("downA").onclick = () => {
-      dl(document.getElementById("outNameH").value || 'index.min.html', outputs.html);
-      if (outputs.css) dl(document.getElementById("outNameC").value || 'styles.min.css', outputs.css);
-      if (outputs.js) dl(document.getElementById("outNameJ").value || 'scripts.min.js', outputs.js);
+
+    // ZIP Download Function
+    const downloadAsZip = async () => {
+      if (typeof JSZip === 'undefined') {
+        showToast("JSZip not loaded!", "error");
+        return;
+      }
+
+      const zip = new JSZip();
+      const htmlName = document.getElementById("outNameH").value || 'index.min.html';
+      const cssName = document.getElementById("outNameC").value || 'styles.min.css';
+      const jsName = document.getElementById("outNameJ").value || 'scripts.min.js';
+
+      if (outputs.html) zip.file(htmlName, outputs.html);
+      if (outputs.css) zip.file(cssName, outputs.css);
+      if (outputs.js) zip.file(jsName, outputs.js);
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(content);
+      a.download = 'bundle.zip';
+      a.click();
+
+      showToast("ZIP Downloaded!", "success");
     };
+
+    document.getElementById("downA").onclick = () => {
+      const useZip = document.getElementById("optZip").checked;
+
+      if (useZip) {
+        downloadAsZip();
+      } else {
+        // Sequential download
+        dl(document.getElementById("outNameH").value || 'index.min.html', outputs.html);
+        if (outputs.css) dl(document.getElementById("outNameC").value || 'styles.min.css', outputs.css);
+        if (outputs.js) dl(document.getElementById("outNameJ").value || 'scripts.min.js', outputs.js);
+      }
+    };
+
+    // Mode change handler - disable ZIP toggle for inline mode
+    const modeSelector = document.getElementById("mode");
+    const zipCheckbox = document.getElementById("optZip");
+    const zipLabel = document.getElementById("zipToggleLabel");
+
+    const updateZipToggleState = () => {
+      const isInlineMode = modeSelector.value === 'inline';
+      zipCheckbox.disabled = isInlineMode;
+
+      if (isInlineMode) {
+        zipLabel.classList.add('opacity-50', 'cursor-not-allowed');
+        zipLabel.classList.remove('cursor-pointer');
+      } else {
+        zipLabel.classList.remove('opacity-50', 'cursor-not-allowed');
+        zipLabel.classList.add('cursor-pointer');
+      }
+    };
+
+    modeSelector.addEventListener('change', updateZipToggleState);
+    // Initialize state on load
+    updateZipToggleState();
 
     document.getElementById("togglePreview").onclick = () => {
       const box = document.getElementById("previewBox");

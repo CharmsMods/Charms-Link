@@ -589,6 +589,12 @@
 
 <body>
 
+    <!-- [UI] Exporting Overlay -->
+    <div id="export-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 3999; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 1.2em;">
+        <div id="export-status">PROCESSING 1/100...</div>
+        <button id="stopExportBtn" style="margin-top: 20px; padding: 10px 20px; background: #ff5555; color: #fff; border: 1px solid #ff7777; font-size: 0.8em;">CANCEL EXPORT</button>
+    </div>
+
     <!-- [UI] Loading Screen: Visible only during complex GPU operations/initialization -->
     <div id="loading">PROCESSING GPU...</div>
 
@@ -601,13 +607,34 @@
             <span class="muted">WebGL2 Accelerated Pipeline</span>
 
             <div style="margin:10px 0; border: 1px dashed var(--border); padding: 10px; text-align: center;">
-                <label for="imageUpload" style="cursor: pointer; display: block;">
-                    <span style="font-size: 24px; display: block; margin-bottom: 5px;">📂</span>
-                    <span style="font-size: 12px; color: var(--accent);">CLICK TO LOAD IMAGE</span>
-                </label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <label for="imageUpload" style="cursor: pointer; display: block; background: #1a1a1a; padding: 8px; border-radius: 4px; border: 1px solid var(--border);">
+                        <span style="font-size: 24px; display: block; margin-bottom: 5px;">📂</span>
+                        <span style="font-size: 12px; color: var(--accent);">LOAD IMAGE</span>
+                    </label>
+                    <label id="loadFolderBtn" style="cursor: pointer; display: block; background: #1a1a1a; padding: 8px; border-radius: 4px; border: 1px solid var(--border);">
+                        <span style="font-size: 24px; display: block; margin-bottom: 5px;">🗂️</span>
+                        <span style="font-size: 12px; color: var(--accent);">LOAD FOLDER</span>
+                    </label>
+                </div>
                 <input id="imageUpload" type="file" accept="image/*" style="display: none;">
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px;">
+                <div id="image-navigation" style="display: none; margin-top: 10px; flex-direction: column; align-items: center; justify-content: center; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                        <button id="prevImageBtn" class="small-btn">◄ Prev</button>
+                        <span id="imageCounter" style="font-size: 12px; color: var(--muted); min-width: 80px; text-align: center;">Image 1 of 1</span>
+                        <button id="nextImageBtn" class="small-btn">Next ►</button>
+                    </div>
+                    <input type="range" id="imageScrubber" style="width: 80%; accent-color: var(--accent);" min="0" max="0" value="0">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px;">
+                        <button id="playBtn" class="small-btn">PLAY ►</button>
+                        <input type="number" id="playFps" class="upscale-input" value="10" style="width: 50px;">
+                        <span style="font-size: 11px; color: var(--muted);">FPS</span>
+                        <span id="actualFps" style="font-size: 11px; color: var(--accent); min-width: 90px;">(Actual: --)</span>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
                     <button class="json-btn" id="downloadJsonBtn">DOWNLOAD .JSON</button>
                     <button class="json-btn" id="uploadJsonTrigger">UPLOAD .JSON</button>
                     <input id="jsonUpload" type="file" accept=".json" style="display: none;">
@@ -1510,6 +1537,7 @@
 
                 <div class="row-buttons">
                     <button id="downloadBtn" disabled>DOWNLOAD FULL RES</button>
+                    <button id="downloadCurrentBtn" disabled>DOWNLOAD CURRENT</button>
                     <button id="compareBtn" disabled>COMPARE / EXPORT</button>
                 </div>
             </div>
@@ -2911,6 +2939,15 @@ void main() {
             pingPong: [null, null], // Double-buffer for iterative effects like Bilateral Filter
             thumbnailFBO: null,
             baseImage: null,      // The original HTMLImageElement uploaded by the user
+            imageFiles: [],       // Array of image file handles for multi-image mode
+            currentImageIndex: 0, // Index for the imageFiles array
+            isMultiImageMode: false, // Are we editing a single image or a folder?
+            isExporting: false,   // Is a batch export in progress?
+            playInterval: null,   // Interval ID for the play feature
+            isPlaying: false,     // Is the animation playing?
+            lastFrameTime: 0,     // Timestamp of the last rendered frame
+            realtimeFps: 0,       // Calculated real-time FPS
+            frameRenderCount: 0,  // Counter to periodically update FPS display
             width: 1,             // Original image width
             height: 1,            // Original image height
             renderWidth: 1,       // Scaled viewport width
@@ -2975,6 +3012,17 @@ void main() {
             UI.hoverZoomValue = document.getElementById('hoverZoomValue');
             UI.hoverZoomSlider = document.getElementById('hoverZoomSlider'); // Fix: Targeted input directly
             UI.zoomResIndicator = document.getElementById('zoomResIndicator');
+            UI.loadFolderBtn = document.getElementById('loadFolderBtn');
+            UI.prevImageBtn = document.getElementById('prevImageBtn');
+            UI.nextImageBtn = document.getElementById('nextImageBtn');
+            UI.imageCounter = document.getElementById('imageCounter');
+            UI.imageScrubber = document.getElementById('imageScrubber');
+            UI.playBtn = document.getElementById('playBtn');
+            UI.playFps = document.getElementById('playFps');
+            UI.actualFps = document.getElementById('actualFps');
+            UI['export-overlay'] = document.getElementById('export-overlay');
+            UI['export-status'] = document.getElementById('export-status');
+            UI.stopExportBtn = document.getElementById('stopExportBtn');
 
             // Critical interactive elements (might not be input/button tags)
             UI.caPin = document.getElementById('caPin');
@@ -3455,20 +3503,80 @@ void main() {
 
             initWebGL();
 
+            // Single image load
             UI.imageUpload.addEventListener('change', e => {
                 const file = e.target.files[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = evt => {
-                    const img = new Image();
-                    img.onload = () => loadNewImage(img);
-                    img.src = evt.target.result;
-                };
-                reader.readAsDataURL(file);
+                state.isMultiImageMode = false;
+                state.imageFiles = [file];
+                state.currentImageIndex = 0;
+                loadImageFromFile(file).then(updateUIMode);
             });
 
-            UI.downloadBtn.addEventListener('click', downloadFullRes);
+            // Folder load
+            UI.loadFolderBtn.addEventListener('click', loadFolder);
+
+            // Navigation
+            UI.prevImageBtn.addEventListener('click', () => changeImage(-1));
+            UI.nextImageBtn.addEventListener('click', () => changeImage(1));
+
+            // Scrubber
+            UI.imageScrubber.addEventListener('input', (e) => {
+                const newIndex = parseInt(e.target.value, 10);
+                if (newIndex !== state.currentImageIndex) {
+                    state.currentImageIndex = newIndex;
+                    // Don't wait for image to load, makes scrubber feel laggy
+                    requestAnimationFrame(() => {
+                        loadImageFromFile(state.imageFiles[state.currentImageIndex]).then(updateUIMode);
+                    });
+                }
+            });
+
+            // --- Playback Logic ---
+            const startPlay = () => {
+                if (state.playInterval) clearInterval(state.playInterval);
+                state.isPlaying = true;
+                UI.playBtn.textContent = 'STOP ■';
+                const fps = parseInt(UI.playFps.value, 10) || 10;
+
+                state.playInterval = setInterval(() => {
+                    let newIndex = (state.currentImageIndex + 1) % state.imageFiles.length;
+                    state.currentImageIndex = newIndex;
+                    // Don't await, just fire and forget to keep timing consistent
+                    loadImageFromFile(state.imageFiles[state.currentImageIndex]);
+                    updateUIMode(); // Update scrubber and counter
+                }, 1000 / fps);
+            };
+
+            const stopPlay = () => {
+                if (state.playInterval) {
+                    clearInterval(state.playInterval);
+                    state.playInterval = null;
+                }
+                state.isPlaying = false;
+                UI.playBtn.textContent = 'PLAY ►';
+            };
+
+            UI.playBtn.addEventListener('click', () => {
+                if (state.isPlaying) {
+                    stopPlay();
+                } else {
+                    startPlay();
+                }
+            });
+            
+            // Download button now handles both modes
+            UI.downloadBtn.addEventListener('click', () => {
+                if (state.isMultiImageMode && state.imageFiles.length > 1) {
+                    downloadAllImages();
+                } else {
+                    downloadSingleImage();
+                }
+            });
+
+            UI.downloadCurrentBtn = document.getElementById('downloadCurrentBtn');
             UI.compareBtn.addEventListener('click', openCompare);
+            UI.downloadCurrentBtn.addEventListener('click', downloadSingleImage);
             UI.closeCompare.addEventListener('click', () => document.getElementById('compareModal').classList.remove('show'));
             UI.exportSideBySide.addEventListener('click', () => exportComparison('side'));
             UI.exportStacked.addEventListener('click', () => exportComparison('stack'));
@@ -3676,6 +3784,171 @@ void main() {
             reader.readAsText(file);
         }
 
+        // --- MULTI-IMAGE FUNCTIONS ---
+
+        async function loadFolder() {
+            try {
+                const dirHandle = await window.showDirectoryPicker();
+                const imageFiles = [];
+                for await (const entry of dirHandle.values()) {
+                    if (entry.kind === 'file') {
+                        const file = await entry.getFile();
+                        if (file.type.startsWith('image/')) {
+                            imageFiles.push(file);
+                        }
+                    }
+                }
+
+                if (imageFiles.length > 0) {
+                    state.imageFiles = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+                    state.isMultiImageMode = true;
+                    state.currentImageIndex = 0;
+                    await loadImageFromFile(state.imageFiles[0]);
+                    updateUIMode();
+                } else {
+                    alert('No images found in the selected folder.');
+                }
+            } catch (err) {
+                console.error('Error loading folder:', err);
+                if (err.name !== 'AbortError') {
+                    alert('Could not load folder. Please ensure your browser supports the File System Access API and you have granted permission.');
+                }
+            }
+        }
+
+        async function changeImage(direction) {
+            if (!state.isMultiImageMode || state.imageFiles.length === 0) return;
+
+            let newIndex = state.currentImageIndex + direction;
+            
+            if (newIndex < 0) return; 
+            if (newIndex >= state.imageFiles.length) return;
+
+            state.currentImageIndex = newIndex;
+            await loadImageFromFile(state.imageFiles[state.currentImageIndex]);
+            updateUIMode();
+        }
+        
+        async function loadImageFromFile(file) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                const url = URL.createObjectURL(file);
+                img.src = url;
+                img.onload = () => {
+                    loadNewImage(img);
+                    URL.revokeObjectURL(url);
+                    resolve();
+                };
+                img.onerror = (err) => {
+                    URL.revokeObjectURL(url);
+                    reject(err);
+                };
+            });
+        }
+        
+        function updateUIMode() {
+            const nav = document.getElementById('image-navigation');
+            const scrubber = UI.imageScrubber;
+            if (state.isMultiImageMode && state.imageFiles.length > 1) {
+                nav.style.display = 'flex';
+                UI.imageCounter.textContent = `Image ${state.currentImageIndex + 1} of ${state.imageFiles.length}`;
+                UI.downloadBtn.textContent = `DOWNLOAD ALL (${state.imageFiles.length})`;
+                scrubber.max = state.imageFiles.length - 1;
+                scrubber.value = state.currentImageIndex;
+            } else {
+                nav.style.display = 'none';
+                UI.downloadBtn.textContent = 'DOWNLOAD FULL RES';
+            }
+
+            if (state.imageFiles.length > 1) {
+                UI.prevImageBtn.disabled = state.currentImageIndex === 0;
+                UI.nextImageBtn.disabled = state.currentImageIndex === state.imageFiles.length - 1;
+            }
+        }
+
+        async function downloadSingleImage() {
+            UI.loading.textContent = 'PROCESSING GPU...';
+            UI.loading.style.display = 'block';
+            await new Promise(r => setTimeout(r, 50));
+
+            reallocateBuffers(true);
+            renderFrame(true);
+
+            const link = document.createElement('a');
+            const originalName = state.isMultiImageMode ? state.imageFiles[state.currentImageIndex].name.split('.')[0] : 'grain-export';
+            link.download = `${originalName}-processed.png`;
+            link.href = state.canvas.toDataURL('image/png', 1.0);
+            link.click();
+
+            reallocateBuffers(false);
+            requestRender();
+            UI.loading.style.display = 'none';
+        }
+
+        async function downloadAllImages() {
+            let dirHandle;
+            try {
+                dirHandle = await window.showDirectoryPicker();
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+                alert('Could not open directory. Permission denied.');
+                return;
+            }
+
+            state.isExporting = true;
+            const overlay = UI['export-overlay'];
+            overlay.style.display = 'flex';
+            
+            const stopExportHandler = () => {
+                state.isExporting = false;
+            };
+            UI.stopExportBtn.addEventListener('click', stopExportHandler);
+
+            const originalIndex = state.currentImageIndex;
+
+            try {
+                for (let i = 0; i < state.imageFiles.length; i++) {
+                    if (!state.isExporting) {
+                        alert('Export cancelled.');
+                        break;
+                    }
+
+                    const file = state.imageFiles[i];
+                    UI['export-status'].textContent = `PROCESSING ${i + 1}/${state.imageFiles.length}...`;
+                    
+                    try {
+                        await loadImageFromFile(file);
+                        reallocateBuffers(true);
+                        renderFrame(true);
+
+                        const blob = await new Promise(resolve => state.canvas.toBlob(resolve, 'image/png'));
+                        const fileHandle = await dirHandle.getFileHandle(`${i + 1}.png`, { create: true });
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(blob);
+                        await writable.close();
+                    } catch (loadErr) {
+                        console.error(`Skipping image ${file.name} due to load error:`, loadErr);
+                    }
+                    await new Promise(r => setTimeout(r, 10)); // Yield to main thread
+                }
+                if(state.isExporting) {
+                    alert(`Successfully downloaded ${state.imageFiles.length} images.`);
+                }
+            } finally {
+                state.isExporting = false;
+                overlay.style.display = 'none';
+                UI.stopExportBtn.removeEventListener('click', stopExportHandler);
+                
+                // Restore to the image that was active before downloading
+                await loadImageFromFile(state.imageFiles[originalIndex]);
+                state.currentImageIndex = originalIndex;
+                updateUIMode();
+                reallocateBuffers(false);
+                requestRender();
+            }
+        }
+
+
         // --- DRAG LAYER LIST ---
         /** 
          * Manages the 'Render Layer Order' tab.
@@ -3849,6 +4122,7 @@ void main() {
             reallocateBuffers(false);
 
             UI.downloadBtn.disabled = false;
+            UI.downloadCurrentBtn.disabled = false;
             UI.compareBtn.disabled = false;
 
             UI.overlayCanvas.width = img.width;
@@ -4494,6 +4768,22 @@ void main() {
          */
         function renderFrame(isExport = false) {
             if (!state.baseImage) return;
+
+            // --- FPS Counter ---
+            if (!isExport) {
+                const now = performance.now();
+                if (state.lastFrameTime > 0) {
+                    const deltaTime = now - state.lastFrameTime;
+                    state.realtimeFps = 1000 / deltaTime;
+                }
+                state.lastFrameTime = now;
+                state.frameRenderCount++;
+                if (state.frameRenderCount % 15 === 0) { // Update UI every 15 frames
+                    UI.actualFps.textContent = `(Actual: ${Math.round(state.realtimeFps)} FPS)`;
+                }
+            }
+            // --------------------
+
             const gl = state.gl;
             const size = reallocateBuffers(isExport);
             const w = size.w;

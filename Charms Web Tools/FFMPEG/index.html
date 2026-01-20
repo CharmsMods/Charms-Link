@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Video Frame Tool</title>
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.12/dist/ffmpeg.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+<h2>Extract Frames from Video</h2>
+<input type="file" id="videoInput">
+<button id="extractBtn">Extract Frames & Download ZIP</button>
+
+<h2>Create Video from Images + Audio</h2>
+<input type="file" id="imagesInput" multiple accept="image/*">
+<input type="file" id="audioInput" accept="audio/*">
+<button id="makeVideoBtn">Make Video & Download</button>
+
+<script>
+const { createFFmpeg, fetchFile } = FFmpeg;
+const ffmpeg = createFFmpeg({ log: true });
+
+async function ensureFFmpeg() {
+    if (!ffmpeg.isLoaded()) await ffmpeg.load();
+}
+
+// --- Extract Frames ---
+document.getElementById('extractBtn').addEventListener('click', async () => {
+    const videoFile = document.getElementById('videoInput').files[0];
+    if (!videoFile) return alert("Select a video first.");
+    await ensureFFmpeg();
+    ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(videoFile));
+    await ffmpeg.run('-i', 'input.mp4', 'frame_%04d.png');
+
+    const zip = new JSZip();
+    const files = ffmpeg.FS('readdir', '/').filter(f => f.endsWith('.png'));
+    for (let f of files) zip.file(f, ffmpeg.FS('readFile', f));
+    const content = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = 'frames.zip';
+    a.click();
+});
+
+// --- Make Video ---
+document.getElementById('makeVideoBtn').addEventListener('click', async () => {
+    const images = document.getElementById('imagesInput').files;
+    const audio = document.getElementById('audioInput').files[0];
+    if (!images.length || !audio) return alert("Select images and audio.");
+
+    await ensureFFmpeg();
+
+    // Write images in order
+    Array.from(images).sort((a,b)=>a.name.localeCompare(b.name)).forEach((img, i)=>{
+        ffmpeg.FS('writeFile', `frame_${String(i).padStart(4,'0')}.png`, img);
+    });
+    ffmpeg.FS('writeFile', 'audio.mp3', await fetchFile(audio));
+
+    const framerate = 30; // adjust as needed
+    await ffmpeg.run(
+        '-framerate', framerate.toString(),
+        '-i', 'frame_%04d.png',
+        '-i', 'audio.mp3',
+        '-c:v', 'libx264',
+        '-pix_fmt', 'yuv420p',
+        'output.mp4'
+    );
+
+    const data = ffmpeg.FS('readFile', 'output.mp4');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+    a.download = 'video.mp4';
+    a.click();
+});
+</script>
+</body>
+</html>

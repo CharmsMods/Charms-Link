@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to ASCII Converter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        :root {
+            /* STARK BLACK AND WHITE PALETTE */
+            --bg-dark: #000000;
+            --bg-control: #000000; 
+            --text-color: #ffffff;
+            --border-color: #ffffff;
+            --accent-color: #ffffff; /* White buttons and accents */
+            --accent-hover: #cccccc; /* Slightly grayed white on hover */
+            --accent-text: #000000; /* Black text on white elements */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Responsive Grid Layout */
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: grid;
+            gap: 24px;
+            grid-template-columns: 1fr;
+            grid-template-areas: 
+                "header"
+                "controls"
+                "output"
+                "buttons";
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                grid-template-areas:
+                    "header header"
+                    "controls output"
+                    "buttons buttons";
+                grid-template-columns: 350px 1fr;
+            }
+        }
+        
+        h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            grid-area: header;
+            margin-bottom: 0;
+            text-align: center;
+        }
+
+        #controls {
+            grid-area: controls;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            background-color: var(--bg-control); /* Pure black */
+            padding: 24px;
+            border-radius: 8px;
+            border: 2px solid var(--border-color); /* High-contrast white border */
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1); /* Subtle white shadow */
+            box-sizing: border-box;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .control-row label, .checkbox-container label {
+            flex-shrink: 0;
+            font-weight: 500;
+        }
+        
+        /* Styling all inputs/selects to match the B&W theme */
+        input[type="range"] {
+            flex-grow: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            background: var(--border-color); /* White track */
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #ffffff; /* White thumb */
+            border-radius: 50%;
+            border: 2px solid #000000; /* Black border for definition */
+            transition: background 0.2s;
+        }
+        
+        .reset-button {
+            background-color: #ffffff; /* White background */
+            color: #000000; /* Black text */
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .reset-button:hover {
+            background-color: #cccccc; /* Light gray hover */
+        }
+
+        /* File input styling, using B&W Tailwind classes */
+        input[type="file"] {
+            color: var(--text-color);
+        }
+        
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Overriding tailwind checkbox appearance for B&W */
+        #transparent-mode.focus\:ring-white:focus {
+            --tw-ring-color: #ffffff;
+        }
+
+        #color-picker {
+            width: 100%;
+            height: 40px;
+        }
+        
+        #color-picker::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        #color-picker::-webkit-color-swatch {
+            border: 3px solid var(--border-color); /* Thicker white border */
+            border-radius: 6px;
+        }
+        
+        .main-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            width: 100%;
+            grid-area: buttons;
+            flex-wrap: wrap;
+        }
+
+        #output-container {
+            grid-area: output;
+            width: 100%;
+            min-height: 300px;
+            background-color: #000000; /* Pure black for output screen */
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        #ascii-output {
+            font-family: monospace;
+            margin: 0;
+            line-height: 1;
+            white-space: pre;
+            text-align: center;
+            overflow: hidden;
+            display: block;
+            color: var(--text-color);
+        }
+
+        button {
+            padding: 12px 24px;
+            background-color: var(--accent-color); /* White button */
+            color: var(--accent-text); /* Black text */
+            border: none;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background-color 0.2s ease, transform 0.1s;
+            font-weight: 600;
+            box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2); /* White shadow for definition */
+        }
+
+        button:hover {
+            background-color: var(--accent-hover); /* Light gray hover */
+            color: var(--accent-text);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 10px rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Image to ASCII Art Converter</h1>
+        
+        <div id="controls">
+            <!-- Using B&W Tailwind classes for file input -->
+            <input type="file" id="image-upload" accept="image/*" class="p-2 border border-white rounded-md bg-black text-white">
+            
+            <div class="control-group">
+                <div class="control-row">
+                    <label for="resolution-slider">Resolution:</label>
+                    <input type="range" id="resolution-slider" min="50" max="400" value="150">
+                    <button class="reset-button" data-slider="resolution" data-default="150">Reset</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-row">
+                    <label for="brightness-slider">Brightness:</label>
+                    <input type="range" id="brightness-slider" min="-100" max="100" value="0">
+                    <button class="reset-button" data-slider="brightness" data-default="0">Reset</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-row">
+                    <label for="contrast-slider">Contrast:</label>
+                    <input type="range" id="contrast-slider" min="-100" max="100" value="0">
+                    <button class="reset-button" data-slider="contrast" data-default="0">Reset</button>
+                </div>
+            </div>
+            
+            <div class="checkbox-container">
+                <!-- Using B&W Tailwind classes for checkbox -->
+                <input type="checkbox" id="transparent-mode" class="w-4 h-4 text-white bg-black border-white rounded focus:ring-white">
+                <label for="transparent-mode">Transparent Background</label>
+            </div>
+
+            <div class="control-group">
+                <div class="control-row">
+                    <label for="color-picker">ASCII Color:</label>
+                    <input type="color" id="color-picker" value="#ffffff">
+                </div>
+            </div>
+        </div>
+
+        <div id="output-container">
+            <pre id="ascii-output">Upload an image to get started...</pre>
+        </div>
+
+        <div class="main-buttons">
+            <button id="copy-button">Copy ASCII Art</button>
+        </div>
+    </div>
+
+    <script>
+        const imageUpload = document.getElementById('image-upload');
+        const resolutionSlider = document.getElementById('resolution-slider');
+        const brightnessSlider = document.getElementById('brightness-slider');
+        const contrastSlider = document.getElementById('contrast-slider');
+        const colorPicker = document.getElementById('color-picker');
+        const transparentModeCheckbox = document.getElementById('transparent-mode');
+        const asciiOutput = document.getElementById('ascii-output');
+        const copyButton = document.getElementById('copy-button');
+        const resetButton = document.querySelectorAll('.reset-button');
+
+        let originalImage = null;
+
+        const asciiCharacters = "`.-':_,^=;><+!*|?()[]{}1Ili/\\^vczxkZpXUaYJCLO0QCb8D9#MW&B%@$";
+
+        imageUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        originalImage = img;
+                        updateAsciiArt();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        resolutionSlider.addEventListener('input', updateAsciiArt);
+        brightnessSlider.addEventListener('input', updateAsciiArt);
+        contrastSlider.addEventListener('input', updateAsciiArt);
+        colorPicker.addEventListener('input', updateAsciiArt);
+        transparentModeCheckbox.addEventListener('change', updateAsciiArt);
+
+        resetButton.forEach(button => {
+            button.addEventListener('click', (event) => {
+                const sliderName = event.target.getAttribute('data-slider');
+                const defaultValue = event.target.getAttribute('data-default');
+                document.getElementById(`${sliderName}-slider`).value = defaultValue;
+                updateAsciiArt();
+            });
+        });
+
+        copyButton.addEventListener('click', () => {
+             // Using document.execCommand('copy') for better compatibility in iframe
+            const textToCopy = asciiOutput.textContent;
+            
+            const tempInput = document.createElement('textarea');
+            tempInput.value = textToCopy;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    const originalText = copyButton.textContent;
+                    copyButton.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyButton.textContent = originalText;
+                    }, 2000);
+                } else {
+                    console.error('Failed to copy using execCommand');
+                }
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+            } finally {
+                document.body.removeChild(tempInput);
+            }
+        });
+
+        function updateAsciiArt() {
+            if (!originalImage) return;
+
+            const resolution = parseInt(resolutionSlider.value);
+            const brightness = parseInt(brightnessSlider.value);
+            const contrast = parseInt(contrastSlider.value);
+            const transparentMode = transparentModeCheckbox.checked;
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            
+            const aspectRatio = originalImage.width / originalImage.height;
+            let outputWidth = resolution;
+            let outputHeight = Math.round(outputWidth / aspectRatio / 1.5); // 1.5 factor accounts for character aspect ratio
+
+            canvas.width = outputWidth;
+            canvas.height = outputHeight;
+
+            // Apply contrast and brightness filters directly to the canvas context
+            context.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
+
+            context.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+
+            // Reset filter for reading image data, as filter property is often not applied to ImageData
+            context.filter = 'none';
+
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const pixels = imageData.data;
+            let asciiText = '';
+
+            // Recalculate context filter for manual pixel adjustment if necessary (not needed if context.filter works)
+            // Since context.filter might not be applied to the data, we revert to manual processing but
+            // simplify the original code's logic by just using the drawn pixel data directly.
+            
+            for (let y = 0; y < canvas.height; y++) {
+                for (let x = 0; x < canvas.width; x++) {
+                    const i = (y * canvas.width + x) * 4;
+                    const alpha = pixels[i + 3];
+
+                    if (transparentMode && alpha === 0) {
+                        asciiText += '\u00A0'; // Non-breaking space
+                    } else {
+                        const r = pixels[i];
+                        const g = pixels[i + 1];
+                        const b = pixels[i + 2];
+
+                        // Calculate grayscale value using luminosity method
+                        const grayscale = (r * 0.2126 + g * 0.7152 + b * 0.0722);
+                        
+                        // Map brightness to ASCII character (Inverted logic: Darker pixels map to denser characters)
+                        const characterIndex = Math.floor((1 - (grayscale / 255)) * (asciiCharacters.length - 1));
+                        
+                        // Ensure index is within bounds
+                        const finalIndex = Math.min(Math.max(0, characterIndex), asciiCharacters.length - 1);
+                        asciiText += asciiCharacters[finalIndex];
+                    }
+                }
+                asciiText += '\n';
+            }
+
+            asciiOutput.textContent = asciiText;
+            asciiOutput.style.color = colorPicker.value;
+            
+            // Adjust font size based on the output container's dimensions
+            const containerWidth = asciiOutput.parentElement.offsetWidth;
+            const containerHeight = asciiOutput.parentElement.offsetHeight;
+            const textLines = asciiText.split('\n');
+            const maxLineLength = textLines.reduce((max, line) => Math.max(max, line.length), 0);
+            const numLines = textLines.length;
+
+            if (maxLineLength > 0 && numLines > 0) {
+                // Calculate font size based on width and height of the container
+                // 0.9 is a safety factor to prevent overflow
+                const widthFontSize = (containerWidth / maxLineLength) * 0.9;
+                const heightFontSize = (containerHeight / numLines) * 0.9;
+                
+                const newFontSize = Math.min(widthFontSize, heightFontSize);
+                asciiOutput.style.fontSize = `${newFontSize}px`;
+            }
+        }
+    </script>
+</body>
+</html>
