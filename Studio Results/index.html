@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Studio Results // Gallery</title>
+    <style>
+        :root {
+            /* Theme Variables */
+            --bg-color: #e3dcc8;
+            --text-color: #121212;
+            --accent-color: #ff4700;
+            --card-bg: #f4f0e6;
+            --border-width: 3px;
+            --border-style: solid;
+            --font-main: 'Courier New', Courier, monospace;
+            --font-display: 'Arial Black', sans-serif;
+            
+            /* Spacing & Shadows */
+            --shadow-hard: 6px 6px 0px 0px var(--text-color);
+            --shadow-hover: 8px 8px 0px 0px var(--accent-color);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(#dcd5c1 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: var(--text-color);
+            font-family: var(--font-main);
+            overflow-x: hidden;
+        }
+
+        /* --- Header --- */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg-color);
+            border-bottom: var(--border-width) var(--border-style) var(--text-color);
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .logo {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+            border: 2px solid var(--text-color);
+            padding: 5px 10px;
+            background: #fff;
+        }
+
+        input[type="text"] {
+            font-family: var(--font-main);
+            font-weight: bold;
+            font-size: 1rem;
+            border: var(--border-width) var(--border-style) var(--text-color);
+            padding: 10px 20px;
+            background: #fff;
+            width: 300px;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+            box-shadow: 4px 4px 0 var(--text-color);
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        /* --- Masonry Gallery Layout --- */
+        main {
+            width: 100%;
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 40px;
+        }
+
+        .gallery-list {
+            column-count: 3;
+            column-gap: 40px;
+        }
+
+        @media (max-width: 1200px) { .gallery-list { column-count: 2; } }
+        @media (max-width: 768px) { .gallery-list { column-count: 1; } }
+
+        .list-item {
+            position: relative;
+            break-inside: avoid;
+            margin-bottom: 40px;
+            cursor: pointer;
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .list-item img {
+            display: block;
+            width: 100%;
+            height: auto;
+            border: var(--border-width) var(--border-style) var(--text-color);
+            background: #fff;
+            box-shadow: var(--shadow-hard);
+            transition: all 0.3s ease;
+        }
+
+        .list-item .meta-overlay {
+            opacity: 0;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--text-color);
+            color: var(--bg-color);
+            padding: 15px;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .list-item:hover img {
+            box-shadow: var(--shadow-hover);
+            border-color: var(--accent-color);
+            transform: translateY(-5px);
+        }
+
+        .list-item:hover .meta-overlay {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .badge-compare {
+            font-size: 0.7rem;
+            background: var(--accent-color);
+            color: #fff;
+            padding: 2px 6px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        /* --- Modal / Fullscreen Viewer --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(18, 18, 18, 0.98);
+            z-index: 1000;
+            display: flex;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+
+        .modal-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            position: relative;
+        }
+
+        /* Left: Viewer Area */
+        .viewer-section {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            overflow: hidden;
+            /* Prevent text selection while dragging slider */
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .main-image {
+            max-width: 100%;
+            max-height: 100vh;
+            object-fit: contain;
+            z-index: 5;
+            display: block;
+        }
+
+        /* Comparison Logic */
+        .compare-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: none;
+            cursor: ew-resize;
+            z-index: 10;
+            user-select: none; /* Fix for highlighting issue */
+            -webkit-user-select: none;
+        }
+        
+        .compare-img-wrapper {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+        }
+        
+        .compare-img {
+            max-width: 100%; max-height: 100vh;
+            object-fit: contain;
+            pointer-events: none;
+            display: block;
+        }
+        
+        /* The Overlay (Clipping Window) */
+        .compare-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 50%; height: 100%;
+            overflow: hidden;
+            border-right: 2px solid var(--accent-color);
+            background: #000;
+            z-index: 20;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        /* 
+           Crucial Fix for Scaling:
+           We set the width of the top wrapper explicitly via JS to match 
+           the viewer section width so the image inside doesn't shrink 
+           when the overlay div shrinks.
+        */
+        .compare-overlay .compare-img-wrapper {
+            /* Initial fallback, JS will override */
+            width: 100vw; 
+            height: 100vh;
+        }
+        
+        .slider-handle {
+            position: absolute;
+            top: 50%; right: -20px;
+            width: 40px; height: 40px;
+            background: var(--accent-color);
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-weight: bold;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            pointer-events: none; /* Let clicks pass through to container */
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            z-index: 30;
+        }
+
+        /* Right: Data Panel */
+        .data-panel {
+            position: absolute;
+            top: 0; right: 0;
+            width: 400px;
+            height: 100%;
+            background: var(--bg-color);
+            border-left: var(--border-width) var(--border-style) var(--text-color);
+            transform: translateX(100%);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            z-index: 50;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+        }
+
+        .data-panel.open { transform: translateX(0); }
+
+        .panel-header {
+            padding: 20px;
+            background: var(--text-color);
+            color: var(--bg-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--bg-color);
+        }
+
+        .panel-content {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+            font-family: var(--font-main);
+        }
+
+        .json-viewer {
+            background: #222;
+            color: #0f0;
+            padding: 15px;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            border: 1px solid #555;
+            margin-top: 10px;
+            max-height: 40vh;
+            overflow-y: auto;
+        }
+
+        .download-group {
+            margin-top: 20px;
+            border-top: 2px dashed #999;
+            padding-top: 20px;
+        }
+        
+        .download-group h4 { margin: 0 0 10px 0; font-size: 0.9rem; text-transform: uppercase; }
+
+        .btn-download {
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+            background: #fff;
+            color: #121212;
+            border: 2px solid #121212;
+            padding: 10px;
+            text-align: left;
+            cursor: pointer;
+            font-family: var(--font-main);
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        
+        .btn-download:hover {
+            background: var(--accent-color);
+            color: #fff;
+            border-color: var(--accent-color);
+            padding-left: 15px; /* subtle movement */
+        }
+
+        .btn-download small { display: block; font-weight: normal; opacity: 0.7; font-size: 0.75rem; margin-top: 2px;}
+
+        /* Controls */
+        .viewer-controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 40;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 20px;
+            border: 1px solid #fff;
+            border-radius: 50px;
+            backdrop-filter: blur(5px);
+            user-select: none;
+        }
+
+        .btn-ctrl {
+            background: transparent;
+            color: #fff;
+            border: 1px solid transparent;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-family: var(--font-main);
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .btn-ctrl:hover { background: rgba(255,255,255,0.2); border-color: #fff; }
+        .btn-ctrl.active { background: var(--accent-color); color: white; border-color: var(--accent-color); }
+
+        .close-view-btn {
+            position: absolute;
+            top: 20px; left: 20px;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 3rem;
+            cursor: pointer;
+            z-index: 60;
+            line-height: 1;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .close-view-btn:hover { opacity: 1; color: var(--accent-color); }
+
+        .no-results {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px;
+            border: var(--border-width) dashed var(--text-color);
+            background: var(--card-bg);
+        }
+
+        .hidden { display: none !important; }
+
+    </style>
+    <style>
+        /* Loading Notice Styles */
+        .loading-notice {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .loading-notice-content {
+            background: var(--bg-color);
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 400px;
+            margin: 20px;
+            border: 2px solid var(--accent-color);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .loading-notice h3 {
+            margin-top: 0;
+            color: var(--accent-color);
+            font-family: var(--font-display);
+        }
+
+        .loading-notice p {
+            margin: 15px 0 20px;
+            line-height: 1.5;
+        }
+
+        .btn-close {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .btn-close:hover {
+            background: #e63e00;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Notice -->
+    <div id="loadingNotice" class="loading-notice">
+        <div class="loading-notice-content">
+            <h3>Notice: Large Image Files</h3>
+            <p>These image files are high resolution and may take a while to load depending on your internet connection. Please be patient while the gallery loads.</p>
+            <button id="closeNotice" class="btn-close">Got it!</button>
+        </div>
+    </div>
+
+    <header>
+        <div class="logo">Studio Gallery</div>
+    </header>
+
+    <main>
+        <div id="galleryList" class="gallery-list">
+            <!-- Gallery Items Injected Here -->
+        </div>
+        <div id="noResults" class="no-results hidden">
+            <h2>FILES NOT FOUND</h2>
+            <p>Try adjusting your search or check image folder.</p>
+        </div>
+    </main>
+
+    <!-- Fullscreen Modal -->
+    <div id="detailModal" class="modal-overlay">
+        <button class="close-view-btn" id="closeModal">&times;</button>
+        
+        <div class="modal-container">
+            <!-- Main Viewer Area -->
+            <div class="viewer-section" id="viewerSection">
+                <img id="detailImage" class="main-image" src="" alt="Detail">
+                
+                <!-- Comparison Slider Overlay -->
+                <div id="compareContainer" class="compare-container">
+                    <!-- Bottom Image (Edited) -->
+                    <div class="compare-img-wrapper">
+                        <img id="compareImgBottom" class="compare-img" src="" alt="Base">
+                    </div>
+                    
+                    <!-- Top Image (Original/Compare) inside Overlay -->
+                    <div id="compareOverlay" class="compare-overlay">
+                        <div id="topWrapper" class="compare-img-wrapper">
+                            <img id="compareImgTop" class="compare-img" src="" alt="Comparison">
+                        </div>
+                    </div>
+                    
+                    <div id="sliderHandle" class="slider-handle">&lt;&gt;</div>
+                </div>
+
+                <!-- Floating Controls -->
+                <div class="viewer-controls">
+                    <button id="toggleInfoBtn" class="btn-ctrl">Info / Data</button>
+                    <button id="toggleCompareBtn" class="btn-ctrl hidden">Compare Mode</button>
+                </div>
+            </div>
+
+            <!-- Slide-out Info Panel -->
+            <div id="dataPanel" class="data-panel">
+                <div class="panel-header">
+                    <span id="modalTitle" style="font-weight:bold; font-size:1.2rem;">FILE_DATA</span>
+                    <button id="closePanelBtn" class="btn-ctrl" style="color:#121212; border-color:#121212;">Hide</button>
+                </div>
+                <div class="panel-content">
+                    <h4 style="margin-top:0;">METADATA</h4>
+                    <p style="font-size: 0.9rem; line-height: 1.5;">
+                        Filename: <span id="fileNameDisplay" style="font-weight:bold;">--</span><br>
+                        Resolution: <span id="resDisplay">--</span><br>
+                        Status: <span style="color:green">Available</span>
+                    </p>
+                    
+                    <h4>RAW JSON</h4>
+                    <div id="jsonDisplay" class="json-viewer">Loading metadata...</div>
+                    
+                    <button id="copyJsonBtn" class="btn-download" style="width:100%; margin-top:10px;">Copy Data</button>
+
+                    <!-- Smart Downloads -->
+                    <div class="download-group">
+                        <h4>Downloads</h4>
+                        <button id="downloadEditedBtn" class="btn-download">
+                            Download Edited
+                            <small>Final Result (.png)</small>
+                        </button>
+                        <button id="downloadCompareBtn" class="btn-download hidden">
+                            Download Compare
+                            <small>Original Version (.png)</small>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * CONFIGURATION
+         */
+        const FILE_BASE_NAMES = [
+    "city portal",
+    "colorful lady",
+    "flowers",
+    "grain girl"
+];;;
+        const IMAGE_DIR = '.';
+        
+        let state = {
+            items: [],
+            currentItem: null
+        };
+
+        const els = {
+            gallery: document.getElementById('galleryList'),
+            modal: document.getElementById('detailModal'),
+            closeModal: document.getElementById('closeModal'),
+            modalTitle: document.getElementById('modalTitle'),
+            detailImage: document.getElementById('detailImage'),
+            compareContainer: document.getElementById('compareContainer'),
+            compareImgBottom: document.getElementById('compareImgBottom'),
+            compareImgTop: document.getElementById('compareImgTop'),
+            compareOverlay: document.getElementById('compareOverlay'),
+            topWrapper: document.getElementById('topWrapper'),
+            sliderHandle: document.getElementById('sliderHandle'),
+            viewerSection: document.getElementById('viewerSection'),
+            toggleCompareBtn: document.getElementById('toggleCompareBtn'),
+            toggleInfoBtn: document.getElementById('toggleInfoBtn'),
+            closePanelBtn: document.getElementById('closePanelBtn'),
+            dataPanel: document.getElementById('dataPanel'),
+            jsonDisplay: document.getElementById('jsonDisplay'),
+            copyJsonBtn: document.getElementById('copyJsonBtn'),
+            downloadEditedBtn: document.getElementById('downloadEditedBtn'),
+            downloadCompareBtn: document.getElementById('downloadCompareBtn'),
+            fileNameDisplay: document.getElementById('fileNameDisplay'),
+            noResults: document.getElementById('noResults')
+        };
+
+        function init() {
+            generateItems();
+            renderGallery(state.items);
+            
+            // Listeners
+                els.closeModal.addEventListener('click', closeModal);
+            els.modal.addEventListener('click', (e) => { if (e.target === els.modal) closeModal(); });
+
+            // Panel Toggles
+            els.toggleInfoBtn.addEventListener('click', () => els.dataPanel.classList.toggle('open'));
+            els.closePanelBtn.addEventListener('click', () => els.dataPanel.classList.remove('open'));
+
+            // Compare Toggle
+            els.toggleCompareBtn.addEventListener('click', toggleCompareMode);
+
+            // Copy
+            els.copyJsonBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(els.jsonDisplay.textContent).then(() => {
+                    const originalText = els.copyJsonBtn.textContent;
+                    els.copyJsonBtn.textContent = "Copied!";
+                    setTimeout(() => els.copyJsonBtn.textContent = originalText, 1500);
+                });
+            });
+
+            // Downloads
+            els.downloadEditedBtn.addEventListener('click', () => {
+                if(state.currentItem) triggerDownload(state.currentItem.mainUrl, state.currentItem.baseName + "_edited.png");
+            });
+
+            els.downloadCompareBtn.addEventListener('click', () => {
+                if(state.currentItem) triggerDownload(state.currentItem.compareUrl, state.currentItem.baseName + "_compare.png");
+            });
+
+            setupCompareSlider();
+            
+            // Handle window resize for comparison syncing
+            window.addEventListener('resize', () => {
+                if(els.modal.classList.contains('active')) {
+                    syncCompareDimensions();
+                }
+            });
+        }
+
+        function generateItems() {
+            state.items = FILE_BASE_NAMES.map(name => {
+                const hasCompare = true; 
+                return {
+                    baseName: name,
+                    mainUrl: `${IMAGE_DIR}/${name}.png`,
+                    compareUrl: hasCompare ? `${IMAGE_DIR}/${name} compare.png` : null,
+                    jsonUrl: `${IMAGE_DIR}/${name}.json`,
+                    hasCompare: hasCompare
+                };
+            });
+        }
+
+        function renderGallery(items) {
+            els.gallery.innerHTML = '';
+            
+            if (items.length === 0) {
+                els.noResults.classList.remove('hidden');
+                return;
+            } else {
+                els.noResults.classList.add('hidden');
+            }
+
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'list-item';
+                div.onclick = () => openModal(item);
+
+                const img = document.createElement('img');
+                img.src = item.mainUrl;
+                img.alt = item.baseName;
+                img.loading = "lazy";
+
+                const overlay = document.createElement('div');
+                overlay.className = 'meta-overlay';
+                
+                const title = document.createElement('span');
+                title.textContent = item.baseName;
+                title.style.fontWeight = "bold";
+                title.style.fontSize = "0.9rem";
+                overlay.appendChild(title);
+
+                if (item.hasCompare) {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge-compare';
+                    badge.textContent = 'Compare Available';
+                    overlay.appendChild(badge);
+                }
+
+                div.appendChild(img);
+                div.appendChild(overlay);
+                els.gallery.appendChild(div);
+            });
+        }
+
+        function handleSearch(e) {
+            const query = e.target.value.toLowerCase();
+            const filtered = state.items.filter(item => 
+                item.baseName.toLowerCase().includes(query)
+            );
+            renderGallery(filtered);
+        }
+
+        function toggleCompareMode() {
+            const isCompareActive = els.compareContainer.style.display === 'block';
+            
+            if (isCompareActive) {
+                els.compareContainer.style.display = 'none';
+                els.detailImage.style.display = 'block';
+                els.toggleCompareBtn.classList.remove('active');
+                els.toggleCompareBtn.textContent = 'Compare Mode';
+            } else {
+                els.compareContainer.style.display = 'block';
+                els.detailImage.style.display = 'none';
+                els.toggleCompareBtn.classList.add('active');
+                els.toggleCompareBtn.textContent = 'Exit Compare';
+                // Sync dimensions immediately after showing
+                setTimeout(syncCompareDimensions, 50); 
+            }
+        }
+
+        function syncCompareDimensions() {
+            // This function prevents the top image from scaling
+            // It forces the top wrapper to be exactly the width of the viewer
+            if(!els.compareContainer.offsetParent) return; // If hidden, do nothing
+
+            const width = els.viewerSection.offsetWidth;
+            const height = els.viewerSection.offsetHeight;
+            
+            els.topWrapper.style.width = width + 'px';
+            els.topWrapper.style.height = height + 'px';
+        }
+
+        function triggerDownload(url, filename) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function closeModal() {
+            els.modal.classList.remove('active');
+            document.body.style.overflow = '';
+            // Reset the detail image to prevent memory leaks
+            els.detailImage.src = '';
+            // Clear any existing prompt elements
+            const existingPrompt = document.querySelector('.prompt-display');
+            if (existingPrompt) {
+                existingPrompt.remove();
+            }
+        }
+
+        function openModal(item) {
+            if (!item) return; // Safety check
+            
+            state.currentItem = item;
+            
+            // Reset UI
+            els.dataPanel.classList.add('open'); // Open the data panel by default
+            els.compareContainer.style.display = 'none';
+            els.detailImage.style.display = 'block';
+            els.toggleCompareBtn.classList.remove('active');
+            els.toggleCompareBtn.textContent = 'Compare Mode';
+            
+            // Ensure the modal is visible
+            els.modal.classList.add('active');
+            
+            // Set Content
+            els.modalTitle.textContent = item.baseName.toUpperCase();
+            els.fileNameDisplay.textContent = `${item.baseName}.png`;
+            els.detailImage.src = item.mainUrl;
+            
+            // Handle Comparison Button Visibility
+            if (item.hasCompare) {
+                els.toggleCompareBtn.classList.remove('hidden');
+                els.compareImgBottom.src = item.mainUrl;
+                els.compareImgTop.src = item.compareUrl;
+                // Show Compare Download Button
+                els.downloadCompareBtn.classList.remove('hidden');
+            } else {
+                els.toggleCompareBtn.classList.add('hidden');
+                // Hide Compare Download Button
+                els.downloadCompareBtn.classList.add('hidden');
+            }
+
+            // Load JSON with XMLHttpRequest for better local file handling
+            els.jsonDisplay.textContent = "Loading metadata...";
+            document.getElementById('resDisplay').textContent = "Loading...";
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', item.jsonUrl, true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200 || xhr.status === 0) { // 0 for file:// protocol
+                        try {
+                            const jsonData = JSON.parse(xhr.responseText);
+                            // Format the JSON for better readability
+                            els.jsonDisplay.textContent = JSON.stringify(jsonData, null, 2);
+                            
+                            // Update resolution if available
+                            if (jsonData.width && jsonData.height) {
+                                document.getElementById('resDisplay').textContent = 
+                                    `${jsonData.width} × ${jsonData.height}`;
+                            } else {
+                                document.getElementById('resDisplay').textContent = "No resolution data";
+                            }
+                            
+                            // Update other metadata if available
+                            if (jsonData.prompt) {
+                                const promptEl = document.createElement('div');
+                                promptEl.style.marginTop = '10px';
+                                promptEl.innerHTML = `<strong>Prompt:</strong> ${jsonData.prompt}`;
+                                els.jsonDisplay.parentNode.insertBefore(promptEl, els.jsonDisplay.nextSibling);
+                            }
+                            
+                        } catch (e) {
+                            els.jsonDisplay.textContent = "Error parsing JSON: " + e.message;
+                            document.getElementById('resDisplay').textContent = "Parse Error";
+                        }
+                    } else {
+                        els.jsonDisplay.textContent = `Error loading JSON (${xhr.status}): ${xhr.statusText}`;
+                        document.getElementById('resDisplay').textContent = "Load Error";
+                    }
+                }
+            };
+            xhr.onerror = function() {
+                els.jsonDisplay.textContent = `Error loading: ${item.jsonUrl}. Make sure to serve this page through a web server for JSON loading to work properly.`;
+                document.getElementById('resDisplay').textContent = "Network Error";
+            };
+            xhr.send(null);
+        }
+
+        function setupCompareSlider() {
+            let isDragging = false;
+            const moveSlider = (x) => {
+                const rect = els.compareContainer.getBoundingClientRect();
+                let pos = ((x - rect.left) / rect.width) * 100;
+                if (pos < 0) pos = 0;
+                if (pos > 100) pos = 100;
+                
+                // Move the clipping border
+                els.compareOverlay.style.width = `${pos}%`;
+                
+                // Move the handle explicitly if not dragging via handle
+                // (though usually tied to the same div)
+            };
+
+            els.sliderHandle.addEventListener('mousedown', () => isDragging = true);
+            window.addEventListener('mouseup', () => isDragging = false);
+            
+            els.sliderHandle.addEventListener('touchstart', () => isDragging = true);
+            window.addEventListener('touchend', () => isDragging = false);
+
+            els.compareContainer.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                moveSlider(e.clientX);
+            });
+
+            els.compareContainer.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                moveSlider(e.touches[0].clientX);
+                e.preventDefault();
+            });
+
+            els.compareContainer.addEventListener('mousedown', (e) => {
+                if(e.target === els.sliderHandle) return;
+                isDragging = true; // Enable drag immediately on click
+                moveSlider(e.clientX);
+            });
+        }
+
+        // Initialize loading notice
+        const loadingNotice = document.getElementById('loadingNotice');
+        const closeNotice = document.getElementById('closeNotice');
+        
+        closeNotice.addEventListener('click', () => {
+            loadingNotice.style.display = 'none';
+        });
+        
+        // Close when clicking outside the content
+        loadingNotice.addEventListener('click', (e) => {
+            if (e.target === loadingNotice) {
+                loadingNotice.style.display = 'none';
+            }
+        });
+
+        // Run main initialization
+        init();
+    </script>
+</body>
+</html>
