@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File To Folder Seperator</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --accent-color: #bb86fc;
+            --secondary-bg: #1e1e1e;
+            --border-color: #333;
+            --success-color: #03dac6;
+            --error-color: #cf6679;
+            --font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-family);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        h1 {
+            font-weight: 300;
+            letter-spacing: 0.1em;
+            margin-bottom: 2rem;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            font-size: 1.5rem;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background-color: var(--secondary-bg);
+            padding: 2rem;
+            border-radius: 8px;
+            /* Slight radius for modern feel, though user asked for "borderless", usually means no visible border lines */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        h2 {
+            margin: 0;
+            font-weight: 400;
+            font-size: 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+
+        p.desc {
+            font-size: 0.9rem;
+            color: #aaa;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .log-area {
+            background-color: #000;
+            color: #0f0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            padding: 1rem;
+            border-radius: 4px;
+            height: 200px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            border: 1px solid var(--border-color);
+        }
+
+        .log-entry.error {
+            color: var(--error-color);
+        }
+
+        .log-entry.success {
+            color: var(--success-color);
+        }
+
+        .log-entry.info {
+            color: #888;
+        }
+
+        .file-input-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #ccc;
+        }
+
+        /* Utility classes */
+        .w-full {
+            width: 100%;
+        }
+
+        .mt-2 {
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>File To Folder Seperator</h1>
+
+    <div class="container">
+        <!-- Flatten Section -->
+        <div class="card">
+            <h2>Flatten Folder</h2>
+            <p class="desc">
+                Select a folder to scan. The tool will copy all files (recursively) into a single new flat folder.
+                A <code>structure.json</code> file will be created to map files back to their original paths.
+                Duplicate filenames will be automatically renamed.
+            </p>
+
+            <button id="flattenBtn">Select Folder to Flatten</button>
+            <div id="flattenLog" class="log-area"></div>
+        </div>
+
+        <!-- Reconstruct Section -->
+        <div class="card">
+            <h2>Reconstruct Folder</h2>
+            <p class="desc">
+                Select the folder containing the flattened files, the <code>structure.json</code> map,
+                and a destination folder. The tool will rebuild the original directory structure.
+            </p>
+
+            <div class="file-input-wrapper">
+                <button id="selectFlatFolderBtn">1. Select Flattened Folder</button>
+                <span id="flatFolderStatus" class="desc">No folder selected</span>
+            </div>
+
+            <div class="file-input-wrapper">
+                <button id="selectJsonBtn">2. Select Structure JSON</button>
+                <span id="jsonStatus" class="desc">No JSON selected</span>
+            </div>
+
+            <button id="reconstructBtn" disabled>3. Reconstruct to New Folder</button>
+            <div id="reconstructLog" class="log-area"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- Utilities ---
+        function appendLog(elementId, message, type = 'normal') {
+            const logArea = document.getElementById(elementId);
+            const entry = document.createElement('div');
+            entry.classList.add('log-entry', type);
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logArea.appendChild(entry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // --- Flatten Logic ---
+        const flattenBtn = document.getElementById('flattenBtn');
+
+        flattenBtn.addEventListener('click', async () => {
+            try {
+                // 1. Select Source Directory
+                const sourceHandle = await window.showDirectoryPicker();
+                appendLog('flattenLog', `Selected source: ${sourceHandle.name}`, 'info');
+
+                // 2. Scan Files
+                appendLog('flattenLog', 'Scanning files...', 'info');
+                const files = []; // { name, handle, path }
+
+                async function scanDir(dirHandle, path = '') {
+                    for await (const entry of dirHandle.values()) {
+                        const relativePath = path ? `${path}/${entry.name}` : entry.name;
+                        if (entry.kind === 'file') {
+                            files.push({
+                                originalName: entry.name,
+                                handle: entry,
+                                originalPath: relativePath
+                            });
+                        } else if (entry.kind === 'directory') {
+                            await scanDir(entry, relativePath);
+                        }
+                    }
+                }
+
+                await scanDir(sourceHandle);
+                appendLog('flattenLog', `Found ${files.length} files.`, 'success');
+
+                if (files.length === 0) {
+                    appendLog('flattenLog', 'No files found to flatten.', 'error');
+                    return;
+                }
+
+                // 3. Select Destination Directory
+                appendLog('flattenLog', 'Please select a destination folder for the output.', 'info');
+                const destHandle = await window.showDirectoryPicker();
+
+                // 4. Process Flattening
+                appendLog('flattenLog', 'Starting copy process...', 'info');
+
+                const manifest = [];
+                const usedNames = new Set();
+
+                for (let i = 0; i < files.length; i++) {
+                    const fileData = files[i];
+                    let flatName = fileData.originalName;
+
+                    // Handle collisions
+                    let counter = 1;
+                    const nameParts = flatName.lastIndexOf('.');
+                    const baseName = nameParts !== -1 ? flatName.substring(0, nameParts) : flatName;
+                    const ext = nameParts !== -1 ? flatName.substring(nameParts) : '';
+
+                    while (usedNames.has(flatName)) {
+                        flatName = `${baseName} (${counter})${ext}`;
+                        counter++;
+                    }
+                    usedNames.add(flatName);
+
+                    // Add to manifest
+                    manifest.push({
+                        originalPath: fileData.originalPath,
+                        flatName: flatName
+                    });
+
+                    // Copy file
+                    try {
+                        const file = await fileData.handle.getFile();
+                        const newFileHandle = await destHandle.getFileHandle(flatName, { create: true });
+                        const writable = await newFileHandle.createWritable();
+                        await writable.write(file);
+                        await writable.close();
+                        appendLog('flattenLog', `Copied: ${fileData.originalPath} -> ${flatName}`);
+                    } catch (err) {
+                        appendLog('flattenLog', `Failed to copy ${fileData.originalPath}: ${err.message}`, 'error');
+                    }
+                }
+
+                // 5. Write Manifest
+                try {
+                    const jsonHandle = await destHandle.getFileHandle('structure.json', { create: true });
+                    const writable = await jsonHandle.createWritable();
+                    await writable.write(JSON.stringify(manifest, null, 2));
+                    await writable.close();
+                    appendLog('flattenLog', 'Created structure.json', 'success');
+                } catch (err) {
+                    appendLog('flattenLog', `Failed to write JSON manifest: ${err.message}`, 'error');
+                }
+
+                appendLog('flattenLog', 'Flattening complete!', 'success');
+
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    appendLog('flattenLog', 'Operation cancelled by user.', 'info');
+                } else {
+                    console.error(err);
+                    appendLog('flattenLog', `Error: ${err.message}`, 'error');
+                }
+            }
+        });
+
+
+        // --- Reconstruct Logic ---
+        let reconstructFlatHandle = null;
+        let reconstructJsonFile = null;
+
+        const selectFlatFolderBtn = document.getElementById('selectFlatFolderBtn');
+        const selectJsonBtn = document.getElementById('selectJsonBtn');
+        const reconstructBtn = document.getElementById('reconstructBtn');
+        const flatFolderStatus = document.getElementById('flatFolderStatus');
+        const jsonStatus = document.getElementById('jsonStatus');
+
+        selectFlatFolderBtn.addEventListener('click', async () => {
+            try {
+                reconstructFlatHandle = await window.showDirectoryPicker();
+                flatFolderStatus.textContent = `Selected: ${reconstructFlatHandle.name}`;
+                checkReconstructReady();
+            } catch (err) {
+                // Ignore cancel
+            }
+        });
+
+        selectJsonBtn.addEventListener('click', async () => {
+            try {
+                const [fileHandle] = await window.showOpenFilePicker({
+                    types: [{ description: 'JSON File', accept: { 'application/json': ['.json'] } }],
+                });
+                const file = await fileHandle.getFile();
+                // Read and validate JSON simple check
+                const text = await file.text();
+                try {
+                    reconstructJsonFile = JSON.parse(text);
+                    jsonStatus.textContent = `Loaded JSON (${reconstructJsonFile.length} entries)`;
+                    checkReconstructReady();
+                } catch (e) {
+                    alert('Invalid JSON file');
+                    reconstructJsonFile = null;
+                    jsonStatus.textContent = 'Invalid JSON';
+                }
+            } catch (err) {
+                // Ignore cancel
+            }
+        });
+
+        function checkReconstructReady() {
+            if (reconstructFlatHandle && reconstructJsonFile) {
+                reconstructBtn.disabled = false;
+            }
+        }
+
+        reconstructBtn.addEventListener('click', async () => {
+            if (!reconstructFlatHandle || !reconstructJsonFile) return;
+
+            try {
+                appendLog('reconstructLog', 'Please select a destination folder for reconstruction.', 'info');
+                const destHandle = await window.showDirectoryPicker();
+
+                appendLog('reconstructLog', 'Starting reconstruction...', 'info');
+
+                for (const entry of reconstructJsonFile) {
+                    const { originalPath, flatName } = entry;
+
+                    try {
+                        // 1. Find source file in flat folder
+                        // Note: Using try/catch to skip missing files
+                        let sourceFileHandle;
+                        try {
+                            sourceFileHandle = await reconstructFlatHandle.getFileHandle(flatName);
+                        } catch (e) {
+                            appendLog('reconstructLog', `Missing source file: ${flatName}`, 'error');
+                            continue;
+                        }
+
+                        // 2. Resolve destination path (create subfolders)
+                        const parts = originalPath.split('/');
+                        const fileName = parts.pop();
+                        let currentDirHandle = destHandle;
+
+                        // Create/Navigate directories
+                        for (const folder of parts) {
+                            currentDirHandle = await currentDirHandle.getDirectoryHandle(folder, { create: true });
+                        }
+
+                        // 3. Write file
+                        const file = await sourceFileHandle.getFile();
+                        const newFileHandle = await currentDirHandle.getFileHandle(fileName, { create: true });
+                        const writable = await newFileHandle.createWritable();
+                        await writable.write(file);
+                        await writable.close();
+
+                        appendLog('reconstructLog', `Restored: ${originalPath}`);
+
+                    } catch (err) {
+                        appendLog('reconstructLog', `Error processing ${originalPath}: ${err.message}`, 'error');
+                    }
+                }
+
+                appendLog('reconstructLog', 'Reconstruction complete!', 'success');
+
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+                console.error(err);
+                appendLog('reconstructLog', `Critical Error: ${err.message}`, 'error');
+            }
+        });
+
+    </script>
+</body>
+
+</html>

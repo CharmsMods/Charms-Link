@@ -462,7 +462,8 @@
                 <select id="mode"
                   class="brutal-input px-4 py-3 text-sm font-bold appearance-none pr-10 cursor-pointer w-64">
                   <option value="inline">Single HTML Bundle (Inline)</option>
-                  <option value="separate">Multi-file Minification</option>
+                  <option value="bundle">Bundle (Combine by Type)</option>
+                  <option value="batch">Batch (Minify Individual Files)</option>
                 </select>
                 <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none font-bold">▼</div>
               </div>
@@ -483,21 +484,32 @@
           <div class="pt-4 border-t border-[#ccc] grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Toggles -->
             <div class="flex flex-col gap-3">
-              <label class="text-[10px] font-bold uppercase tracking-widest text-[#666]">Optimization</label>
-              <div class="flex items-center gap-4">
-                <label class="flex items-center gap-2 cursor-pointer select-none">
-                  <input type="checkbox" id="optMinify" checked class="w-4 h-4 accent-[#FF3366]">
-                  <span class="text-xs font-mono font-bold">Enable Minification</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer select-none">
-                  <input type="checkbox" id="optComments" checked class="w-4 h-4 accent-[#FF3366]">
-                  <span class="text-xs font-mono font-bold">Remove Comments</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer select-none">
-                  <input type="checkbox" id="optConsole" checked class="w-4 h-4 accent-[#FF3366]">
-                  <span class="text-xs font-mono font-bold">Drop Console</span>
-                </label>
-                </label>
+              <label class="text-[10px] font-bold uppercase tracking-widest text-[#666]">Minification Strategy</label>
+              <div class="flex flex-col gap-2">
+                <div class="flex items-center gap-4 flex-wrap">
+                  <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="optMinifyHTML" checked class="w-4 h-4 accent-[#FF3366]">
+                    <span class="text-xs font-mono font-bold">HTML</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="optMinifyCSS" checked class="w-4 h-4 accent-[#FF3366]">
+                    <span class="text-xs font-mono font-bold">CSS</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="optMinifyJS" checked class="w-4 h-4 accent-[#FF3366]">
+                    <span class="text-xs font-mono font-bold">JS</span>
+                  </label>
+                </div>
+                <div class="flex items-center gap-4 mt-1 border-t border-[#ddd] pt-2">
+                  <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="optComments" checked class="w-4 h-4 accent-[#FF3366]">
+                    <span class="text-[10px] font-mono font-bold text-[#555]">Remove Comments</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="optConsole" checked class="w-4 h-4 accent-[#FF3366]">
+                    <span class="text-[10px] font-mono font-bold text-[#555]">Drop Console</span>
+                  </label>
+                </div>
               </div>
               <!-- CDN Toggle -->
               <div class="mt-2 pt-2 border-t border-[#ccc]">
@@ -605,6 +617,9 @@
                 <button id="diffTabJs"
                   class="diff-tab px-3 py-1 text-[10px] font-bold bg-[#222] hover:bg-[#FF3366] transition-colors border-l border-[#555]"
                   data-type="js">JS</button>
+                <button id="diffTabBundle"
+                  class="diff-tab px-3 py-1 text-[10px] font-bold bg-[#222] hover:bg-[#FF3366] transition-colors border-l border-[#555]"
+                  data-type="bundle">FULL</button>
               </div>
             </div>
             <div class="flex items-center gap-3">
@@ -677,7 +692,7 @@
         <div id="unreferencedSection">
           <h3
             class="text-[10px] font-bold uppercase tracking-[0.2em] text-[#121212] mb-4 border-l-4 border-[#FF3366] pl-3 bg-red-100 inline-block py-1">
-            Unused Assets (Delete)
+            Unused Assets (Exclude from Bundle)
           </h3>
           <div id="unreferencedList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
         </div>
@@ -690,7 +705,7 @@
         </button>
         <button id="modalProceed"
           class="flex-1 py-4 bg-[#58CC02] border-[3px] border-[#121212] text-white text-xs font-bold uppercase shadow-[4px_4px_0_#121212] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[5px_5px_0_#121212] transition-all">
-          Proceed & Clean
+          Proceed & Build
         </button>
       </div>
     </div>
@@ -849,6 +864,10 @@
     let activeAssetId = null;
     let outputs = { html: "", css: "", js: "" };
     let originals = { html: "", css: "", js: "" };
+    // Also track "Finals" explicitly for strict typing
+    let finals = { html: "", css: "", js: "" };
+    // Track batch files separately
+    let batchFiles = [];
     let currentDiffTab = 'html';
 
     // UI Elements
@@ -890,9 +909,34 @@
       return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
     };
 
+    const checkModeAvailability = () => {
+      const hasHtml = assets.some(a => a.type === 'html');
+      const modeSelect = document.getElementById("mode");
+      const inlineOpt = modeSelect.querySelector('option[value="inline"]');
+
+      if (!hasHtml) {
+        if (inlineOpt) {
+          inlineOpt.disabled = true;
+          inlineOpt.textContent = "Single HTML Bundle (Requires HTML File)";
+        }
+        if (modeSelect.value === 'inline') {
+          modeSelect.value = 'bundle';
+          updateZipToggleState();
+          showToast("Switched to Bundle mode (No HTML)", "info");
+        }
+      } else {
+        if (inlineOpt) {
+          inlineOpt.disabled = false;
+          inlineOpt.textContent = "Single HTML Bundle (Inline)";
+        }
+      }
+    };
+
     const renderAssetList = () => {
       assetList.innerHTML = '';
       assetCount.innerText = assets.length;
+
+      checkModeAvailability();
 
       if (assets.length === 0) {
         noAssetPrompt.classList.remove('hidden');
@@ -1229,7 +1273,7 @@
             <img src="${img.content}" class="w-12 h-12 object-cover grayscale border border-[#333]">
             <div class="flex-1 min-w-0">
                 <div class="font-mono text-xs font-bold truncate text-[#666]">${img.name}</div>
-                <div class="text-[10px] uppercase text-[#FF3366] font-bold">Unused</div>
+                <div class="text-[10px] uppercase text-[#FF3366] font-bold">Unused (Will Exclude)</div>
             </div>
         `;
         unrefList.appendChild(div);
@@ -1243,11 +1287,10 @@
     modalProceed.onclick = () => {
       usageModal.classList.add('hidden');
       const { unused } = scanImageUsage();
-      // Delete unused assets from state
-      assets = assets.filter(a => !unused.find(u => u.id === a.id));
-      renderAssetList();
-      log(`<span class="text-[#FF3366] font-bold">Purged ${unused.length} unused media assets.</span>`);
-      executeBuild();
+      const excludedIds = unused.map(u => u.id);
+
+      log(`<span class="text-[#FF3366] font-bold">Excluding ${unused.length} unused media assets from bundle.</span>`);
+      executeBuild(excludedIds);
     };
 
     document.getElementById("build").onclick = () => {
@@ -1272,18 +1315,37 @@
     const diffOriginalLabel = document.getElementById("diffOriginalLabel");
     const diffOutputLabel = document.getElementById("diffOutputLabel");
 
+    // Preloaded Diff Data
+    let precomputedDiffs = {
+      html: null,
+      css: null,
+      js: null,
+      bundle: null
+    };
+
     const generateDiff = (type = currentDiffTab) => {
       currentDiffTab = type;
 
       // Update tab styling
       document.querySelectorAll('.diff-tab').forEach(tab => {
         tab.classList.remove('active', 'bg-[#333]');
-        tab.classList.add('bg-[#222]');
+        tab.classList.add('bg-[#222]', 'opacity-50', 'hover:opacity-100');
+        tab.disabled = false;
       });
+
+      // Disable/Dim tabs based on available data
+      ['html', 'css', 'js', 'bundle'].forEach(t => {
+        const tab = document.getElementById(`diffTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        if (!finals[t] && !originals[t] && tab) {
+          tab.classList.add('opacity-30', 'cursor-not-allowed');
+          // tab.disabled = true; // Optional: completely disable interaction
+        }
+      });
+
       const activeTab = document.getElementById(`diffTab${type.charAt(0).toUpperCase() + type.slice(1)}`);
       if (activeTab) {
-        activeTab.classList.add('active', 'bg-[#333]');
-        activeTab.classList.remove('bg-[#222]');
+        activeTab.classList.add('active', 'bg-[#333]', 'opacity-100');
+        activeTab.classList.remove('bg-[#222]', 'opacity-50');
       }
 
       // Update labels
@@ -1291,60 +1353,27 @@
       diffOriginalLabel.textContent = `Original ${typeLabel}`;
       diffOutputLabel.textContent = `Build Output ${typeLabel}`;
 
-      const collapse = document.getElementById("diffCollapseBase64").checked;
       const wrap = document.getElementById("diffWrap").checked;
-
       diffOriginal.className = `flex-1 p-4 font-mono text-xs overflow-auto text-[#444] leading-relaxed ${wrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'}`;
       diffOutput.className = `flex-1 p-4 font-mono text-xs overflow-auto text-[#444] leading-relaxed ${wrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'}`;
 
-      let strOrig = originals[type] || "";
-      let strOut = outputs[type] || "";
+      // USE PRELOADED DIFF IF AVAILABLE
+      const preloaded = precomputedDiffs[type];
 
-      if (!strOrig && !strOut) {
-        diffOriginal.innerHTML = '<span class="text-[#888] italic">No content available</span>';
-        diffOutput.innerHTML = '<span class="text-[#888] italic">No content available</span>';
-        return;
+      if (preloaded) {
+        diffOriginal.innerHTML = preloaded.originalHtml;
+        diffOutput.innerHTML = preloaded.outputHtml;
+      } else {
+        diffOriginal.innerHTML = '<span class="text-[#888] italic">No content available for this type.</span>';
+        diffOutput.innerHTML = '<span class="text-[#888] italic">No content available for this type.</span>';
       }
-
-      // Base64 Collapse Logic
-      if (collapse) {
-        const b64Regex = /data:image\/[^;]+;base64,[a-zA-Z0-9+/=]+/g;
-        const replacement = '[...BASE64 DATA REMOVED FOR CLARITY...]';
-        strOrig = strOrig.replace(b64Regex, replacement);
-        strOut = strOut.replace(b64Regex, replacement);
-      }
-
-      // Diffing (Word mode is best balance for minified code)
-      const diff = Diff.diffWords(strOrig, strOut);
-
-      // Render Output Highlighted
-      let outHtml = '';
-      diff.forEach(part => {
-        // Only show added or unchanged in Output pane
-        const color = part.added ? 'bg-green-200 text-green-900 font-bold' :
-          part.removed ? 'hidden' : 'text-gray-500';
-        if (part.removed) return;
-        outHtml += `<span class="${color}">${part.value.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`;
-      });
-
-      // Render Original HL
-      let origHtml = '';
-      diff.forEach(part => {
-        // Only show removed or unchanged in Original pane
-        const color = part.removed ? 'bg-red-200 text-red-900 font-bold' :
-          part.added ? 'hidden' : 'text-gray-500';
-        if (part.added) return;
-        origHtml += `<span class="${color}">${part.value.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`;
-      });
-
-      diffOriginal.innerHTML = origHtml;
-      diffOutput.innerHTML = outHtml;
     };
 
     // Tab click handlers
     document.getElementById("diffTabHtml").onclick = () => generateDiff('html');
     document.getElementById("diffTabCss").onclick = () => generateDiff('css');
     document.getElementById("diffTabJs").onclick = () => generateDiff('js');
+    document.getElementById("diffTabBundle").onclick = () => generateDiff('bundle');
 
     document.getElementById("openNewTab").onclick = () => {
       if (!outputs.html) {
@@ -1364,33 +1393,45 @@
       const isCDN = document.getElementById('optCDN').checked;
       return {
         mode: document.getElementById("mode").value,
-        minify: document.getElementById("optMinify").checked,
+        minifyHTML: document.getElementById("optMinifyHTML").checked,
+        minifyCSS: document.getElementById("optMinifyCSS").checked,
+        minifyJS: document.getElementById("optMinifyJS").checked,
         comments: document.getElementById("optComments").checked,
         console: document.getElementById("optConsole").checked,
         useCDN: isCDN,
       };
     };
 
-    const executeBuild = async () => {
+    const executeBuild = async (excludedIds = []) => {
       const config = getBuildConfig();
-      const htmlSource = assets.find(a => a.type === 'html');
-      // Relaxed check: We allow build if ANY asset exists, not just HTML
-      if (assets.length === 0) {
+
+      // Filter excluded assets
+      let buildAssets = assets.filter(a => !excludedIds.includes(a.id));
+      let htmlSource = buildAssets.find(a => a.type === 'html');
+
+      if (buildAssets.length === 0) {
         log("<span class='text-[#FF3366]'>Error:</span> No assets to build.");
         return;
       }
-      if (!htmlSource) {
-        log("<span class='text-yellow-500'>Note:</span> No HTML file found. Processing standalone CSS/JS.");
+
+      // 1. PREPARATION & FALLBACKS
+      if (config.mode === 'inline' && !htmlSource) {
+        log("<span class='text-yellow-500'>Note:</span> No HTML file found for Inline build. Auto-generating wrapper.");
+        // Create a virtual HTML asset for the pipeline
+        htmlSource = {
+          id: 'virtual-wrapper',
+          type: 'html',
+          name: 'index.generated.html',
+          content: '<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="utf-8">\n  <title>Bundled App</title>\n</head>\n<body>\n  <!-- Injected Content -->\n</body>\n</html>'
+        };
+        // We don't add it to 'buildAssets' to avoid confusing the Batch processor, 
+        // but we set it as the target for Inline assembly.
       }
 
       buildStatus.classList.remove('hidden');
-
-      // Show Loading Overlay
       const overlay = document.getElementById('loadingOverlay');
       const subtext = document.getElementById('loadingSubtext');
-
       overlay.classList.add('active');
-
 
       if (config.useCDN) {
         subtext.innerText = "Downloading libraries from CDN...";
@@ -1399,208 +1440,263 @@
         subtext.classList.add('hidden');
       }
 
-      // Allow UI to render the overlay before blocking
+      // UI Yield
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-      log("Starting protected build sequence...");
+      log("Starting modular build sequence...");
       showToast("Build Started...");
 
-      // RESOLVE LIBRARIES (Hybrid)
+      // RESOLVE LIBRARIES
       let Libs = {};
       const libStart = performance.now();
       try {
-        if (config.useCDN) {
-          log(`<span class="text-[#58CC02] font-bold">MODE: CDN (Fetching libraries...)</span>`);
-        } else {
-          log(`<span class="text-[#888] font-bold">MODE: LOCAL (Using bundled scripts)</span>`);
-        }
-
         Libs = await resolveLibraries();
-
-        const libTime = (performance.now() - libStart).toFixed(0);
-        if (config.useCDN) log(`Libs loaded in ${libTime}ms`);
-
       } catch (e) {
         log(`<span class="text-[#FF3366]">Lib Error:</span> ${e.message}`);
         overlay.classList.remove('active');
         return;
       }
 
-      // Local references for this build scope
       const _CleanCSS = Libs.CleanCSS;
       const _minifyHTML = Libs.minifyHTML;
       const _minifyJS = Libs.minifyJS;
 
-      let finalHTML = htmlSource ? htmlSource.content : "";
-      let combinedCSS = assets.filter(a => a.type === 'css').map(a => a.content).join('\n');
-      let combinedJS = assets.filter(a => a.type === 'js').map(a => a.content).join('\n');
-      const mediaAssets = assets.filter(a => a.type === 'media');
-
-      // Store "Original" state (Raw Combined) for Diff
-      // We store each file type separately for the tabbed diff view
-      let tempHtmlForDiff = finalHTML;
-      let tempCssForDiff = combinedCSS;
-      let tempJsForDiff = combinedJS;
+      // RESET STATE
+      batchFiles = [];
+      outputs = { html: "", css: "", js: "" };
+      finals = { html: "", css: "", js: "", bundle: "" };
+      originals = { html: "", css: "", js: "", bundle: "" };
+      precomputedDiffs = { html: null, css: null, js: null, bundle: null };
 
       try {
-        // 1. Minification & Asset Cleaning - CONDITIONAL
-        // 1. Minification & Asset Cleaning - CONDITIONAL
-        if (config.minify) {
-          if (combinedCSS) {
-            if (typeof _CleanCSS === 'function') {
-              log("Minifying CSS...");
-              const originalSize = combinedCSS.length;
-              combinedCSS = new _CleanCSS().minify(combinedCSS).styles;
-              log(`CSS Minified: ${formatBytes(originalSize)} &rarr; ${formatBytes(combinedCSS.length)}`);
-            } else {
-              log("<span class='text-yellow-500'>Warning:</span> CleanCSS not found. CSS minification skipped.");
+        // --- 2. TRANSFORMATION PHASE (Granular Minify) ---
+        // We process EVERYTHING first, then assemble. 
+        // This allows accurate Batch output and Bundle output from the same processed source.
+
+        let processedAssets = [];
+
+        for (const asset of buildAssets) {
+          let content = asset.content;
+          let type = asset.type;
+
+          // Apply Minification / Cleaning based on Type Flags
+          if (type === 'css') {
+            if (config.minifyCSS && _CleanCSS) {
+              content = new _CleanCSS().minify(content).styles;
+            } else if (config.comments) {
+              content = content.replace(/\/\*[\s\S]*?\*\//g, '');
             }
-          }
-          if (combinedJS) {
-            if (typeof _minifyJS === 'function') {
-              log("Minifying JS...");
-              const originalSize = combinedJS.length;
-              const terserOptions = { compress: { drop_console: config.console } };
-              combinedJS = (await _minifyJS(combinedJS, terserOptions)).code;
-              log(`JS Minified: ${formatBytes(originalSize)} &rarr; ${formatBytes(combinedJS.length)}`);
-            } else {
-              log("<span class='text-yellow-500'>Warning:</span> Terser not found. JS minification skipped.");
+          } else if (type === 'js') {
+            if (config.minifyJS && _minifyJS) {
+              content = (await _minifyJS(content, { compress: { drop_console: config.console } })).code;
+            } else if ((config.comments || config.console) && _minifyJS) {
+              const opts = { compress: { drop_console: config.console, defaults: false }, mangle: false, format: { beautify: true, comments: !config.comments } };
+              content = (await _minifyJS(content, opts)).code;
             }
-          }
-        } else {
-          log("Minification disabled. Checking for partial optimizations...");
+          } else if (type === 'html') {
+            // Unify logic: Allow separate flags to work even if HTML minification is off
+            const shouldRun = config.minifyHTML || config.minifyCSS || config.minifyJS || config.comments;
 
-          // Independent Cleaning Passes
-          if (config.comments && combinedCSS) {
-            log("Removing CSS comments...");
-            combinedCSS = combinedCSS.replace(/\/\*[\s\S]*?\*\//g, '');
-          }
+            if (shouldRun && _minifyHTML) {
+              // Log explicit affirmation for single-file users
+              if (buildAssets.length === 1) log("Single HTML detected: Optimizing embedded resources...");
 
-          if ((config.comments || config.console) && combinedJS) {
-            if (typeof _minifyJS === 'function') {
-              const action = [];
-              if (config.comments) action.push("comments");
-              if (config.console) action.push("console logs");
-              log(`Cleaning JS (${action.join(', ')})...`);
+              const jsOpts = config.minifyJS ? { compress: { drop_console: config.console } } : false;
 
-              // Use Terser in "Clean" mode (beautify + mangle false)
-              const cleanOptions = {
-                compress: { drop_console: config.console, defaults: false },
-                mangle: false,
-                format: { beautify: true, comments: !config.comments }
-              };
-              combinedJS = (await _minifyJS(combinedJS, cleanOptions)).code;
-            } else {
-              log("<span class='text-yellow-500'>Warning:</span> Terser unavailable for cleaning JS.");
-            }
-          }
-        }
-
-        // 2. Inlining (ONLY HTML & CSS)
-        // Apply to BOTH Final and Diff-Source so diff focuses on code changes, not missing assets
-        if (config.mode === 'inline' && mediaAssets.length > 0) {
-          log(`Inlining ${mediaAssets.length} assets...`);
-          mediaAssets.forEach(media => {
-            const escapedName = media.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const pathRegex = new RegExp(`(['"\\(])(?:[^'"\\(\\)]*?\\/)?${escapedName}(['"\\)])`, 'g');
-            const replaceFn = (match, p1, p2) => `${p1}${media.content}${p2}`;
-
-            finalHTML = finalHTML.replace(pathRegex, replaceFn);
-            if (combinedCSS) combinedCSS = combinedCSS.replace(pathRegex, replaceFn);
-
-            // Apply to Diff Source too
-            tempHtmlForDiff = tempHtmlForDiff.replace(pathRegex, replaceFn);
-            if (tempCssForDiff) tempCssForDiff = tempCssForDiff.replace(pathRegex, replaceFn);
-          });
-        }
-
-        if (config.mode === 'inline') {
-          // Final Assembly - Inline mode
-          if (combinedCSS && finalHTML) finalHTML = finalHTML.replace('</head>', `<style>${combinedCSS}</style></head>`);
-          if (combinedJS && finalHTML) finalHTML = finalHTML.replace('</body>', `<script>${combinedJS}<\/script></body>`);
-
-          // Diff Source Assembly
-          if (tempCssForDiff && tempHtmlForDiff) tempHtmlForDiff = tempHtmlForDiff.replace('</head>', `<style>${tempCssForDiff}</style></head>`);
-          // Note: We use the RAW JS for the Diff Source, not the combined/minified one
-          const rawJS = assets.filter(a => a.type === 'js').map(a => a.content).join('\n');
-          if (rawJS && tempHtmlForDiff) tempHtmlForDiff = tempHtmlForDiff.replace('</body>', `<script>${rawJS}<\/script></body>`);
-        } else if (config.mode === 'separate' && finalHTML) {
-          // Multi-file mode - Inject link and script references
-          const cssFilename = document.getElementById('outNameC').value || 'styles.min.css';
-          const jsFilename = document.getElementById('outNameJ').value || 'scripts.min.js';
-
-          if (combinedCSS) {
-            finalHTML = finalHTML.replace('</head>', `<link rel="stylesheet" href="${cssFilename}">\n</head>`);
-          }
-          if (combinedJS) {
-            finalHTML = finalHTML.replace('</body>', `<script src="${jsFilename}"><\/script>\n</body>`);
-          }
-
-          log(`Linked: ${cssFilename}, ${jsFilename}`);
-        }
-
-        // Populate originals for tabbed diff view
-        originals.html = tempHtmlForDiff || "";
-        originals.css = tempCssForDiff || "";
-        originals.js = tempJsForDiff || "";
-
-        // 3. Final HTML Processing - CONDITIONAL
-        if (finalHTML) {
-          if (config.minify) {
-            if (typeof _minifyHTML === 'function') {
-              log("Minifying HTML...");
-              const origHtmlSize = finalHTML.length;
-              finalHTML = await _minifyHTML(finalHTML, {
-                collapseWhitespace: true,
+              content = await _minifyHTML(content, {
+                collapseWhitespace: config.minifyHTML,
                 removeComments: config.comments,
-                minifyCSS: true,
-                minifyJS: true
+                minifyCSS: config.minifyCSS,
+                minifyJS: jsOpts
               });
-              log(`HTML Minified: ${formatBytes(origHtmlSize)} &rarr; ${formatBytes(finalHTML.length)}`);
-            } else {
-              log("<span class='text-yellow-500'>Warning:</span> HTMLMinifier not found. HTML minification skipped.");
             }
-          } else if (config.comments) {
-            // Clean Only pass for HTML
-            if (typeof _minifyHTML === 'function') {
-              log("Cleaning HTML comments...");
-              finalHTML = await _minifyHTML(finalHTML, {
-                collapseWhitespace: false,
-                removeComments: true,
-                minifyCSS: false,
-                minifyJS: false
-              });
-            } else {
-              log("<span class='text-yellow-500'>Warning:</span> HTMLMinifier not found. Comment removal skipped.");
+          }
+
+          processedAssets.push({ ...asset, content });
+        }
+
+        // --- 3. ASSEMBLY PHASE ---
+
+        if (config.mode === 'batch') {
+          log("Mode: Batch (Passthrough)");
+          batchFiles = processedAssets;
+          // No aggregated "Output" for preview in Batch mode usually, but we can try to show index
+          // originals/finals stay empty or aggregated? Let's aggregate for Diff visibility if possible.
+          let aggOrig = { css: "", js: "", html: "" };
+          let aggFinal = { css: "", js: "", html: "" };
+
+          buildAssets.forEach(a => {
+            aggOrig[a.type] = (aggOrig[a.type] || "") + `/* ${a.name} */\n` + a.content + "\n\n";
+          });
+          processedAssets.forEach(a => {
+            aggFinal[a.type] = (aggFinal[a.type] || "") + `/* ${a.name} */\n` + a.content + "\n\n";
+          });
+
+          originals = aggOrig;
+          finals = aggFinal;
+          outputs = aggFinal;
+
+        } else {
+          // Bundle or Inline
+          let combinedCSS = processedAssets.filter(a => a.type === 'css').map(a => a.content).join('\n');
+          let combinedJS = processedAssets.filter(a => a.type === 'js').map(a => a.content).join('\n');
+          let baseHTML = htmlSource ? htmlSource.content : "";
+
+          // Prepare Originals for Diff (Raw Concatenation of inputs)
+          originals.css = buildAssets.filter(a => a.type === 'css').map(a => a.content).join('\n');
+          originals.js = buildAssets.filter(a => a.type === 'js').map(a => a.content).join('\n');
+          originals.html = buildAssets.find(a => a.type === 'html')?.content || htmlSource.content; // Original HTML content
+
+          // Inline Images Handling (Only affects HTML content)
+          const mediaAssets = buildAssets.filter(a => a.type === 'media');
+          if (config.mode === 'inline' && mediaAssets.length > 0) {
+            mediaAssets.forEach(media => {
+              const escapedName = media.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const pathRegex = new RegExp(`(['"\\(])(?:[^'"\\(\\)]*?\\/)?${escapedName}(['"\\)])`, 'g');
+              baseHTML = baseHTML.replace(pathRegex, (m, p1, p2) => `${p1}${media.content}${p2}`);
+              // For originals.html, we want the *original* HTML content, not with inlined images.
+              // The diff for 'html' tab should show structural changes, not content changes from inlining.
+              // So, we don't modify originals.html here.
+            });
+          }
+
+          // Processing HTML (Minify wrapper if needed)
+          // Note: We already minified the *input* HTML in Transformation Phase.
+          // But if we generated a wrapper or if content changed via injection, we might need a pass?
+          // Ideally, we transformed the source. If wrapper, we transform it now.
+          if (htmlSource && htmlSource.id === 'virtual-wrapper') {
+            // It's raw. Minify if requested.
+            if (config.minifyHTML && _minifyHTML) {
+              baseHTML = await _minifyHTML(baseHTML, { collapseWhitespace: true, removeComments: config.comments });
             }
+          }
+
+
+          let finalHTML = baseHTML;
+
+          if (config.mode === 'inline') {
+            log("Mode: Inline Assembly");
+            if (combinedCSS && finalHTML) {
+              if (finalHTML.includes('</head>')) finalHTML = finalHTML.replace('</head>', `<style>${combinedCSS}</style></head>`);
+              else if (finalHTML.includes('<body')) finalHTML = finalHTML.replace(/<body/i, `<style>${combinedCSS}</style><body`);
+              else finalHTML += `<style>${combinedCSS}</style>`;
+            }
+            if (combinedJS && finalHTML) {
+              if (finalHTML.includes('</body>')) finalHTML = finalHTML.replace('</body>', `<script>${combinedJS}<\/script></body>`);
+              else if (finalHTML.includes('</html>')) finalHTML = finalHTML.replace('</html>', `<script>${combinedJS}<\/script></html>`);
+              else finalHTML += `<script>${combinedJS}<\/script>`;
+            }
+          } else if (config.mode === 'bundle') {
+            log("Mode: Bundle Assembly");
+            const cssFilename = document.getElementById('outNameC').value || 'styles.min.css';
+            const jsFilename = document.getElementById('outNameJ').value || 'scripts.min.js';
+
+            if (finalHTML) {
+              if (combinedCSS) finalHTML = finalHTML.replace('</head>', `<link rel="stylesheet" href="${cssFilename}">\n</head>`);
+              if (combinedJS) finalHTML = finalHTML.replace('</body>', `<script src="${jsFilename}"><\/script>\n</body>`);
+            }
+          }
+
+          outputs = { html: finalHTML, css: combinedCSS, js: combinedJS };
+          // DECOUPLED from outputs to allow separate Diff views
+          finals = { ...outputs };
+
+          // Prepare "Bundle" Diff (Full Result)
+          // Original: Base HTML + Raw CSS + Raw JS (concatenated for comparison sake, or just Base HTML?)
+          // User wants "Final File Diff". Usually implies Original Source vs Final Bundle.
+          // To make it useful, we compare:
+          // Original: HTML with <link>/<script> tags (if any)
+          // Final: HTML with INLINED <style>/<script>
+          originals.bundle = originals.html; // The original HTML content
+          finals.bundle = finalHTML; // The fully processed HTML output
+
+          // For "HTML Only" diff, we want to strip the specific inlined blocks from the Final HTML
+          // so we can see if the MARKUP changed (minification).
+          // We'll create a "Cleaned Final" for the HTML tab.
+          if (config.mode === 'inline') {
+            // Use the pre-injection minified state for the HTML tab
+            const minifiedHtmlAsset = processedAssets.find(a => a.type === 'html');
+            if (minifiedHtmlAsset) {
+              finals.html = minifiedHtmlAsset.content;
+            } else {
+              // If no original HTML asset, but a virtual one was created, use its processed content
+              finals.html = processedAssets.find(a => a.id === 'virtual-wrapper')?.content || '';
+            }
+            // originals.html is already the base source.
+          } else { // For bundle mode, finals.html is just the HTML part of the output
+            finals.html = finalHTML;
           }
         }
 
-        outputs = { html: finalHTML, css: combinedCSS, js: combinedJS };
-        document.getElementById("previewFrame").srcdoc = finalHTML;
 
-        // Always Update Diff View
+        // --- 4. DIFF GENERATION (Preload) ---
+        log("Calculating diffs...");
+        const diffStartTime = performance.now();
+        const types = ['html', 'css', 'js', 'bundle'];
+        const collapse = document.getElementById("diffCollapseBase64").checked;
+        const b64Regex = /data:image\/[^;]+;base64,[a-zA-Z0-9+/=]+/g;
+        const replaceB64 = '[...BASE64...]';
+
+        for (const t of types) {
+          let sOrig = originals[t] || "";
+          let sOut = finals[t] || "";
+
+          if (!sOrig && !sOut) {
+            precomputedDiffs[t] = null;
+            continue;
+          }
+
+          if (collapse) {
+            sOrig = sOrig.replace(b64Regex, replaceB64);
+            sOut = sOut.replace(b64Regex, replaceB64);
+          }
+
+          const d = Diff.diffWords(sOrig, sOut);
+
+          let outHtml = '', origHtml = '';
+          d.forEach(part => {
+            const v = part.value.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            if (part.added) outHtml += `<span class="bg-green-200 text-green-900 font-bold">${v}</span>`;
+            else if (part.removed) origHtml += `<span class="bg-red-200 text-red-900 font-bold">${v}</span>`;
+            else {
+              outHtml += `<span class="text-gray-500">${v}</span>`;
+              origHtml += `<span class="text-gray-500">${v}</span>`;
+            }
+          });
+
+          precomputedDiffs[t] = { originalHtml: origHtml, outputHtml: outHtml };
+        }
+        log(`Diffs computed in ${(performance.now() - diffStartTime).toFixed(0)}ms`);
+
+
+        // Update UI
+        if (config.mode === 'batch') {
+          document.getElementById("previewFrame").srcdoc = "<html><body><h2 style='font-family:monospace; text-align:center; margin-top:20%'>BATCH MODE PREVIEW UNAVAILABLE<br>Download ZIP to inspect files.</h2></body></html>";
+        } else {
+          document.getElementById("previewFrame").srcdoc = outputs.html;
+        }
+
         generateDiff();
 
-        // Update Download Text
-        const nH = document.getElementById("outNameH").value || 'index.min.html';
-        const nC = document.getElementById("outNameC").value || 'styles.min.css';
-        const nJ = document.getElementById("outNameJ").value || 'scripts.min.js';
+        // Update Download Buttons
+        if (config.mode === 'batch') {
+          document.getElementById("downH").classList.add('hidden');
+          document.getElementById("downC").classList.add('hidden');
+          document.getElementById("downJ").classList.add('hidden');
+          document.getElementById("optZip").checked = true;
+        } else {
+          document.getElementById("downH").classList.toggle('hidden', !outputs.html);
+          document.getElementById("downC").classList.toggle('hidden', !outputs.css);
+          document.getElementById("downJ").classList.toggle('hidden', !outputs.js);
+        }
 
-        document.getElementById("lblH").innerText = nH;
-        document.getElementById("lblC").innerText = nC;
-        document.getElementById("lblJ").innerText = nJ;
-
-        document.getElementById("downH").classList.remove('hidden');
-        if (outputs.css) document.getElementById("downC").classList.remove('hidden');
-        if (outputs.js) document.getElementById("downJ").classList.remove('hidden');
-
-        log("<span class='text-[#58CC02] font-bold'>Build Complete.</span> Outputs generated.");
+        log("<span class='text-[#58CC02] font-bold'>Build Complete.</span>");
         showToast("Build Success!", "success");
         document.querySelector('[data-tab="output"]').click();
 
       } catch (err) {
         log(`<span class="text-[#FF3366]">Error:</span> ${err.message}`);
+        console.error(err);
         showToast("Build Failed", "error");
       } finally {
         buildStatus.classList.add('hidden');
@@ -1633,9 +1729,21 @@
       const cssName = document.getElementById("outNameC").value || 'styles.min.css';
       const jsName = document.getElementById("outNameJ").value || 'scripts.min.js';
 
-      if (outputs.html) zip.file(htmlName, outputs.html);
-      if (outputs.css) zip.file(cssName, outputs.css);
-      if (outputs.js) zip.file(jsName, outputs.js);
+      if (outputs.html && config.mode !== 'batch') zip.file(htmlName, outputs.html);
+      if (outputs.css && config.mode !== 'batch') zip.file(cssName, outputs.css);
+      if (outputs.js && config.mode !== 'batch') zip.file(jsName, outputs.js);
+
+      if (config.mode === 'batch') {
+        batchFiles.forEach(f => {
+          // Simple renaming strategy for batch: .css -> .min.css
+          let name = f.name;
+          // Granular renaming for batch mode
+          if (f.type === 'css' && document.getElementById("optMinifyCSS").checked) name = name.replace(/\.css/i, '.min.css');
+          if (f.type === 'js' && document.getElementById("optMinifyJS").checked) name = name.replace(/\.js/i, '.min.js');
+          if (f.type === 'html' && document.getElementById("optMinifyHTML").checked) name = name.replace(/\.html/i, '.min.html');
+          zip.file(name, f.content);
+        });
+      }
 
       const content = await zip.generateAsync({ type: 'blob' });
       const a = document.createElement('a');
@@ -1665,15 +1773,22 @@
     const zipLabel = document.getElementById("zipToggleLabel");
 
     const updateZipToggleState = () => {
-      const isInlineMode = modeSelector.value === 'inline';
-      zipCheckbox.disabled = isInlineMode;
+      const mode = modeSelector.value;
 
-      if (isInlineMode) {
+      if (mode === 'inline') {
+        // Inline: Single file, no Zip needed usually (but optional)
+        zipCheckbox.disabled = true;
+        zipCheckbox.checked = false;
         zipLabel.classList.add('opacity-50', 'cursor-not-allowed');
-        zipLabel.classList.remove('cursor-pointer');
+      } else if (mode === 'batch') {
+        // Batch: MUST be Zip
+        zipCheckbox.disabled = true;
+        zipCheckbox.checked = true;
+        zipLabel.classList.add('opacity-50', 'cursor-not-allowed');
       } else {
+        // Bundle: Choice
+        zipCheckbox.disabled = false;
         zipLabel.classList.remove('opacity-50', 'cursor-not-allowed');
-        zipLabel.classList.add('cursor-pointer');
       }
     };
 
