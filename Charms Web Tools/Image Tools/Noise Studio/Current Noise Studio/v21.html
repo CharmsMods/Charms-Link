@@ -652,9 +652,30 @@
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
-                    <button class="json-btn" id="downloadJsonBtn">DOWNLOAD .JSON</button>
-                    <button class="json-btn" id="uploadJsonTrigger">UPLOAD .JSON</button>
+                <div
+                    style="background: rgba(255,255,255,0.05); padding: 8px; margin-top: 10px; border-radius: 4px; border: 1px solid var(--border);">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <label
+                            style="font-size: 11px; display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--muted);"
+                            title="Save the original image inside the JSON file">
+                            <input type="checkbox" id="jsonIncludeImage" checked style="accent-color: var(--accent);">
+                            <span>Include Image</span>
+                        </label>
+                        <button class="json-btn" id="downloadJsonBtn"
+                            style="padding: 4px 12px; font-size: 11px; width: auto;">SAVE .JSON</button>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <select id="jsonImportMode"
+                            style="background: var(--bg); color: var(--text); border: 1px solid var(--border); font-size: 10px; padding: 4px; border-radius: 3px; outline: none; width: 90px;">
+                            <option value="both" selected>Import All</option>
+                            <option value="settings">Settings Only</option>
+                            <option value="image">Image Only</option>
+                        </select>
+                        <button class="json-btn" id="uploadJsonTrigger"
+                            style="padding: 4px 12px; font-size: 11px; flex-grow: 1;">LOAD .JSON</button>
+                    </div>
                     <input id="jsonUpload" type="file" accept=".json" style="display: none;">
                 </div>
             </div>
@@ -1657,6 +1678,10 @@
                     </div>
 
                     <!-- Lens Mode Toggle: Switch between cursor-locked lens and full-screen zoom -->
+                    <button id="fullscreenPreviewBtn" class="small-btn"
+                        style="margin-right: 8px; padding: 4px 8px; font-size: 9px;"
+                        title="Open detached fullscreen preview">POP-OUT</button>
+
                     <button id="lensToggleBtn" class="small-btn"
                         style="margin-right: 12px; padding: 4px 8px; font-size: 9px;"
                         title="Toggle between Full zoom and Lens zoom">FULL</button>
@@ -4009,7 +4034,8 @@ void main() {
                 layerVisibility: state.layerVisibility,
                 upscaleFactor: state.upscaleFactor,
                 caCenter: state.caCenter,
-                palette: state.palette
+                palette: state.palette,
+                imageData: null
             };
 
             // Collect inputs
@@ -4018,11 +4044,30 @@ void main() {
                 // Read-only text inputs are for display, skip them
             });
             document.querySelectorAll('input[type=checkbox]').forEach(el => {
-                if (!el.id.startsWith('drag-') && el.id !== 'previewLock') { // Skip drag toggles and lock
+                if (!el.id.startsWith('drag-') && el.id !== 'jsonIncludeImage' && el.id !== 'previewLock') { // Skip non-setting toggles
                     preset.checks[el.id] = el.checked;
                 }
             });
-            document.querySelectorAll('select').forEach(el => preset.selects[el.id] = el.value);
+            document.querySelectorAll('select').forEach(el => {
+                if (el.id !== 'jsonImportMode') {
+                    preset.selects[el.id] = el.value;
+                }
+            });
+
+            // [NEW] Save Image Data Checked
+            const includeImage = document.getElementById('jsonIncludeImage').checked;
+            if (state.baseImage && includeImage) {
+                try {
+                    const c = document.createElement('canvas');
+                    c.width = state.baseImage.width;
+                    c.height = state.baseImage.height;
+                    const ctx = c.getContext('2d');
+                    ctx.drawImage(state.baseImage, 0, 0);
+                    preset.imageData = c.toDataURL('image/png');
+                } catch (e) {
+                    console.warn("Could not save image data (likely tainted canvas or too large):", e);
+                }
+            }
 
             const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -4034,8 +4079,7 @@ void main() {
 
         /** 
          * Parses a JSON file to restore app state.
-         * logic: Iterates through preset object and dispatches 'input' events 
-         * to trigger re-renders for each restored value.
+         * logic: Checks 'jsonImportMode' to decide what to load.
          */
         function uploadPreset(e) {
             const file = e.target.files[0];
@@ -4044,68 +4088,87 @@ void main() {
             reader.onload = evt => {
                 try {
                     const preset = JSON.parse(evt.target.result);
+                    const mode = document.getElementById('jsonImportMode').value; // 'both', 'settings', 'image'
 
-                    // Apply values
-                    if (preset.values) {
-                        Object.keys(preset.values).forEach(id => {
-                            const el = document.getElementById(id);
-                            if (el) {
-                                el.value = preset.values[id];
-                                if (el.nextElementSibling && el.nextElementSibling.classList.contains('control-value')) {
-                                    el.nextElementSibling.value = preset.values[id];
-                                }
-                                el.dispatchEvent(new Event('input'));
-                                el.dispatchEvent(new Event('change'));
-                            }
-                        });
-                    }
-                    if (preset.checks) {
-                        Object.keys(preset.checks).forEach(id => {
-                            const el = document.getElementById(id);
-                            if (el) {
-                                el.checked = preset.checks[id];
-                                el.dispatchEvent(new Event('change'));
-                            }
-                        });
-                    }
-                    if (preset.selects) {
-                        Object.keys(preset.selects).forEach(id => {
-                            const el = document.getElementById(id);
-                            if (el) {
-                                el.value = preset.selects[id];
-                                el.dispatchEvent(new Event('change'));
-                            }
-                        });
-                    }
+                    const shouldLoadImage = (mode === 'both' || mode === 'image') && preset.imageData;
+                    const shouldLoadSettings = (mode === 'both' || mode === 'settings');
 
-                    // Apply State
-                    if (preset.renderOrder) {
-                        state.renderOrder = preset.renderOrder;
-                        setupDragLayerList();
+                    if (shouldLoadImage) {
+                        const img = new Image();
+                        img.onload = () => {
+                            loadNewImage(img);
+                            if (shouldLoadSettings) {
+                                restoreSettings(preset);
+                            }
+                        };
+                        img.src = preset.imageData;
+                    } else if (shouldLoadSettings) {
+                        restoreSettings(preset);
                     }
-                    if (preset.layerVisibility) {
-                        state.layerVisibility = preset.layerVisibility;
-                        setupDragLayerList();
-                    }
-                    if (preset.upscaleFactor) {
-                        state.upscaleFactor = preset.upscaleFactor;
-                        UI.upscaleInput.value = preset.upscaleFactor;
-                    }
-                    if (preset.caCenter) {
-                        state.caCenter = preset.caCenter;
-                        updatePinPosition();
-                    }
-                    if (preset.palette) {
-                        state.palette = preset.palette;
-                        updatePaletteUI();
-                    }
-
-                    requestRender();
                 } catch (err) {
                     alert("Error loading JSON: " + err);
                 }
             };
             reader.readAsText(file);
+        }
+
+        function restoreSettings(preset) {
+            // Apply values
+            if (preset.values) {
+                Object.keys(preset.values).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.value = preset.values[id];
+                        if (el.nextElementSibling && el.nextElementSibling.classList.contains('control-value')) {
+                            el.nextElementSibling.value = preset.values[id];
+                        }
+                        el.dispatchEvent(new Event('input'));
+                        el.dispatchEvent(new Event('change'));
+                    }
+                });
+            }
+            if (preset.checks) {
+                Object.keys(preset.checks).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.checked = preset.checks[id];
+                        el.dispatchEvent(new Event('change'));
+                    }
+                });
+            }
+            if (preset.selects) {
+                Object.keys(preset.selects).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.value = preset.selects[id];
+                        el.dispatchEvent(new Event('change'));
+                    }
+                });
+            }
+
+            // Apply State
+            if (preset.renderOrder) {
+                state.renderOrder = preset.renderOrder;
+                setupDragLayerList();
+            }
+            if (preset.layerVisibility) {
+                state.layerVisibility = preset.layerVisibility;
+                setupDragLayerList();
+            }
+            if (preset.upscaleFactor) {
+                state.upscaleFactor = preset.upscaleFactor;
+                UI.upscaleInput.value = preset.upscaleFactor;
+            }
+            if (preset.caCenter) {
+                state.caCenter = preset.caCenter;
+                updatePinPosition();
+            }
+            if (preset.palette) {
+                state.palette = preset.palette;
+                updatePaletteUI();
+            }
+
+            requestRender();
         }
 
         // --- MULTI-IMAGE FUNCTIONS ---
@@ -5316,6 +5379,28 @@ void main() {
                 gl.finish();
             } else {
                 updateLayerPreviews();
+
+                // [NEW] Sync to external preview
+                if (state.previewWindow && !state.previewWindow.closed) {
+                    try {
+                        const destCanvas = state.previewWindow.document.getElementById('fs-canvas');
+                        if (destCanvas) {
+                            // Only update dimensions if changed (avoids flickering/resetting)
+                            if (destCanvas.width !== w || destCanvas.height !== h) {
+                                destCanvas.width = w;
+                                destCanvas.height = h;
+                            }
+                            const ctx = destCanvas.getContext('2d');
+                            ctx.drawImage(gl.canvas, 0, 0);
+                        } else {
+                            state.previewWindow = null;
+                        }
+                    } catch (err) {
+                        // Window might be navigating away or closed
+                        state.previewWindow = null;
+                        console.warn("Preview sync error:", err);
+                    }
+                }
             }
         }
 
@@ -5650,6 +5735,49 @@ void main() {
             requestRender();
             UI.loading.style.display = 'none';
         }
+
+        // --- PREVIEW POPOUT ---
+        function openFullscreenPreview() {
+            if (state.previewWindow && !state.previewWindow.closed) {
+                state.previewWindow.focus();
+                return;
+            }
+            const win = window.open('', 'NoiseStudioPreview', 'width=800,height=600');
+            if (!win) {
+                alert('Pop-up blocked. Please allow pop-ups for this site.');
+                return;
+            }
+            // DOM construction to avoid script tag issues
+            const d = win.document;
+            d.open();
+            d.write('');
+            d.close();
+
+            d.title = "Noise Studio Preview";
+            d.body.style.margin = '0';
+            d.body.style.background = '#111';
+            d.body.style.height = '100vh';
+            d.body.style.display = 'flex';
+            d.body.style.alignItems = 'center';
+            d.body.style.justifyContent = 'center';
+            d.body.style.overflow = 'hidden';
+
+            const cvs = d.createElement('canvas');
+            cvs.id = 'fs-canvas';
+            cvs.style.maxWidth = '100%';
+            cvs.style.maxHeight = '100%';
+            cvs.style.objectFit = 'contain';
+            cvs.style.boxShadow = '0 0 20px rgba(0,0,0,0.5)';
+            d.body.appendChild(cvs);
+
+            state.previewWindow = win;
+
+            // Initial sync
+            setTimeout(() => requestRender(), 100);
+        }
+
+        // Ensure event listener is added in init
+        document.getElementById('fullscreenPreviewBtn').addEventListener('click', openFullscreenPreview);
 
         // --- PREVIEW SYSTEM REFACTOR ---
 
