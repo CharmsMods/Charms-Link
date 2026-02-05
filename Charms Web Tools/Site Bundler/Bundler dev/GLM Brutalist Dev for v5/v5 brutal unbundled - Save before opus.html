@@ -821,15 +821,18 @@
         };
       }
 
-      // CDN Mode - Parallel Loading with Timeout & Cache Busting
+      // CDN Mode - Sequential Loading with Timeout & Cache Busting
       log("Initializing CDN download (Network Forced)...");
 
       const session = Date.now(); // Unique ID for this build session
 
       const loadWithTimeout = async (url, name) => {
+        // Append Timestamp to force network check and avoid offline-cache confusion
         const forcedUrl = `${url}?v=${session}`;
+
         log(`Fetching ${name}...`);
         try {
+          // 15s Timeout
           const importPromise = import(forcedUrl);
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error(`Timeout fetching ${name}`)), 15000));
@@ -840,12 +843,9 @@
       };
 
       try {
-        // Parallel CDN imports for faster loading
-        const [cssMod, htmlMod, jsMod] = await Promise.all([
-          loadWithTimeout("https://esm.sh/clean-css", "CleanCSS"),
-          loadWithTimeout("https://esm.sh/html-minifier-terser", "HTMLMinifier"),
-          loadWithTimeout("https://esm.sh/terser", "Terser")
-        ]);
+        const cssMod = await loadWithTimeout("https://esm.sh/clean-css", "CleanCSS");
+        const htmlMod = await loadWithTimeout("https://esm.sh/html-minifier-terser", "HTMLMinifier");
+        const jsMod = await loadWithTimeout("https://esm.sh/terser", "Terser");
 
         log("All CDN libraries loaded successfully.");
 
@@ -866,12 +866,9 @@
     let originals = { html: "", css: "", js: "" };
     // Also track "Finals" explicitly for strict typing
     let finals = { html: "", css: "", js: "" };
+    // Track batch files separately
     let batchFiles = [];
     let currentDiffTab = 'html';
-    // Cached CleanCSS instance for reuse across builds
-    let cachedCleanCSSInstance = null;
-    // Asset size cache to avoid repeated Blob creation
-    const assetSizeCache = new Map();
 
     // UI Elements
     const logBox = document.getElementById("logBox");
@@ -936,12 +933,12 @@
     };
 
     const renderAssetList = () => {
+      assetList.innerHTML = '';
       assetCount.innerText = assets.length;
 
       checkModeAvailability();
 
       if (assets.length === 0) {
-        assetList.innerHTML = '';
         noAssetPrompt.classList.remove('hidden');
         editorHeader.classList.add('hidden');
         mainEditor.classList.add('hidden');
@@ -955,21 +952,12 @@
       // Identify Entry Point (first HTML)
       const firstHtmlId = assets.find(a => a.type === 'html')?.id;
 
-      // Use DocumentFragment for efficient DOM updates
-      const frag = document.createDocumentFragment();
-
       assets.forEach((asset, index) => {
         const div = document.createElement('div');
         div.className = `asset-item px-4 py-3 cursor-pointer flex justify-between items-center group relative ${asset.id === activeAssetId ? 'active' : ''}`;
 
-        // Use cached size or compute and cache it
-        let size;
-        if (assetSizeCache.has(asset.id)) {
-          size = assetSizeCache.get(asset.id);
-        } else {
-          size = asset.type === 'media' ? asset.content.length * 0.75 : new Blob([asset.content]).size;
-          assetSizeCache.set(asset.id, size);
-        }
+        // Calculate size (approximation for text)
+        const size = asset.type === 'media' ? asset.content.length * 0.75 : new Blob([asset.content]).size; // Base64 approx or Text blob
         const sizeStr = formatBytes(size);
 
         let icon = '📄';
@@ -998,12 +986,8 @@
              <button onclick="renameAsset('${asset.id}')" class="p-1 hover:bg-[#121212] hover:text-white rounded text-[#555] transition-colors" title="Rename">✎</button>
           </div>
         `;
-        frag.appendChild(div);
+        assetList.appendChild(div);
       });
-
-      // Single DOM update
-      assetList.innerHTML = '';
-      assetList.appendChild(frag);
     };
 
     // --- TOAST SYSTEM ---
@@ -1485,67 +1469,51 @@
       precomputedDiffs = { html: null, css: null, js: null, bundle: null };
 
       try {
-        // --- 2. TRANSFORMATION PHASE (Parallelized Minification) ---
-        // Process all assets in parallel for faster builds
+        // --- 2. TRANSFORMATION PHASE (Granular Minify) ---
+        // We process EVERYTHING first, then assemble. 
+        // This allows accurate Batch output and Bundle output from the same processed source.
 
-        // Reuse CleanCSS instance for performance
-        if (_CleanCSS && !cachedCleanCSSInstance) {
-          cachedCleanCSSInstance = new _CleanCSS();
+        let processedAssets = [];
+
+        for (const asset of buildAssets) {
+          let content = asset.content;
+          let type = asset.type;
+
+          // Apply Minification / Cleaning based on Type Flags
+          if (type === 'css') {
+            if (config.minifyCSS && _CleanCSS) {
+              content = new _CleanCSS().minify(content).styles;
+            } else if (config.comments) {
+              content = content.replace(/\/\*[\s\S]*?\*\//g, '');
+            }
+          } else if (type === 'js') {
+            if (config.minifyJS && _minifyJS) {
+              content = (await _minifyJS(content, { compress: { drop_console: config.console } })).code;
+            } else if ((config.comments || config.console) && _minifyJS) {
+              const opts = { compress: { drop_console: config.console, defaults: false }, mangle: false, format: { beautify: true, comments: !config.comments } };
+              content = (await _minifyJS(content, opts)).code;
+            }
+          } else if (type === 'html') {
+            // Unify logic: Allow separate flags to work even if HTML minification is off
+            const shouldRun = config.minifyHTML || config.minifyCSS || config.minifyJS || config.comments;
+
+            if (shouldRun && _minifyHTML) {
+              // Log explicit affirmation for single-file users
+              if (buildAssets.length === 1) log("Single HTML detected: Optimizing embedded resources...");
+
+              const jsOpts = config.minifyJS ? { compress: { drop_console: config.console } } : false;
+
+              content = await _minifyHTML(content, {
+                collapseWhitespace: config.minifyHTML,
+                removeComments: config.comments,
+                minifyCSS: config.minifyCSS,
+                minifyJS: jsOpts
+              });
+            }
+          }
+
+          processedAssets.push({ ...asset, content });
         }
-
-        const cssAssets = buildAssets.filter(a => a.type === 'css');
-        const jsAssets = buildAssets.filter(a => a.type === 'js');
-        const htmlAssets = buildAssets.filter(a => a.type === 'html');
-        const otherAssets = buildAssets.filter(a => !['css', 'js', 'html'].includes(a.type));
-
-        // Process CSS in parallel
-        const cssPromises = cssAssets.map(async (asset) => {
-          let content = asset.content;
-          if (config.minifyCSS && cachedCleanCSSInstance) {
-            content = cachedCleanCSSInstance.minify(content).styles;
-          } else if (config.comments) {
-            content = content.replace(/\/\*[\s\S]*?\*\//g, '');
-          }
-          return { ...asset, content };
-        });
-
-        // Process JS in parallel
-        const jsPromises = jsAssets.map(async (asset) => {
-          let content = asset.content;
-          if (config.minifyJS && _minifyJS) {
-            content = (await _minifyJS(content, { compress: { drop_console: config.console } })).code;
-          } else if ((config.comments || config.console) && _minifyJS) {
-            const opts = { compress: { drop_console: config.console, defaults: false }, mangle: false, format: { beautify: true, comments: !config.comments } };
-            content = (await _minifyJS(content, opts)).code;
-          }
-          return { ...asset, content };
-        });
-
-        // Process HTML in parallel
-        const htmlPromises = htmlAssets.map(async (asset) => {
-          let content = asset.content;
-          const shouldRun = config.minifyHTML || config.minifyCSS || config.minifyJS || config.comments;
-          if (shouldRun && _minifyHTML) {
-            if (buildAssets.length === 1) log("Single HTML detected: Optimizing embedded resources...");
-            const jsOpts = config.minifyJS ? { compress: { drop_console: config.console } } : false;
-            content = await _minifyHTML(content, {
-              collapseWhitespace: config.minifyHTML,
-              removeComments: config.comments,
-              minifyCSS: config.minifyCSS,
-              minifyJS: jsOpts
-            });
-          }
-          return { ...asset, content };
-        });
-
-        // Await all in parallel
-        const [processedCss, processedJs, processedHtml] = await Promise.all([
-          Promise.all(cssPromises),
-          Promise.all(jsPromises),
-          Promise.all(htmlPromises)
-        ]);
-
-        const processedAssets = [...processedCss, ...processedJs, ...processedHtml, ...otherAssets];
 
         // --- 3. ASSEMBLY PHASE ---
 
@@ -1844,23 +1812,12 @@
       box.classList.toggle('hidden');
     };
 
-    // Custom Cursor Logic - Throttled with RAF for performance
+    // Custom Cursor Logic
     const cursor = document.getElementById('cursor');
 
     if (cursor) {
-      let cursorX = 0, cursorY = 0;
-      let rafScheduled = false;
-
       document.addEventListener('mousemove', (e) => {
-        cursorX = e.clientX;
-        cursorY = e.clientY;
-        if (!rafScheduled) {
-          rafScheduled = true;
-          requestAnimationFrame(() => {
-            cursor.style.transform = `translate3d(calc(${cursorX}px - 50%), calc(${cursorY}px - 50%), 0)`;
-            rafScheduled = false;
-          });
-        }
+        cursor.style.transform = `translate3d(calc(${e.clientX}px - 50%), calc(${e.clientY}px - 50%), 0)`;
       });
 
       const interactiveElements = 'a, button, .tab-btn, .asset-item';
