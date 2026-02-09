@@ -559,6 +559,63 @@
             color: #000;
         }
 
+        /* [INFO] Realtime Information Styles */
+        .info-section {
+            background: #111;
+            border: 1px solid var(--border);
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .info-section h3 {
+            font-size: 11px;
+            color: var(--muted);
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .histogram-container {
+            background: #000;
+            border: 1px solid #222;
+            height: 100px;
+            margin-bottom: 8px;
+            position: relative;
+        }
+
+        #histogramCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .info-row span:last-child {
+            color: var(--accent);
+            font-family: monospace;
+        }
+
+        .vectorscope-container {
+            background: #000;
+            border: 1px solid #222;
+            display: flex;
+            justify-content: center;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+
+        #vectorscopeCanvas {
+            border-radius: 50%;
+            background: radial-gradient(circle, #111 0%, #000 100%);
+        }
+
         /* [RESPONSIVENESS] Mobile Layout
            Purpose: Stacks the sidebar and viewport vertically on narrow screens. */
         @media (max-width:900px) {
@@ -679,6 +736,38 @@
                     <input id="jsonUpload" type="file" accept=".json" style="display: none;">
                 </div>
             </div>
+
+            <!-- [REALTIME INFO] Histogram & Vectorscope Section -->
+            <details class="info-details" open>
+                <summary>Realtime Analysis</summary>
+                <div class="info-section" style="margin-top: 6px;">
+                    <h3>LUMINANCE HISTOGRAM</h3>
+                    <div class="histogram-container">
+                        <canvas id="histogramCanvas" width="512" height="300"
+                            style="width: 100%; height: 150px;"></canvas>
+                    </div>
+                    <div class="info-row">
+                        <span>Avg Brightness:</span>
+                        <span id="avgBrightnessVal">--</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Render Res:</span>
+                        <span id="renderResVal">--</span>
+                    </div>
+                </div>
+                <div class="info-section" style="margin-top: 8px;">
+                    <h3>VECTORSCOPE</h3>
+                    <div class="vectorscope-container">
+                        <canvas id="vectorscopeCanvas" width="400" height="400"
+                            style="width: 200px; height: 200px;"></canvas>
+                    </div>
+                    <div class="info-row">
+                        <span>Avg Saturation:</span>
+                        <span id="avgSaturationVal">--</span>
+                    </div>
+                </div>
+            </details>
+
 
             <!-- [TAB SYSTEM] Switch between global controls and layer stack reordering
                  JS Logic: Handled by 'tab-btn' click listeners in the init sequence. -->
@@ -3361,6 +3450,15 @@ void main() {
             UI.lensToggleBtn = document.getElementById('lensToggleBtn');
             UI.lensCanvas = document.getElementById('lensCanvas');
 
+            // Histogram elements
+            UI.histogramCanvas = document.getElementById('histogramCanvas');
+            UI.avgBrightnessVal = document.getElementById('avgBrightnessVal');
+            UI.renderResVal = document.getElementById('renderResVal');
+
+            // Vectorscope elements
+            UI.vectorscopeCanvas = document.getElementById('vectorscopeCanvas');
+            UI.avgSaturationVal = document.getElementById('avgSaturationVal');
+
             // Explicitly collect Blur/Dither controls to ensure no initialization race conditions
             const manualIds = [
                 'blurEnable', 'blurAmount', 'blurType',
@@ -4435,8 +4533,6 @@ void main() {
         // --- RENDER LOOP MANAGER ---
         /** 
          * Debounced rendering function.
-         * Ensures we don't drop frames by batching multiple input changes 
-         * into a single requestAnimationFrame call.
          */
         let renderRequested = false;
         function requestRender() {
@@ -4447,6 +4543,174 @@ void main() {
                     renderRequested = false;
                 });
             }
+        }
+
+        /**
+         * Real-time Histogram Calculation
+         * logic: Uses the current render output to calculate luminance distribution.
+         */
+        function updateHistogram() {
+            if (!state.gl || !state.baseImage) return;
+            const gl = state.gl;
+
+            // Read from the current ping-pong output (full resolution)
+            const w = state.renderWidth;
+            const h = state.renderHeight;
+
+            // For performance, sample a subset of the image
+            // Max ~100k pixels to sample for responsive updates
+            const maxSamples = 100000;
+            const totalPixels = w * h;
+            const sampleRate = Math.max(1, Math.floor(totalPixels / maxSamples));
+
+            // Bind the framebuffer with final output (use null for main canvas)
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            const pixels = new Uint8Array(w * h * 4);
+            gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+            const hist = new Uint32Array(256);
+            let totalLum = 0;
+            let sampleCount = 0;
+
+            // Sample pixels with dynamic rate based on image size
+            const stride = sampleRate * 4;
+            for (let i = 0; i < pixels.length; i += stride) {
+                // Luminance (Rec. 709)
+                const lum = Math.round(pixels[i] * 0.2126 + pixels[i + 1] * 0.7152 + pixels[i + 2] * 0.0722);
+                hist[lum]++;
+                totalLum += lum;
+                sampleCount++;
+            }
+
+            const avgLum = sampleCount > 0 ? totalLum / sampleCount : 0;
+            if (UI.avgBrightnessVal) UI.avgBrightnessVal.textContent = (avgLum / 2.55).toFixed(1) + '%';
+            if (UI.renderResVal) UI.renderResVal.textContent = `${state.renderWidth}x${state.renderHeight}`;
+
+            // Draw to canvas
+            const ctx = UI.histogramCanvas.getContext('2d');
+            const cw = UI.histogramCanvas.width;
+            const ch = UI.histogramCanvas.height;
+
+            ctx.clearRect(0, 0, cw, ch);
+
+            // Find max for scaling
+            let max = 0;
+            for (let i = 0; i < 256; i++) if (hist[i] > max) max = hist[i];
+
+            ctx.fillStyle = '#2a9df4';
+            ctx.beginPath();
+            ctx.moveTo(0, ch);
+            for (let i = 0; i < 256; i++) {
+                const x = (i / 255) * cw;
+                const h = (hist[i] / max) * ch;
+                ctx.lineTo(x, ch - h);
+            }
+            ctx.lineTo(cw, ch);
+            ctx.fill();
+
+            // Add grid line for 50%
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.beginPath();
+            ctx.moveTo(cw / 2, 0); ctx.lineTo(cw / 2, ch);
+            ctx.stroke();
+        }
+
+        /**
+         * Real-time Vectorscope Calculation
+         * logic: Plots pixel colors in a circular hue/saturation space.
+         */
+        function updateVectorscope() {
+            if (!state.gl || !state.baseImage || !UI.vectorscopeCanvas) return;
+            const gl = state.gl;
+
+            // Read from main canvas (full resolution)
+            const w = state.renderWidth;
+            const h = state.renderHeight;
+
+            // Calculate dynamic sample rate for performance (max ~50k samples)
+            const maxSamples = 50000;
+            const totalPixels = w * h;
+            const sampleRate = Math.max(1, Math.floor(totalPixels / maxSamples));
+            const stride = sampleRate * 4;
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            const pixels = new Uint8Array(w * h * 4);
+            gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+            const ctx = UI.vectorscopeCanvas.getContext('2d');
+            const size = UI.vectorscopeCanvas.width;
+            const cx = size / 2;
+            const cy = size / 2;
+            const radius = size / 2 - 5;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+
+            // Draw pixel data first
+            let totalSat = 0;
+            let sampleCount = 0;
+
+            // Sample with dynamic stride for performance
+            for (let i = 0; i < pixels.length; i += stride) {
+                const r = pixels[i] / 255;
+                const g = pixels[i + 1] / 255;
+                const b = pixels[i + 2] / 255;
+
+                // RGB to HSV conversion (better for vectorscope)
+                const max = Math.max(r, g, b);
+                const min = Math.min(r, g, b);
+                const d = max - min;
+
+                let h = 0, s = 0;
+                if (max > 0) s = d / max; // Saturation based on max (HSV style)
+
+                if (d > 0) {
+                    switch (max) {
+                        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                        case g: h = ((b - r) / d + 2) / 6; break;
+                        case b: h = ((r - g) / d + 4) / 6; break;
+                    }
+                }
+
+                totalSat += s;
+                sampleCount++;
+
+                // Skip very low saturation pixels (they clutter the center)
+                if (s < 0.02) continue;
+
+                // Convert hue/saturation to x/y coordinates
+                const angle = h * Math.PI * 2 - Math.PI / 2; // Start at top (red at top)
+                const dist = s * radius;
+                const x = cx + Math.cos(angle) * dist;
+                const y = cy + Math.sin(angle) * dist;
+
+                // Draw a small colored dot
+                ctx.fillStyle = `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, 0.4)`;
+                ctx.fillRect(x - 1, y - 1, 2, 2);
+            }
+
+            // Draw reference circles AFTER pixels (so they're visible on top)
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius * 0.5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius * 0.25, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Draw crosshairs
+            ctx.beginPath();
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, size);
+            ctx.moveTo(0, cy); ctx.lineTo(size, cy);
+            ctx.stroke();
+
+            // Update saturation stat
+            const avgSat = sampleCount > 0 ? (totalSat / sampleCount) * 100 : 0;
+            if (UI.avgSaturationVal) UI.avgSaturationVal.textContent = avgSat.toFixed(1) + '%';
         }
 
         // --- WEBGL CORE ---
@@ -5379,6 +5643,13 @@ void main() {
                 gl.finish();
             } else {
                 updateLayerPreviews();
+
+                // Only update graphs if the section is open (performance optimization)
+                const infoDetails = document.querySelector('.info-details');
+                if (infoDetails && infoDetails.open) {
+                    updateHistogram();
+                    updateVectorscope();
+                }
 
                 // [NEW] Sync to external preview
                 if (state.previewWindow && !state.previewWindow.closed) {
