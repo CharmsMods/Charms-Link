@@ -797,41 +797,6 @@
                     </div>
                 </details>
 
-                <!-- Tool: Masking / Painting -->
-                <details>
-                    <summary>Masking Tools</summary>
-                    <div class="control-row">
-                        <label>Enable Painting</label>
-                        <input id="maskPaintEnable" type="checkbox">
-                        <label style="color:var(--muted); margin-left:auto;">Draw</label>
-                    </div>
-                    <div class="control-row">
-                        <label>Brush Size</label>
-                        <input id="maskBrushSize" type="range" min="1" max="500" value="50">
-                        <input type="text" class="control-value" readonly>
-                    </div>
-                    <div class="control-row">
-                        <label>Opacity</label>
-                        <input id="maskBrushOpacity" type="range" min="0" max="1" step="0.01" value="1">
-                        <input type="text" class="control-value" readonly>
-                    </div>
-                    <div class="control-row">
-                        <label>Hardness</label>
-                        <input id="maskBrushHardness" type="range" min="0" max="1" step="0.1" value="0.5">
-                        <input type="text" class="control-value" readonly>
-                    </div>
-                    <div class="control-row">
-                        <label>Eraser</label>
-                        <input id="maskEraser" type="checkbox">
-                        <label style="color:var(--muted); margin-left:auto;">Mode</label>
-                    </div>
-                    <div style="display:flex; gap:5px; margin-top:5px;">
-                        <button id="maskClearBtn" class="small-btn" style="flex:1">Clear</button>
-                        <button id="maskInvertBtn" class="small-btn" style="flex:1">Invert</button>
-                        <button id="maskFillBtn" class="small-btn" style="flex:1">Fill</button>
-                    </div>
-                </details>
-
                 <!-- Layer: Noise
                      Purpose: Generates procedural grain and handles all noise-related attributes.
                      Combines: Basics, Shape, Blur, Blend, Opacity, and Masking. -->
@@ -861,12 +826,7 @@
                             <option value="10">Anisotropic (Fiber)</option>
                             <option value="11">Voronoi Mosaic</option>
                             <option value="12">Crosshatch</option>
-                            <option value="13">Custom Texture</option>
                         </select>
-                    </div>
-                    <div id="customNoiseInputRow" class="control-row" style="display:none;">
-                        <label>Texture File</label>
-                        <input id="customNoiseFile" type="file" accept="image/*" style="width: 140px;">
                     </div>
                     <div class="control-row">
                         <label>Sat Strength</label>
@@ -1071,51 +1031,28 @@
                     <div class="control-row">
                         <label>Luma Mask</label>
                         <input id="adjLumaMask" type="checkbox">
-                        <select id="adjMaskMode" class="control-value" style="width: 80px; margin-left: auto;">
-                            <option value="0">Sliders</option>
-                            <option value="1">Curve</option>
-                            <option value="2">Paint</option>
-                        </select>
+                        <label style="color: var(--muted); margin-left: auto;">Enable</label>
                     </div>
-
-                    <!-- Parametric Mode (Sliders) -->
-                    <div id="adjMaskParametric">
-                        <div class="control-row">
-                            <label>S. Threshold</label>
-                            <input id="adjShadowThreshold" type="range" min="0" max="1" step="0.01" value="0">
-                            <input type="text" class="control-value" readonly>
-                        </div>
-                        <div class="control-row">
-                            <label>S. Fade</label>
-                            <input id="adjShadowFade" type="range" min="0" max="1" step="0.01" value="0">
-                            <input type="text" class="control-value" readonly>
-                        </div>
-                        <div class="control-row">
-                            <label>H. Threshold</label>
-                            <input id="adjHighlightThreshold" type="range" min="0" max="1" step="0.01" value="0">
-                            <input type="text" class="control-value" readonly>
-                        </div>
-                        <div class="control-row">
-                            <label>H. Fade</label>
-                            <input id="adjHighlightFade" type="range" min="0" max="1" step="0.01" value="0">
-                            <input type="text" class="control-value" readonly>
-                        </div>
+                    <div class="control-row">
+                        <label>S. Threshold</label>
+                        <input id="adjShadowThreshold" type="range" min="0" max="1" step="0.01" value="0">
+                        <input type="text" class="control-value" readonly>
                     </div>
-
-                    <!-- Curve Mode (Canvas) -->
-                    <div id="adjMaskCurve" style="display: none; padding: 10px 0;">
-                        <canvas id="luma-curve" width="512" height="256"
-                            style="width: 100%; height: 150px; background: #222; border: 1px solid #444; border-radius: 4px; cursor: crosshair;"></canvas>
-                        <div
-                            style="font-size: 10px; color: var(--muted); display: flex; justify-content: space-between;">
-                            <span>Black</span>
-                            <span>White</span>
-                        </div>
-                        <div class="control-row" style="margin-top: 5px;">
-                            <button id="resetCurveBtn" class="small-btn" style="width: 100%;">Reset Curve</button>
-                        </div>
+                    <div class="control-row">
+                        <label>S. Fade</label>
+                        <input id="adjShadowFade" type="range" min="0" max="1" step="0.01" value="0">
+                        <input type="text" class="control-value" readonly>
                     </div>
-
+                    <div class="control-row">
+                        <label>H. Threshold</label>
+                        <input id="adjHighlightThreshold" type="range" min="0" max="1" step="0.01" value="0">
+                        <input type="text" class="control-value" readonly>
+                    </div>
+                    <div class="control-row">
+                        <label>H. Fade</label>
+                        <input id="adjHighlightFade" type="range" min="0" max="1" step="0.01" value="0">
+                        <input type="text" class="control-value" readonly>
+                    </div>
                     <div style="height: 5px;"></div>
                     <div class="control-row">
                         <label>Invert Mask</label>
@@ -1685,6 +1622,95 @@
                 </details>
 
 
+                <!-- Layer: Denoising 
+                     Purpose: Reduces image noise using Non-Local Means, Median, or Mean algorithms.
+                     Shader Ref: 'fs-denoise' (GPU patch-based comparison).
+                     JS Ref: 'denoise' key in LAYERS object. -->
+                <details>
+                    <summary>Denoising</summary>
+                    <div class="control-row">
+                        <label>Enable</label>
+                        <input id="denoiseEnable" type="checkbox">
+                    </div>
+                    <div class="control-row">
+                        <label>Mode</label>
+                        <select id="denoiseMode" class="control-value">
+                            <option value="0" selected>Non-Local Means</option>
+                            <option value="1">Median</option>
+                            <option value="2">Mean (Box)</option>
+                        </select>
+                    </div>
+                    <div class="control-row">
+                        <label>Search Radius</label>
+                        <input id="denoiseSearchRadius" type="range" min="1" max="15" step="1" value="5">
+                        <input type="text" class="control-value" readonly>
+                    </div>
+                    <div class="control-row">
+                        <label>Patch Radius</label>
+                        <input id="denoisePatchRadius" type="range" min="1" max="5" step="1" value="2">
+                        <input type="text" class="control-value" readonly>
+                    </div>
+                    <div class="control-row">
+                        <label>Filter Strength</label>
+                        <input id="denoiseH" type="range" min="0.01" max="2.0" step="0.01" value="0.50">
+                        <input type="text" class="control-value" readonly>
+                    </div>
+                    <div class="control-row">
+                        <label>Blend</label>
+                        <input id="denoiseBlend" type="range" min="0" max="100" step="1" value="100">
+                        <input type="text" class="control-value" readonly>
+                    </div>
+                    <div style="height: 10px;"></div>
+                    <div class="control-row">
+                        <label>Color Exclusion</label>
+                        <input id="denoiseColorExclude" type="checkbox">
+                        <label style="color: var(--muted); margin-left: auto;">Enable</label>
+                    </div>
+                    <div class="control-row">
+                        <label>Exclude Color</label>
+                        <input id="denoiseExcludeColor" type="color" value="#000000" style="width: 60px; height: 24px;">
+                    </div>
+                    <div class="control-row">
+                        <label>Color Tolerance</label>
+                        <input id="denoiseColorTolerance" type="range" min="0" max="100" step="1" value="10">
+                        <input type="text" class="control-value" readonly>
+                    </div>
+                    <div class="control-row">
+                        <label>Color Fade</label>
+                        <input id="denoiseColorFade" type="range" min="0" max="100" step="1" value="20">
+                        <input type="text" class="control-value" readonly>
+                    </div>
+                    <div style="height: 10px;"></div>
+                    <div class="control-row">
+                        <label>Luma Mask</label>
+                        <input id="denoiseLumaMask" type="checkbox">
+                        <label style="color: var(--muted); margin-left: auto;">Enable</label>
+                    </div>
+                    <div class="control-row">
+                        <label>S. Threshold</label>
+                        <input id="denoiseShadowThreshold" type="range" min="0" max="1" step="0.01" value="0">
+                        <input type="text" class="control-value" readonly>
+                    </div>
+                    <div class="control-row">
+                        <label>S. Fade</label>
+                        <input id="denoiseShadowFade" type="range" min="0" max="1" step="0.01" value="0">
+                        <input type="text" class="control-value" readonly>
+                    </div>
+                    <div class="control-row">
+                        <label>H. Threshold</label>
+                        <input id="denoiseHighlightThreshold" type="range" min="0" max="1" step="0.01" value="0">
+                        <input type="text" class="control-value" readonly>
+                    </div>
+                    <div class="control-row">
+                        <label>H. Fade</label>
+                        <input id="denoiseHighlightFade" type="range" min="0" max="1" step="0.01" value="0">
+                        <input type="text" class="control-value" readonly>
+                    </div>
+                    <div class="control-row">
+                        <label>Invert Mask</label>
+                        <input id="denoiseInvertMask" type="checkbox">
+                    </div>
+                </details>
 
 
                 <!-- Layer: Palette Reconstructor 
@@ -2013,51 +2039,6 @@ void main() {
 }
 </script>
 
-    <!-- [FS-NOISE] Procedural Noise Generator
-         Generates various noise types based on definitions. 
-         (Restored basic implementation) -->
-    <script type="x-shader/x-fragment" id="fs-noise">
-#version 300 es
-precision highp float;
-in vec2 v_uv;
-out vec4 outColor;
-uniform float u_seed;
-uniform vec2 u_res;
-uniform vec2 u_origRes;
-uniform float u_scale;
-uniform float u_paramA;
-uniform float u_paramB;
-uniform float u_paramC;
-uniform sampler2D u_noiseTex;
-uniform int u_noiseTexEnabled;
-
-// Float Hash
-float hash12(vec2 p) {
-    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-    p3 += dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
-}
-
-void main() {
-    float n = 0.0;
-    vec2 st = v_uv * u_res / max(1.0, u_scale);
-
-    #if defined(NOISE_TYPE_0)
-        // White Noise
-        n = hash12(st + u_seed);
-    #elif defined(NOISE_TYPE_13)
-        // Custom Texture
-        // u_noiseTexEnabled check is implicit via define if specialized
-        n = texture(u_noiseTex, v_uv).r;
-    #else
-        // Default / Placeholder for other types
-        n = hash12(st + u_seed);
-    #endif
-
-    outColor = vec4(vec3(n), 1.0);
-}
-</script>
-
     <!-- [FS-MASK] Luminance Masking Shader
          Purpose: Generates a grayscale mask based on shadows and highlights thresholds.
          Logic: Uses 'smoothstep' on the dot product (luma) of RGB.
@@ -2074,128 +2055,231 @@ uniform float u_sth;
 uniform float u_sfa;
 uniform float u_hth;
 uniform float u_hfa;
-uniform sampler2D u_paintTex;
-uniform int u_usePaint;
-uniform sampler2D u_curve;
-uniform int u_useCurve;
 
 void main() {
     vec4 c = texture(u_tex, v_uv);
     float l = dot(c.rgb, vec3(0.299,0.587,0.114));
     
     float sMask = 0.0;
+    if (u_useS == 1) {
+        float low = u_sth - u_sfa * 0.5;
+        float high = u_sth + u_sfa * 0.5;
+        sMask = 1.0 - smoothstep(low, high, l);
+    }
+
     float hMask = 0.0;
-    float combined = 0.0;
-
-    if (u_useCurve == 1) {
-        float curveVal = texture(u_curve, vec2(l, 0.5)).r;
-        combined = curveVal;
-        sMask = curveVal;
-        hMask = curveVal;
-    } else {
-        if (u_useS == 1) {
-            float low = u_sth - u_sfa * 0.5;
-            float high = u_sth + u_sfa * 0.5;
-            sMask = 1.0 - smoothstep(low, high, l);
-        }
-
-        if (u_useH == 1) {
-            float low = u_hth - u_hfa * 0.5;
-            float high = u_hth + u_hfa * 0.5;
-            hMask = smoothstep(low, high, l);
-        }
-        combined = max(sMask, hMask);
-    }
-    
-    // [PAINT MASK]
-    if (u_usePaint == 1) {
-        float p = texture(u_paintTex, v_uv).r;
-        combined = max(combined, p);
-        sMask = max(sMask, p);
-        hMask = max(hMask, p);
+    if (u_useH == 1) {
+        float low = u_hth - u_hfa * 0.5;
+        float high = u_hth + u_hfa * 0.5;
+        hMask = smoothstep(low, high, l);
     }
 
+    float combined = max(sMask, hMask);
     // Output: R=Combined, G=Shadow, B=Highlight
     outColor = vec4(combined, sMask, hMask, 1.0);
 }
 </script>
-    <!-- [FS-PAINT-BRUSH] GPU Painting Shader
-         Purpose: Renders a smooth brush stroke (capsule) into the paint mask FBO.
-         Logic: Distance to line segment calculation. -->
-    <script type="x-shader/x-fragment" id="fs-paint-brush">
-#version 300 es
-precision highp float;
-in vec2 v_uv;
-out vec4 outColor;
-uniform sampler2D u_prevTex; // The existing mask
-uniform vec2 u_posA;         // Start of segment (0-1)
-uniform vec2 u_posB;         // End of segment (0-1)
-uniform float u_radius;      // Brush radius relative to view
-uniform float u_opacity;
-uniform float u_hardness;
-uniform int u_eraser;        // 0=paint, 1=erase
-uniform float u_aspect;      // Aspect ratio for circular brush
 
-float lineDist(vec2 p, vec2 a, vec2 b) {
-    vec2 pa = p - a, ba = b - a;
-    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-    return length(pa - ba * h);
-}
-
-void main() {
-    vec2 p = v_uv;
-    p.x *= u_aspect;
-    vec2 a = u_posA; a.x *= u_aspect;
-    vec2 b = u_posB; b.x *= u_aspect;
-
-    float d = lineDist(p, a, b);
-    float mask = 1.0 - smoothstep(u_radius * u_hardness, u_radius, d);
-    
-    vec4 prev = texture(u_prevTex, v_uv);
-    float current = prev.r;
-    
-    if (u_eraser == 1) {
-        current = max(0.0, current - mask * u_opacity);
-    } else {
-        current = max(current, mask * u_opacity);
-    }
-    
-    outColor = vec4(vec3(current), 1.0);
-}
-</script>
-
-
-
-
-    <!-- [FS-COLOR-MASK] Color-Based Selection Shader
-         Purpose: Creates a mask based on color proximity (Eyedropper / Color Exclude).
-         Logic: Calculates Euclidean distance between pixel color and target color.
-         JS Pointer: Used to generate exclusion masks for Adjustments and Noise. -->
     <script type="x-shader/x-fragment" id="fs-colorMask">
 #version 300 es
 precision highp float;
 in vec2 v_uv;
 out vec4 outColor;
 uniform sampler2D u_tex;
-uniform vec3 u_targetColor;  // RGB 0-1
-uniform float u_tolerance;   // 0-1
-uniform float u_fade;        // 0-1
+uniform vec3 u_targetColor;
+uniform float u_tolerance;
+uniform float u_fade;
 
 void main() {
     vec4 c = texture(u_tex, v_uv);
-    float dist = length(c.rgb - u_targetColor);
-    float low = u_tolerance - u_fade * 0.5;
-    float high = u_tolerance + u_fade * 0.5;
-    float mask = smoothstep(low, high, dist);
-    // mask = 0 when color matches (to exclude), 1 elsewhere
+    float d = distance(c.rgb, u_targetColor);
+    float mask = 1.0 - smoothstep(u_tolerance, u_tolerance + u_fade + 0.001, d);
     outColor = vec4(mask, mask, mask, 1.0);
 }
 </script>
 
-    <!--
-            [FS-BLUR] One-Pass Gaussian/Box Blur Purpose: Softens noise or image content. Logic: Samples 9 neighbors
-            with exponential weights for Gaussian smoothing. JS Pointer: Called twice (Horizontal/Vertical) for
-            separable high-quality blur. -->
+    <!-- [FS-NOISE] Procedural Noise Generator
+         Purpose: Creates the grain/texture.
+         Logic: Uses a 'hash12' function for GPU-based randomness (Color or Grayscale).
+         JS Pointer: Rendered into an offscreen framebuffer if 'noiseSize' > 0. -->
+    <script type="x-shader/x-fragment" id="fs-noise">
+#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 outColor;
+uniform int u_type; 
+uniform float u_seed;
+uniform vec2 u_res;
+uniform float u_scale;
+uniform vec2 u_origRes; 
+uniform float u_paramA;
+uniform float u_paramB;
+uniform float u_paramC;
+
+float hash12(vec2 p) {
+    vec3 p3  = fract(vec3(p.xyx) * .1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+vec2 hash22(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.xx + p3.yz) * p3.zy);
+}
+
+// Interleaved Gradient Noise
+float IGN(vec2 p) {
+    vec3 magic = vec3(0.06711056, 0.00583715, 52.9829189);
+    return fract(magic.z * fract(dot(p, magic.xy)));
+}
+
+float getBlue(vec2 p) {
+    float white = IGN(p);
+    float low = (IGN(p + vec2(1.0, 0.0)) + IGN(p - vec2(1.0, 0.0)) + IGN(p + vec2(0.0, 1.0)) + IGN(p - vec2(0.0, 1.0))) * 0.25;
+    return clamp(white - low + 0.5, 0.0, 1.0); 
+}
+
+// Perlin Noise (Simple Value Noise variant for better GPU stability)
+float perlin(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash12(i);
+    float b = hash12(i + vec2(1.0, 0.0));
+    float c = hash12(i + vec2(0.0, 1.0));
+    float d = hash12(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+// Worley Noise
+float worley(vec2 p) {
+    vec2 n = floor(p);
+    vec2 f = fract(p);
+    float d = 1.0;
+    for(int y = -1; y <= 1; y++) {
+        for(int x = -1; x <= 1; x++) {
+            vec2 g = vec2(float(x), float(y));
+            vec2 o = hash22(n + g);
+            vec2 r = g + o - f;
+            d = min(d, dot(r, r));
+        }
+    }
+    return sqrt(d);
+}
+
+void main() {
+    vec2 pos = v_uv * u_origRes; 
+    float s = max(1.0, u_scale);
+    vec2 cell = floor(pos / s);
+    
+    vec3 n;
+    if (u_type == 1) { // Grayscale White
+        n = vec3(hash12(cell + u_seed));
+    } else if (u_type == 0) { // Color White
+        n = vec3(hash12(cell + u_seed), hash12(cell + u_seed + 1.23), hash12(cell + u_seed + 2.45));
+    } else if (u_type == 3) { // Blue Noise (Gray)
+        n = vec3(getBlue(cell + u_seed * 11.0));
+    } else if (u_type == 4) { // Blue Noise (Color)
+        n = vec3(getBlue(cell + u_seed * 11.0), getBlue(cell + u_seed * 17.0 + 1.23), getBlue(cell + u_seed * 23.0 + 2.45));
+    } else if (u_type == 5) { // Perlin (Cloudy)
+        float octs = floor(u_paramA * 7.0) + 1.0; // 1-8 octaves
+        float persistence = 0.5 + (u_paramC - 0.5) * 0.5;
+        float noiseSum = 0.0;
+        float amp = 1.0;
+        float freq = 1.0 / (s * 10.0 + (u_paramB * 50.0));
+        for(int i = 0; i < 8; i++) {
+            if(float(i) >= octs) break;
+            noiseSum += perlin(pos * freq + u_seed * 1.5) * amp;
+            amp *= persistence;
+            freq *= 2.0;
+        }
+        n = vec3(noiseSum);
+    } else if (u_type == 6) { // Worley (Cellular)
+        float jitter = u_paramA;
+        float density = 1.0 / (s * 5.0 + (u_paramB * 20.0));
+        vec2 p = pos * density;
+        vec2 n_cell = floor(p);
+        vec2 f = fract(p);
+        float d = 1.0;
+        for(int y = -1; y <= 1; y++) {
+            for(int x = -1; x <= 1; x++) {
+                vec2 g = vec2(float(x), float(y));
+                vec2 o = hash22(n_cell + g) * jitter;
+                vec2 r = g + o - f;
+                float dist = mix(abs(r.x) + abs(r.y), length(r), u_paramC); // Morph between Manhattan and Euclidean
+                d = min(d, dist);
+            }
+        }
+        n = vec3(d);
+    } else if (u_type == 7) { // Scanlines
+        float thick = mix(0.1, 0.9, u_paramA);
+        float jitter = (hash12(vec2(u_seed)) - 0.5) * u_paramB * 5.0;
+        float line = sin((pos.y + jitter) / s * 3.14159) * 0.5 + 0.5;
+        float val = step(thick, line);
+        n = vec3(mix(val, val * hash12(cell + u_seed), u_paramC));
+    } else if (u_type == 8) { // Speckle (Dust)
+        float density = mix(0.8, 0.999, u_paramA);
+        float h = hash12(cell + u_seed);
+        float speck = smoothstep(density, density + mix(0.01, 0.1, u_paramB), h);
+        float sizeVar = hash12(cell * 0.5 + u_seed);
+        n = vec3(speck * mix(1.0, sizeVar, u_paramC));
+    } else if (u_type == 9) { // Glitch
+        float blockSize = s * (5.0 + u_paramA * 50.0);
+        float block = floor(pos.y / blockSize);
+        float shift = (hash12(vec2(block, u_seed)) - 0.5) * u_paramB * 100.0;
+        float split = u_paramC * 10.0;
+        n = vec3(
+            hash12(floor((pos + vec2(shift - split, 0.0)) / s) + u_seed),
+            hash12(floor((pos + vec2(shift, 0.0)) / s) + u_seed),
+            hash12(floor((pos + vec2(shift + split, 0.0)) / s) + u_seed)
+        );
+    } else if (u_type == 10) { // Anisotropic (Fiber)
+        float stretch = 0.01 + u_paramA * 0.5;
+        float rot = u_paramB * 6.28;
+        mat2 m = mat2(cos(rot), -sin(rot), sin(rot), cos(rot));
+        vec2 p = (m * pos) * vec2(stretch, 1.0) / s;
+        float h = hash12(floor(p) + u_seed);
+        n = vec3(mix(h, h * hash12(cell + u_seed), u_paramC));
+    } else if (u_type == 11) { // Voronoi Mosaic
+        float scale = 1.0 / (s * 10.0 + u_paramA * 40.0);
+        vec2 p = pos * scale;
+        vec2 n_cell = floor(p);
+        vec2 f = fract(p);
+        float d = 1.0;
+        vec2 m_cell;
+        for(int y = -1; y <= 1; y++) {
+            for(int x = -1; x <= 1; x++) {
+                vec2 g = vec2(float(x), float(y));
+                vec2 o = hash22(n_cell + g) * u_paramB;
+                vec2 r = g + o - f;
+                float dist = dot(r, r);
+                if (dist < d) { d = dist; m_cell = n_cell + g; }
+            }
+        }
+        vec3 col = vec3(hash12(m_cell + u_seed), hash12(m_cell + u_seed + 1.1), hash12(m_cell + u_seed + 2.2));
+        n = mix(col, vec3(sqrt(d)), u_paramC);
+    } else if (u_type == 12) { // Crosshatch
+        float dens = 1.0 / (s * (1.0 + u_paramA * 5.0));
+        float angle = u_paramB * 1.57;
+        mat2 m1 = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+        mat2 m2 = mat2(cos(-angle), -sin(-angle), sin(-angle), cos(-angle));
+        float l1 = step(0.8, sin((m1 * pos).x * dens) * 0.5 + 0.5);
+        float l2 = step(0.8, sin((m2 * pos).x * dens) * 0.5 + 0.5);
+        float hatch = max(l1, l2);
+        n = vec3(mix(hatch, hatch * hash12(cell + u_seed), u_paramC));
+    } else {
+        n = vec3(hash12(cell + u_seed));
+    }
+    
+    outColor = vec4(n, 1.0);
+}
+</script>
+
+    <!-- [FS-BLUR] One-Pass Gaussian/Box Blur
+         Purpose: Softens noise or image content.
+         Logic: Samples 9 neighbors with exponential weights for Gaussian smoothing.
+         JS Pointer: Called twice (Horizontal/Vertical) for separable high-quality blur. -->
     <script type="x-shader/x-fragment" id="fs-blur">
 #version 300 es
 precision highp float;
@@ -3104,7 +3188,173 @@ void main() {
 }
 </script>
 
+    <!-- [FS-DENOISE] Non-Local Means / Median / Mean Denoising
+         Purpose: Reduces image noise using patch-based comparison (NLM), median sorting, or simple averaging.
+         Logic: NLM compares patches (not individual pixels) for superior noise removal on textured areas.
+         JS Pointer: 'denoise' key in renderSingleLayer pipeline. -->
+    <script type="x-shader/x-fragment" id="fs-denoise">
+#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 outColor;
+uniform sampler2D u_tex;
+uniform sampler2D u_mask;
+uniform int u_useMask;
+uniform vec2 u_res;
 
+// Controls
+uniform int u_mode;          // 0=NLM, 1=Median, 2=Mean
+uniform int u_searchRadius;  // 1-15
+uniform int u_patchRadius;   // 1-5 (NLM only)
+uniform float u_h;           // filter strength 0.01-2.0
+uniform float u_strength;    // blend with original 0-1
+
+// NLM: Compare patches to compute similarity weights
+float patchDistance(vec2 p1, vec2 p2, int pRad) {
+    float dist = 0.0;
+    float count = 0.0;
+    vec2 px = 1.0 / u_res;
+    for (int dx = -pRad; dx <= pRad; dx++) {
+        for (int dy = -pRad; dy <= pRad; dy++) {
+            vec2 off = vec2(float(dx), float(dy));
+            vec3 c1 = texture(u_tex, p1 + off * px).rgb;
+            vec3 c2 = texture(u_tex, p2 + off * px).rgb;
+            vec3 d = c1 - c2;
+            dist += dot(d, d);
+            count += 1.0;
+        }
+    }
+    return dist / count;
+}
+
+void main() {
+    vec4 original = texture(u_tex, v_uv);
+    vec2 px = 1.0 / u_res;
+    vec3 result = vec3(0.0);
+
+    if (u_mode == 0) {
+        // --- Non-Local Means ---
+        float totalWeight = 0.0;
+        float h2 = u_h * u_h;
+
+        for (int sx = -u_searchRadius; sx <= u_searchRadius; sx++) {
+            for (int sy = -u_searchRadius; sy <= u_searchRadius; sy++) {
+                vec2 offset = vec2(float(sx), float(sy));
+                vec2 neighborUV = v_uv + offset * px;
+
+                float d = patchDistance(v_uv, neighborUV, u_patchRadius);
+                float w = exp(-d / h2);
+
+                result += texture(u_tex, neighborUV).rgb * w;
+                totalWeight += w;
+            }
+        }
+        result /= totalWeight;
+    }
+    else if (u_mode == 1) {
+        // --- Median Filter ---
+        // Collect luminances, sort via bubble sort on small kernel
+        // Max kernel: (2*15+1)^2 = 961, but we cap at radius 7 for median to stay performant
+        int r = min(u_searchRadius, 7);
+        int kernelSize = (2 * r + 1) * (2 * r + 1);
+
+        // We use a partial selection approach: find the median luminance pixel
+        vec3 centerCol = original.rgb;
+        float centerLum = dot(centerCol, vec3(0.299, 0.587, 0.114));
+
+        // Gather all samples
+        vec3 sumBelow = vec3(0.0);
+        vec3 sumAbove = vec3(0.0);
+        int countBelow = 0;
+        int countAbove = 0;
+        vec3 closest = centerCol;
+        float closestDist = 999.0;
+
+        // Weighted histogram approximation for median
+        float targetRank = float(kernelSize) * 0.5;
+        float accumBelow = 0.0;
+
+        // Simple approach: find the pixel closest to the median luminance
+        // First pass: compute median luminance estimate
+        float lumSum = 0.0;
+        float lumCount = 0.0;
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dy = -r; dy <= r; dy++) {
+                vec2 uv = v_uv + vec2(float(dx), float(dy)) * px;
+                vec3 s = texture(u_tex, uv).rgb;
+                float l = dot(s, vec3(0.299, 0.587, 0.114));
+                lumSum += l;
+                lumCount += 1.0;
+            }
+        }
+        float medianEst = lumSum / lumCount;
+
+        // Second pass: find the pixel closest to the estimated median
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dy = -r; dy <= r; dy++) {
+                vec2 uv = v_uv + vec2(float(dx), float(dy)) * px;
+                vec3 s = texture(u_tex, uv).rgb;
+                float l = dot(s, vec3(0.299, 0.587, 0.114));
+                float d = abs(l - medianEst);
+                if (d < closestDist) {
+                    closestDist = d;
+                    closest = s;
+                }
+            }
+        }
+        result = closest;
+    }
+    else {
+        // --- Mean (Box) Filter ---
+        float count = 0.0;
+        for (int dx = -u_searchRadius; dx <= u_searchRadius; dx++) {
+            for (int dy = -u_searchRadius; dy <= u_searchRadius; dy++) {
+                vec2 uv = v_uv + vec2(float(dx), float(dy)) * px;
+                result += texture(u_tex, uv).rgb;
+                count += 1.0;
+            }
+        }
+        result /= count;
+    }
+
+    // Blend with original based on strength
+    result = mix(original.rgb, result, u_strength);
+
+    // Apply mask if present
+    if (u_useMask == 1) {
+        float m = texture(u_mask, v_uv).r;
+        result = mix(original.rgb, result, m);
+    }
+
+    outColor = vec4(result, original.a);
+}
+</script>
+
+
+    <!-- [FS-COLOR-MASK] Color-Based Selection Shader
+         Purpose: Creates a mask based on color proximity (Eyedropper / Color Exclude).
+         Logic: Calculates Euclidean distance between pixel color and target color.
+         JS Pointer: Used to generate exclusion masks for Adjustments and Noise. -->
+    <script type="x-shader/x-fragment" id="fs-colorMask">
+#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 outColor;
+uniform sampler2D u_tex;
+uniform vec3 u_targetColor;  // RGB 0-1
+uniform float u_tolerance;   // 0-1
+uniform float u_fade;        // 0-1
+
+void main() {
+    vec4 c = texture(u_tex, v_uv);
+    float dist = length(c.rgb - u_targetColor);
+    float low = u_tolerance - u_fade * 0.5;
+    float high = u_tolerance + u_fade * 0.5;
+    float mask = smoothstep(low, high, dist);
+    // mask = 0 when color matches (to exclude), 1 elsewhere
+    outColor = vec4(mask, mask, mask, 1.0);
+}
+</script>
 
     <!-- [FS-MASKED-BLUR] Mask-Aware Blur Shader
          Purpose: Applies blur only to areas defined by a grayscale mask.
@@ -3351,13 +3601,13 @@ void main() {
             busy: false,          // Mutex to prevent overlapping render calls
             upscaleFactor: 1,     // Multiplier for export-quality rendering (1x-10x)
             // The pipeline order: processed from first to last
-            renderOrder: ['noise', 'adjust', 'hdr', 'ca', 'blur', 'cell', 'halftone', 'bilateral', 'dither', 'palette', 'edge', 'corruption'],
+            renderOrder: ['noise', 'adjust', 'hdr', 'ca', 'blur', 'cell', 'halftone', 'bilateral', 'denoise', 'dither', 'palette', 'edge', 'corruption'],
             activeLayerPreview: null,
             activeSection: 'adjust', // Currently open UI section (used for 'Isolated' previews)
             caCenter: { x: 0.5, y: 0.5 }, // UV coordinates for Chromatic Aberration center
             isDraggingPin: false,
             layerTextures: {},    // Stores the results of each layer for the 'Breakdown' view
-            layerVisibility: { noise: true, adjust: true, hdr: true, ca: true, blur: true, cell: true, halftone: true, bilateral: true, dither: true, palette: true, edge: true, corruption: true },
+            layerVisibility: { noise: true, adjust: true, hdr: true, ca: true, blur: true, cell: true, halftone: true, bilateral: true, denoise: true, dither: true, palette: true, edge: true, corruption: true },
             palette: [],          // Current list of Hex colors for Palette Reconstructor
             lastExtractionImage: null,
             pinIdleTimer: null,
@@ -3385,6 +3635,7 @@ void main() {
             'cell': { name: 'Cell Shading', color: '#fff' },
             'halftone': { name: 'Halftoning', color: '#fff' },
             'bilateral': { name: 'Bilateral Filter', color: '#fff' },
+            'denoise': { name: 'Denoising', color: '#fff' },
             'dither': { name: 'Dithering', color: '#fff' },
             'palette': { name: 'Palette Reconstructor', color: '#fff' },
             'edge': { name: 'Edge Effects', color: '#fff' },
@@ -3450,7 +3701,10 @@ void main() {
                 'ditherColorExclude', 'ditherExcludeColor', 'ditherColorTolerance', 'ditherColorFade',
                 'ditherLumaMask', 'ditherShadowThreshold', 'ditherShadowFade', 'ditherHighlightThreshold', 'ditherHighlightFade',
                 'paletteEnable', 'paletteBlend', 'paletteSmoothing', 'paletteSmoothingType', 'paletteList', 'extractCount',
-                'edgeEnable', 'edgeBlend', 'edgeMode', 'edgeStrength', 'edgeTolerance', 'edgeFgSat', 'edgeBgSat', 'edgeBloom', 'edgeSmooth', 'edgeSatControls'
+                'edgeEnable', 'edgeBlend', 'edgeMode', 'edgeStrength', 'edgeTolerance', 'edgeFgSat', 'edgeBgSat', 'edgeBloom', 'edgeSmooth', 'edgeSatControls',
+                'denoiseEnable', 'denoiseMode', 'denoiseSearchRadius', 'denoisePatchRadius', 'denoiseH', 'denoiseBlend',
+                'denoiseColorExclude', 'denoiseExcludeColor', 'denoiseColorTolerance', 'denoiseColorFade',
+                'denoiseLumaMask', 'denoiseShadowThreshold', 'denoiseShadowFade', 'denoiseHighlightThreshold', 'denoiseHighlightFade', 'denoiseInvertMask'
             ];
             manualIds.forEach(id => {
                 const el = document.getElementById(id);
@@ -3496,7 +3750,6 @@ void main() {
                 if (text && text.classList.contains('control-value')) {
                     const update = () => text.value = range.value;
                     range.addEventListener('input', () => { update(); requestRender(); });
-                    range.addEventListener('change', () => historyState.push()); // History snapshot on release
                     update();
                 }
             });
@@ -3521,7 +3774,6 @@ void main() {
                         // Always respect the current zoom state when flipping resolution limits
                         reallocateBuffers(state.isZooming);
                     }
-                    if (el.id !== 'clampPreviewToggle') historyState.push();
                     requestRender();
                 });
                 el.addEventListener('input', requestRender);
@@ -3914,90 +4166,6 @@ void main() {
             UI.uploadJsonTrigger.addEventListener('click', () => UI.jsonUpload.click());
             UI.jsonUpload.addEventListener('change', uploadPreset);
 
-            // [STABILITY] WebGL Context Handling
-            const handleContextLost = (e) => {
-                e.preventDefault();
-                console.warn('[WebGL] Context Lost');
-                if (state.playInterval) clearInterval(state.playInterval);
-                if (UI.loading) {
-                    UI.loading.textContent = 'GPU CONTEXT LOST - RESTORING...';
-                    UI.loading.style.display = 'block';
-                }
-            };
-
-            const handleContextRestored = () => {
-                console.log('[WebGL] Context Restored');
-                initWebGL(); // Re-compile shaders and get context
-
-                // Re-upload base texture preserving view state
-                if (state.baseImage && state.width > 0 && state.height > 0) {
-                    // createTexture is in scope
-                    state.textures.base = createTexture(state.gl, state.baseImage, state.width, state.height);
-                }
-
-                // Re-create FBOs
-                reallocateBuffers(false);
-
-                if (UI.loading) UI.loading.style.display = 'none';
-                requestRender();
-            };
-
-            UI.displayCanvas.addEventListener('webglcontextlost', handleContextLost, false);
-            UI.displayCanvas.addEventListener('webglcontextrestored', handleContextRestored, false);
-
-            // [INTERACTIVE HISTOGRAM]
-            const setupHistogramInteraction = () => {
-                const canvas = UI.histogramCanvas;
-                if (!canvas) return;
-
-                let isDragging = false;
-                let startX, startY;
-                let startBright, startCont;
-
-                canvas.style.cursor = 'crosshair';
-                canvas.title = 'Drag: Horizontal = Brightness, Vertical = Contrast';
-
-                canvas.addEventListener('mousedown', (e) => {
-                    isDragging = true;
-                    startX = e.clientX;
-                    startY = e.clientY;
-                    startBright = parseFloat(UI.brightness.value);
-                    startCont = parseFloat(UI.contrast.value);
-                    e.preventDefault();
-                });
-
-                window.addEventListener('mousemove', (e) => {
-                    if (!isDragging) return;
-                    e.preventDefault();
-
-                    const dx = e.clientX - startX;
-                    const dy = startY - e.clientY; // Up is positive
-
-                    // Sensitivity: 0.5 unit per pixel
-                    const sensitivity = 0.5;
-
-                    let newBright = startBright + dx * sensitivity;
-                    let newCont = startCont + dy * sensitivity;
-
-                    // Clamp to slider ranges
-                    newBright = Math.max(-100, Math.min(100, newBright));
-                    newCont = Math.max(-100, Math.min(200, newCont));
-
-                    UI.brightness.value = Math.round(newBright);
-                    UI.contrast.value = Math.round(newCont);
-
-                    // Update text inputs if present (handled by generic listener)
-                    // Trigger input event for rendering
-                    UI.brightness.dispatchEvent(new Event('input'));
-                    UI.contrast.dispatchEvent(new Event('input'));
-                });
-
-                window.addEventListener('mouseup', () => {
-                    isDragging = false;
-                });
-            };
-            setupHistogramInteraction();
-
             initWebGL();
 
             // Single image load
@@ -4054,45 +4222,6 @@ void main() {
                 UI.playBtn.textContent = 'PLAY ►';
             };
 
-            // Assuming updateUIMode is defined elsewhere, this is where the new logic goes.
-            // This block is intended to be part of the updateUIMode function.
-            // For the purpose of this edit, I'm placing it where updateUIMode would logically be called
-            // after an image load, as per the instruction's context.
-            // Since updateUIMode is called as a promise callback, its definition is not in this snippet.
-            // I will insert the content of the requested change into a hypothetical `updateUIMode` function
-            // or where its effects would be applied.
-            // Given the structure, it seems the user wants to add this logic to the `updateUIMode` function itself.
-            // As `updateUIMode` is not provided, I'll assume it's a function that gets called after image loading
-            // and insert the provided snippet's content into that conceptual function's body.
-            // Since I cannot modify a function not present, I will place it after the `stopPlay` definition
-            // and before `UI.playBtn.addEventListener` as a standalone block, assuming it's part of the main
-            // initialization or a function like `updateUIMode` that's called.
-
-            // --- Start of content for updateUIMode (as per instruction's intent) ---
-            // This block is conceptually part of the `updateUIMode` function,
-            // which is called after an image is loaded.
-            state.upscaleFactor = 1.0;
-            state.isZooming = false;
-
-            // [ADVANCED MASKING] Resize Paint Canvas
-            const pCanvas = document.getElementById('maskPaintCanvas');
-            if (pCanvas) {
-                pCanvas.width = state.width;
-                pCanvas.height = state.height;
-                const ctx = pCanvas.getContext('2d');
-                ctx.fillStyle = 'black';
-                ctx.fillRect(0, 0, state.width, state.height);
-
-                if (state.textures && state.textures.paintMask) {
-                    state.gl.deleteTexture(state.textures.paintMask);
-                }
-                // Helper createTexture must be available
-                if (state.gl) state.textures.paintMask = createTexture(state.gl, pCanvas, state.width, state.height);
-            }
-
-            UI.renderResVal.textContent = `${state.width} x ${state.height}`;
-            // --- End of content for updateUIMode ---
-
             UI.playBtn.addEventListener('click', () => {
                 if (state.isPlaying) {
                     stopPlay();
@@ -4124,25 +4253,6 @@ void main() {
             // [NOISE PARAM DYNAMICS]
             // Purpose: Dynamically renames and toggles noise parameters based on algorithm.
             UI.noiseType.addEventListener('change', syncNoiseUI);
-
-            // [CUSTOM NOISE TEXTURE]
-            const customFile = document.getElementById('customNoiseFile');
-            if (customFile) {
-                customFile.addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    const img = new Image();
-                    const url = URL.createObjectURL(file);
-                    img.onload = () => {
-                        if (state.textures.customNoise) state.gl.deleteTexture(state.textures.customNoise);
-                        state.textures.customNoise = createTexture(state.gl, img, img.width, img.height);
-                        URL.revokeObjectURL(url);
-                        requestRender();
-                    };
-                    img.src = url;
-                });
-            }
-
             syncNoiseUI(); // Initial call
 
             // [EYEDROPPER TOOL] Localized Color Selection
@@ -4241,57 +4351,46 @@ void main() {
                     eyedropperTarget = null;
                     UI.displayCanvas.classList.remove('eyedropper-active');
                 }
-
-                // Undo/Redo
-                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-                    e.preventDefault();
-                    if (e.shiftKey) {
-                        historyState.redo();
-                    } else {
-                        historyState.undo();
-                    }
-                }
-                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-                    e.preventDefault();
-                    historyState.redo();
-                }
             });
-
-            // Initial History State
-            setTimeout(() => historyState.push(), 500);
         });
 
         // --- JSON PRESETS ---
-        // --- HISTORY & STATE MANAGEMENT ---
-        function getPresetState(includeImage = false) {
+        /** 
+         * Serializes the current 'state' and all UI input values into a JSON file.
+         * Purpose: Allows users to save and share their custom noise profiles.
+         */
+        function downloadPreset() {
             const preset = {
                 values: {},
                 checks: {},
                 selects: {},
-                renderOrder: [...state.renderOrder],
-                layerVisibility: { ...state.layerVisibility },
+                renderOrder: state.renderOrder,
+                layerVisibility: state.layerVisibility,
                 upscaleFactor: state.upscaleFactor,
-                caCenter: { ...state.caCenter },
-                palette: [...state.palette],
+                caCenter: state.caCenter,
+                palette: state.palette,
                 imageData: null
             };
 
-            document.querySelectorAll('input[type=range]').forEach(el => {
-                if (el.id) preset.values[el.id] = el.value;
+            // Collect inputs
+            document.querySelectorAll('input[type=range]').forEach(el => preset.values[el.id] = el.value);
+            document.querySelectorAll('input[type=text].control-value').forEach(el => {
+                // Read-only text inputs are for display, skip them
             });
-
             document.querySelectorAll('input[type=checkbox]').forEach(el => {
-                if (el.id && !el.id.startsWith('drag-') && el.id !== 'jsonIncludeImage' && el.id !== 'previewLock') {
+                if (!el.id.startsWith('drag-') && el.id !== 'jsonIncludeImage' && el.id !== 'previewLock') { // Skip non-setting toggles
                     preset.checks[el.id] = el.checked;
                 }
             });
             document.querySelectorAll('select').forEach(el => {
-                if (el.id && el.id !== 'jsonImportMode') {
+                if (el.id !== 'jsonImportMode') {
                     preset.selects[el.id] = el.value;
                 }
             });
 
-            if (includeImage && state.baseImage) {
+            // [NEW] Save Image Data Checked
+            const includeImage = document.getElementById('jsonIncludeImage').checked;
+            if (state.baseImage && includeImage) {
                 try {
                     const c = document.createElement('canvas');
                     c.width = state.baseImage.width;
@@ -4300,73 +4399,17 @@ void main() {
                     ctx.drawImage(state.baseImage, 0, 0);
                     preset.imageData = c.toDataURL('image/png');
                 } catch (e) {
-                    console.warn("Could not save image data:", e);
+                    console.warn("Could not save image data (likely tainted canvas or too large):", e);
                 }
             }
-            return preset;
-        }
-
-        window.historyState = {
-            stack: [],
-            ptr: -1,
-            max: 30,
-            push: function () {
-                if (state.isRestoring) return;
-
-                const s = getPresetState(false);
-                const json = JSON.stringify(s);
-
-                if (this.ptr >= 0) {
-                    const last = JSON.stringify(this.stack[this.ptr]);
-                    if (last === json) return;
-                }
-
-                if (this.ptr < this.stack.length - 1) {
-                    this.stack = this.stack.slice(0, this.ptr + 1);
-                }
-
-                this.stack.push(s);
-                if (this.stack.length > this.max) {
-                    this.stack.shift();
-                } else {
-                    this.ptr++;
-                }
-            },
-            undo: function () {
-                if (this.ptr > 0) {
-                    this.ptr--;
-                    this.apply(this.stack[this.ptr]);
-                }
-            },
-            redo: function () {
-                if (this.ptr < this.stack.length - 1) {
-                    this.ptr++;
-                    this.apply(this.stack[this.ptr]);
-                }
-            },
-            apply: function (s) {
-                state.isRestoring = true;
-                restoreSettings(s);
-                state.isRestoring = false;
-                requestRender();
-            }
-        };
-
-        // --- JSON PRESETS ---
-        function downloadPreset() {
-            const includeImage = document.getElementById('jsonIncludeImage').checked;
-            const preset = getPresetState(includeImage);
 
             const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `noise_studio_preset_${Date.now()}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'grain-settings.json';
+            link.click();
         }
-
-
 
         /** 
          * Parses a JSON file to restore app state.
@@ -4461,129 +4504,6 @@ void main() {
 
             requestRender();
         }
-
-        // [ADVANCED MASKING]
-        // [ADVANCED MASKING]
-        function setupPaintTools() {
-            const displayCanvas = document.getElementById('displayCanvas');
-
-            state.paint = {
-                active: false,
-                drawing: false,
-                lastPos: null
-            };
-
-            const toggle = document.getElementById('maskPaintEnable');
-            toggle.addEventListener('change', () => {
-                state.paint.active = toggle.checked;
-            });
-
-            const getPos = (e) => {
-                const rect = displayCanvas.getBoundingClientRect();
-                return {
-                    x: (e.clientX - rect.left) / rect.width,
-                    y: 1.0 - (e.clientY - rect.top) / rect.height
-                };
-            };
-
-            const drawGPU = (e) => {
-                if (!state.paint.drawing || !state.fbos.paint) return;
-                const pos = getPos(e);
-                const gl = state.gl;
-
-                const size = parseFloat(document.getElementById('maskBrushSize').value) / 1000.0;
-                const opacity = parseFloat(document.getElementById('maskBrushOpacity').value);
-                const hardness = parseFloat(document.getElementById('maskBrushHardness').value);
-                const eraser = document.getElementById('maskEraser').checked;
-
-                const prog = state.programs.paintBrush;
-                gl.useProgram(prog);
-                gl.bindFramebuffer(gl.FRAMEBUFFER, state.fbos.blur1);
-                gl.viewport(0, 0, state.renderWidth, state.renderHeight);
-
-                gl.activeTexture(gl.TEXTURE0);
-                gl.bindTexture(gl.TEXTURE_2D, state.textures.paint); // Current mask
-
-                gl.uniform1i(gl.getUniformLocation(prog, 'u_prevTex'), 0);
-                gl.uniform2f(gl.getUniformLocation(prog, 'u_posB'), pos.x, pos.y);
-                gl.uniform2f(gl.getUniformLocation(prog, 'u_posA'), state.paint.lastPos ? state.paint.lastPos.x : pos.x, state.paint.lastPos ? state.paint.lastPos.y : pos.y);
-                gl.uniform1f(gl.getUniformLocation(prog, 'u_radius'), size);
-                gl.uniform1f(gl.getUniformLocation(prog, 'u_opacity'), opacity);
-                gl.uniform1f(gl.getUniformLocation(prog, 'u_hardness'), hardness);
-                gl.uniform1i(gl.getUniformLocation(prog, 'u_eraser'), eraser ? 1 : 0);
-                gl.uniform1f(gl.getUniformLocation(prog, 'u_aspect'), state.renderWidth / state.renderHeight);
-
-                gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-                // Transfer back
-                gl.bindFramebuffer(gl.FRAMEBUFFER, state.fbos.paint);
-                gl.useProgram(state.programs.copy);
-                gl.activeTexture(gl.TEXTURE0);
-                gl.bindTexture(gl.TEXTURE_2D, state.textures.blur1);
-                gl.uniform1i(gl.getUniformLocation(state.programs.copy, 'u_tex'), 0);
-                gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-                state.paint.lastPos = pos;
-                requestRender();
-            };
-
-            displayCanvas.addEventListener('mousedown', (e) => {
-                if (!state.paint.active || e.button !== 0) return;
-                state.paint.drawing = true;
-                state.paint.lastPos = getPos(e);
-                drawGPU(e);
-            });
-
-            window.addEventListener('mousemove', (e) => {
-                if (!state.paint.active || !state.paint.drawing) return;
-                drawGPU(e);
-            });
-
-            window.addEventListener('mouseup', () => {
-                if (state.paint.drawing) {
-                    state.paint.drawing = false;
-                    state.paint.lastPos = null;
-                    if (typeof historyState !== 'undefined') historyState.push();
-                }
-            });
-
-            document.getElementById('maskClearBtn').addEventListener('click', () => {
-                const gl = state.gl;
-                gl.bindFramebuffer(gl.FRAMEBUFFER, state.fbos.paint);
-                gl.clearColor(0, 0, 0, 1);
-                gl.clear(gl.COLOR_BUFFER_BIT);
-                requestRender();
-                if (typeof historyState !== 'undefined') historyState.push();
-            });
-
-            document.getElementById('maskFillBtn').addEventListener('click', () => {
-                const gl = state.gl;
-                gl.bindFramebuffer(gl.FRAMEBUFFER, state.fbos.paint);
-                gl.clearColor(1, 0, 0, 1); // Red is active in mask logic
-                gl.clear(gl.COLOR_BUFFER_BIT);
-                requestRender();
-                if (typeof historyState !== 'undefined') historyState.push();
-            });
-
-            document.getElementById('maskInvertBtn').addEventListener('click', () => {
-                const gl = state.gl;
-                gl.bindFramebuffer(gl.FRAMEBUFFER, state.fbos.blur1);
-                gl.useProgram(state.programs.invert);
-                gl.activeTexture(gl.TEXTURE0);
-                gl.bindTexture(gl.TEXTURE_2D, state.textures.paint);
-                gl.uniform1i(gl.getUniformLocation(state.programs.invert, 'u_tex'), 0);
-                gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-                gl.bindFramebuffer(gl.FRAMEBUFFER, state.fbos.paint);
-                gl.useProgram(state.programs.copy);
-                gl.bindTexture(gl.TEXTURE_2D, state.textures.blur1);
-                gl.drawArrays(gl.TRIANGLES, 0, 6);
-                requestRender();
-                if (typeof historyState !== 'undefined') historyState.push();
-            });
-        }
-
-        setupPaintTools();
 
         // --- MULTI-IMAGE FUNCTIONS ---
 
@@ -4794,86 +4714,55 @@ void main() {
          * logic: Uses native HTML5 Drag and Drop to reorder the 'state.renderOrder' array.
          * UI Pointer: Referenced as 'tab-layers' in the HTML.
          */
-        /** 
- * Manages the 'Render Layer Order' tab with DOM recycling.
- */
         function setupDragLayerList() {
             const list = document.getElementById('layer-drag-list');
-            state.layerDragElements = state.layerDragElements || {};
-
-            const currentInOrder = [];
+            list.innerHTML = '';
 
             state.renderOrder.forEach((key, index) => {
-                let div = state.layerDragElements[key];
+                const div = document.createElement('div');
+                div.className = 'drag-layer';
+                div.draggable = true;
+                div.dataset.key = key;
 
-                if (!div) {
-                    // Create new cached element
-                    div = document.createElement('div');
-                    div.className = 'drag-layer';
-                    div.draggable = true;
-                    div.dataset.key = key;
-                    div.innerHTML = `
-                        <div style="display:flex; align-items:center;">
-                            <span class="drag-handle">☰</span> 
-                            <input type="checkbox" class="drag-toggle" data-key="${key}">
-                        </div>
-                        <span>${LAYERS[key].name}</span>
-                    `;
+                const isChecked = state.layerVisibility[key] ? 'checked' : '';
 
-                    // Bind Events Once
-                    div.querySelector('input').addEventListener('change', (e) => {
-                        state.layerVisibility[key] = e.target.checked;
-                        requestRender();
-                    });
+                div.innerHTML = `
+            <div style="display:flex; align-items:center;">
+                <span class="drag-handle">☰</span> 
+                <input type="checkbox" class="drag-toggle" data-key="${key}" ${isChecked}>
+            </div>
+            <span>${LAYERS[key].name}</span>
+        `;
 
-                    div.addEventListener('dragstart', (e) => {
-                        e.dataTransfer.setData('text/plain', key);
-                        e.dataTransfer.effectAllowed = 'move';
-                        div.classList.add('dragging');
-                    });
+                div.querySelector('input').addEventListener('change', (e) => {
+                    state.layerVisibility[key] = e.target.checked;
+                    requestRender();
+                });
 
-                    div.addEventListener('dragend', () => div.classList.remove('dragging'));
+                div.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', index);
+                    div.classList.add('dragging');
+                });
 
-                    div.addEventListener('dragover', (e) => {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = 'move';
-                    });
+                div.addEventListener('dragend', () => div.classList.remove('dragging'));
 
-                    div.addEventListener('drop', (e) => {
-                        e.preventDefault();
-                        const fromKey = e.dataTransfer.getData('text/plain');
-                        const toKey = div.dataset.key;
+                div.addEventListener('dragover', (e) => e.preventDefault());
 
-                        if (fromKey === toKey) return;
+                div.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                    const toIndex = index;
+                    if (fromIndex === toIndex) return;
 
-                        const fromIdx = state.renderOrder.indexOf(fromKey);
-                        const toIdx = state.renderOrder.indexOf(toKey);
+                    const item = state.renderOrder.splice(fromIndex, 1)[0];
+                    state.renderOrder.splice(toIndex, 0, item);
 
-                        if (fromIdx > -1 && toIdx > -1) {
-                            state.renderOrder.splice(fromIdx, 1);
-                            state.renderOrder.splice(toIdx, 0, fromKey);
-                            setupDragLayerList();
-                            setupLayerGridDOM(); // Sync the other view
-                            requestRender();
-                        }
-                    });
+                    setupDragLayerList();
+                    setupLayerGridDOM();
+                    requestRender();
+                });
 
-                    state.layerDragElements[key] = div;
-                }
-
-                // Update Visual State
-                const box = div.querySelector('input');
-                if (box) box.checked = state.layerVisibility[key];
-
-                list.appendChild(div); // Moves it to correct slot
-                currentInOrder.push(div);
-            });
-
-            // Cleanup removed layers
-            Array.from(list.children).forEach(child => {
-                if (!currentInOrder.includes(child)) {
-                    list.removeChild(child);
-                }
+                list.appendChild(div);
             });
         }
 
@@ -5065,181 +4954,11 @@ void main() {
          * Initializes the WebGL2 context, compiles all shaders, and sets up 
          * the static full-screen quad geometry (VBO).
          */
-        // --- WEBGL HELPERS ---
-        function createShader(gl, type, source) {
-            const shader = gl.createShader(type);
-            gl.shaderSource(shader, source);
-            gl.compileShader(shader);
-            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                console.error('Shader compile error:', gl.getShaderInfoLog(shader));
-                gl.deleteShader(shader);
-                return null;
-            }
-            return shader;
-        }
-
-        function createProgram(gl, vsId, fsId) {
-            const vsSource = document.getElementById(vsId).textContent.trim();
-            const fsSource = document.getElementById(fsId).textContent.trim();
-
-            const vs = createShader(gl, gl.VERTEX_SHADER, vsSource);
-            const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
-
-            if (!vs || !fs) return null;
-
-            const program = gl.createProgram();
-            gl.attachShader(program, vs);
-            gl.attachShader(program, fs);
-            gl.linkProgram(program);
-
-            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-                console.error('Program link error:', gl.getProgramInfoLog(program));
-                gl.deleteProgram(program);
-                return null;
-            }
-            return program;
-        }
-
-        function createVariantProgram(gl, vsId, fsId, define) {
-            const vsSource = document.getElementById(vsId).textContent.trim();
-            let fsSource = document.getElementById(fsId).textContent.trim();
-
-            // Inject define after version
-            if (define) {
-                fsSource = fsSource.replace('#version 300 es', `#version 300 es\n#define ${define}`);
-            }
-
-            const vs = createShader(gl, gl.VERTEX_SHADER, vsSource);
-            const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
-
-            if (!vs || !fs) return null;
-
-            const program = gl.createProgram();
-            gl.attachShader(program, vs);
-            gl.attachShader(program, fs);
-            gl.linkProgram(program);
-
-            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-                console.error(`Variant Program error (${define}):`, gl.getProgramInfoLog(program));
-                gl.deleteProgram(program);
-                return null;
-            }
-            return program;
-        }
-
-        function createTexture(gl, image, width, height) {
-            const tex = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, tex);
-
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
-            // Flip Y for images/canvases
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-
-            if (image) {
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-            } else {
-                // Empty texture
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-            }
-
-            return tex;
-        }
-
-        // --- WEBGL HELPERS ---
-        function createShader(gl, type, source) {
-            const shader = gl.createShader(type);
-            gl.shaderSource(shader, source);
-            gl.compileShader(shader);
-            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                console.error('Shader compile error:', gl.getShaderInfoLog(shader));
-                gl.deleteShader(shader);
-                return null;
-            }
-            return shader;
-        }
-
-        function createProgram(gl, vsId, fsId) {
-            const vsSource = document.getElementById(vsId).textContent.trim();
-            const fsSource = document.getElementById(fsId).textContent.trim();
-
-            const vs = createShader(gl, gl.VERTEX_SHADER, vsSource);
-            const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
-
-            if (!vs || !fs) return null;
-
-            const program = gl.createProgram();
-            gl.attachShader(program, vs);
-            gl.attachShader(program, fs);
-            gl.linkProgram(program);
-
-            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-                console.error('Program link error:', gl.getProgramInfoLog(program));
-                gl.deleteProgram(program);
-                return null;
-            }
-            return program;
-        }
-
-        function createVariantProgram(gl, vsId, fsId, define) {
-            const vsSource = document.getElementById(vsId).textContent.trim();
-            let fsSource = document.getElementById(fsId).textContent.trim();
-
-            // Inject define after version
-            if (define) {
-                fsSource = fsSource.replace('#version 300 es', `#version 300 es\n#define ${define}`);
-            }
-
-            const vs = createShader(gl, gl.VERTEX_SHADER, vsSource);
-            const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
-
-            if (!vs || !fs) return null;
-
-            const program = gl.createProgram();
-            gl.attachShader(program, vs);
-            gl.attachShader(program, fs);
-            gl.linkProgram(program);
-
-            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-                console.error(`Variant Program error (${define}):`, gl.getProgramInfoLog(program));
-                gl.deleteProgram(program);
-                return null;
-            }
-            return program;
-        }
-
-        function createTexture(gl, image, width, height) {
-            const tex = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, tex);
-
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
-            // Flip Y for images/canvases
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-
-            if (image) {
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-            } else {
-                // Empty texture
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-            }
-
-            return tex;
-        }
-
         function initWebGL() {
             state.canvas = UI.displayCanvas;
             // WebGL2 is required for advanced features like 'EXP' blurring and complex dithering.
             const gl = state.canvas.getContext('webgl2', { antialias: false, premultipliedAlpha: false, preserveDrawingBuffer: true });
             if (!gl) { alert('WebGL2 not supported.'); return; }
-
-
 
             // Enable specialized texture formats
             gl.getExtension('EXT_color_buffer_float');
@@ -5254,7 +4973,7 @@ void main() {
                 adjustMasked: createProgram(gl, 'vs-quad', 'fs-adjustMasked'),
                 mask: createProgram(gl, 'vs-quad', 'fs-mask'),
                 colorMask: createProgram(gl, 'vs-quad', 'fs-colorMask'),
-                // noise: createProgram(gl, 'vs-quad', 'fs-noise'), // Replaced by variants below
+                noise: createProgram(gl, 'vs-quad', 'fs-noise'),
                 blur: createProgram(gl, 'vs-quad', 'fs-blur'),
                 maskedBlur: createProgram(gl, 'vs-quad', 'fs-maskedBlur'),
                 composite: createProgram(gl, 'vs-quad', 'fs-composite'),
@@ -5266,18 +4985,13 @@ void main() {
                 cell: createProgram(gl, 'vs-quad', 'fs-cell'),
                 halftone: createProgram(gl, 'vs-quad', 'fs-halftone'),
                 bilateral: createProgram(gl, 'vs-quad', 'fs-bilateral'),
+                denoise: createProgram(gl, 'vs-quad', 'fs-denoise'),
                 palette: createProgram(gl, 'vs-quad', 'fs-palette'),
                 edge: createProgram(gl, 'vs-quad', 'fs-edge'),
                 invert: createProgram(gl, 'vs-quad', 'fs-invert'),
                 radial: createProgram(gl, 'vs-quad', 'fs-radial'),
-                paintBrush: createProgram(gl, 'vs-quad', 'fs-paint-brush'),
                 final: createProgram(gl, 'vs-quad', 'fs-final')
             };
-
-            state.programs.noiseVariants = {};
-            for (let i = 0; i <= 13; i++) {
-                state.programs.noiseVariants[i] = createVariantProgram(gl, 'vs-quad', 'fs-noise', `NOISE_TYPE_${i}`);
-            }
 
             // [GEOMETRY] Single full-screen quad (2 triangles)
             const quadVBO = gl.createBuffer();
@@ -5292,29 +5006,14 @@ void main() {
             ]), gl.STATIC_DRAW);
 
             // Bind global attributes
-            // Bind global attributes
-            const bindAttributes = (program) => {
-                if (!program || !(program instanceof WebGLProgram)) return;
-                gl.useProgram(program);
-                const posLoc = gl.getAttribLocation(program, 'a_pos');
-                const uvLoc = gl.getAttribLocation(program, 'a_uv');
-                if (posLoc !== -1) {
-                    gl.enableVertexAttribArray(posLoc);
-                    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 16, 0);
-                }
-                if (uvLoc !== -1) {
-                    gl.enableVertexAttribArray(uvLoc);
-                    gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 16, 8);
-                }
-            };
-
             Object.values(state.programs).forEach(p => {
-                if (p instanceof WebGLProgram) {
-                    bindAttributes(p);
-                } else if (typeof p === 'object' && p !== null) {
-                    // Recursively find programs (e.g. noiseVariants)
-                    Object.values(p).forEach(subP => bindAttributes(subP));
-                }
+                gl.useProgram(p);
+                const posLoc = gl.getAttribLocation(p, 'a_pos');
+                const uvLoc = gl.getAttribLocation(p, 'a_uv');
+                gl.enableVertexAttribArray(posLoc);
+                gl.enableVertexAttribArray(uvLoc);
+                gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 16, 0);
+                gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 16, 8);
             });
 
             // Create FBO for background thumbnail processing
@@ -5324,15 +5023,6 @@ void main() {
             gl.bindFramebuffer(gl.FRAMEBUFFER, tFbo);
             gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tTex, 0);
             state.thumbnailFBO = { fbo: tFbo, tex: tTex, w: tw, h: th };
-
-            // [CURVE]
-            state.curveTex = createTexture(gl, null, 256, 1);
-            gl.bindTexture(gl.TEXTURE_2D, state.curveTex);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 256, 1, 0, gl.RED, gl.UNSIGNED_BYTE, null);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
             // Display Hardware Limit
             if (UI.gpuMaxRes) {
@@ -5411,20 +5101,6 @@ void main() {
                     targetW = Math.floor(targetW * s);
                     targetH = Math.floor(targetH * s);
                 }
-
-                // [MEMORY SAFETY] Prevent OOM on high-res exports/upscaling
-                // We use ~7 full-size RGBA16F textures (8 bytes/px)
-                // Base + PingPong(2) + Noise + Blur1 + Blur2 + Preview = 7
-                const estimatedVRAM = targetW * targetH * 8 * 7;
-                const SAFE_LIMIT = 2560 * 1024 * 1024; // 2.5 GB Limit (Adjust for safety)
-
-                if (estimatedVRAM > SAFE_LIMIT) {
-                    const s = Math.sqrt(SAFE_LIMIT / estimatedVRAM);
-                    targetW = Math.floor(targetW * s);
-                    targetH = Math.floor(targetH * s);
-                    console.warn(`[Memory] Clamping resolution to ${targetW}x${targetH} (Est. VRAM: ${(estimatedVRAM / 1024 / 1024).toFixed(0)}MB)`);
-                    if (fullRes && UI.loading) UI.loading.textContent = 'Export Res Limited by VRAM';
-                }
                 state._exportScale = scale;
             }
 
@@ -5452,7 +5128,7 @@ void main() {
             state.pingPong[0] = makeFBO();
             state.pingPong[1] = makeFBO();
 
-            ['tempNoise', 'blur1', 'blur2', 'preview', 'paint'].forEach(k => {
+            ['tempNoise', 'blur1', 'blur2', 'preview'].forEach(k => {
                 if (state.textures[k]) gl.deleteTexture(state.textures[k]);
                 if (state.fbos[k]) gl.deleteFramebuffer(state.fbos[k]);
             });
@@ -5466,14 +5142,6 @@ void main() {
 
             const prev = makeFBO();
             state.textures.preview = prev.tex; state.fbos.preview = prev.fbo;
-
-            // Persistent Paint Mask
-            const pmask = makeFBO(false); // 8-bit is fine for paint mask
-            state.textures.paint = pmask.tex; state.fbos.paint = pmask.fbo;
-            // Initialize paint with black (fully transparent in our masking logic)
-            gl.bindFramebuffer(gl.FRAMEBUFFER, state.fbos.paint);
-            gl.clearColor(0, 0, 0, 1);
-            gl.clear(gl.COLOR_BUFFER_BIT);
 
             return { w: targetW, h: targetH };
         }
@@ -5501,55 +5169,28 @@ void main() {
                     return;
                 }
                 let maskTex = null;
-                const lumaEnable = UI.adjLumaMask?.checked;
-                const hasCurve = lumaEnable && (UI.adjMaskMode && UI.adjMaskMode.value === '1');
-                const hasSH = lumaEnable && (UI.adjMaskMode && UI.adjMaskMode.value === '0');
-                const hasPaint = (state.textures.paint && UI.adjMaskMode && UI.adjMaskMode.value === '2');
+                const hasSH = UI.adjLumaMask?.checked;
                 const hasCol = UI.adjColorExclude?.checked;
 
-                if (hasSH || hasCol || hasCurve || hasPaint) {
+                if (hasSH || hasCol) {
                     gl.bindFramebuffer(gl.FRAMEBUFFER, state.fbos.blur1);
                     gl.clearColor(1, 1, 1, 1);
                     gl.clear(gl.COLOR_BUFFER_BIT);
                     gl.enable(gl.BLEND);
                     gl.blendFunc(gl.DST_COLOR, gl.ZERO);
 
-                    if (hasSH || hasCurve || hasPaint) {
+                    if (hasSH) {
                         gl.useProgram(state.programs.mask);
                         gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputTex);
                         gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_tex'), 0);
-
-                        // Shadows/Highlights
-                        gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_useS'), hasSH ? 1 : 0);
+                        gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_useS'), 1);
                         gl.uniform1f(gl.getUniformLocation(state.programs.mask, 'u_sth'), parseFloat(UI.adjShadowThreshold?.value || 0));
                         gl.uniform1f(gl.getUniformLocation(state.programs.mask, 'u_sfa'), parseFloat(UI.adjShadowFade?.value || 0));
-                        gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_useH'), hasSH ? 1 : 0);
+                        gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_useH'), 1);
                         gl.uniform1f(gl.getUniformLocation(state.programs.mask, 'u_hth'), parseFloat(UI.adjHighlightThreshold?.value || 1));
                         gl.uniform1f(gl.getUniformLocation(state.programs.mask, 'u_hfa'), parseFloat(UI.adjHighlightFade?.value || 0));
-
-                        // Curve integration
-                        if (hasCurve && state.curveTex) {
-                            gl.activeTexture(gl.TEXTURE1);
-                            gl.bindTexture(gl.TEXTURE_2D, state.curveTex);
-                            gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_curve'), 1);
-                            gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_useCurve'), 1);
-                        } else {
-                            gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_useCurve'), 0);
-                        }
-
-                        // Paint mask integration
-                        if (hasPaint) {
-                            gl.activeTexture(gl.TEXTURE2);
-                            gl.bindTexture(gl.TEXTURE_2D, state.textures.paint);
-                            gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_paintTex'), 2);
-                            gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_usePaint'), 1);
-                        } else {
-                            gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_usePaint'), 0);
-                        }
-
                         gl.drawArrays(gl.TRIANGLES, 0, 6);
                     }
-
                     if (hasCol) {
                         const targetColor = UI.adjExcludeColor?.value || '#000000';
                         const r = parseInt(targetColor.slice(1, 3), 16) / 255;
@@ -5638,28 +5279,16 @@ void main() {
                     gl.drawArrays(gl.TRIANGLES, 0, 6);
                     return;
                 }
-
-                const nType = parseInt(UI.noiseType.value);
-                const prog = state.programs.noiseVariants[nType];
-                if (!prog) return; // safety
-
-                gl.useProgram(prog);
+                gl.useProgram(state.programs.noise);
                 gl.bindFramebuffer(gl.FRAMEBUFFER, state.fbos.tempNoise);
-                // u_type removed
-                gl.uniform1f(gl.getUniformLocation(prog, 'u_seed'), Math.random() * 100.0);
-                gl.uniform2f(gl.getUniformLocation(prog, 'u_res'), w, h);
-                gl.uniform2f(gl.getUniformLocation(prog, 'u_origRes'), state.width * state.upscaleFactor, state.height * state.upscaleFactor);
-                gl.uniform1f(gl.getUniformLocation(prog, 'u_scale'), parseFloat(UI.noiseSize.value));
-                gl.uniform1f(gl.getUniformLocation(prog, 'u_paramA'), parseFloat(document.getElementById('noiseParamA').value) / 100.0);
-                gl.uniform1f(gl.getUniformLocation(prog, 'u_paramB'), parseFloat(document.getElementById('noiseParamB').value) / 100.0);
-                gl.uniform1f(gl.getUniformLocation(prog, 'u_paramC'), parseFloat(document.getElementById('noiseParamC').value) / 100.0);
-
-                if (nType === 13 && state.textures.customNoise) {
-                    gl.activeTexture(gl.TEXTURE1);
-                    gl.bindTexture(gl.TEXTURE_2D, state.textures.customNoise);
-                    gl.uniform1i(gl.getUniformLocation(prog, 'u_noiseTex'), 1);
-                }
-
+                gl.uniform1i(gl.getUniformLocation(state.programs.noise, 'u_type'), parseInt(UI.noiseType.value));
+                gl.uniform1f(gl.getUniformLocation(state.programs.noise, 'u_seed'), Math.random() * 100.0);
+                gl.uniform2f(gl.getUniformLocation(state.programs.noise, 'u_res'), w, h);
+                gl.uniform2f(gl.getUniformLocation(state.programs.noise, 'u_origRes'), state.width * state.upscaleFactor, state.height * state.upscaleFactor);
+                gl.uniform1f(gl.getUniformLocation(state.programs.noise, 'u_scale'), parseFloat(UI.noiseSize.value));
+                gl.uniform1f(gl.getUniformLocation(state.programs.noise, 'u_paramA'), parseFloat(document.getElementById('noiseParamA').value) / 100.0);
+                gl.uniform1f(gl.getUniformLocation(state.programs.noise, 'u_paramB'), parseFloat(document.getElementById('noiseParamB').value) / 100.0);
+                gl.uniform1f(gl.getUniformLocation(state.programs.noise, 'u_paramC'), parseFloat(document.getElementById('noiseParamC').value) / 100.0);
                 gl.drawArrays(gl.TRIANGLES, 0, 6);
 
                 const blurAmt = parseFloat(UI.blurriness.value) / 100.0;
@@ -5696,16 +5325,6 @@ void main() {
                     gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_useH'), 1);
                     gl.uniform1f(gl.getUniformLocation(state.programs.mask, 'u_hth'), parseFloat(UI.highlightThreshold.value));
                     gl.uniform1f(gl.getUniformLocation(state.programs.mask, 'u_hfa'), parseFloat(UI.highlightFade.value));
-
-                    if (state.textures.paint) {
-                        gl.activeTexture(gl.TEXTURE4);
-                        gl.bindTexture(gl.TEXTURE_2D, state.textures.paint);
-                        gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_paintTex'), 4);
-                        gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_usePaint'), 1);
-                    } else {
-                        gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_usePaint'), 0);
-                    }
-
                     gl.drawArrays(gl.TRIANGLES, 0, 6);
                 }
 
@@ -5956,6 +5575,88 @@ void main() {
                 gl.bindFramebuffer(gl.FRAMEBUFFER, outputFbo);
                 gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputTex);
                 gl.uniform1i(gl.getUniformLocation(state.programs.bilateral, 'u_tex'), 0);
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+            }
+            else if (key === 'denoise') {
+                // [TOOL: DENOISING] NLM / Median / Mean
+                if (!UI.denoiseEnable?.checked && !force) {
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, outputFbo);
+                    gl.useProgram(state.programs.copy);
+                    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputTex);
+                    gl.uniform1i(gl.getUniformLocation(state.programs.copy, 'u_tex'), 0);
+                    gl.drawArrays(gl.TRIANGLES, 0, 6);
+                    return;
+                }
+
+                let maskTex = null;
+                const hasSH = UI.denoiseLumaMask?.checked;
+                const hasCol = UI.denoiseColorExclude?.checked;
+
+                if (hasSH || hasCol) {
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, state.fbos.blur1);
+                    gl.clearColor(1, 1, 1, 1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    gl.enable(gl.BLEND);
+                    gl.blendFunc(gl.DST_COLOR, gl.ZERO);
+
+                    if (hasSH) {
+                        gl.useProgram(state.programs.mask);
+                        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputTex);
+                        gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_tex'), 0);
+                        gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_useS'), 1);
+                        gl.uniform1f(gl.getUniformLocation(state.programs.mask, 'u_sth'), parseFloat(UI.denoiseShadowThreshold?.value || 0));
+                        gl.uniform1f(gl.getUniformLocation(state.programs.mask, 'u_sfa'), parseFloat(UI.denoiseShadowFade?.value || 0));
+                        gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_useH'), 1);
+                        gl.uniform1f(gl.getUniformLocation(state.programs.mask, 'u_hth'), parseFloat(UI.denoiseHighlightThreshold?.value || 1));
+                        gl.uniform1f(gl.getUniformLocation(state.programs.mask, 'u_hfa'), parseFloat(UI.denoiseHighlightFade?.value || 0));
+                        gl.drawArrays(gl.TRIANGLES, 0, 6);
+                    }
+                    if (hasCol) {
+                        const targetColor = UI.denoiseExcludeColor?.value || '#000000';
+                        const r = parseInt(targetColor.slice(1, 3), 16) / 255;
+                        const g = parseInt(targetColor.slice(3, 5), 16) / 255;
+                        const b = parseInt(targetColor.slice(5, 7), 16) / 255;
+                        gl.useProgram(state.programs.colorMask);
+                        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputTex);
+                        gl.uniform1i(gl.getUniformLocation(state.programs.colorMask, 'u_tex'), 0);
+                        gl.uniform3f(gl.getUniformLocation(state.programs.colorMask, 'u_targetColor'), r, g, b);
+                        gl.uniform1f(gl.getUniformLocation(state.programs.colorMask, 'u_tolerance'), parseFloat(UI.denoiseColorTolerance?.value || 10) / 100.0);
+                        gl.uniform1f(gl.getUniformLocation(state.programs.colorMask, 'u_fade'), parseFloat(UI.denoiseColorFade?.value || 20) / 100.0);
+                        gl.drawArrays(gl.TRIANGLES, 0, 6);
+                    }
+                    gl.disable(gl.BLEND);
+                    maskTex = state.textures.blur1;
+
+                    if (maskTex && UI.denoiseInvertMask?.checked) {
+                        gl.useProgram(state.programs.invert);
+                        gl.bindFramebuffer(gl.FRAMEBUFFER, state.fbos.blur2);
+                        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, maskTex);
+                        gl.uniform1i(gl.getUniformLocation(state.programs.invert, 'u_tex'), 0);
+                        gl.drawArrays(gl.TRIANGLES, 0, 6);
+                        maskTex = state.textures.blur2;
+                    }
+                }
+
+                const prog = state.programs.denoise;
+                gl.useProgram(prog);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, outputFbo);
+                gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputTex);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+                gl.uniform2f(gl.getUniformLocation(prog, 'u_res'), w, h);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_mode'), parseInt(UI.denoiseMode?.value || 0));
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_searchRadius'), parseInt(UI.denoiseSearchRadius?.value || 5));
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_patchRadius'), parseInt(UI.denoisePatchRadius?.value || 2));
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_h'), parseFloat(UI.denoiseH?.value || 0.5));
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_strength'), parseFloat(UI.denoiseBlend?.value || 100) / 100.0);
+
+                if (maskTex) {
+                    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, maskTex);
+                    gl.uniform1i(gl.getUniformLocation(prog, 'u_mask'), 1);
+                    gl.uniform1i(gl.getUniformLocation(prog, 'u_useMask'), 1);
+                } else {
+                    gl.uniform1i(gl.getUniformLocation(prog, 'u_useMask'), 0);
+                }
+
                 gl.drawArrays(gl.TRIANGLES, 0, 6);
             }
             else if (key === 'dither') {
@@ -6333,14 +6034,12 @@ void main() {
             const rowA = document.getElementById('noiseParamRowA');
             const rowB = document.getElementById('noiseParamRowB');
             const rowC = document.getElementById('noiseParamRowC');
-            const customRow = document.getElementById('customNoiseInputRow');
             const labelA = document.getElementById('noiseLabelA');
             const labelB = document.getElementById('noiseLabelB');
             const labelC = document.getElementById('noiseLabelC');
 
             // Reset
             [header, rowA, rowB, rowC].forEach(el => el.style.display = 'none');
-            if (customRow) customRow.style.display = (type === 13) ? 'flex' : 'none';
 
             const showSet = (a, b, c) => {
                 header.style.display = 'block';
@@ -6461,7 +6160,48 @@ void main() {
             requestRender();
         }
 
+        // [SHADER HELPERS] Direct WebGL wrapper functions
+        function createShader(gl, type, srcId) {
+            const src = document.getElementById(srcId).text.trim();
+            const shader = gl.createShader(type == 'vs-quad' ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER);
+            gl.shaderSource(shader, src);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error(gl.getShaderInfoLog(shader));
+                return null;
+            }
+            return shader;
+        }
 
+        function createProgram(gl, vsId, fsId) {
+            const vs = createShader(gl, 'vs-quad', vsId);
+            const fs = createShader(gl, 'fs-fragment', fsId);
+            const p = gl.createProgram();
+            gl.attachShader(p, vs);
+            gl.attachShader(p, fs);
+            gl.linkProgram(p);
+            return p;
+        }
+
+        function createTexture(gl, img, w, h, highPrec = false) {
+            const tex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+            const internalFormat = highPrec ? gl.RGBA16F : gl.RGBA;
+            const format = gl.RGBA;
+            const type = highPrec ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE;
+
+            if (img) {
+                gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, format, type, img);
+            } else {
+                gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, w, h, 0, format, type, null);
+            }
+            return tex;
+        }
 
         function hexToRgb(hex) {
             const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -6833,27 +6573,6 @@ void main() {
             gl.useProgram(state.programs.mask);
             gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputTex);
             gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_tex'), 0);
-
-            // Texture Unit 1: Curve (if used)
-            let useCurve = 0;
-            if (section === 'adjust' && UI.adjMaskMode && UI.adjMaskMode.value === '1') {
-                useCurve = 1;
-                gl.activeTexture(gl.TEXTURE1);
-                gl.bindTexture(gl.TEXTURE_2D, state.curveTex);
-                gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_curve'), 1);
-            }
-            gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_useCurve'), useCurve);
-
-            // Paint Mask (if available)
-            if (state.textures.paint) {
-                gl.activeTexture(gl.TEXTURE2);
-                gl.bindTexture(gl.TEXTURE_2D, state.textures.paint);
-                gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_paintTex'), 2);
-                gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_usePaint'), 1);
-            } else {
-                gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_usePaint'), 0);
-            }
-
             gl.uniform1i(gl.getUniformLocation(state.programs.mask, 'u_useS'), 1);
             gl.uniform1f(gl.getUniformLocation(state.programs.mask, 'u_sth'), parseFloat(UI[pref + 'ShadowThreshold']?.value || UI['shadowThreshold']?.value || 0));
             gl.uniform1f(gl.getUniformLocation(state.programs.mask, 'u_sfa'), parseFloat(UI[pref + 'ShadowFade']?.value || UI['shadowFade']?.value || 0));
@@ -6986,269 +6705,6 @@ void main() {
             ctx.fillRect(0, 0, dw, dh);
             ctx.drawImage(tempCanvas, 0, 0, tw, th, 0, 0, dw, dh);
         }
-        // [CURVE EDITOR]
-        class CurveEditor {
-            constructor(canvasId, onChange) {
-                this.canvas = document.getElementById(canvasId);
-                this.ctx = this.canvas.getContext('2d');
-                this.onChange = onChange;
-                this.points = [{ x: 0, y: 0 }, { x: 1, y: 1 }]; // Normalized 0-1
-                this.activePoint = null;
-                this.hoverPoint = null;
-                this.dragging = false;
-
-                // Event Handlers (bound once)
-                this._onMouseMove = this.onMouseMove.bind(this);
-                this._onMouseUp = this.onMouseUp.bind(this);
-
-                this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
-                this.canvas.addEventListener('mousemove', this._onMouseMove); // Restored for hover state
-                this.canvas.addEventListener('contextmenu', e => e.preventDefault()); // Prevent menu for deletion
-                this.canvas.addEventListener('dblclick', this.onDoubleClick.bind(this));
-
-                this.draw();
-            }
-
-            reset() {
-                this.points = [{ x: 0, y: 0 }, { x: 1, y: 1 }];
-                this.draw();
-                this.onChange();
-            }
-
-            getScreenCoords(p) {
-                return {
-                    x: p.x * this.canvas.width,
-                    y: (1 - p.y) * this.canvas.height
-                };
-            }
-
-            getInternalCoords(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                const scaleX = this.canvas.width / rect.width;
-                const scaleY = this.canvas.height / rect.height;
-                return {
-                    x: (e.clientX - rect.left) * scaleX,
-                    y: (e.clientY - rect.top) * scaleY
-                };
-            }
-
-            onMouseDown(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-
-                const clicked = this.points.find(p => {
-                    const sc = this.getScreenCoords(p);
-                    const scaleX = this.canvas.width / rect.width;
-                    const scaleY = this.canvas.height / rect.height;
-
-                    // Compare in screen pixels
-                    const dx = (sc.x / scaleX) - pos.x;
-                    const dy = (sc.y / scaleY) - pos.y;
-                    return (dx * dx + dy * dy) < 400; // 20px radius in screen space
-                });
-
-                if (e.button === 2) { // Right click delete
-                    if (clicked && this.points.indexOf(clicked) > 0 && this.points.indexOf(clicked) < this.points.length - 1) {
-                        this.points = this.points.filter(p => p !== clicked);
-                        this.draw();
-                        this.onChange();
-                    }
-                    return;
-                }
-
-                if (clicked) {
-                    this.activePoint = clicked;
-                    this.dragging = true;
-                    this.draw();
-
-                    window.addEventListener('mousemove', this._onMouseMove);
-                    window.addEventListener('mouseup', this._onMouseUp);
-                }
-            }
-
-            onMouseMove(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                const pos = {
-                    x: (e.clientX - rect.left),
-                    y: (e.clientY - rect.top)
-                };
-
-                if (this.dragging && this.activePoint) {
-                    const norm = {
-                        x: Math.max(0, Math.min(1, pos.x / rect.width)),
-                        y: Math.max(0, Math.min(1, 1 - (pos.y / rect.height)))
-                    };
-
-                    const idx = this.points.indexOf(this.activePoint);
-                    if (idx > 0 && idx < this.points.length - 1) {
-                        this.activePoint.x = Math.max(this.points[idx - 1].x + 0.001, Math.min(this.points[idx + 1].x - 0.001, norm.x));
-                        this.activePoint.y = norm.y;
-                    } else {
-                        // idx 0 or length-1: horizontal clamp
-                        this.activePoint.y = norm.y;
-                    }
-                    this.draw();
-                    this.onChange();
-                } else {
-                    this.hoverPoint = this.points.find(p => {
-                        const sc = this.getScreenCoords(p);
-                        const scaleX = this.canvas.width / rect.width;
-                        const scaleY = this.canvas.height / rect.height;
-                        const dx = (sc.x / scaleX) - pos.x;
-                        const dy = (sc.y / scaleY) - pos.y;
-                        return (dx * dx + dy * dy) < 400; // 20px radius
-                    });
-                    this.canvas.style.cursor = this.hoverPoint ? 'move' : 'crosshair';
-                    this.draw();
-                }
-            }
-
-            onMouseUp() {
-                if (this.dragging) {
-                    this.dragging = false;
-                    this.activePoint = null;
-                    window.removeEventListener('mousemove', this._onMouseMove);
-                    window.removeEventListener('mouseup', this._onMouseUp);
-                }
-            }
-
-            onDoubleClick(e) {
-                const pos = this.getInternalCoords(e);
-                const norm = {
-                    x: Math.max(0, Math.min(1, pos.x / this.canvas.width)),
-                    y: Math.max(0, Math.min(1, 1 - (pos.y / this.canvas.height)))
-                };
-
-                const clicked = this.points.find(p => {
-                    const sc = this.getScreenCoords(p);
-                    const dx = sc.x - pos.x;
-                    const dy = sc.y - pos.y;
-                    return (dx * dx + dy * dy) < 225;
-                });
-
-                if (!clicked) {
-                    this.points.push(norm);
-                    this.points.sort((a, b) => a.x - b.x);
-                    this.draw();
-                    this.onChange();
-                }
-            }
-
-            // Simple Catmull-Rom or Monotone evaluation
-            evaluate(t) {
-                // Find segment
-                let i = 0;
-                while (i < this.points.length - 1 && this.points[i + 1].x < t) i++;
-                const p0 = this.points[Math.max(0, i - 1)];
-                const p1 = this.points[i];
-                const p2 = this.points[Math.min(this.points.length - 1, i + 1)];
-                const p3 = this.points[Math.min(this.points.length - 1, i + 2)];
-
-                // Remap t to 0-1 within segment
-                const range = p2.x - p1.x;
-                if (range < 0.00001) return p1.y;
-                const localT = (t - p1.x) / range;
-
-                // Cubic interpolation (Monotone is better but this is MVP)
-                // Using simple linear for safety/speed first? No, curves requested.
-                // Let's use Catmull-Rom spline logic adapted for 1D
-                // Actually, simple linear is safer to implement without a library.
-                // Let's do linear for now to ensure stability, or a simple smoothstep interpolation?
-                // Smooth step between points:
-                const smoothT = localT * localT * (3 - 2 * localT);
-                return p1.y * (1 - smoothT) + p2.y * smoothT;
-            }
-
-            draw() {
-                const w = this.canvas.width;
-                const h = this.canvas.height;
-                this.ctx.clearRect(0, 0, w, h);
-
-                // Grid
-                this.ctx.strokeStyle = '#333';
-                this.ctx.lineWidth = 1;
-                this.ctx.beginPath();
-                for (let i = 0.25; i < 1; i += 0.25) {
-                    this.ctx.moveTo(i * w, 0); this.ctx.lineTo(i * w, h);
-                    this.ctx.moveTo(0, i * h); this.ctx.lineTo(w, i * h);
-                }
-                this.ctx.stroke();
-
-                // Curve
-                this.ctx.strokeStyle = '#4a90e2';
-                this.ctx.lineWidth = 2;
-                this.ctx.beginPath();
-                this.ctx.moveTo(0, (1 - this.evaluate(0)) * h);
-                for (let x = 0; x <= w; x += 2) {
-                    const t = x / w;
-                    const y = 1 - this.evaluate(t);
-                    this.ctx.lineTo(x, y * h);
-                }
-                this.ctx.stroke();
-
-                // Points
-                this.points.forEach(p => {
-                    const sc = this.getScreenCoords(p);
-                    this.ctx.fillStyle = '#fff';
-                    this.ctx.beginPath();
-                    this.ctx.arc(sc.x, sc.y, 4, 0, Math.PI * 2);
-                    this.ctx.fill();
-                    if (p === this.activePoint || p === this.hoverPoint) {
-                        this.ctx.strokeStyle = '#4a90e2';
-                        this.ctx.stroke();
-                    }
-                });
-            }
-
-            getData() {
-                const data = new Uint8Array(256);
-                for (let i = 0; i < 256; i++) {
-                    const t = i / 255;
-                    const val = Math.max(0, Math.min(1, this.evaluate(t)));
-                    data[i] = Math.floor(val * 255);
-                }
-                return data;
-            }
-        }
-
-        // Initialize Curve Editor
-        let lumaCurveEditor;
-        window.addEventListener('load', () => {
-            // Init Curve
-            const canvas = document.getElementById('luma-curve');
-            if (canvas) {
-                lumaCurveEditor = new CurveEditor('luma-curve', () => {
-                    // Update texture
-                    if (state.gl && state.curveTex) {
-                        const data = lumaCurveEditor.getData();
-                        const gl = state.gl;
-                        gl.bindTexture(gl.TEXTURE_2D, state.curveTex);
-                        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 256, 1, 0, gl.RED, gl.UNSIGNED_BYTE, data);
-                        requestRender();
-                    }
-                });
-
-                // Reset Btn
-                document.getElementById('resetCurveBtn').addEventListener('click', () => lumaCurveEditor.reset());
-
-                // Toggle Mode
-                const modeSel = document.getElementById('adjMaskMode');
-                const pBox = document.getElementById('adjMaskParametric');
-                const cBox = document.getElementById('adjMaskCurve');
-                if (modeSel) {
-                    modeSel.addEventListener('change', () => {
-                        const val = modeSel.value;
-                        if (pBox) pBox.style.display = (val === '0') ? 'block' : 'none';
-                        if (cBox) cBox.style.display = (val === '1') ? 'block' : 'none';
-
-                        if (val === '1' && lumaCurveEditor) {
-                            lumaCurveEditor.onChange();
-                        }
-                        requestRender();
-                    });
-                }
-            }
-        });
     </script>
     <script type="x-shader/x-fragment" id="fs-final">
 #version 300 es
