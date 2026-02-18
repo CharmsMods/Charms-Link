@@ -1,429 +1,885 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image to ASCII Converter</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        
-        :root {
-            /* STARK BLACK AND WHITE PALETTE */
-            --bg-dark: #000000;
-            --bg-control: #000000; 
-            --text-color: #ffffff;
-            --border-color: #ffffff;
-            --accent-color: #ffffff; /* White buttons and accents */
-            --accent-hover: #cccccc; /* Slightly grayed white on hover */
-            --accent-text: #000000; /* Black text on white elements */
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASCII Art Converter</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-color);
-            margin: 0;
-            padding: 2rem 1rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-        }
+    :root {
+      --bg: #000000;
+      --fg: #ffffff;
+      --muted: rgba(255, 255, 255, 0.5);
+      --accent: #ffffff;
+    }
 
-        /* Responsive Grid Layout */
-        .container {
-            width: 100%;
-            max-width: 1200px;
-            display: grid;
-            gap: 24px;
-            grid-template-columns: 1fr;
-            grid-template-areas: 
-                "header"
-                "controls"
-                "output"
-                "buttons";
-        }
+    html, body {
+      height: 100%;
+    }
 
-        @media (min-width: 768px) {
-            .container {
-                grid-template-areas:
-                    "header header"
-                    "controls output"
-                    "buttons buttons";
-                grid-template-columns: 350px 1fr;
-            }
-        }
-        
-        h1 {
-            font-size: 2rem;
-            font-weight: 600;
-            grid-area: header;
-            margin-bottom: 0;
-            text-align: center;
-        }
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
 
-        #controls {
-            grid-area: controls;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            width: 100%;
-            background-color: var(--bg-control); /* Pure black */
-            padding: 24px;
-            border-radius: 8px;
-            border: 2px solid var(--border-color); /* High-contrast white border */
-            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1); /* Subtle white shadow */
-            box-sizing: border-box;
-        }
+    /* Animated background */
+    .bg-pattern {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        radial-gradient(circle at 20% 80%, rgba(255,255,255,0.03) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255,255,255,0.03) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
 
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            width: 100%;
-        }
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(255, 255, 255, 0.01) 2px,
+        rgba(255, 255, 255, 0.01) 4px
+      );
+      pointer-events: none;
+      z-index: 1;
+      animation: scanMove 8s linear infinite;
+    }
 
-        .control-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
+    @keyframes scanMove {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(4px); }
+    }
 
-        .control-row label, .checkbox-container label {
-            flex-shrink: 0;
-            font-weight: 500;
-        }
-        
-        /* Styling all inputs/selects to match the B&W theme */
-        input[type="range"] {
-            flex-grow: 1;
-            -webkit-appearance: none;
-            appearance: none;
-            height: 8px;
-            background: var(--border-color); /* White track */
-            border-radius: 4px;
-            cursor: pointer;
-        }
+    .container {
+      position: relative;
+      z-index: 2;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+      min-height: 100vh;
+    }
 
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 18px;
-            height: 18px;
-            background: #ffffff; /* White thumb */
-            border-radius: 50%;
-            border: 2px solid #000000; /* Black border for definition */
-            transition: background 0.2s;
-        }
-        
-        .reset-button {
-            background-color: #ffffff; /* White background */
-            color: #000000; /* Black text */
-            padding: 4px 8px;
-            font-size: 0.75rem;
-            border-radius: 4px;
-            font-weight: 500;
-        }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
 
-        .reset-button:hover {
-            background-color: #cccccc; /* Light gray hover */
-        }
+    .logo {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.05em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
 
-        /* File input styling, using B&W Tailwind classes */
-        input[type="file"] {
-            color: var(--text-color);
-        }
-        
-        .checkbox-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+    .logo-blink {
+      animation: blink 1s step-end infinite;
+    }
 
-        /* Overriding tailwind checkbox appearance for B&W */
-        #transparent-mode.focus\:ring-white:focus {
-            --tw-ring-color: #ffffff;
-        }
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
 
-        #color-picker {
-            width: 100%;
-            height: 40px;
-        }
-        
-        #color-picker::-webkit-color-swatch-wrapper {
-            padding: 0;
-        }
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
 
-        #color-picker::-webkit-color-swatch {
-            border: 3px solid var(--border-color); /* Thicker white border */
-            border-radius: 6px;
-        }
-        
-        .main-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            width: 100%;
-            grid-area: buttons;
-            flex-wrap: wrap;
-        }
+    .btn {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 0.75rem 1.25rem;
+      background: var(--fg);
+      color: var(--bg);
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
 
-        #output-container {
-            grid-area: output;
-            width: 100%;
-            min-height: 300px;
-            background-color: #000000; /* Pure black for output screen */
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            padding: 5px;
-            box-sizing: border-box;
-        }
+    .btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.5s ease;
+    }
 
-        #ascii-output {
-            font-family: monospace;
-            margin: 0;
-            line-height: 1;
-            white-space: pre;
-            text-align: center;
-            overflow: hidden;
-            display: block;
-            color: var(--text-color);
-        }
+    .btn:hover::before {
+      transform: translateX(100%);
+    }
 
-        button {
-            padding: 12px 24px;
-            background-color: var(--accent-color); /* White button */
-            color: var(--accent-text); /* Black text */
-            border: none;
-            cursor: pointer;
-            border-radius: 6px;
-            transition: background-color 0.2s ease, transform 0.1s;
-            font-weight: 600;
-            box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2); /* White shadow for definition */
-        }
+    .btn:hover {
+      transform: translateY(-2px);
+    }
 
-        button:hover {
-            background-color: var(--accent-hover); /* Light gray hover */
-            color: var(--accent-text);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 10px rgba(255, 255, 255, 0.3);
-        }
-    </style>
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid var(--fg);
+      outline-offset: 2px;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--fg);
+      border: 1px solid var(--fg);
+    }
+
+    .btn-outline:hover {
+      background: var(--fg);
+      color: var(--bg);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 2rem;
+      min-height: calc(100vh - 8rem);
+    }
+
+    @media (max-width: 900px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.02);
+      padding: 1.25rem;
+    }
+
+    .panel-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1rem;
+      color: var(--muted);
+    }
+
+    .upload-zone {
+      aspect-ratio: 16/10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .upload-zone.dragging {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .upload-zone input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .upload-icon {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+      transition: all 0.3s ease;
+    }
+
+    .upload-zone:hover .upload-icon {
+      opacity: 1;
+      transform: translateY(-4px);
+    }
+
+    .upload-text {
+      font-size: 0.875rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .preview-thumb {
+      width: 100%;
+      aspect-ratio: 16/10;
+      object-fit: contain;
+      display: none;
+    }
+
+    .preview-thumb.visible {
+      display: block;
+    }
+
+    .control-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8125rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .control-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      appearance: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: var(--fg);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    input[type="range"]:focus-visible {
+      outline: none;
+    }
+
+    input[type="range"]:focus-visible::-webkit-slider-thumb {
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+    }
+
+    .charset-input {
+      width: 100%;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      padding: 0.75rem;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--fg);
+      transition: border-color 0.2s ease;
+    }
+
+    .charset-input:focus {
+      outline: none;
+      border-color: var(--fg);
+    }
+
+    .charset-input::placeholder {
+      color: var(--muted);
+    }
+
+    .presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .preset-btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6875rem;
+      padding: 0.375rem 0.625rem;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .preset-btn:hover {
+      border-color: var(--fg);
+      color: var(--fg);
+    }
+
+    .preset-btn:focus-visible {
+      outline: 2px solid var(--fg);
+      outline-offset: 2px;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+    }
+
+    .checkbox {
+      width: 20px;
+      height: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .checkbox.checked {
+      background: var(--fg);
+    }
+
+    .checkbox svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--bg);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .checkbox.checked svg {
+      opacity: 1;
+    }
+
+    .checkbox-label {
+      font-size: 0.875rem;
+    }
+
+    .output-area {
+      display: flex;
+      flex-direction: column;
+      background: rgba(255, 255, 255, 0.02);
+      min-height: 500px;
+    }
+
+    .output-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.25rem;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .output-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+
+    .output-stats {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .output-content {
+      flex: 1;
+      overflow: auto;
+      padding: 1rem;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+
+    .ascii-output {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 6px;
+      line-height: 1;
+      letter-spacing: 0;
+      white-space: pre;
+      color: var(--fg);
+      user-select: all;
+    }
+
+    .placeholder-text {
+      color: var(--muted);
+      font-size: 1rem;
+      text-align: center;
+      padding: 3rem;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--fg);
+      color: var(--bg);
+      padding: 1rem 1.5rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 100;
+    }
+
+    .toast.visible {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Animation */
+    .fade-in {
+      animation: fadeIn 0.5s ease forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    canvas {
+      display: none;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Image to ASCII Art Converter</h1>
-        
-        <div id="controls">
-            <!-- Using B&W Tailwind classes for file input -->
-            <input type="file" id="image-upload" accept="image/*" class="p-2 border border-white rounded-md bg-black text-white">
-            
-            <div class="control-group">
-                <div class="control-row">
-                    <label for="resolution-slider">Resolution:</label>
-                    <input type="range" id="resolution-slider" min="50" max="400" value="150">
-                    <button class="reset-button" data-slider="resolution" data-default="150">Reset</button>
-                </div>
-            </div>
+  <div class="bg-pattern"></div>
+  <div class="scanlines"></div>
 
-            <div class="control-group">
-                <div class="control-row">
-                    <label for="brightness-slider">Brightness:</label>
-                    <input type="range" id="brightness-slider" min="-100" max="100" value="0">
-                    <button class="reset-button" data-slider="brightness" data-default="0">Reset</button>
-                </div>
-            </div>
+  <div class="container">
+    <header>
+      <div class="logo">
+        <span>ASCII</span>
+        <span class="logo-blink">_</span>
+      </div>
+      <div class="actions">
+        <button class="btn btn-outline" id="copyBtn" disabled>Copy to Clipboard</button>
+        <button class="btn btn-outline" id="exportTxtBtn" disabled>Export TXT</button>
+        <button class="btn" id="exportPngBtn" disabled>Export PNG</button>
+      </div>
+    </header>
 
-            <div class="control-group">
-                <div class="control-row">
-                    <label for="contrast-slider">Contrast:</label>
-                    <input type="range" id="contrast-slider" min="-100" max="100" value="0">
-                    <button class="reset-button" data-slider="contrast" data-default="0">Reset</button>
-                </div>
-            </div>
-            
-            <div class="checkbox-container">
-                <!-- Using B&W Tailwind classes for checkbox -->
-                <input type="checkbox" id="transparent-mode" class="w-4 h-4 text-white bg-black border-white rounded focus:ring-white">
-                <label for="transparent-mode">Transparent Background</label>
-            </div>
-
-            <div class="control-group">
-                <div class="control-row">
-                    <label for="color-picker">ASCII Color:</label>
-                    <input type="color" id="color-picker" value="#ffffff">
-                </div>
-            </div>
+    <div class="main-grid">
+      <aside class="sidebar">
+        <div class="panel">
+          <div class="panel-title">Source Image</div>
+          <div class="upload-zone" id="uploadZone">
+            <input type="file" id="fileInput" accept="image/*" aria-label="Upload image">
+            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span class="upload-text">Drop image or click to upload</span>
+            <img class="preview-thumb" id="previewThumb" alt="Preview">
+          </div>
         </div>
 
-        <div id="output-container">
-            <pre id="ascii-output">Upload an image to get started...</pre>
+        <div class="panel">
+          <div class="panel-title">Settings</div>
+          
+          <div class="control-group">
+            <div class="control-label">
+              <span>Width</span>
+              <span class="control-value" id="widthValue">120</span>
+            </div>
+            <input type="range" id="widthSlider" min="40" max="200" value="120">
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span>Contrast</span>
+              <span class="control-value" id="contrastValue">1.0</span>
+            </div>
+            <input type="range" id="contrastSlider" min="0.5" max="2" step="0.1" value="1">
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span>Brightness</span>
+              <span class="control-value" id="brightnessValue">0</span>
+            </div>
+            <input type="range" id="brightnessSlider" min="-50" max="50" value="0">
+          </div>
         </div>
 
-        <div class="main-buttons">
-            <button id="copy-button">Copy ASCII Art</button>
+        <div class="panel">
+          <div class="panel-title">Character Set</div>
+          <input 
+            type="text" 
+            class="charset-input" 
+            id="charsetInput" 
+            value=" .:-=+*#%@"
+            placeholder="Enter characters..."
+            aria-label="Custom character set"
+          >
+          <div class="presets">
+            <button class="preset-btn" data-charset=" .:-=+*#%@" aria-label="Standard charset">Standard</button>
+            <button class="preset-btn" data-charset=" .:;+=xX$&" aria-label="Blocky charset">Blocky</button>
+            <button class="preset-btn" data-charset=" .-:;=/+xX#@" aria-label="Detailed charset">Detailed</button>
+            <button class="preset-btn" data-charset=" ░▒▓█" aria-label="Blocks charset">Blocks</button>
+            <button class="preset-btn" data-charset=" .:|/XNW" aria-label="Sharp charset">Sharp</button>
+          </div>
+
+          <div class="control-group" style="margin-top: 1rem;">
+            <div class="checkbox-group" id="invertToggle" role="checkbox" aria-checked="false" tabindex="0">
+              <div class="checkbox">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              <span class="checkbox-label">Invert</span>
+            </div>
+          </div>
         </div>
+      </aside>
+
+      <main class="output-area">
+        <div class="output-header">
+          <span class="output-title">Output</span>
+          <span class="output-stats" id="outputStats">0 x 0</span>
+        </div>
+        <div class="output-content" id="outputContent">
+          <p class="placeholder-text">Upload an image to convert to ASCII art</p>
+        </div>
+      </main>
     </div>
+  </div>
 
-    <script>
-        const imageUpload = document.getElementById('image-upload');
-        const resolutionSlider = document.getElementById('resolution-slider');
-        const brightnessSlider = document.getElementById('brightness-slider');
-        const contrastSlider = document.getElementById('contrast-slider');
-        const colorPicker = document.getElementById('color-picker');
-        const transparentModeCheckbox = document.getElementById('transparent-mode');
-        const asciiOutput = document.getElementById('ascii-output');
-        const copyButton = document.getElementById('copy-button');
-        const resetButton = document.querySelectorAll('.reset-button');
+  <div class="toast" id="toast">Copied to clipboard</div>
 
-        let originalImage = null;
+  <canvas id="canvas"></canvas>
 
-        const asciiCharacters = "`.-':_,^=;><+!*|?()[]{}1Ili/\\^vczxkZpXUaYJCLO0QCb8D9#MW&B%@$";
+  <script>
+    // DOM Elements
+    const fileInput = document.getElementById('fileInput');
+    const uploadZone = document.getElementById('uploadZone');
+    const previewThumb = document.getElementById('previewThumb');
+    const widthSlider = document.getElementById('widthSlider');
+    const widthValue = document.getElementById('widthValue');
+    const contrastSlider = document.getElementById('contrastSlider');
+    const contrastValue = document.getElementById('contrastValue');
+    const brightnessSlider = document.getElementById('brightnessSlider');
+    const brightnessValue = document.getElementById('brightnessValue');
+    const charsetInput = document.getElementById('charsetInput');
+    const invertToggle = document.getElementById('invertToggle');
+    const checkbox = invertToggle.querySelector('.checkbox');
+    const outputContent = document.getElementById('outputContent');
+    const outputStats = document.getElementById('outputStats');
+    const copyBtn = document.getElementById('copyBtn');
+    const exportTxtBtn = document.getElementById('exportTxtBtn');
+    const exportPngBtn = document.getElementById('exportPngBtn');
+    const toast = document.getElementById('toast');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-        imageUpload.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        originalImage = img;
-                        updateAsciiArt();
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
+    // State
+    let currentImage = null;
+    let currentAscii = '';
+    let isInverted = false;
 
-        resolutionSlider.addEventListener('input', updateAsciiArt);
-        brightnessSlider.addEventListener('input', updateAsciiArt);
-        contrastSlider.addEventListener('input', updateAsciiArt);
-        colorPicker.addEventListener('input', updateAsciiArt);
-        transparentModeCheckbox.addEventListener('change', updateAsciiArt);
+    // Presets
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        charsetInput.value = btn.dataset.charset;
+        if (currentImage) convertImage();
+      });
+    });
 
-        resetButton.forEach(button => {
-            button.addEventListener('click', (event) => {
-                const sliderName = event.target.getAttribute('data-slider');
-                const defaultValue = event.target.getAttribute('data-default');
-                document.getElementById(`${sliderName}-slider`).value = defaultValue;
-                updateAsciiArt();
-            });
-        });
+    // File upload
+    fileInput.addEventListener('change', handleFile);
+    
+    uploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadZone.classList.add('dragging');
+    });
 
-        copyButton.addEventListener('click', () => {
-             // Using document.execCommand('copy') for better compatibility in iframe
-            const textToCopy = asciiOutput.textContent;
-            
-            const tempInput = document.createElement('textarea');
-            tempInput.value = textToCopy;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    const originalText = copyButton.textContent;
-                    copyButton.textContent = 'Copied!';
-                    setTimeout(() => {
-                        copyButton.textContent = originalText;
-                    }, 2000);
-                } else {
-                    console.error('Failed to copy using execCommand');
-                }
-            } catch (err) {
-                console.error('Failed to copy: ', err);
-            } finally {
-                document.body.removeChild(tempInput);
-            }
-        });
+    uploadZone.addEventListener('dragleave', () => {
+      uploadZone.classList.remove('dragging');
+    });
 
-        function updateAsciiArt() {
-            if (!originalImage) return;
+    uploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragging');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) {
+        loadImage(file);
+      }
+    });
 
-            const resolution = parseInt(resolutionSlider.value);
-            const brightness = parseInt(brightnessSlider.value);
-            const contrast = parseInt(contrastSlider.value);
-            const transparentMode = transparentModeCheckbox.checked;
+    function handleFile(e) {
+      const file = e.target.files[0];
+      if (file) {
+        loadImage(file);
+      }
+    }
 
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            
-            const aspectRatio = originalImage.width / originalImage.height;
-            let outputWidth = resolution;
-            let outputHeight = Math.round(outputWidth / aspectRatio / 1.5); // 1.5 factor accounts for character aspect ratio
+    function loadImage(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          currentImage = img;
+          previewThumb.src = e.target.result;
+          previewThumb.classList.add('visible');
+          uploadZone.querySelector('.upload-icon').style.display = 'none';
+          uploadZone.querySelector('.upload-text').style.display = 'none';
+          enableButtons();
+          convertImage();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
 
-            canvas.width = outputWidth;
-            canvas.height = outputHeight;
+    function enableButtons() {
+      copyBtn.disabled = false;
+      exportTxtBtn.disabled = false;
+      exportPngBtn.disabled = false;
+    }
 
-            // Apply contrast and brightness filters directly to the canvas context
-            context.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
+    // Sliders
+    widthSlider.addEventListener('input', () => {
+      widthValue.textContent = widthSlider.value;
+      if (currentImage) convertImage();
+    });
 
-            context.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+    contrastSlider.addEventListener('input', () => {
+      contrastValue.textContent = parseFloat(contrastSlider.value).toFixed(1);
+      if (currentImage) convertImage();
+    });
 
-            // Reset filter for reading image data, as filter property is often not applied to ImageData
-            context.filter = 'none';
+    brightnessSlider.addEventListener('input', () => {
+      brightnessValue.textContent = brightnessSlider.value;
+      if (currentImage) convertImage();
+    });
 
-            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-            const pixels = imageData.data;
-            let asciiText = '';
+    // Charset
+    charsetInput.addEventListener('input', () => {
+      if (currentImage) convertImage();
+    });
 
-            // Recalculate context filter for manual pixel adjustment if necessary (not needed if context.filter works)
-            // Since context.filter might not be applied to the data, we revert to manual processing but
-            // simplify the original code's logic by just using the drawn pixel data directly.
-            
-            for (let y = 0; y < canvas.height; y++) {
-                for (let x = 0; x < canvas.width; x++) {
-                    const i = (y * canvas.width + x) * 4;
-                    const alpha = pixels[i + 3];
+    // Invert toggle
+    invertToggle.addEventListener('click', toggleInvert);
+    invertToggle.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleInvert();
+      }
+    });
 
-                    if (transparentMode && alpha === 0) {
-                        asciiText += '\u00A0'; // Non-breaking space
-                    } else {
-                        const r = pixels[i];
-                        const g = pixels[i + 1];
-                        const b = pixels[i + 2];
+    function toggleInvert() {
+      isInverted = !isInverted;
+      checkbox.classList.toggle('checked', isInverted);
+      invertToggle.setAttribute('aria-checked', isInverted);
+      if (currentImage) convertImage();
+    }
 
-                        // Calculate grayscale value using luminosity method
-                        const grayscale = (r * 0.2126 + g * 0.7152 + b * 0.0722);
-                        
-                        // Map brightness to ASCII character (Inverted logic: Darker pixels map to denser characters)
-                        const characterIndex = Math.floor((1 - (grayscale / 255)) * (asciiCharacters.length - 1));
-                        
-                        // Ensure index is within bounds
-                        const finalIndex = Math.min(Math.max(0, characterIndex), asciiCharacters.length - 1);
-                        asciiText += asciiCharacters[finalIndex];
-                    }
-                }
-                asciiText += '\n';
-            }
+    // Convert image to ASCII
+    function convertImage() {
+      if (!currentImage) return;
 
-            asciiOutput.textContent = asciiText;
-            asciiOutput.style.color = colorPicker.value;
-            
-            // Adjust font size based on the output container's dimensions
-            const containerWidth = asciiOutput.parentElement.offsetWidth;
-            const containerHeight = asciiOutput.parentElement.offsetHeight;
-            const textLines = asciiText.split('\n');
-            const maxLineLength = textLines.reduce((max, line) => Math.max(max, line.length), 0);
-            const numLines = textLines.length;
+      const width = parseInt(widthSlider.value);
+      const aspectRatio = currentImage.height / currentImage.width;
+      const height = Math.floor(width * aspectRatio * 0.5);
 
-            if (maxLineLength > 0 && numLines > 0) {
-                // Calculate font size based on width and height of the container
-                // 0.9 is a safety factor to prevent overflow
-                const widthFontSize = (containerWidth / maxLineLength) * 0.9;
-                const heightFontSize = (containerHeight / numLines) * 0.9;
-                
-                const newFontSize = Math.min(widthFontSize, heightFontSize);
-                asciiOutput.style.fontSize = `${newFontSize}px`;
-            }
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(currentImage, 0, 0, width, height);
+
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const pixels = imageData.data;
+
+      const contrast = parseFloat(contrastSlider.value);
+      const brightness = parseInt(brightnessSlider.value);
+      let charset = charsetInput.value || ' .:-=+*#%@';
+      
+      if (isInverted) {
+        charset = charset.split('').reverse().join('');
+      }
+
+      let ascii = '';
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          let r = pixels[i];
+          let g = pixels[i + 1];
+          let b = pixels[i + 2];
+
+          // Apply brightness
+          r += brightness;
+          g += brightness;
+          b += brightness;
+
+          // Apply contrast
+          r = ((r - 128) * contrast) + 128;
+          g = ((g - 128) * contrast) + 128;
+          b = ((b - 128) * contrast) + 128;
+
+          // Clamp values
+          r = Math.max(0, Math.min(255, r));
+          g = Math.max(0, Math.min(255, g));
+          b = Math.max(0, Math.min(255, b));
+
+          // Calculate luminance
+          const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+          
+          // Map to character
+          const charIndex = Math.floor((luminance / 255) * (charset.length - 1));
+          ascii += charset[Math.max(0, Math.min(charset.length - 1, charIndex))];
         }
-    </script>
+        ascii += '\n';
+      }
+
+      currentAscii = ascii;
+      renderAscii(ascii, width, height);
+    }
+
+    function renderAscii(ascii, width, height) {
+      outputContent.innerHTML = '';
+      const pre = document.createElement('pre');
+      pre.className = 'ascii-output fade-in';
+      pre.textContent = ascii;
+      outputContent.appendChild(pre);
+      outputStats.textContent = `${width} x ${height}`;
+    }
+
+    // Copy to clipboard
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(currentAscii);
+        showToast('Copied to clipboard');
+      } catch (err) {
+        // Fallback
+        const textarea = document.createElement('textarea');
+        textarea.value = currentAscii;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('Copied to clipboard');
+      }
+    });
+
+    // Export TXT
+    exportTxtBtn.addEventListener('click', () => {
+      const blob = new Blob([currentAscii], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ascii-art.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Exported as TXT');
+    });
+
+    // Export PNG
+    exportPngBtn.addEventListener('click', () => {
+      const lines = currentAscii.split('\n').filter(l => l.length > 0);
+      if (lines.length === 0) return;
+
+      const fontSize = 10;
+      const charWidth = 6;
+      const lineHeight = fontSize + 2;
+      
+      const maxLineLength = Math.max(...lines.map(l => l.length));
+      const imgWidth = maxLineLength * charWidth;
+      const imgHeight = lines.length * lineHeight;
+
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = imgWidth;
+      exportCanvas.height = imgHeight;
+      const exportCtx = exportCanvas.getContext('2d');
+
+      exportCtx.fillStyle = '#000000';
+      exportCtx.fillRect(0, 0, imgWidth, imgHeight);
+
+      exportCtx.font = `${fontSize}px "JetBrains Mono", monospace`;
+      exportCtx.fillStyle = '#ffffff';
+      exportCtx.textBaseline = 'top';
+
+      lines.forEach((line, i) => {
+        exportCtx.fillText(line, 0, i * lineHeight);
+      });
+
+      const url = exportCanvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ascii-art.png';
+      a.click();
+      showToast('Exported as PNG');
+    });
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('visible');
+      setTimeout(() => {
+        toast.classList.remove('visible');
+      }, 2000);
+    }
+
+    // Initial animation
+    document.querySelectorAll('.panel').forEach((panel, i) => {
+      panel.style.opacity = '0';
+      panel.style.transform = 'translateY(20px)';
+      setTimeout(() => {
+        panel.style.transition = 'all 0.5s ease';
+        panel.style.opacity = '1';
+        panel.style.transform = 'translateY(0)';
+      }, 100 + i * 100);
+    });
+  </script>
 </body>
 </html>
