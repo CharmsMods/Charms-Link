@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Optical Image Editor</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@300;500;700&display=swap"
+    rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #000000;
+      --fg: #ffffff;
+      --muted: #666666;
+      --border: #222222;
+      --card: #0a0a0a;
+      --accent: #ffffff;
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+    }
+
+    .sidebar {
+      width: 320px;
+      min-width: 320px;
+      height: 100vh;
+      background: var(--bg);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: var(--muted) var(--bg);
+    }
+
+    .sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+      background: var(--muted);
+    }
+
+    .sidebar-header {
+      padding: 24px 20px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 10;
+    }
+
+    .sidebar-header h1 {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .upload-zone {
+      margin: 20px;
+      padding: 32px 20px;
+      border: 1px dashed var(--muted);
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .upload-zone:hover {
+      border-color: var(--fg);
+      background: var(--card);
+    }
+
+    .upload-zone p {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .upload-zone svg {
+      width: 32px;
+      height: 32px;
+      stroke: var(--muted);
+      transition: stroke 0.2s;
+    }
+
+    .upload-zone:hover svg {
+      stroke: var(--fg);
+    }
+
+    #file-input {
+      display: none;
+    }
+
+    .section {
+      border-bottom: 1px solid var(--border);
+      padding: 20px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--fg);
+    }
+
+    .toggle {
+      position: relative;
+      width: 40px;
+      height: 20px;
+      background: var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle.active {
+      background: var(--fg);
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: var(--bg);
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+
+    .toggle.active::after {
+      transform: translateX(20px);
+    }
+
+    .control-group {
+      margin-bottom: 16px;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .control-label span {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .control-label .value {
+      color: var(--fg);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 2px;
+      background: var(--border);
+      appearance: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      background: var(--fg);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      background: var(--fg);
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+    }
+
+    .main-canvas {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    #canvas {
+      max-width: calc(100vw - 340px);
+      max-height: 100vh;
+      object-fit: contain;
+    }
+
+    .canvas-info {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--muted);
+      background: rgba(0, 0, 0, 0.8);
+      padding: 8px 16px;
+      border-radius: 4px;
+    }
+
+    .export-btn {
+      display: block;
+      width: calc(100% - 40px);
+      margin: 20px;
+      padding: 14px 20px;
+      background: var(--fg);
+      color: var(--bg);
+      border: none;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .export-btn:hover {
+      opacity: 0.8;
+    }
+
+    .export-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .no-image {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+    }
+
+    .no-image svg {
+      width: 64px;
+      height: 64px;
+      stroke: var(--border);
+      margin-bottom: 16px;
+    }
+
+    .no-image p {
+      font-size: 14px;
+    }
+
+    .formula {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: var(--muted);
+      background: var(--card);
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      border-left: 2px solid var(--border);
+      line-height: 1.6;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 8px 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>Optical Editor</h1>
+    </div>
+
+    <div class="upload-zone" id="upload-zone">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+        <path d="M12 16V4m0 0L8 8m4-4l4 4" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M20 16v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2" stroke-linecap="round" />
+      </svg>
+      <p>Click or drag to upload</p>
+    </div>
+    <input type="file" id="file-input" accept="image/*">
+
+    <!-- Airy Disk Bloom -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Airy Disk Bloom</span>
+        <div class="toggle" data-filter="airyBloom" tabindex="0" role="switch" aria-checked="false"></div>
+      </div>
+      <div class="formula">PSF(r) = [2·J₁(αr) / αr]²</div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Intensity</span>
+          <span class="value" id="airy-intensity-val">0.50</span>
+        </div>
+        <input type="range" id="airy-intensity" min="0" max="1" step="0.01" value="0.5">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Aperture</span>
+          <span class="value" id="airy-aperture-val">3.00</span>
+        </div>
+        <input type="range" id="airy-aperture" min="1" max="10" step="0.1" value="3">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Threshold</span>
+          <span class="value" id="airy-threshold-val">0.70</span>
+        </div>
+        <input type="range" id="airy-threshold" min="0" max="1" step="0.01" value="0.7">
+      </div>
+    </div>
+
+    <!-- Glare Rays -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Glare Rays</span>
+        <div class="toggle" data-filter="glareRays" tabindex="0" role="switch" aria-checked="false"></div>
+      </div>
+      <div class="formula">PSF(r,θ) = PSF_airy · (1 + g·cos(Nθ))</div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Intensity</span>
+          <span class="value" id="glare-intensity-val">0.40</span>
+        </div>
+        <input type="range" id="glare-intensity" min="0" max="1" step="0.01" value="0.4">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Ray Count</span>
+          <span class="value" id="glare-rays-val">6</span>
+        </div>
+        <input type="range" id="glare-rays" min="2" max="16" step="1" value="6">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Ray Length</span>
+          <span class="value" id="glare-length-val">0.30</span>
+        </div>
+        <input type="range" id="glare-length" min="0.1" max="1" step="0.01" value="0.3">
+      </div>
+    </div>
+
+    <!-- Halation -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Halation</span>
+        <div class="toggle" data-filter="halation" tabindex="0" role="switch" aria-checked="false"></div>
+      </div>
+      <div class="formula">halation = bloom · vec3(1.2, 0.4, 0.1)</div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Intensity</span>
+          <span class="value" id="halation-intensity-val">0.30</span>
+        </div>
+        <input type="range" id="halation-intensity" min="0" max="1" step="0.01" value="0.3">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Red Shift</span>
+          <span class="value" id="halation-red-val">1.20</span>
+        </div>
+        <input type="range" id="halation-red" min="0.5" max="2" step="0.05" value="1.2">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Green Shift</span>
+          <span class="value" id="halation-green-val">0.40</span>
+        </div>
+        <input type="range" id="halation-green" min="0" max="1" step="0.05" value="0.4">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Blue Shift</span>
+          <span class="value" id="halation-blue-val">0.10</span>
+        </div>
+        <input type="range" id="halation-blue" min="0" max="1" step="0.05" value="0.1">
+      </div>
+    </div>
+
+    <!-- Radial Hankel Blur -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Radial Hankel Blur</span>
+        <div class="toggle" data-filter="hankelBlur" tabindex="0" role="switch" aria-checked="false"></div>
+      </div>
+      <div class="formula">F(k) = 2π∫f(r)·J₀(kr)·r dr</div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Radius</span>
+          <span class="value" id="hankel-radius-val">5.0</span>
+        </div>
+        <input type="range" id="hankel-radius" min="1" max="20" step="0.5" value="5">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Quality</span>
+          <span class="value" id="hankel-quality-val">16</span>
+        </div>
+        <input type="range" id="hankel-quality" min="4" max="32" step="2" value="16">
+      </div>
+    </div>
+
+    <!-- Frequency Band Filter -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Frequency Band Filter</span>
+        <div class="toggle" data-filter="freqFilter" tabindex="0" role="switch" aria-checked="false"></div>
+      </div>
+      <div class="formula">H(k) = 1 for k &lt; k_c</div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Cutoff</span>
+          <span class="value" id="freq-cutoff-val">0.50</span>
+        </div>
+        <input type="range" id="freq-cutoff" min="0.01" max="1" step="0.01" value="0.5">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Mode</span>
+          <span class="value" id="freq-mode-val">Low Pass</span>
+        </div>
+        <input type="range" id="freq-mode" min="0" max="2" step="1" value="0">
+      </div>
+    </div>
+
+    <!-- Optical PSF -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Optical PSF</span>
+        <div class="toggle" data-filter="opticalPsf" tabindex="0" role="switch" aria-checked="false"></div>
+      </div>
+      <div class="formula">PSF = |2J₁(πDr/λf)/πDr/λf|²</div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Aperture Diameter</span>
+          <span class="value" id="psf-diameter-val">5.0</span>
+        </div>
+        <input type="range" id="psf-diameter" min="1" max="20" step="0.5" value="5">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Focal Length</span>
+          <span class="value" id="psf-focal-val">50</span>
+        </div>
+        <input type="range" id="psf-focal" min="10" max="200" step="5" value="50">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Intensity</span>
+          <span class="value" id="psf-intensity-val">0.50</span>
+        </div>
+        <input type="range" id="psf-intensity" min="0" max="1" step="0.01" value="0.5">
+      </div>
+    </div>
+
+    <button class="export-btn" id="export-btn" disabled>Export Image</button>
+  </aside>
+
+  <main class="main-canvas">
+    <canvas id="canvas"></canvas>
+    <div class="canvas-info" id="canvas-info"></div>
+  </main>
+
+  <script>
+    // ============================================
+    // WEBGL IMAGE PROCESSING ENGINE
+    // ============================================
+
+    const canvas = document.getElementById('canvas');
+    const gl = canvas.getContext('webgl2', {
+      preserveDrawingBuffer: true,
+      premultipliedAlpha: false
+    });
+
+    if (!gl) {
+      alert('WebGL 2 not supported');
+    }
+
+    // State management
+    const state = {
+      imageLoaded: false,
+      imageWidth: 0,
+      imageHeight: 0,
+      originalTexture: null,
+      filters: {
+        airyBloom: { enabled: false, intensity: 0.5, aperture: 3.0, threshold: 0.7 },
+        glareRays: { enabled: false, intensity: 0.4, rays: 6, length: 0.3 },
+        halation: { enabled: false, intensity: 0.3, red: 1.2, green: 0.4, blue: 0.1 },
+        hankelBlur: { enabled: false, radius: 5.0, quality: 16 },
+        freqFilter: { enabled: false, cutoff: 0.5, mode: 0 },
+        opticalPsf: { enabled: false, diameter: 5.0, focal: 50, intensity: 0.5 }
+      }
+    };
+
+    // Check for necessary extensions
+    const extFloat = gl.getExtension('EXT_color_buffer_float');
+    const extHalfFloat = gl.getExtension('OES_texture_half_float_linear');
+    if (!extFloat) {
+      console.warn('EXT_color_buffer_float not supported, falling back to RGBA8');
+    }
+
+    // ============================================
+    // SHADER SOURCES
+    // ============================================
+
+    const vertexShaderSource = `#version 300 es
+      in vec2 a_position;
+      out vec2 v_texCoord;
+      void main() {
+        v_texCoord = a_position * 0.5 + 0.5;
+        gl_Position = vec4(a_position, 0.0, 1.0);
+      }
+    `;
+
+    // Bessel function implementations
+    const besselFunctions = `
+      // J0 Bessel function approximation
+      float besselJ0(float x) {
+        float ax = abs(x);
+        if (ax < 8.0) {
+          float y = x * x;
+          float ans1 = 57568490574.0 + y * (-13362590354.0 + y * (651619640.7
+            + y * (-11214424.18 + y * (77392.33017 + y * (-184.9052456)))));
+          float ans2 = 57568490411.0 + y * (1029532985.0 + y * (9494680.718
+            + y * (59272.64853 + y * (267.8532712 + y * 1.0))));
+          return ans1 / ans2;
+        } else {
+          float z = 8.0 / ax;
+          float y = z * z;
+          float xx = ax - 0.785398164;
+          float ans1 = 1.0 + y * (-0.1098628627e-2 + y * (0.2734510407e-4
+            + y * (-0.2073370639e-5 + y * 0.2093887211e-6)));
+          float ans2 = -0.1562499995e-1 + y * (0.1430488765e-3
+            + y * (-0.6911147651e-5 + y * (0.7621095161e-6 - y * 0.934935152e-7)));
+          return sqrt(0.636619772 / ax) * (cos(xx) * ans1 - z * sin(xx) * ans2);
+        }
+      }
+      
+      // J1 Bessel function approximation
+      float besselJ1(float x) {
+        float ax = abs(x);
+        if (ax < 8.0) {
+          float y = x * x;
+          float ans1 = x * (72362614232.0 + y * (-7895059235.0 + y * (242396853.1
+            + y * (-2972611.439 + y * (15704.48260 + y * (-30.16036606))))));
+          float ans2 = 144725228442.0 + y * (2300535178.0 + y * (18583304.74
+            + y * (99447.43394 + y * (376.9991397 + y * 1.0))));
+          return ans1 / ans2;
+        } else {
+          float z = 8.0 / ax;
+          float y = z * z;
+          float xx = ax - 2.356194491;
+          float ans1 = 1.0 + y * (0.183105e-2 + y * (-0.3516396496e-4
+            + y * (0.2457520174e-5 + y * (-0.240337019e-6))));
+          float ans2 = 0.04687499995 + y * (-0.2002690873e-3
+            + y * (0.8449199096e-5 + y * (-0.88228987e-6 + y * 0.105787412e-6)));
+          float ans = sqrt(0.636619772 / ax) * (cos(xx) * ans1 - z * sin(xx) * ans2);
+          return x < 0.0 ? -ans : ans;
+        }
+      }
+      
+      // Airy disk PSF
+      float airyPSF(float r, float aperture) {
+        float x = aperture * r;
+        if (abs(x) < 0.001) return 1.0;
+        float j1 = besselJ1(x);
+        return pow(2.0 * j1 / x, 2.0);
+      }
+    `;
+
+    // Copy shader
+    const copyFragmentSource = `#version 300 es
+      precision highp float;
+      uniform sampler2D u_image;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      void main() {
+        outColor = texture(u_image, v_texCoord);
+      }
+    `;
+
+    // Brightness extraction shader
+    const brightnessFragmentSource = `#version 300 es
+      precision highp float;
+      uniform sampler2D u_image;
+      uniform float u_threshold;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      void main() {
+        vec4 color = texture(u_image, v_texCoord);
+        float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+        float contribution = max(0.0, luminance - u_threshold) / (1.0 - u_threshold);
+        outColor = vec4(color.rgb * contribution, 1.0);
+      }
+    `;
+
+    // Airy bloom shader
+    const airyBloomFragmentSource = `#version 300 es
+      precision highp float;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_intensity;
+      uniform float u_aperture;
+      uniform float u_threshold;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      
+      ${besselFunctions}
+      
+      void main() {
+        vec2 texelSize = 1.0 / u_resolution;
+        vec4 color = vec4(0.0);
+        float totalWeight = 0.0;
+        int samples = 12; // Reduced from 32 for performance
+        float maxRadius = 12.0;
+        
+        for (int i = -samples; i <= samples; i++) {
+          for (int j = -samples; j <= samples; j++) {
+            vec2 offset = vec2(float(i), float(j)) * texelSize;
+            float r = length(vec2(float(i), float(j))) / maxRadius;
+            float weight = airyPSF(r, u_aperture);
+            vec4 sampleColor = texture(u_image, v_texCoord + offset);
+            color += sampleColor * weight;
+            totalWeight += weight;
+          }
+        }
+        
+        color /= totalWeight;
+        
+        vec4 original = texture(u_image, v_texCoord);
+        float luminance = dot(original.rgb, vec3(0.299, 0.587, 0.114));
+        float contribution = smoothstep(u_threshold, 1.0, luminance);
+        
+        outColor = mix(original, original + color * u_intensity, contribution);
+      }
+    `;
+
+    // Glare rays shader
+    const glareRaysFragmentSource = `#version 300 es
+      precision highp float;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_intensity;
+      uniform float u_rays;
+      uniform float u_length;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      
+      ${besselFunctions}
+      
+      void main() {
+        vec2 center = vec2(0.5);
+        vec2 dir = v_texCoord - center;
+        float r = length(dir);
+        float theta = atan(dir.y, dir.x);
+        
+        // Angular streak pattern
+        float angularPattern = 0.0;
+        for (float i = 0.0; i < 16.0; i++) {
+          if (i >= u_rays) break;
+          float angle = i * 3.14159265 * 2.0 / u_rays;
+          float diff = abs(mod(theta - angle + 3.14159265, 3.14159265 * 2.0) - 3.14159265);
+          angularPattern += exp(-diff * 8.0);
+        }
+        angularPattern /= u_rays;
+        
+        // Radial falloff
+        float radialFalloff = exp(-r * 3.0 / u_length);
+        
+        // Sample along streaks
+        vec4 color = vec4(0.0);
+        float totalWeight = 0.0;
+        int samples = 24;
+        
+        for (int i = -samples; i <= samples; i++) {
+          float t = float(i) / float(samples);
+          vec2 sampleCoord = v_texCoord + dir * t * u_length;
+          float weight = (1.0 - abs(t)) * angularPattern * radialFalloff;
+          color += texture(u_image, sampleCoord) * weight;
+          totalWeight += weight;
+        }
+        
+        if (totalWeight > 0.0) color /= totalWeight;
+        
+        vec4 original = texture(u_image, v_texCoord);
+        outColor = original + color * u_intensity * 0.5;
+      }
+    `;
+
+    // Halation shader
+    const halationFragmentSource = `#version 300 es
+      precision highp float;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_intensity;
+      uniform vec3 u_colorShift;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      
+      ${besselFunctions}
+      
+      void main() {
+        vec2 texelSize = 1.0 / u_resolution;
+        vec4 bloom = vec4(0.0);
+        float totalWeight = 0.0;
+        int radius = 16;
+        
+        for (int i = -radius; i <= radius; i++) {
+          for (int j = -radius; j <= radius; j++) {
+            if (length(vec2(i, j)) > float(radius)) continue; // Optimization: circle instead of square
+            vec2 offset = vec2(float(i), float(j)) * texelSize;
+            float r = length(vec2(float(i), float(j)));
+            float weight = exp(-r * r * 0.1); // Slightly sharper falloff
+            bloom += texture(u_image, v_texCoord + offset) * weight;
+            totalWeight += weight;
+          }
+        }
+        
+        bloom /= totalWeight;
+        
+        // Apply color shift for halation effect
+        vec3 halationColor = bloom.rgb * u_colorShift;
+        
+        vec4 original = texture(u_image, v_texCoord);
+        outColor = original + vec4(halationColor, 0.0) * u_intensity;
+      }
+    `;
+
+    // Hankel blur shader
+    const hankelBlurFragmentSource = `#version 300 es
+      precision highp float;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_radius;
+      uniform float u_quality;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      
+      ${besselFunctions}
+      
+      void main() {
+        vec2 texelSize = 1.0 / u_resolution;
+        vec4 color = vec4(0.0);
+        float totalWeight = 0.0;
+        int samples = int(u_quality);
+        
+        for (int i = 0; i < 32; i++) { // Reduced from 64
+          if (i >= samples) break;
+          for (int j = 0; j < 32; j++) { // Reduced from 64
+            if (j >= samples) break;
+            
+            float r = float(i) / float(samples) * u_radius;
+            float theta = float(j) / float(samples) * 6.28318530;
+            
+            vec2 offset = vec2(cos(theta), sin(theta)) * r * texelSize;
+            float weight = besselJ0(r * 0.5);
+            weight = abs(weight) + 0.01;
+            
+            color += texture(u_image, v_texCoord + offset) * weight;
+            totalWeight += weight;
+          }
+        }
+        
+        outColor = color / totalWeight;
+      }
+    `;
+
+    // Frequency filter shader (simplified LP/HP/Bandpass)
+    const freqFilterFragmentSource = `#version 300 es
+      precision highp float;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_cutoff;
+      uniform int u_mode; // 0: LP, 1: HP, 2: Bandpass
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      
+      ${besselFunctions}
+      
+      void main() {
+        vec2 texelSize = 1.0 / u_resolution;
+        
+        // Low pass: smooth/blur
+        vec4 lowPass = vec4(0.0);
+        float lpWeight = 0.0;
+        int radius = int(u_cutoff * 20.0) + 1;
+        
+        for (int i = -20; i <= 20; i++) {
+          for (int j = -20; j <= 20; j++) {
+            float r = length(vec2(float(i), float(j)));
+            if (r > float(radius)) continue;
+            vec2 offset = vec2(float(i), float(j)) * texelSize;
+            float w = exp(-r * r / (2.0 * u_cutoff * u_cutoff * 100.0));
+            lowPass += texture(u_image, v_texCoord + offset) * w;
+            lpWeight += w;
+          }
+        }
+        lowPass /= lpWeight;
+        
+        vec4 original = texture(u_image, v_texCoord);
+        
+        if (u_mode == 0) {
+          // Low pass
+          outColor = lowPass;
+        } else if (u_mode == 1) {
+          // High pass
+          outColor = original - lowPass + 0.5;
+        } else {
+          // Bandpass - edge enhancement
+          vec4 highPass = original - lowPass;
+          outColor = original + highPass * 2.0;
+        }
+      }
+    `;
+
+    // Optical PSF shader
+    const opticalPsfFragmentSource = `#version 300 es
+      precision highp float;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_diameter;
+      uniform float u_focal;
+      uniform float u_intensity;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      
+      ${besselFunctions}
+      
+      void main() {
+        vec2 texelSize = 1.0 / u_resolution;
+        float wavelength = 0.00055; // Green light in mm
+        float fstop = u_focal / u_diameter;
+        
+        vec4 color = vec4(0.0);
+        float totalWeight = 0.0;
+        int samples = 12; // Reduced from 32
+        
+        for (int i = -samples; i <= samples; i++) {
+          for (int j = -samples; j <= samples; j++) {
+            float r = length(vec2(float(i), float(j)));
+            if (r > float(samples)) continue;
+            
+            vec2 offset = vec2(float(i), float(j)) * texelSize;
+            
+            // Optical PSF scaling
+            // x = (pi * D * r) / (lambda * focal)
+            float x = (3.14159265 * u_diameter * r) / (wavelength * u_focal);
+            
+            // We need to scale r for the airyPSF function which expects a normalized r
+            // or just call bessel functions directly.
+            // Let's use the airyPSF logic: PSF(x) = (2 * J1(x) / x)^2
+            float psf;
+            if (abs(x) < 0.001) {
+              psf = 1.0;
+            } else {
+              psf = pow(2.0 * besselJ1(x) / x, 2.0);
+            }
+            
+            color += texture(u_image, v_texCoord + offset) * psf;
+            totalWeight += psf;
+          }
+        }
+        
+        color /= totalWeight;
+        
+        vec4 original = texture(u_image, v_texCoord);
+        outColor = mix(original, color, u_intensity);
+      }
+    `;
+
+    // Final composite shader
+    const compositeFragmentSource = `#version 300 es
+      precision highp float;
+      uniform sampler2D u_original;
+      uniform sampler2D u_processed;
+      uniform float u_exposure;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      
+      void main() {
+        vec4 original = texture(u_original, v_texCoord);
+        vec4 processed = texture(u_processed, v_texCoord);
+        
+        vec3 result = original.rgb + processed.rgb;
+        result = result / (result + 1.0); // Reinhard tonemap
+        result = pow(result, vec3(1.0 / 2.2)); // Gamma correct
+        
+        outColor = vec4(result, 1.0);
+      }
+    `;
+
+    // ============================================
+    // WEBGL SETUP
+    // ============================================
+
+    function createShader(gl, type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+      }
+      return shader;
+    }
+
+    function createProgram(gl, vertexSource, fragmentSource) {
+      const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexSource);
+      const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
+      if (!vertexShader || !fragmentShader) return null;
+
+      const program = gl.createProgram();
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+      gl.linkProgram(program);
+
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.error('Program link error:', gl.getProgramInfoLog(program));
+        return null;
+      }
+      return program;
+    }
+
+    // Create all programs
+    const programs = {
+      copy: createProgram(gl, vertexShaderSource, copyFragmentSource),
+      brightness: createProgram(gl, vertexShaderSource, brightnessFragmentSource),
+      airyBloom: createProgram(gl, vertexShaderSource, airyBloomFragmentSource),
+      glareRays: createProgram(gl, vertexShaderSource, glareRaysFragmentSource),
+      halation: createProgram(gl, vertexShaderSource, halationFragmentSource),
+      hankelBlur: createProgram(gl, vertexShaderSource, hankelBlurFragmentSource),
+      freqFilter: createProgram(gl, vertexShaderSource, freqFilterFragmentSource),
+      opticalPsf: createProgram(gl, vertexShaderSource, opticalPsfFragmentSource),
+      composite: createProgram(gl, vertexShaderSource, compositeFragmentSource)
+    };
+
+    // Get uniform locations for each program
+    const uniforms = {};
+    for (const [name, program] of Object.entries(programs)) {
+      uniforms[name] = {};
+      const numUniforms = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
+      for (let i = 0; i < numUniforms; i++) {
+        const info = gl.getActiveUniform(program, i);
+        uniforms[name][info.name] = gl.getUniformLocation(program, info.name);
+      }
+    }
+
+    // Create fullscreen quad
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      -1, -1, 1, -1, -1, 1,
+      -1, 1, 1, -1, 1, 1
+    ]), gl.STATIC_DRAW);
+
+    // Create VAO
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+    // Create framebuffers
+    let framebufferA = null;
+    let framebufferB = null;
+    let textureA = null;
+    let textureB = null;
+
+    function createFramebuffer(width, height) {
+      const texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      const internalFormat = extFloat ? gl.RGBA16F : gl.RGBA8;
+      const type = extFloat ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE;
+      gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, gl.RGBA, type, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+      const fb = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+
+      return { framebuffer: fb, texture: texture };
+    }
+
+    function setupFramebuffers(width, height) {
+      const fbA = createFramebuffer(width, height);
+      const fbB = createFramebuffer(width, height);
+      framebufferA = fbA.framebuffer;
+      textureA = fbA.texture;
+      framebufferB = fbB.framebuffer;
+      textureB = fbB.texture;
+    }
+
+    // ============================================
+    // IMAGE LOADING
+    // ============================================
+
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+
+    uploadZone.addEventListener('click', () => fileInput.click());
+    uploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadZone.style.borderColor = 'var(--fg)';
+    });
+    uploadZone.addEventListener('dragleave', () => {
+      uploadZone.style.borderColor = 'var(--muted)';
+    });
+    uploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadZone.style.borderColor = 'var(--muted)';
+      if (e.dataTransfer.files.length) {
+        loadImage(e.dataTransfer.files[0]);
+      }
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) {
+        loadImage(e.target.files[0]);
+      }
+    });
+
+    function loadImage(file) {
+      const img = new Image();
+      img.onload = () => {
+        state.imageWidth = img.width;
+        state.imageHeight = img.height;
+
+        // Set canvas size
+        canvas.width = img.width;
+        canvas.height = img.height;
+        gl.viewport(0, 0, img.width, img.height);
+
+        // Create texture
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        state.originalTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, state.originalTexture);
+        const internalFormat = extFloat ? gl.RGBA16F : gl.RGBA8;
+        const type = extFloat ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE;
+        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, gl.RGBA, type, img);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        // Setup framebuffers
+        setupFramebuffers(img.width, img.height);
+
+        state.imageLoaded = true;
+        document.getElementById('export-btn').disabled = false;
+        document.getElementById('canvas-info').textContent = `${img.width} × ${img.height}`;
+
+        render();
+      };
+      img.onerror = () => {
+        alert('Failed to load image. Please try another file.');
+        document.getElementById('canvas-info').textContent = 'Error loading image';
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    // ============================================
+    // RENDER PIPELINE
+    // ============================================
+
+    function render() {
+      if (!state.imageLoaded || !state.originalTexture) return;
+
+      gl.bindVertexArray(vao);
+
+      // Start with original image
+      let currentTexture = state.originalTexture;
+      let currentFramebuffer = framebufferA;
+      let currentOutputTexture = textureA;
+
+      // Ping-pong rendering helper
+      function pingpong() {
+        const temp = currentFramebuffer;
+        const tempTex = currentOutputTexture;
+        currentFramebuffer = framebufferB;
+        currentOutputTexture = textureB;
+        framebufferB = temp;
+        textureB = tempTex;
+      }
+
+      // Apply each enabled filter
+      const filterOrder = ['airyBloom', 'glareRays', 'halation', 'hankelBlur', 'freqFilter', 'opticalPsf'];
+
+      for (const filterName of filterOrder) {
+        const filter = state.filters[filterName];
+        if (!filter.enabled) continue;
+
+        const program = programs[filterName];
+        if (!program) continue;
+
+        gl.useProgram(program);
+
+        // Correct Ping-Pong: first swap, then bind
+        pingpong();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, currentFramebuffer);
+
+        // Bind input texture
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, currentTexture);
+        gl.uniform1i(uniforms[filterName].u_image, 0);
+
+        // Set common uniforms
+        if (uniforms[filterName].u_resolution) {
+          gl.uniform2f(uniforms[filterName].u_resolution, state.imageWidth, state.imageHeight);
+        }
+
+        // Set filter-specific uniforms
+        switch (filterName) {
+          case 'airyBloom':
+            gl.uniform1f(uniforms[filterName].u_intensity, filter.intensity);
+            gl.uniform1f(uniforms[filterName].u_aperture, filter.aperture);
+            gl.uniform1f(uniforms[filterName].u_threshold, filter.threshold);
+            break;
+          case 'glareRays':
+            gl.uniform1f(uniforms[filterName].u_intensity, filter.intensity);
+            gl.uniform1f(uniforms[filterName].u_rays, filter.rays);
+            gl.uniform1f(uniforms[filterName].u_length, filter.length);
+            break;
+          case 'halation':
+            gl.uniform1f(uniforms[filterName].u_intensity, filter.intensity);
+            gl.uniform3f(uniforms[filterName].u_colorShift, filter.red, filter.green, filter.blue);
+            break;
+          case 'hankelBlur':
+            gl.uniform1f(uniforms[filterName].u_radius, filter.radius);
+            gl.uniform1f(uniforms[filterName].u_quality, filter.quality);
+            break;
+          case 'freqFilter':
+            gl.uniform1f(uniforms[filterName].u_cutoff, filter.cutoff);
+            gl.uniform1i(uniforms[filterName].u_mode, filter.mode);
+            break;
+          case 'opticalPsf':
+            gl.uniform1f(uniforms[filterName].u_diameter, filter.diameter);
+            gl.uniform1f(uniforms[filterName].u_focal, filter.focal);
+            gl.uniform1f(uniforms[filterName].u_intensity, filter.intensity);
+            break;
+        }
+
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        currentTexture = currentOutputTexture;
+      }
+
+      // Final composite to screen
+      gl.useProgram(programs.copy);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, currentTexture);
+      gl.uniform1i(uniforms.copy.u_image, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+
+    // ============================================
+    // UI CONTROLS
+    // ============================================
+
+    // Toggle switches
+    document.querySelectorAll('.toggle').forEach(toggle => {
+      toggle.addEventListener('click', () => {
+        toggle.classList.toggle('active');
+        const filterName = toggle.dataset.filter;
+        state.filters[filterName].enabled = toggle.classList.contains('active');
+        toggle.setAttribute('aria-checked', state.filters[filterName].enabled);
+        render();
+      });
+
+      toggle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggle.click();
+        }
+      });
+    });
+
+    // Sliders
+    function setupSlider(id, filterName, property, displayId, formatter = v => v.toFixed(2)) {
+      const slider = document.getElementById(id);
+      const display = document.getElementById(displayId);
+
+      slider.addEventListener('input', () => {
+        const value = parseFloat(slider.value);
+        state.filters[filterName][property] = value;
+        display.textContent = formatter(value);
+        render();
+      });
+    }
+
+    setupSlider('airy-intensity', 'airyBloom', 'intensity', 'airy-intensity-val');
+    setupSlider('airy-aperture', 'airyBloom', 'aperture', 'airy-aperture-val');
+    setupSlider('airy-threshold', 'airyBloom', 'threshold', 'airy-threshold-val');
+
+    setupSlider('glare-intensity', 'glareRays', 'intensity', 'glare-intensity-val');
+    setupSlider('glare-rays', 'glareRays', 'rays', 'glare-rays-val', v => Math.round(v));
+    setupSlider('glare-length', 'glareRays', 'length', 'glare-length-val');
+
+    setupSlider('halation-intensity', 'halation', 'intensity', 'halation-intensity-val');
+    setupSlider('halation-red', 'halation', 'red', 'halation-red-val');
+    setupSlider('halation-green', 'halation', 'green', 'halation-green-val');
+    setupSlider('halation-blue', 'halation', 'blue', 'halation-blue-val');
+
+    setupSlider('hankel-radius', 'hankelBlur', 'radius', 'hankel-radius-val', v => v.toFixed(1));
+    setupSlider('hankel-quality', 'hankelBlur', 'quality', 'hankel-quality-val', v => Math.round(v));
+
+    setupSlider('freq-cutoff', 'freqFilter', 'cutoff', 'freq-cutoff-val');
+    setupSlider('freq-mode', 'freqFilter', 'mode', 'freq-mode-val', v => {
+      const modes = ['Low Pass', 'High Pass', 'Bandpass'];
+      return modes[Math.round(v)];
+    });
+
+    setupSlider('psf-diameter', 'opticalPsf', 'diameter', 'psf-diameter-val', v => v.toFixed(1));
+    setupSlider('psf-focal', 'opticalPsf', 'focal', 'psf-focal-val', v => Math.round(v));
+    setupSlider('psf-intensity', 'opticalPsf', 'intensity', 'psf-intensity-val');
+
+    // Export
+    document.getElementById('export-btn').addEventListener('click', () => {
+      if (!state.imageLoaded) return;
+
+      // Render at full quality
+      render();
+
+      // Get canvas data
+      const link = document.createElement('a');
+      link.download = 'optical-edit.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+
+    // Initial setup message
+    document.getElementById('canvas-info').textContent = 'Upload an image to begin';
+  </script>
+</body>
+
+</html>
