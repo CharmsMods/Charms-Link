@@ -353,6 +353,9 @@
         class="tab-btn flex-1 py-4 text-sm md:text-base border-r-[3px] border-[#121212] border-t-[3px] rounded-t-md"
         data-tab="output">Build Output</button>
       <button
+        class="tab-btn flex-1 py-4 text-sm md:text-base border-r-[3px] border-[#121212] border-t-[3px] rounded-t-md"
+        data-tab="extractor">Extract Output</button>
+      <button
         class="tab-btn flex-1 py-4 text-sm md:text-base border-t-[3px] border-r-[3px] border-l-[3px] border-[#121212] rounded-t-md"
         data-tab="log">Process Logs</button>
     </nav>
@@ -654,6 +657,47 @@
         </div>
       </section>
 
+      <!-- EXTRACTOR SECTION -->
+      <section id="extractor" class="tab-content hidden p-6 md:p-10 flex flex-col h-[600px] gap-6 bg-[#F8F8F3]">
+        <div class="flex flex-col gap-6 p-6 border-[3px] border-[#121212] shadow-[6px_6px_0_#121212] bg-white">
+          <div class="flex flex-col md:flex-row gap-6 items-end justify-between">
+            <div class="flex-1 w-full relative">
+              <label class="text-[10px] font-bold uppercase tracking-widest text-[#666] mb-2 block">Source Code
+                Upload</label>
+              <div class="relative">
+                <input type="file" id="extractorInput" accept=".html,.htm" class="hidden">
+                <button id="extractorUploadBtn"
+                  class="w-full bg-[#121212] hover:bg-[#FF3366] text-white text-sm font-black py-4 px-6 uppercase tracking-widest transition-colors flex justify-center items-center gap-2 text-center border-none cursor-pointer shadow-[4px_4px_0_#FF3366] hover:shadow-[6px_6px_0_#FF3366] hover:translate-x-[-2px] hover:translate-y-[-2px]">
+                  <span>📂</span> SELECT HTML FILE TO EXTRACT
+                </button>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2 w-full md:w-auto h-full justify-end">
+              <label class="flex items-center gap-2 cursor-pointer select-none p-2 py-4">
+                <input type="checkbox" id="extBase64Dec" checked class="w-4 h-4 accent-[#FF3366]">
+                <span class="text-xs font-mono font-bold">DECODE BASE64 IMAGES</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="flex-1 flex flex-col border-[3px] border-[#121212] bg-white shadow-[4px_4px_0_#121212] overflow-hidden">
+          <div class="bg-[#121212] text-white px-4 py-2 text-xs font-mono flex justify-between items-center">
+            <span>EXTRACTED ASSETS</span>
+            <button id="extractorDownloadAll" disabled
+              class="bg-[#58CC02] hover:bg-white hover:text-black text-black text-[10px] px-3 py-1 font-bold transition-colors uppercase disabled:opacity-50 disabled:cursor-not-allowed hidden">
+              DOWNLOAD ALL (ZIP)
+            </button>
+          </div>
+          <div id="extractorList" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 bg-[#F0F0EB]">
+            <div class="text-center text-[#888] font-mono text-xs italic mt-8" id="extractorEmptyState">
+              No file uploaded yet.
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- LOG SECTION -->
       <section id="log" class="tab-content hidden p-0 h-[600px] flex flex-col bg-[#121212]">
         <div class="bg-[#222] px-4 py-2 text-xs text-[#888] font-mono border-b border-[#333] flex justify-between">
@@ -810,6 +854,9 @@
     window.addEventListener('load', checkConnectivity);
 
     // Hybrid Library Resolver
+    let cachedCDNLibs = null;
+    let isFetchingCDN = false;
+
     const resolveLibraries = async () => {
       const useCDN = cdnToggle.checked;
 
@@ -821,6 +868,19 @@
         };
       }
 
+      if (cachedCDNLibs) {
+        log("Using cached CDN libraries.");
+        return cachedCDNLibs;
+      }
+
+      if (isFetchingCDN) {
+        log("Waiting for ongoing CDN download...");
+        // Simple polling if double-clicked
+        while (isFetchingCDN) await new Promise(r => setTimeout(r, 100));
+        return cachedCDNLibs;
+      }
+
+      isFetchingCDN = true;
       // CDN Mode - Parallel Loading with Timeout & Cache Busting
       log("Initializing CDN download (Network Forced)...");
 
@@ -849,12 +909,15 @@
 
         log("All CDN libraries loaded successfully.");
 
-        return {
+        cachedCDNLibs = {
           CleanCSS: cssMod.default,
           minifyHTML: htmlMod.minify,
           minifyJS: jsMod.minify
         };
+        isFetchingCDN = false;
+        return cachedCDNLibs;
       } catch (e) {
+        isFetchingCDN = false;
         console.error("CDN Resolution Failed:", e);
         throw e;
       }
@@ -917,7 +980,7 @@
       const modeSelect = document.getElementById("mode");
       const inlineOpt = modeSelect.querySelector('option[value="inline"]');
 
-      if (!hasHtml) {
+      if (!hasHtml && assets.length > 0) {
         if (inlineOpt) {
           inlineOpt.disabled = true;
           inlineOpt.textContent = "Single HTML Bundle (Requires HTML File)";
@@ -927,7 +990,7 @@
           updateZipToggleState();
           showToast("Switched to Bundle mode (No HTML)", "info");
         }
-      } else {
+      } else if (hasHtml) {
         if (inlineOpt) {
           inlineOpt.disabled = false;
           inlineOpt.textContent = "Single HTML Bundle (Inline)";
@@ -1239,6 +1302,7 @@
       const media = assets.filter(a => a.type === 'media');
       const htmlText = assets.filter(a => a.type === 'html').map(a => a.content).join(' ');
       const cssText = assets.filter(a => a.type === 'css').map(a => a.content).join(' ');
+      const jsText = assets.filter(a => a.type === 'js').map(a => a.content).join(' ');
 
       const used = [];
       const unused = [];
@@ -1249,10 +1313,13 @@
         const htmlRegex = new RegExp(`(src|href)=["']([^"']*\\/)?${name}["']`, 'i');
         // CSS Search: url(filename) or url("filename")
         const cssRegex = new RegExp(`url\\(\\s*["']?([^"')]*\\/)?${name}["']?\\s*\\)`, 'i');
+        // JS Search: exact file name string in quotes
+        const jsRegex = new RegExp(`["']([^"']*\\/)?${name}["']`, 'i');
 
         let foundIn = [];
         if (htmlRegex.test(htmlText)) foundIn.push('HTML');
         if (cssRegex.test(cssText)) foundIn.push('CSS');
+        if (jsRegex.test(jsText)) foundIn.push('JS');
 
         if (foundIn.length > 0) {
           used.push({ ...asset, foundIn });
@@ -1340,6 +1407,7 @@
     };
 
     const generateDiff = (type = currentDiffTab) => {
+      if (typeof type !== 'string') type = currentDiffTab;
       currentDiffTab = type;
 
       // Update tab styling
@@ -1423,7 +1491,12 @@
 
       // Filter excluded assets
       let buildAssets = assets.filter(a => !excludedIds.includes(a.id));
-      let htmlSource = buildAssets.find(a => a.type === 'html');
+      let htmlAssetsForBuild = buildAssets.filter(a => a.type === 'html');
+      let htmlSource = htmlAssetsForBuild[0];
+
+      if (htmlAssetsForBuild.length > 1 && config.mode !== 'batch') {
+        log(`<span class='text-yellow-500'>Warning:</span> Multiple HTML files detected. Only the first (<span class="font-bold">${htmlSource.name}</span>) will be used as the Bundle entry point.`);
+      }
 
       if (buildAssets.length === 0) {
         log("<span class='text-[#FF3366]'>Error:</span> No assets to build.");
@@ -1500,6 +1573,7 @@
 
         // Process CSS in parallel
         const cssPromises = cssAssets.map(async (asset) => {
+          await new Promise(r => setTimeout(r, 0)); // Yield to UI thread
           let content = asset.content;
           if (config.minifyCSS && cachedCleanCSSInstance) {
             content = cachedCleanCSSInstance.minify(content).styles;
@@ -1511,6 +1585,7 @@
 
         // Process JS in parallel
         const jsPromises = jsAssets.map(async (asset) => {
+          await new Promise(r => setTimeout(r, 0)); // Yield to UI thread
           let content = asset.content;
           if (config.minifyJS && _minifyJS) {
             content = (await _minifyJS(content, { compress: { drop_console: config.console } })).code;
@@ -1523,6 +1598,7 @@
 
         // Process HTML in parallel
         const htmlPromises = htmlAssets.map(async (asset) => {
+          await new Promise(r => setTimeout(r, 0)); // Yield to UI thread
           let content = asset.content;
           const shouldRun = config.minifyHTML || config.minifyCSS || config.minifyJS || config.comments;
           if (shouldRun && _minifyHTML) {
@@ -1532,7 +1608,8 @@
               collapseWhitespace: config.minifyHTML,
               removeComments: config.comments,
               minifyCSS: config.minifyCSS,
-              minifyJS: jsOpts
+              minifyJS: jsOpts,
+              ignoreCustomFragments: [/<script type="x-shader\/.*?"[\s\S]*?<\/script>/gi] // Preserve GLSL
             });
           }
           return { ...asset, content };
@@ -1552,21 +1629,12 @@
         if (config.mode === 'batch') {
           log("Mode: Batch (Passthrough)");
           batchFiles = processedAssets;
-          // No aggregated "Output" for preview in Batch mode usually, but we can try to show index
-          // originals/finals stay empty or aggregated? Let's aggregate for Diff visibility if possible.
-          let aggOrig = { css: "", js: "", html: "" };
-          let aggFinal = { css: "", js: "", html: "" };
 
-          buildAssets.forEach(a => {
-            aggOrig[a.type] = (aggOrig[a.type] || "") + `/* ${a.name} */\n` + a.content + "\n\n";
-          });
-          processedAssets.forEach(a => {
-            aggFinal[a.type] = (aggFinal[a.type] || "") + `/* ${a.name} */\n` + a.content + "\n\n";
-          });
-
-          originals = aggOrig;
-          finals = aggFinal;
-          outputs = aggFinal;
+          // Fast-track Batch processing: Avoid string aggregation to save memory.
+          // Diff processing is entirely disabled for batch mode.
+          originals = { html: "", css: "", js: "", bundle: "" };
+          finals = { html: "", css: "", js: "", bundle: "" };
+          outputs = { html: "", css: "", js: "", bundle: "" };
 
         } else {
           // Bundle or Inline
@@ -1579,13 +1647,14 @@
           originals.js = buildAssets.filter(a => a.type === 'js').map(a => a.content).join('\n');
           originals.html = buildAssets.find(a => a.type === 'html')?.content || htmlSource.content; // Original HTML content
 
-          // Inline Images Handling (Only affects HTML content)
+          // Inline Images Handling (Affects both HTML and CSS content)
           const mediaAssets = buildAssets.filter(a => a.type === 'media');
           if (config.mode === 'inline' && mediaAssets.length > 0) {
             mediaAssets.forEach(media => {
               const escapedName = media.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
               const pathRegex = new RegExp(`(['"\\(])(?:[^'"\\(\\)]*?\\/)?${escapedName}(['"\\)])`, 'g');
               baseHTML = baseHTML.replace(pathRegex, (m, p1, p2) => `${p1}${media.content}${p2}`);
+              combinedCSS = combinedCSS.replace(pathRegex, (m, p1, p2) => `${p1}${media.content}${p2}`);
               // For originals.html, we want the *original* HTML content, not with inlined images.
               // The diff for 'html' tab should show structural changes, not content changes from inlining.
               // So, we don't modify originals.html here.
@@ -1596,13 +1665,16 @@
           // Note: We already minified the *input* HTML in Transformation Phase.
           // But if we generated a wrapper or if content changed via injection, we might need a pass?
           // Ideally, we transformed the source. If wrapper, we transform it now.
-          if (htmlSource && htmlSource.id === 'virtual-wrapper') {
-            // It's raw. Minify if requested.
-            if (config.minifyHTML && _minifyHTML) {
-              baseHTML = await _minifyHTML(baseHTML, { collapseWhitespace: true, removeComments: config.comments });
-            }
+          if (config.minifyHTML && _minifyHTML) {
+            const jsOpts = config.minifyJS ? { compress: { drop_console: config.console } } : false;
+            baseHTML = await _minifyHTML(baseHTML, {
+              collapseWhitespace: true,
+              removeComments: config.comments,
+              minifyCSS: config.minifyCSS, // Ensure internal CSS is minified
+              minifyJS: jsOpts,            // Ensure internal JS is minified
+              ignoreCustomFragments: [/<script type="x-shader\/.*?"[\s\S]*?<\/script>/gi] // Preserve GLSL shaders
+            });
           }
-
 
           let finalHTML = baseHTML;
 
@@ -1693,7 +1765,26 @@
             sOut = sOut.replace(b64Regex, replaceB64);
           }
 
-          const d = Diff.diffWords(sOrig, sOut);
+          const MAX_DIFF_WORDS = 50000;
+          const MAX_RAW_SIZE = 250000;
+          const totalLength = sOrig.length + sOut.length;
+
+          if (totalLength > MAX_RAW_SIZE) {
+            log(`<span class='text-yellow-500'>Warning:</span> Diff skipped for ${t.toUpperCase()} because files are too large (${formatBytes(totalLength)}). Showing raw output to prevent browser crash.`);
+            precomputedDiffs[t] = {
+              originalHtml: `<span class="text-yellow-600 block mb-4 border-b border-yellow-800 pb-2">File too large to render diff gracefully.</span>\n` + sOrig.substring(0, 10000).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '\n\n... (file truncated in view)',
+              outputHtml: `<span class="text-yellow-600 block mb-4 border-b border-yellow-800 pb-2">Showing full text preview only.</span>\n` + sOut.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            };
+            continue;
+          }
+
+          let d = [];
+          if (totalLength > MAX_DIFF_WORDS) {
+            log(`<span class='text-[#555]'>Note:</span> Using fast line-diff for ${t.toUpperCase()} to maintain performance.`);
+            d = Diff.diffLines(sOrig, sOut);
+          } else {
+            d = Diff.diffWords(sOrig, sOut);
+          }
 
           let outHtml = '', origHtml = '';
           d.forEach(part => {
@@ -1707,6 +1798,8 @@
           });
 
           precomputedDiffs[t] = { originalHtml: origHtml, outputHtml: outHtml };
+          // Yield to UI to allow painting if processing multiple large diffs
+          await new Promise(r => setTimeout(r, 10));
         }
         log(`Diffs computed in ${(performance.now() - diffStartTime).toFixed(0)}ms`);
 
@@ -1776,15 +1869,37 @@
       if (outputs.css && config.mode !== 'batch') zip.file(cssName, outputs.css);
       if (outputs.js && config.mode !== 'batch') zip.file(jsName, outputs.js);
 
+      if (config.mode === 'bundle') {
+        const mediaAssets = assets.filter(a => a.type === 'media');
+        mediaAssets.forEach(media => {
+          const base64Data = media.content.split(',')[1];
+          zip.file(media.name, base64Data, { base64: true });
+        });
+
+        // Also include other HTML files that aren't the primary output
+        const htmlFiles = assets.filter(a => a.type === 'html');
+        if (htmlFiles.length > 1) {
+          htmlFiles.slice(1).forEach((html, i) => {
+            zip.file(html.name, html.content);
+          });
+        }
+      }
+
       if (config.mode === 'batch') {
         batchFiles.forEach(f => {
           // Simple renaming strategy for batch: .css -> .min.css
           let name = f.name;
-          // Granular renaming for batch mode
-          if (f.type === 'css' && document.getElementById("optMinifyCSS").checked) name = name.replace(/\.css/i, '.min.css');
-          if (f.type === 'js' && document.getElementById("optMinifyJS").checked) name = name.replace(/\.js/i, '.min.js');
-          if (f.type === 'html' && document.getElementById("optMinifyHTML").checked) name = name.replace(/\.html/i, '.min.html');
-          zip.file(name, f.content);
+          if (f.type !== 'media') {
+            // Granular renaming for batch mode
+            if (f.type === 'css' && document.getElementById("optMinifyCSS").checked) name = name.replace(/\.css/i, '.min.css');
+            if (f.type === 'js' && document.getElementById("optMinifyJS").checked) name = name.replace(/\.js/i, '.min.js');
+            if (f.type === 'html' && document.getElementById("optMinifyHTML").checked) name = name.replace(/\.html/i, '.min.html');
+            zip.file(name, f.content);
+          } else {
+            // Media files must be saved as binary by stripping Data URL prefix
+            const base64Data = f.content.split(',')[1];
+            zip.file(name, base64Data, { base64: true });
+          }
         });
       }
 
@@ -1842,6 +1957,188 @@
     document.getElementById("togglePreview").onclick = () => {
       const box = document.getElementById("previewBox");
       box.classList.toggle('hidden');
+    };
+
+    // --- EXTRACTOR LOGIC ---
+    const extractorInput = document.getElementById("extractorInput");
+    const extractorUploadBtn = document.getElementById("extractorUploadBtn");
+    const extractorList = document.getElementById("extractorList");
+    const extractorDownloadAll = document.getElementById("extractorDownloadAll");
+    const extractorEmptyState = document.getElementById("extractorEmptyState");
+    const extBase64Dec = document.getElementById("extBase64Dec");
+
+    let extractedAssets = [];
+
+    extractorUploadBtn.onclick = () => extractorInput.click();
+
+    extractorInput.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      log(`[EXTRACTOR] Processing file: <span class="text-[#FF3366]">${file.name}</span>...`);
+
+      const htmlText = await file.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, 'text/html');
+
+      extractedAssets = [];
+      let extractIdCount = 1;
+
+      const addExAsset = (name, content, type) => {
+        extractedAssets.push({ id: extractIdCount++, name, content, type });
+      };
+
+      // 1. Extract CSS
+      const styles = doc.querySelectorAll('style');
+      styles.forEach((styleTag, index) => {
+        let content = styleTag.innerHTML;
+        let name = styles.length === 1 ? 'extracted_style.css' : `extracted_style_${index + 1}.css`;
+        addExAsset(name, content, 'css');
+
+        const link = doc.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = name;
+        styleTag.replaceWith(link);
+      });
+
+      // 2. Extract JS
+      const scripts = doc.querySelectorAll('script');
+      scripts.forEach((scriptTag, index) => {
+        if (scriptTag.hasAttribute('src')) return;
+
+        const typeAttr = scriptTag.getAttribute('type');
+        if (typeAttr && typeAttr.includes('x-shader')) {
+          let ext = typeAttr.includes('fragment') ? 'frag' : (typeAttr.includes('vertex') ? 'vert' : 'glsl');
+          addExAsset(`shader_${index + 1}.${ext}`, scriptTag.innerHTML, 'glsl');
+          return;
+        }
+
+        let name = scripts.length === 1 ? 'extracted_script.js' : `extracted_script_${index + 1}.js`;
+        addExAsset(name, scriptTag.innerHTML, 'js');
+
+        const newScript = doc.createElement('script');
+        newScript.src = name;
+        newScript.defer = true;
+        scriptTag.replaceWith(newScript);
+      });
+
+      // 3. Extract Base64 Images
+      if (extBase64Dec.checked) {
+        const imgs = doc.querySelectorAll('img[src^="data:image"]');
+        imgs.forEach((imgTag, index) => {
+          const src = imgTag.getAttribute('src');
+          const mimeMatch = src.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,/);
+          if (mimeMatch) {
+            const mimeType = mimeMatch[1];
+            let ext = 'png';
+            if (mimeType.includes('jpeg') || mimeType.includes('jpg')) ext = 'jpg';
+            else if (mimeType.includes('gif')) ext = 'gif';
+            else if (mimeType.includes('svg')) ext = 'svg';
+            else if (mimeType.includes('webp')) ext = 'webp';
+
+            const name = `extracted_image_${index + 1}.${ext}`;
+            addExAsset(name, src, 'image');
+            imgTag.setAttribute('src', name);
+          }
+        });
+      }
+
+      const finalHTML = `<!DOCTYPE html>\n${doc.documentElement.lang ? '<html lang="' + doc.documentElement.lang + '">' : '<html>'}\n${doc.documentElement.innerHTML}\n</html>`;
+      addExAsset(`index_extracted.html`, finalHTML, 'html');
+
+      log(`[EXTRACTOR] Extraction complete. Found ${extractedAssets.length} distinct assets.`);
+      showToast("Extraction Complete", "success");
+      renderExtractorList();
+      extractorInput.value = '';
+    };
+
+    const renderExtractorList = () => {
+      extractorList.innerHTML = '';
+      if (extractedAssets.length === 0) {
+        extractorList.appendChild(extractorEmptyState);
+        extractorDownloadAll.disabled = true;
+        extractorDownloadAll.classList.add('hidden');
+        return;
+      }
+      extractorDownloadAll.disabled = false;
+      extractorDownloadAll.classList.remove('hidden');
+
+      const frag = document.createDocumentFragment();
+      extractedAssets.forEach(asset => {
+        let sizeBytes = asset.type === 'image' ? Math.round((asset.content.length - asset.content.indexOf(',')) * 0.75) : new Blob([asset.content]).size;
+
+        let visualColor = '#FF3366';
+        if (asset.type === 'html') visualColor = '#121212';
+        else if (asset.type === 'css') visualColor = '#0055ff';
+        else if (asset.type === 'js') visualColor = '#eebb00';
+        else if (asset.type === 'glsl') visualColor = '#9900ff';
+
+        const row = document.createElement('div');
+        row.className = "flex justify-between items-center p-3 bg-white border border-[#ccc] brutal-shadow mb-2 hover:border-[#121212] transition-colors";
+        row.innerHTML = `
+          <div class="flex items-center gap-3">
+             <div class="w-3 h-3 rounded-full border border-black" style="background:${visualColor}"></div>
+             <div>
+                <div class="font-bold text-sm font-mono text-[#121212]">${asset.name}</div>
+                <div class="text-[10px] text-[#888] font-mono">${formatBytes(sizeBytes)} • ${asset.type.toUpperCase()}</div>
+             </div>
+          </div>
+          <button class="bg-[#121212] flex items-center gap-1 text-white hover:bg-[#FF3366] text-[10px] px-3 py-2 font-bold tracking-wider uppercase" onclick="downloadExtractedAsset(${asset.id})"><span>⬇</span> Save</button>
+        `;
+        frag.appendChild(row);
+      });
+      extractorList.appendChild(frag);
+    };
+
+    window.downloadExtractedAsset = (id) => {
+      const asset = extractedAssets.find(a => a.id === id);
+      if (!asset) return;
+
+      if (asset.type === 'image') {
+        const a = document.createElement('a');
+        a.href = asset.content;
+        a.download = asset.name;
+        a.click();
+      } else {
+        dl(asset.name, asset.content);
+      }
+    };
+
+    extractorDownloadAll.onclick = async () => {
+      if (extractedAssets.length === 0) return;
+
+      if (typeof JSZip === 'undefined') {
+        showToast("JSZip not loaded!", "error");
+        return;
+      }
+
+      const zip = new JSZip();
+
+      extractedAssets.forEach(asset => {
+        if (asset.type === 'image') {
+          const base64Data = asset.content.split(',')[1];
+          zip.file(asset.name, base64Data, { base64: true });
+        } else {
+          zip.file(asset.name, asset.content);
+        }
+      });
+
+      try {
+        const blob = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `extracted_project.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast("Extraction ZIP Downloaded", "success");
+      } catch (err) {
+        console.error(err);
+        showToast("ZIP Generation Failed", "error");
+        log(`<span class="text-[#FF3366]">Extractor ZIP Error: ${err.message}</span>`);
+      }
     };
 
     // Custom Cursor Logic - Throttled with RAF for performance
