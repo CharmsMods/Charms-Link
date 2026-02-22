@@ -1,0 +1,2546 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>STATIC ASSET MINIFIER // BRUTALIST EDITION</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="lib/tailwind.min.js"></script>
+  <script src="lib/clean-css.js"></script>
+  <script src="lib/html-minifier.js"></script>
+  <script src="lib/terser.js"></script>
+  <script src="lib/diff.js"></script>
+  <script src="lib/jzip.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&family=Space+Grotesk:wght@400;700&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      /* Brutalism Palette */
+      --bg-color: #F0F0EB;
+      --surface-color: #FFFFFF;
+      --ink-color: #121212;
+      --accent-color: #FF3366;
+      /* Hot Pink/Red */
+      --secondary-color: #58CC02;
+      /* Acid Green for success/active states */
+      --border-width: 3px;
+      --shadow-offset: 5px;
+      --radius: 0px;
+      /* No rounded corners */
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--ink-color);
+      font-family: 'Space Grotesk', sans-serif;
+      overflow-x: hidden;
+      background-image: radial-gradient(var(--ink-color) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    /* --- UTILITIES & TYPOGRAPHY --- */
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .brutal-shadow {
+      box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--ink-color);
+      border: var(--border-width) solid var(--ink-color);
+      transition: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    .brutal-shadow:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: calc(var(--shadow-offset) + 2px) calc(var(--shadow-offset) + 2px) 0px var(--ink-color);
+    }
+
+    .brutal-shadow:active {
+      transform: translate(2px, 2px);
+      box-shadow: 0px 0px 0px var(--ink-color);
+    }
+
+    .brutal-input {
+      background: var(--surface-color);
+      border: var(--border-width) solid var(--ink-color);
+      color: var(--ink-color);
+      font-family: 'JetBrains Mono', monospace;
+      outline: none;
+      transition: 0.2s;
+    }
+
+    .brutal-input:focus {
+      background: #fffbeb;
+      border-color: var(--accent-color);
+    }
+
+    /* --- LOADING OVERLAY --- */
+    #loadingOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(18, 18, 18, 0.95);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #FFF;
+      font-family: 'JetBrains Mono', monospace;
+
+      /* Visibility Transition State */
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    #loadingOverlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .loader-box {
+      width: 60px;
+      height: 60px;
+      border: 5px solid #FF3366;
+      animation: spin 1s infinite cubic-bezier(0.79, 0.14, 0.15, 0.86);
+      margin-bottom: 2rem;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      50% {
+        transform: rotate(180deg);
+        background: #FF3366;
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loading-text {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      animation: blink 0.8s infinite alternate;
+    }
+
+    @keyframes blink {
+      from {
+        opacity: 1;
+      }
+
+      to {
+        opacity: 0.5;
+      }
+    }
+
+    /* Progress Bar */
+    .progress-container {
+      width: 300px;
+      height: 20px;
+      border: 3px solid #121212;
+      background: #F0F0EB;
+      margin-top: 1rem;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 4px 4px 0px #121212;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: #58CC02;
+      transition: width 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    .progress-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 10px;
+      font-weight: 800;
+      color: #121212;
+      mix-blend-mode: difference;
+    }
+
+    /* --- LAYOUT COMPONENTS --- */
+
+    /* Navigation Tabs */
+    .tab-btn {
+      background: var(--bg-color);
+      border-bottom: var(--border-width) solid transparent;
+      color: #666;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      position: relative;
+      transition: 0.2s;
+    }
+
+    .tab-btn.active {
+      color: var(--ink-color);
+      background: var(--surface-color);
+      border-bottom-color: var(--ink-color);
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: calc(-1 * var(--border-width) - 4px);
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: var(--accent-color);
+      z-index: 10;
+    }
+
+    /* Asset List Items */
+    .asset-item {
+      border-left: 4px solid transparent;
+      background: rgba(255, 255, 255, 0.4);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      transition: all 0.2s;
+    }
+
+    .asset-item:hover .asset-controls {
+      opacity: 1;
+    }
+
+    .asset-controls {
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .asset-item:hover {
+      background: #fff;
+    }
+
+    .asset-item.active {
+      background: var(--surface-color);
+      border-left-color: var(--accent-color);
+      font-weight: bold;
+    }
+
+    /* Editor Area */
+    .editor-area {
+      background: #1a1a1a;
+      color: #eee;
+      border: none;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.5;
+      caret-color: var(--accent-color);
+    }
+
+    /* Drop Zone Overlay */
+    #dropOverlay {
+      background-image: repeating-linear-gradient(45deg, var(--accent-color) 0, var(--accent-color) 10px, var(--ink-color) 10px, var(--ink-color) 20px);
+      opacity: 0.9;
+      transform: scale(0.98);
+    }
+
+    /* --- MODAL STYLING --- */
+    #usageModalOverlay {
+      background: rgba(18, 18, 18, 0.8);
+      backdrop-filter: blur(8px);
+    }
+
+    .modal-content {
+      background: var(--bg-color);
+      border: var(--border-width) solid var(--ink-color);
+      box-shadow: 10px 10px 0px var(--ink-color);
+    }
+
+    /* --- ANIMATIONS --- */
+    @keyframes marquee {
+      0% {
+        transform: translateX(0);
+      }
+
+      100% {
+        transform: translateX(-50%);
+      }
+    }
+
+    .animate-marquee {
+      white-space: nowrap;
+      overflow: hidden;
+      display: inline-block;
+    }
+
+    .animate-marquee span {
+      display: inline-block;
+      animation: marquee 20s linear infinite;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-color);
+      border-left: 1px solid var(--ink-color);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--ink-color);
+      border: 2px solid var(--bg-color);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-color);
+    }
+
+    /* --- CUSTOM CURSOR --- */
+    * {
+      cursor: none !important;
+    }
+
+    body.is-processing * {
+      cursor: wait !important;
+    }
+
+    body.is-processing #cursor {
+      display: none !important;
+    }
+
+    #cursor {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 25px;
+      height: 25px;
+      background: #fff;
+      mix-blend-mode: difference;
+      transform: translate3d(-50%, -50%, 0);
+      pointer-events: none;
+      z-index: 10001;
+      transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1), height 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+
+    #cursor.hovered {
+      width: 50px;
+      height: 50px;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col" id="dropBoundary">
+  <div id="cursor"></div>
+
+  <!-- HEADER -->
+  <header class="p-6 md:p-8 border-b-[3px] border-[#121212] bg-[#F0F0EB]">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+      <div>
+        <div class="flex items-center gap-4 mb-2">
+          <div class="bg-[#121212] text-[#F0F0EB] px-2 py-1 text-xs font-bold font-mono uppercase tracking-widest">
+            v2.1.0</div>
+          <div class="h-[2px] flex-1 bg-[#121212]"></div>
+        </div>
+        <h1 class="text-4xl md:text-6xl font-bold uppercase tracking-tighter leading-none">
+          Static Asset<br>
+          <span class="text-[#FF3366]">Minifier</span> & Bundler
+        </h1>
+      </div>
+      <div class="max-w-xs flex flex-col items-end gap-2">
+        <div class="flex gap-2">
+          <button id="importProjectBtn"
+            class="bg-[#121212] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-2 hover:bg-[#58CC02] transition-colors flex items-center gap-2"
+            title="Import Project JSON">
+            <span>📂</span> OPEN
+          </button>
+          <button id="exportProjectBtn"
+            class="bg-[#121212] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-2 hover:bg-[#FF3366] transition-colors flex items-center gap-2"
+            title="Export Project JSON">
+            <span>💾</span> SAVE
+          </button>
+          <input type="file" id="projectInput" accept=".json" class="hidden">
+        </div>
+        <button id="openHelp"
+          class="text-[10px] font-bold uppercase tracking-widest border-[2px] border-[#121212] px-3 py-1 hover:bg-[#121212] hover:text-white transition-all">
+          [?] HOW TO USE
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <div class="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 flex flex-col gap-6">
+
+    <!-- NAV TABS -->
+    <nav class="flex w-full">
+      <button
+        class="tab-btn active flex-1 py-4 text-sm md:text-base border-r-[3px] border-[#121212] border-t-[3px] border-l-[3px] rounded-t-md"
+        data-tab="workspace">Workspace</button>
+      <button
+        class="tab-btn flex-1 py-4 text-sm md:text-base border-r-[3px] border-[#121212] border-t-[3px] rounded-t-md"
+        data-tab="output">Build Output</button>
+      <button
+        class="tab-btn flex-1 py-4 text-sm md:text-base border-r-[3px] border-[#121212] border-t-[3px] rounded-t-md"
+        data-tab="extractor">Extract Output</button>
+      <button
+        class="tab-btn flex-1 py-4 text-sm md:text-base border-t-[3px] border-r-[3px] border-l-[3px] border-[#121212] rounded-t-md"
+        data-tab="log">Process Logs</button>
+    </nav>
+
+    <!-- CONTENT AREA -->
+    <main class="brutal-shadow bg-white relative min-h-[600px] flex flex-col">
+
+      <!-- WORKSPACE SECTION -->
+      <section id="workspace" class="tab-content block h-[600px] flex overflow-hidden">
+
+        <!-- Sidebar -->
+        <div class="w-64 flex flex-col border-r-[3px] border-[#121212] bg-[#F8F8F3] z-10">
+          <div class="p-4 border-b-[3px] border-[#121212] bg-[#121212] text-white">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-bold font-mono tracking-widest">ASSETS</span>
+              <span id="assetCount" class="bg-[#FF3366] text-[10px] px-1.5 font-bold">0</span>
+            </div>
+            <div class="flex gap-2">
+              <button id="addHtml"
+                class="flex-1 bg-[#333] hover:bg-white hover:text-black text-white text-[10px] font-bold py-2 transition-colors uppercase">+HTML</button>
+              <button id="addCss"
+                class="flex-1 bg-[#333] hover:bg-white hover:text-black text-white text-[10px] font-bold py-2 transition-colors uppercase">+CSS</button>
+              <button id="addJs"
+                class="flex-1 bg-[#333] hover:bg-white hover:text-black text-white text-[10px] font-bold py-2 transition-colors uppercase">+JS</button>
+            </div>
+          </div>
+          <div id="assetList" class="flex-1 overflow-y-auto"></div>
+        </div>
+
+        <!-- Editor Area -->
+        <div class="flex-1 flex flex-col relative bg-[#121212]">
+
+          <!-- Empty State -->
+          <div id="noAssetPrompt"
+            class="absolute inset-0 z-10 bg-[#121212] flex flex-col items-center justify-center p-12 text-center">
+            <div class="w-20 h-20 border-4 border-[#333] flex items-center justify-center mb-6 animate-pulse">
+              <svg class="w-10 h-10 text-[#555]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-[#333] uppercase tracking-widest mb-2">System Ready</h3>
+            <p class="text-sm font-mono text-[#555] max-w-xs leading-relaxed">
+              [WAITING FOR INPUT]<br>
+              Drag files anywhere to import.<br>
+              Or use buttons to create new assets.
+            </p>
+          </div>
+
+          <!-- Editor Header -->
+          <div id="editorHeader"
+            class="hidden h-12 bg-[#1e1e1e] border-b border-[#333] flex items-center justify-between px-4">
+            <div class="flex items-center gap-3">
+              <div class="w-3 h-3 rounded-full bg-red-500"></div>
+              <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+              <div class="w-3 h-3 rounded-full bg-green-500"></div>
+              <span id="currentFileName" class="text-sm font-mono text-[#888] ml-4">Select an asset</span>
+            </div>
+            <button id="removeAsset"
+              class="text-[10px] font-bold text-red-500 hover:text-red-400 border border-red-900 bg-red-900/20 px-3 py-1 uppercase tracking-wider hover:bg-red-500 hover:text-white transition-all">Delete
+              File</button>
+          </div>
+
+          <textarea id="mainEditor" class="editor-area hidden flex-1 w-full p-6 text-sm resize-none focus:bg-[#1a1a1a]"
+            placeholder="// Write code here..."></textarea>
+
+          <div id="mediaView"
+            class="hidden flex-1 flex flex-col items-center justify-center bg-[#121212] p-10 overflow-hidden relative">
+            <!-- Grid background for media -->
+            <div class="absolute inset-0 opacity-10"
+              style="background-image: linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px); background-size: 20px 20px;">
+            </div>
+
+            <div class="relative z-10 text-center">
+              <div
+                class="text-[10px] font-bold text-[#555] mb-4 uppercase tracking-widest border-b border-[#333] inline-block pb-1">
+                Binary Asset Preview</div>
+              <div class="border-4 border-[#333] bg-[#000] p-2 inline-block shadow-[8px_8px_0_#333]">
+                <img id="imgPreview" class="max-w-full max-h-[350px] block" src="" alt="">
+              </div>
+              <div id="base64Summary"
+                class="mt-4 text-[10px] font-mono text-[#444] break-all max-w-md text-center border border-[#333] p-2 bg-[#1a1a1a]">
+                ...</div>
+            </div>
+          </div>
+
+          <!-- Drop Overlay -->
+          <div id="dropOverlay"
+            class="absolute inset-0 pointer-events-none z-50 flex items-center justify-center transition-all duration-200 hidden">
+            <div class="bg-[#F0F0EB] border-[5px] border-[#121212] px-12 py-8 shadow-[12px_12px_0_#000]">
+              <h2 class="text-4xl font-black uppercase tracking-tighter animate-pulse">Drop Files</h2>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- OUTPUT SECTION -->
+      <section id="output" class="tab-content hidden p-6 md:p-10 flex flex-col h-full gap-8">
+
+        <!-- Config Bar -->
+        <div class="flex flex-col gap-6 p-6 bg-[#F8F8F3] border-[3px] border-[#121212] shadow-[6px_6px_0_#121212]">
+
+          <!-- Row 1: Mode & Build -->
+          <div class="flex flex-wrap items-end justify-between gap-4">
+            <div class="flex flex-col gap-2">
+              <label class="text-[10px] font-bold uppercase tracking-widest text-[#666]">Build Mode</label>
+              <div class="relative">
+                <select id="mode"
+                  class="brutal-input px-4 py-3 text-sm font-bold appearance-none pr-10 cursor-pointer w-64">
+                  <option value="inline">Single HTML Bundle (Inline)</option>
+                  <option value="bundle">Bundle (Combine by Type)</option>
+                  <option value="batch">Batch (Minify Individual Files)</option>
+                </select>
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none font-bold">▼</div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+              <div id="build-status" class="hidden text-[#FF3366] font-bold font-mono text-sm uppercase animate-pulse">
+                // OPTIMIZING...
+              </div>
+              <button id="build"
+                class="bg-[#121212] hover:bg-[#FF3366] text-white text-sm font-black py-4 px-12 uppercase tracking-widest shadow-[4px_4px_0_#FF3366] hover:shadow-[6px_6px_0_#FF3366] hover:translate-x-[-2px] hover:translate-y-[-2px] transition-all flex items-center gap-2">
+                <span id="buildIcon">⚡</span> Run Build
+              </button>
+            </div>
+          </div>
+
+          <!-- Row 2: Advanced Options -->
+          <div class="pt-4 border-t border-[#ccc] grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Toggles -->
+            <div class="flex flex-col gap-3">
+              <label class="text-[10px] font-bold uppercase tracking-widest text-[#666]">Minification Strategy</label>
+              <div class="flex flex-col gap-2">
+                <div class="flex items-center gap-4 flex-wrap">
+                  <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="optMinifyHTML" checked class="w-4 h-4 accent-[#FF3366]">
+                    <span class="text-xs font-mono font-bold">HTML</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="optMinifyCSS" checked class="w-4 h-4 accent-[#FF3366]">
+                    <span class="text-xs font-mono font-bold">CSS</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="optMinifyJS" checked class="w-4 h-4 accent-[#FF3366]">
+                    <span class="text-xs font-mono font-bold">JS</span>
+                  </label>
+                </div>
+                <div class="flex items-center gap-4 mt-1 border-t border-[#ddd] pt-2">
+                  <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="optComments" checked class="w-4 h-4 accent-[#FF3366]">
+                    <span class="text-[10px] font-mono font-bold text-[#555]">Remove Comments</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="optConsole" checked class="w-4 h-4 accent-[#FF3366]">
+                    <span class="text-[10px] font-mono font-bold text-[#555]">Drop Console</span>
+                  </label>
+                </div>
+              </div>
+              <!-- CDN Toggle -->
+              <div class="mt-2 pt-2 border-t border-[#ccc]">
+                <label class="flex items-center gap-2 cursor-pointer select-none opacity-50" id="cdnToggleContainer"
+                  title="Checking connectivity...">
+                  <input type="checkbox" id="optCDN" class="w-4 h-4 accent-[#58CC02]" disabled>
+                  <span class="text-xs font-mono font-bold text-[#58CC02]">USE CDN LIBS (vLatest)</span>
+                </label>
+                <div id="cdnStatus" class="text-[9px] text-[#888] font-mono mt-0.5">Checking internet...</div>
+              </div>
+            </div>
+
+            <!-- Filenames -->
+            <div class="flex flex-col gap-3">
+              <label class="text-[10px] font-bold uppercase tracking-widest text-[#666]">Change Target Filenames</label>
+              <div class="flex gap-2">
+                <input id="outNameH" class="brutal-input p-2 text-xs w-full" placeholder="index.min.html"
+                  value="index.min.html">
+                <input id="outNameC" class="brutal-input p-2 text-xs w-full" placeholder="styles.min.css"
+                  value="styles.min.css">
+                <input id="outNameJ" class="brutal-input p-2 text-xs w-full" placeholder="scripts.min.js"
+                  value="scripts.min.js">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
+          <!-- Left Column: Preview & Actions -->
+          <div class="lg:col-span-2 space-y-6">
+            <div class="border-[3px] border-[#121212] h-[400px] bg-white shadow-[4px_4px_0_#121212] flex flex-col">
+              <div class="bg-[#121212] text-white px-4 py-2 text-xs font-mono flex justify-between items-center">
+                <span>LIVE PREVIEW</span>
+                <div class="flex items-center gap-2">
+                  <button id="openNewTab"
+                    class="hover:text-[#58CC02] transition-colors text-[10px] border border-[#555] px-2 py-0.5">NEW
+                    TAB</button>
+                  <button id="togglePreview"
+                    class="hover:text-[#FF3366] transition-colors text-[10px] border border-[#555] px-2 py-0.5">TOGGLE
+                    PREVIEW</button>
+                </div>
+              </div>
+              <div id="previewBox" class="flex-1 overflow-hidden bg-white relative">
+                <iframe id="previewFrame" class="w-full h-full border-none"></iframe>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right Column: Downloads -->
+          <div class="space-y-4">
+            <h3 class="text-xs font-black uppercase border-b-2 border-[#121212] pb-1 mb-4">Output Artifacts</h3>
+
+            <button id="downH"
+              class="w-full group text-left p-4 border-[3px] border-[#121212] bg-white hover:bg-[#121212] hover:text-white transition-all hidden">
+              <div class="flex justify-between items-center">
+                <span id="lblH" class="font-bold font-mono text-sm">index.min.html</span>
+                <span class="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↓</span>
+              </div>
+            </button>
+
+            <button id="downC"
+              class="w-full group text-left p-4 border-[3px] border-[#121212] bg-white hover:bg-[#121212] hover:text-white transition-all hidden">
+              <div class="flex justify-between items-center">
+                <span id="lblC" class="font-bold font-mono text-sm">styles.min.css</span>
+                <span class="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↓</span>
+              </div>
+            </button>
+
+            <button id="downJ"
+              class="w-full group text-left p-4 border-[3px] border-[#121212] bg-white hover:bg-[#121212] hover:text-white transition-all hidden">
+              <div class="flex justify-between items-center">
+                <span id="lblJ" class="font-bold font-mono text-sm">scripts.min.js</span>
+                <span class="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↓</span>
+              </div>
+            </button>
+
+            <div class="pt-4 border-t border-dashed border-[#121212]">
+              <label id="zipToggleLabel" class="flex items-center gap-2 cursor-pointer select-none mb-3">
+                <input type="checkbox" id="optZip" checked class="w-4 h-4 accent-[#FF3366]">
+                <span class="text-xs font-mono font-bold">Download as ZIP</span>
+              </label>
+              <button id="downA"
+                class="w-full bg-[#FF3366] text-white font-black uppercase text-xs py-4 shadow-[4px_4px_0_#121212] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all">
+                Download Bundle
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diff View Container -->
+        <div id="diffContainer"
+          class="border-[3px] border-[#121212] bg-white shadow-[4px_4px_0_#121212] flex flex-col mt-6 w-[95vw] relative left-1/2 -translate-x-1/2">
+          <div class="bg-[#121212] text-white px-4 py-2 text-xs font-mono flex justify-between items-center">
+            <div class="flex items-center gap-2">
+              <span>CODE DIFFERENCE</span>
+              <!-- Diff Tabs -->
+              <div class="flex ml-4 border border-[#555]">
+                <button id="diffTabHtml"
+                  class="diff-tab px-3 py-1 text-[10px] font-bold bg-[#333] hover:bg-[#FF3366] transition-colors active"
+                  data-type="html">HTML</button>
+                <button id="diffTabCss"
+                  class="diff-tab px-3 py-1 text-[10px] font-bold bg-[#222] hover:bg-[#FF3366] transition-colors border-l border-[#555]"
+                  data-type="css">CSS</button>
+                <button id="diffTabJs"
+                  class="diff-tab px-3 py-1 text-[10px] font-bold bg-[#222] hover:bg-[#FF3366] transition-colors border-l border-[#555]"
+                  data-type="js">JS</button>
+                <button id="diffTabBundle"
+                  class="diff-tab px-3 py-1 text-[10px] font-bold bg-[#222] hover:bg-[#FF3366] transition-colors border-l border-[#555]"
+                  data-type="bundle">FULL</button>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <label class="flex items-center gap-1 cursor-pointer select-none">
+                <input type="checkbox" id="diffCollapseBase64" checked class="w-3 h-3 accent-[#FF3366]">
+                <span class="text-[10px]">COLLAPSE BASE64</span>
+              </label>
+              <label class="flex items-center gap-1 cursor-pointer select-none">
+                <input type="checkbox" id="diffWrap" checked class="w-3 h-3 accent-[#FF3366]">
+                <span class="text-[10px]">WRAP TEXT</span>
+              </label>
+            </div>
+          </div>
+          <div class="flex-1 flex flex-col md:flex-row h-[600px] border-t border-[#333]">
+            <!-- OriginalPane -->
+            <div class="flex-1 min-w-0 flex flex-col border-b md:border-b-0 md:border-r border-[#333]">
+              <div id="diffOriginalLabel"
+                class="bg-[#eee] px-2 py-1 text-[10px] font-bold text-[#555] uppercase border-b border-[#ccc]">
+                Original HTML</div>
+              <pre id="diffOriginal"
+                class="flex-1 p-4 font-mono text-xs overflow-auto text-[#444] leading-relaxed whitespace-pre-wrap"></pre>
+            </div>
+            <!-- OutputPane -->
+            <div class="flex-1 min-w-0 flex flex-col">
+              <div id="diffOutputLabel"
+                class="bg-[#eee] px-2 py-1 text-[10px] font-bold text-[#555] uppercase border-b border-[#ccc]">
+                Build Output HTML</div>
+              <pre id="diffOutput"
+                class="flex-1 p-4 font-mono text-xs overflow-auto text-[#444] leading-relaxed whitespace-pre-wrap"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- EXTRACTOR SECTION -->
+      <section id="extractor" class="tab-content hidden p-6 md:p-10 flex flex-col h-[600px] gap-6 bg-[#F8F8F3]">
+        <div class="flex flex-col gap-6 p-6 border-[3px] border-[#121212] shadow-[6px_6px_0_#121212] bg-white">
+          <div class="flex flex-col md:flex-row gap-6 items-end justify-between">
+            <div class="flex-1 w-full relative">
+              <label class="text-[10px] font-bold uppercase tracking-widest text-[#666] mb-2 block">Source Code
+                Upload</label>
+              <div class="relative">
+                <input type="file" id="extractorInput" accept=".html,.htm" class="hidden">
+                <button id="extractorUploadBtn"
+                  class="w-full bg-[#121212] hover:bg-[#FF3366] text-white text-sm font-black py-4 px-6 uppercase tracking-widest transition-colors flex justify-center items-center gap-2 text-center border-none cursor-pointer shadow-[4px_4px_0_#FF3366] hover:shadow-[6px_6px_0_#FF3366] hover:translate-x-[-2px] hover:translate-y-[-2px]">
+                  <span>📂</span> SELECT HTML FILE TO EXTRACT
+                </button>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2 w-full md:w-auto h-full justify-end">
+              <label class="flex items-center gap-2 cursor-pointer select-none p-2 py-4">
+                <input type="checkbox" id="extBase64Dec" checked class="w-4 h-4 accent-[#FF3366]">
+                <span class="text-xs font-mono font-bold">DECODE BASE64 IMAGES</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="flex-1 flex flex-col border-[3px] border-[#121212] bg-white shadow-[4px_4px_0_#121212] overflow-hidden">
+          <div class="bg-[#121212] text-white px-4 py-2 text-xs font-mono flex justify-between items-center">
+            <span>EXTRACTED ASSETS</span>
+            <button id="extractorDownloadAll" disabled
+              class="bg-[#58CC02] hover:bg-white hover:text-black text-black text-[10px] px-3 py-1 font-bold transition-colors uppercase disabled:opacity-50 disabled:cursor-not-allowed hidden">
+              DOWNLOAD ALL (ZIP)
+            </button>
+          </div>
+          <div id="extractorList" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 bg-[#F0F0EB]">
+            <div class="text-center text-[#888] font-mono text-xs italic mt-8" id="extractorEmptyState">
+              No file uploaded yet.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- LOG SECTION -->
+      <section id="log" class="tab-content hidden p-0 h-[600px] flex flex-col bg-[#121212]">
+        <div class="bg-[#222] px-4 py-2 text-xs text-[#888] font-mono border-b border-[#333] flex justify-between">
+          <span>> TERMINAL OUTPUT</span>
+          <span class="text-[#FF3366]">● LIVE</span>
+        </div>
+        <div id="logBox" class="flex-1 overflow-y-auto p-6 font-mono text-xs md:text-sm leading-relaxed text-[#ccc]">
+          <div class="text-[#555] italic">> System initialized. Waiting for user input...</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- IMAGE USAGE MODAL -->
+  <div id="usageModalOverlay" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+    <div class="modal-content w-full max-w-3xl max-h-[85vh] flex flex-col">
+      <div class="p-6 border-b-[3px] border-[#121212] bg-[#F8F8F3] flex justify-between items-start">
+        <div>
+          <h2 class="text-2xl font-black uppercase tracking-tighter">Image Usage Review</h2>
+          <p class="text-xs font-mono text-[#666] mt-1">Detected references in source code.</p>
+        </div>
+        <div class="w-3 h-3 bg-[#FF3366] rounded-full animate-ping"></div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-8 space-y-8">
+        <!-- Referenced Section -->
+        <div id="referencedSection">
+          <h3
+            class="text-[10px] font-bold uppercase tracking-[0.2em] text-[#121212] mb-4 border-l-4 border-[#58CC02] pl-3 bg-green-100 inline-block py-1">
+            Referenced Assets (Keep)
+          </h3>
+          <div id="referencedList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+
+        <!-- Unreferenced Section -->
+        <div id="unreferencedSection">
+          <h3
+            class="text-[10px] font-bold uppercase tracking-[0.2em] text-[#121212] mb-4 border-l-4 border-[#FF3366] pl-3 bg-red-100 inline-block py-1">
+            Unused Assets (Exclude from Bundle)
+          </h3>
+          <div id="unreferencedList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+      </div>
+
+      <div class="p-6 border-t-[3px] border-[#121212] bg-[#F8F8F3] flex gap-4">
+        <button id="modalCancel"
+          class="flex-1 py-4 border-[3px] border-[#121212] text-[#121212] text-xs font-bold uppercase hover:bg-[#121212] hover:text-white transition-colors">
+          Cancel
+        </button>
+        <button id="modalProceed"
+          class="flex-1 py-4 bg-[#58CC02] border-[3px] border-[#121212] text-white text-xs font-bold uppercase shadow-[4px_4px_0_#121212] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[5px_5px_0_#121212] transition-all">
+          Proceed & Build
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HELP MODAL -->
+  <div id="helpModalOverlay" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+    <div class="modal-content w-full max-w-2xl max-h-[85vh] flex flex-col">
+      <div class="p-6 border-b-[3px] border-[#121212] bg-[#F8F8F3] flex justify-between items-start">
+        <h2 class="text-2xl font-black uppercase tracking-tighter">System Manual</h2>
+        <button id="closeHelp" class="text-xl font-bold hover:text-[#FF3366]">✕</button>
+      </div>
+      <div class="p-8 overflow-y-auto space-y-6 font-mono text-sm">
+        <div>
+          <h3 class="font-bold text-[#FF3366] uppercase mb-2">> 1. Asset Order Matters</h3>
+          <p class="text-[#555]">
+            Files are processed in the order shown in the Workspace list.
+            <br>- <strong>CSS:</strong> Lower files can override earlier ones.
+            <br>- <strong>JS:</strong> Dependencies must appear <em>before</em> the scripts that use them.
+            <br>Use the <span class="bg-[#121212] text-white px-1 text-xs">↑</span> <span
+              class="bg-[#121212] text-white px-1 text-xs">↓</span> arrows to reorder.
+          </p>
+        </div>
+        <div>
+          <h3 class="font-bold text-[#FF3366] uppercase mb-2">> 2. Entry Point</h3>
+          <p class="text-[#555]">
+            The <strong>FIRST</strong> HTML file in the list is treated as the "Entry Point".
+            <br>All other content (CSS, JS, inlined images) is injected into this file.
+          </p>
+        </div>
+        <div>
+          <h3 class="font-bold text-[#FF3366] uppercase mb-2">> 3. Protected Build</h3>
+          <p class="text-[#555]">
+            Unused images are detected automatically. You will be asked to confirm their deletion before building to
+            keep bundle size small.
+            <br><strong>Note:</strong> JS minification is performed safely without mutating variable names that might
+            reference DOM elements.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="loader-box"></div>
+    <div class="loading-text">PROCESSING...</div>
+    <div class="progress-container hidden" id="loadingProgressContainer">
+      <div class="progress-bar" id="loadingProgressBar"></div>
+      <div class="progress-text" id="loadingProgressText">0%</div>
+    </div>
+    <div id="loadingSubtext" class="text-xs text-[#888] mt-4 font-mono hidden max-w-md text-center"></div>
+  </div>
+
+  <script>
+    // Library fallback and initialization
+    var tailwind = window.tailwind || null;
+
+    // HTML Minifier
+    var HTMLMinifier = window.HTMLMinifier || null;
+    var minifyHTML = (HTMLMinifier && HTMLMinifier.minify) ? HTMLMinifier.minify : function (h) { console.warn('HTMLMinifier not loaded'); return h; };
+
+    // CleanCSS
+    var CleanCSS = window.CleanCSS || function () { console.warn('CleanCSS not loaded'); return { minify: function (c) { return { styles: c }; } }; };
+
+    // Terser
+    var Terser = window.Terser || null;
+    console.log('Terser Object:', Terser);
+    var minifyJS = (Terser && Terser.minify) ? Terser.minify : null;
+    if (!minifyJS) console.warn('Terser.minify is missing!');
+
+    // Diff
+    var Diff = window.Diff || null;
+
+    // Connectivity State
+    let cdnAvailable = false;
+    const cdnToggle = document.getElementById('optCDN');
+    const cdnContainer = document.getElementById('cdnToggleContainer');
+    const cdnStatus = document.getElementById('cdnStatus');
+
+    const checkConnectivity = async () => {
+      try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 2000);
+        // Cache-Busting Check
+        await fetch(`https://esm.sh/clean-css?t=${Date.now()}`, { method: 'HEAD', signal: controller.signal });
+        clearTimeout(id);
+
+        cdnAvailable = true;
+        cdnToggle.disabled = false;
+        cdnContainer.classList.remove('opacity-50');
+        cdnContainer.title = "Switch to CDN versions";
+        cdnStatus.innerText = "Online. CDN Available.";
+        cdnStatus.classList.add('text-[#58CC02]');
+        cdnStatus.classList.remove('text-[#888]');
+      } catch (e) {
+        cdnAvailable = false;
+        cdnToggle.disabled = true;
+        cdnToggle.checked = false;
+        cdnContainer.classList.add('opacity-50');
+        cdnContainer.title = "Offline or CDN Unreachable";
+        cdnStatus.innerText = "Offline / CDN Unreachable";
+      }
+    };
+
+    window.addEventListener('load', checkConnectivity);
+
+    // Hybrid Library Resolver
+    let cachedCDNLibs = null;
+    let isFetchingCDN = false;
+
+    const resolveLibraries = async () => {
+      const useCDN = cdnToggle.checked;
+
+      if (!useCDN) {
+        return {
+          CleanCSS: window.CleanCSS,
+          minifyHTML: (window.HTMLMinifier && window.HTMLMinifier.minify) ? window.HTMLMinifier.minify : null,
+          minifyJS: (window.Terser && window.Terser.minify) ? window.Terser.minify : null
+        };
+      }
+
+      if (cachedCDNLibs) {
+        log("Using cached CDN libraries.");
+        return cachedCDNLibs;
+      }
+
+      if (isFetchingCDN) {
+        log("Waiting for ongoing CDN download...");
+        // Simple polling if double-clicked
+        while (isFetchingCDN) await new Promise(r => setTimeout(r, 100));
+        return cachedCDNLibs;
+      }
+
+      isFetchingCDN = true;
+      // CDN Mode - Parallel Loading with Timeout & Cache Busting
+      log("Initializing CDN download (Network Forced)...");
+
+      const session = Date.now(); // Unique ID for this build session
+
+      const loadWithTimeout = async (url, name) => {
+        const forcedUrl = `${url}?v=${session}`;
+        log(`Fetching ${name}...`);
+        try {
+          const importPromise = import(forcedUrl);
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Timeout fetching ${name}`)), 15000));
+          return await Promise.race([importPromise, timeoutPromise]);
+        } catch (e) {
+          throw new Error(`Failed to load ${name}: ${e.message}`);
+        }
+      };
+
+      try {
+        // Parallel CDN imports for faster loading
+        const [cssMod, htmlMod, jsMod] = await Promise.all([
+          loadWithTimeout("https://esm.sh/clean-css", "CleanCSS"),
+          loadWithTimeout("https://esm.sh/html-minifier-terser", "HTMLMinifier"),
+          loadWithTimeout("https://esm.sh/terser", "Terser")
+        ]);
+
+        log("All CDN libraries loaded successfully.");
+
+        cachedCDNLibs = {
+          CleanCSS: cssMod.default,
+          minifyHTML: htmlMod.minify,
+          minifyJS: jsMod.minify
+        };
+        isFetchingCDN = false;
+        return cachedCDNLibs;
+      } catch (e) {
+        isFetchingCDN = false;
+        console.error("CDN Resolution Failed:", e);
+        throw e;
+      }
+    };
+
+    let assets = [];
+    let activeAssetId = null;
+    let outputs = { html: "", css: "", js: "" };
+    let originals = { html: "", css: "", js: "" };
+    // Also track "Finals" explicitly for strict typing
+    let finals = { html: "", css: "", js: "" };
+    let batchFiles = [];
+    let currentDiffTab = 'html';
+    // Cached CleanCSS instance for reuse across builds
+    let cachedCleanCSSInstance = null;
+    // Asset size cache to avoid repeated Blob creation
+    const assetSizeCache = new Map();
+
+    // UI Elements
+    const logBox = document.getElementById("logBox");
+    const assetList = document.getElementById("assetList");
+    const mainEditor = document.getElementById("mainEditor");
+    const mediaView = document.getElementById("mediaView");
+    const imgPreview = document.getElementById("imgPreview");
+    const base64Summary = document.getElementById("base64Summary");
+    const currentFileName = document.getElementById("currentFileName");
+    const buildStatus = document.getElementById("build-status");
+    const noAssetPrompt = document.getElementById("noAssetPrompt");
+    const editorHeader = document.getElementById("editorHeader");
+    const assetCount = document.getElementById("assetCount");
+
+    // Modal Elements
+    const usageModal = document.getElementById("usageModalOverlay");
+    const refList = document.getElementById("referencedList");
+    const unrefList = document.getElementById("unreferencedList");
+    const modalProceed = document.getElementById("modalProceed");
+    const modalCancel = document.getElementById("modalCancel");
+
+    const log = (msg) => {
+      if (logBox.children.length === 1 && logBox.querySelector('.italic')) logBox.innerHTML = '';
+      const entry = document.createElement("div");
+      entry.className = "log-line border-l-2 border-[#333] pl-3 py-1 mb-2 hover:bg-white/5 transition-colors";
+      const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      entry.innerHTML = `<span class="text-[#555] font-mono mr-3">[${time}]</span> ${msg}`;
+      logBox.appendChild(entry);
+      logBox.scrollTop = logBox.scrollHeight;
+    };
+
+    const formatBytes = (bytes, decimals = 1) => {
+      if (!+bytes) return '0 B';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+    };
+
+    const checkModeAvailability = () => {
+      const hasHtml = assets.some(a => a.type === 'html');
+      const modeSelect = document.getElementById("mode");
+      const inlineOpt = modeSelect.querySelector('option[value="inline"]');
+
+      if (!hasHtml && assets.length > 0) {
+        if (inlineOpt) {
+          inlineOpt.disabled = true;
+          inlineOpt.textContent = "Single HTML Bundle (Requires HTML File)";
+        }
+        if (modeSelect.value === 'inline') {
+          modeSelect.value = 'bundle';
+          updateZipToggleState();
+          showToast("Switched to Bundle mode (No HTML)", "info");
+        }
+      } else if (hasHtml) {
+        if (inlineOpt) {
+          inlineOpt.disabled = false;
+          inlineOpt.textContent = "Single HTML Bundle (Inline)";
+        }
+      }
+    };
+
+    const renderAssetList = () => {
+      assetCount.innerText = assets.length;
+
+      checkModeAvailability();
+
+      if (assets.length === 0) {
+        assetList.innerHTML = '';
+        noAssetPrompt.classList.remove('hidden');
+        editorHeader.classList.add('hidden');
+        mainEditor.classList.add('hidden');
+        mediaView.classList.add('hidden');
+        return;
+      }
+
+      noAssetPrompt.classList.add('hidden');
+      editorHeader.classList.remove('hidden');
+
+      // Identify Entry Point (first HTML)
+      const firstHtmlId = assets.find(a => a.type === 'html')?.id;
+
+      // Use DocumentFragment for efficient DOM updates
+      const frag = document.createDocumentFragment();
+
+      assets.forEach((asset, index) => {
+        const div = document.createElement('div');
+        div.className = `asset-item px-4 py-3 cursor-pointer flex justify-between items-center group relative ${asset.id === activeAssetId ? 'active' : ''}`;
+
+        // Use cached size or compute and cache it
+        let size;
+        if (assetSizeCache.has(asset.id)) {
+          size = assetSizeCache.get(asset.id);
+        } else {
+          size = asset.type === 'media' ? asset.content.length * 0.75 : new Blob([asset.content]).size;
+          assetSizeCache.set(asset.id, size);
+        }
+        const sizeStr = formatBytes(size);
+
+        let icon = '📄';
+        if (asset.type === 'css') icon = '🎨';
+        if (asset.type === 'js') icon = '⚡';
+        if (asset.type === 'media') icon = '🖼️';
+
+        const isEntryPoint = asset.id === firstHtmlId;
+
+        div.innerHTML = `
+          <div class="flex items-center gap-3 overflow-hidden flex-1" onclick="selectAsset('${asset.id}')">
+            <span class="text-lg">${icon}</span>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-mono font-bold truncate ${asset.id === activeAssetId ? 'text-[#121212]' : 'text-[#666]'} group-hover:text-[#121212] transition-colors">${asset.name}</span>
+                ${isEntryPoint ? '<span class="text-[8px] bg-[#121212] text-white px-1 font-bold uppercase tracking-wider">ENTRY</span>' : ''}
+              </div>
+              <span class="text-[9px] text-[#888] font-mono">${sizeStr} • ${asset.type.toUpperCase()}</span>
+            </div>
+          </div>
+          
+          <div class="asset-controls flex items-center gap-1 pl-2">
+             <button onclick="moveAsset('${asset.id}', -1)" class="p-1 hover:bg-[#121212] hover:text-white rounded text-[#555] transition-colors" title="Move Up">↑</button>
+             <button onclick="moveAsset('${asset.id}', 1)" class="p-1 hover:bg-[#121212] hover:text-white rounded text-[#555] transition-colors" title="Move Down">↓</button>
+             <button onclick="duplicateAsset('${asset.id}')" class="p-1 hover:bg-[#121212] hover:text-white rounded text-[#555] transition-colors" title="Duplicate">❐</button>
+             <button onclick="renameAsset('${asset.id}')" class="p-1 hover:bg-[#121212] hover:text-white rounded text-[#555] transition-colors" title="Rename">✎</button>
+          </div>
+        `;
+        frag.appendChild(div);
+      });
+
+      // Single DOM update
+      assetList.innerHTML = '';
+      assetList.appendChild(frag);
+    };
+
+    // --- TOAST SYSTEM ---
+    const showToast = (msg, type = 'info') => {
+      const toast = document.createElement('div');
+      const color = type === 'error' ? '#FF3366' : '#58CC02';
+      toast.className = `fixed bottom-8 right-8 bg-[#121212] text-white px-6 py-4 font-bold uppercase tracking-wider shadow-[4px_4px_0_${color}] transition-all duration-300 transform translate-y-20 opacity-0 z-[200] border-l-4 border-[${color}]`;
+      toast.innerHTML = `<span style="color:${color}">></span> ${msg}`;
+      document.body.appendChild(toast);
+
+      // Animate in
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-20', 'opacity-0');
+      });
+
+      // Remove
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    };
+
+    // --- ASSET ACTIONS ---
+
+    window.selectAsset = (id) => {
+      if (!id) {
+        activeAssetId = null;
+        renderAssetList();
+        return;
+      }
+
+      const prev = assets.find(a => a.id === activeAssetId);
+      if (prev && prev.type !== 'media') prev.content = mainEditor.value;
+
+      activeAssetId = id;
+      const next = assets.find(a => a.id === id);
+      if (!next) return;
+
+      currentFileName.innerText = next.name;
+
+      if (next.type === 'media') {
+        mainEditor.classList.add('hidden');
+        mediaView.classList.remove('hidden');
+        imgPreview.src = next.content;
+        base64Summary.innerText = next.content.substring(0, 80) + "...";
+      } else {
+        mainEditor.classList.remove('hidden');
+        mediaView.classList.add('hidden');
+        mainEditor.value = next.content;
+      }
+
+      renderAssetList();
+    };
+
+    window.moveAsset = (id, direction) => {
+      const index = assets.findIndex(a => a.id === id);
+      if (index < 0) return;
+
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= assets.length) return;
+
+      // Swap
+      [assets[index], assets[newIndex]] = [assets[newIndex], assets[index]];
+      renderAssetList();
+    };
+
+    window.renameAsset = (id) => {
+      const asset = assets.find(a => a.id === id);
+      if (!asset) return;
+
+      const newName = prompt("Rename asset:", asset.name);
+      if (newName && newName.trim() !== "") {
+        asset.name = newName.trim();
+        if (activeAssetId === id) currentFileName.innerText = asset.name;
+        renderAssetList();
+      }
+    };
+
+    window.duplicateAsset = (id) => {
+      const asset = assets.find(a => a.id === id);
+      if (!asset) return;
+
+      const newId = crypto.randomUUID();
+      const newName = asset.name.replace(/(\.[^.]*)?$/, " (Copy)$1");
+
+      assets.push({
+        id: newId,
+        type: asset.type,
+        name: newName,
+        content: asset.content
+      });
+
+      log(`Duplicated: ${asset.name} -> ${newName}`);
+      showToast("Asset Duplicated");
+      selectAsset(newId);
+    };
+
+    // --- PERSISTENCE ---
+
+    document.getElementById("exportProjectBtn").onclick = () => {
+      // Save current edit first
+      const current = assets.find(a => a.id === activeAssetId);
+      if (current && current.type !== 'media') current.content = mainEditor.value;
+
+      const data = JSON.stringify(assets);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bundler-project-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+
+      URL.revokeObjectURL(url);
+      log("Project exported successfully.");
+      showToast("Project Saved");
+    };
+
+    document.getElementById("importProjectBtn").onclick = () => {
+      document.getElementById("projectInput").click();
+    };
+
+    document.getElementById("projectInput").onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if (!Array.isArray(data)) throw new Error("Invalid project file format");
+
+          assets = data;
+          activeAssetId = null;
+
+          log("Project imported successfully.");
+          showToast("Project Loaded", "success");
+
+          if (assets.length > 0) selectAsset(assets[0].id);
+          else renderAssetList();
+
+        } catch (err) {
+          console.error(err);
+          log(`<span class="text-[#FF3366]">Import Error:</span> ${err.message}`);
+          showToast("Load Failed: Invalid File", "error");
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = ''; // Reset
+    };
+
+    const addAsset = (type, name, content) => {
+      const id = crypto.randomUUID();
+      assets.push({ id, type, name, content });
+      log(`Imported: <span class="text-[#58CC02] font-bold">${name}</span>`);
+      selectAsset(id);
+    };
+
+    // Help Modal Logic
+    const helpModal = document.getElementById("helpModalOverlay");
+    document.getElementById("openHelp").onclick = () => helpModal.classList.remove('hidden');
+    document.getElementById("closeHelp").onclick = () => helpModal.classList.add('hidden');
+    helpModal.onclick = (e) => {
+      if (e.target === helpModal) helpModal.classList.add('hidden');
+    };
+
+    // Controls
+    document.getElementById("addHtml").onclick = () => addAsset('html', `page-${assets.filter(a => a.type === 'html').length + 1}.html`, '<!DOCTYPE html>\n<html>\n<body>\n  \n</body>\n</html>');
+    document.getElementById("addCss").onclick = () => addAsset('css', `style-${assets.filter(a => a.type === 'css').length + 1}.css`, '/* Styles */\n');
+    document.getElementById("addJs").onclick = () => addAsset('js', `script-${assets.filter(a => a.type === 'js').length + 1}.js`, '// Script\n');
+
+    document.getElementById("removeAsset").onclick = () => {
+      const removed = assets.find(a => a.id === activeAssetId);
+      if (removed) log(`Deleted asset: ${removed.name}`);
+
+      assets = assets.filter(a => a.id !== activeAssetId);
+      if (assets.length > 0) {
+        selectAsset(assets[assets.length - 1].id);
+      } else {
+        selectAsset(null);
+      }
+    };
+
+    document.querySelectorAll(".tab-btn").forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll(".tab-btn").forEach(e => e.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach(e => e.classList.add("hidden"));
+        tab.classList.add("active");
+        document.getElementById(tab.dataset.tab).classList.remove("hidden");
+      };
+    });
+
+    // Drag & Drop
+    const dropBoundary = document.getElementById("dropBoundary");
+    const dropOverlay = document.getElementById("dropOverlay");
+
+    dropBoundary.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropOverlay.classList.remove('hidden');
+    });
+
+    dropBoundary.addEventListener('dragleave', (e) => {
+      if (e.relatedTarget === null || e.relatedTarget === dropBoundary) {
+        dropOverlay.classList.add('hidden');
+      }
+    });
+
+    dropBoundary.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      dropOverlay.classList.add('hidden');
+
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length === 0) return;
+
+      for (const file of files) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'].includes(ext)) {
+          const reader = new FileReader();
+          reader.onload = (ev) => addAsset('media', file.name, ev.target.result);
+          reader.readAsDataURL(file);
+        } else {
+          const text = await file.text();
+          if (['html', 'htm'].includes(ext)) addAsset('html', file.name, text);
+          else if (ext === 'css') addAsset('css', file.name, text);
+          else if (ext === 'js') addAsset('js', file.name, text);
+        }
+      }
+    });
+
+    // --- CORE FIX: Usage Detection & Protected Build ---
+
+    const scanImageUsage = () => {
+      const media = assets.filter(a => a.type === 'media');
+      const htmlText = assets.filter(a => a.type === 'html').map(a => a.content).join(' ');
+      const cssText = assets.filter(a => a.type === 'css').map(a => a.content).join(' ');
+      const jsText = assets.filter(a => a.type === 'js').map(a => a.content).join(' ');
+
+      const used = [];
+      const unused = [];
+
+      media.forEach(asset => {
+        const name = asset.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // HTML Search: src="filename" or href="filename"
+        const htmlRegex = new RegExp(`(src|href)=["']([^"']*\\/)?${name}["']`, 'i');
+        // CSS Search: url(filename) or url("filename")
+        const cssRegex = new RegExp(`url\\(\\s*["']?([^"')]*\\/)?${name}["']?\\s*\\)`, 'i');
+        // JS Search: exact file name string in quotes
+        const jsRegex = new RegExp(`["']([^"']*\\/)?${name}["']`, 'i');
+
+        let foundIn = [];
+        if (htmlRegex.test(htmlText)) foundIn.push('HTML');
+        if (cssRegex.test(cssText)) foundIn.push('CSS');
+        if (jsRegex.test(jsText)) foundIn.push('JS');
+
+        if (foundIn.length > 0) {
+          used.push({ ...asset, foundIn });
+        } else {
+          unused.push(asset);
+        }
+      });
+
+      return { used, unused };
+    };
+
+    const showUsageModal = (used, unused) => {
+      refList.innerHTML = '';
+      unrefList.innerHTML = '';
+
+      used.forEach(img => {
+        const div = document.createElement('div');
+        div.className = "flex items-center gap-4 bg-white border-[3px] border-[#121212] p-3 shadow-[3px_3px_0_#000]";
+        div.innerHTML = `
+            <img src="${img.content}" class="w-12 h-12 object-cover border border-[#333]">
+            <div class="flex-1 min-w-0">
+                <div class="font-mono text-xs font-bold truncate text-[#121212]">${img.name}</div>
+                <div class="text-[10px] uppercase text-[#58CC02] font-bold">Found in ${img.foundIn.join(' & ')}</div>
+            </div>
+            <div class="w-2 h-2 bg-[#58CC02] rounded-full"></div>
+        `;
+        refList.appendChild(div);
+      });
+
+      unused.forEach(img => {
+        const div = document.createElement('div');
+        div.className = "flex items-center gap-4 bg-[#F8F8F3] border-[3px] border-[#ccc] p-3 opacity-70";
+        div.innerHTML = `
+            <img src="${img.content}" class="w-12 h-12 object-cover grayscale border border-[#333]">
+            <div class="flex-1 min-w-0">
+                <div class="font-mono text-xs font-bold truncate text-[#666]">${img.name}</div>
+                <div class="text-[10px] uppercase text-[#FF3366] font-bold">Unused (Will Exclude)</div>
+            </div>
+        `;
+        unrefList.appendChild(div);
+      });
+
+      usageModal.classList.remove('hidden');
+    };
+
+    modalCancel.onclick = () => usageModal.classList.add('hidden');
+
+    modalProceed.onclick = () => {
+      usageModal.classList.add('hidden');
+      const { unused } = scanImageUsage();
+      const excludedIds = unused.map(u => u.id);
+
+      log(`<span class="text-[#FF3366] font-bold">Excluding ${unused.length} unused media assets from bundle.</span>`);
+      executeBuild(excludedIds);
+    };
+
+    document.getElementById("build").onclick = () => {
+      // Save current editor state
+      const current = assets.find(a => a.id === activeAssetId);
+      if (current && current.type !== 'media') current.content = mainEditor.value;
+
+      const { used, unused } = scanImageUsage();
+
+      if (unused.length > 0) {
+        showUsageModal(used, unused);
+      } else {
+        executeBuild();
+      }
+    };
+
+    // --- DIFF SYSTEM ---
+    const diffContainer = document.getElementById("diffContainer");
+    const previewBox = document.getElementById("previewBox");
+    const diffOriginal = document.getElementById("diffOriginal");
+    const diffOutput = document.getElementById("diffOutput");
+    const diffOriginalLabel = document.getElementById("diffOriginalLabel");
+    const diffOutputLabel = document.getElementById("diffOutputLabel");
+
+    // Preloaded Diff Data
+    let precomputedDiffs = {
+      html: null,
+      css: null,
+      js: null,
+      bundle: null
+    };
+
+    const generateDiff = (type = currentDiffTab) => {
+      if (typeof type !== 'string') type = currentDiffTab;
+      currentDiffTab = type;
+
+      // Update tab styling
+      document.querySelectorAll('.diff-tab').forEach(tab => {
+        tab.classList.remove('active', 'bg-[#333]');
+        tab.classList.add('bg-[#222]', 'opacity-50', 'hover:opacity-100');
+        tab.disabled = false;
+      });
+
+      // Disable/Dim tabs based on available data
+      ['html', 'css', 'js', 'bundle'].forEach(t => {
+        const tab = document.getElementById(`diffTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        if (!finals[t] && !originals[t] && tab) {
+          tab.classList.add('opacity-30', 'cursor-not-allowed');
+          // tab.disabled = true; // Optional: completely disable interaction
+        }
+      });
+
+      const activeTab = document.getElementById(`diffTab${type.charAt(0).toUpperCase() + type.slice(1)}`);
+      if (activeTab) {
+        activeTab.classList.add('active', 'bg-[#333]', 'opacity-100');
+        activeTab.classList.remove('bg-[#222]', 'opacity-50');
+      }
+
+      // Update labels
+      const typeLabel = type.toUpperCase();
+      diffOriginalLabel.textContent = `Original ${typeLabel}`;
+      diffOutputLabel.textContent = `Build Output ${typeLabel}`;
+
+      const wrap = document.getElementById("diffWrap").checked;
+      diffOriginal.className = `flex-1 p-4 font-mono text-xs overflow-auto text-[#444] leading-relaxed ${wrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'}`;
+      diffOutput.className = `flex-1 p-4 font-mono text-xs overflow-auto text-[#444] leading-relaxed ${wrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'}`;
+
+      // USE PRELOADED DIFF IF AVAILABLE
+      const preloaded = precomputedDiffs[type];
+
+      if (preloaded) {
+        diffOriginal.innerHTML = preloaded.originalHtml;
+        diffOutput.innerHTML = preloaded.outputHtml;
+      } else {
+        diffOriginal.innerHTML = '<span class="text-[#888] italic">No content available for this type.</span>';
+        diffOutput.innerHTML = '<span class="text-[#888] italic">No content available for this type.</span>';
+      }
+    };
+
+    // Tab click handlers
+    document.getElementById("diffTabHtml").onclick = () => generateDiff('html');
+    document.getElementById("diffTabCss").onclick = () => generateDiff('css');
+    document.getElementById("diffTabJs").onclick = () => generateDiff('js');
+    document.getElementById("diffTabBundle").onclick = () => generateDiff('bundle');
+
+    document.getElementById("openNewTab").onclick = () => {
+      if (!outputs.html) {
+        showToast("Build first to preview in new tab!", "error");
+        return;
+      }
+      const blob = new Blob([outputs.html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    };
+
+
+    document.getElementById("diffCollapseBase64").onchange = generateDiff;
+    document.getElementById("diffWrap").onchange = generateDiff;
+
+    const getBuildConfig = () => {
+      const isCDN = document.getElementById('optCDN').checked;
+      return {
+        mode: document.getElementById("mode").value,
+        minifyHTML: document.getElementById("optMinifyHTML").checked,
+        minifyCSS: document.getElementById("optMinifyCSS").checked,
+        minifyJS: document.getElementById("optMinifyJS").checked,
+        comments: document.getElementById("optComments").checked,
+        console: document.getElementById("optConsole").checked,
+        useCDN: isCDN,
+      };
+    };
+
+    const executeBuild = async (excludedIds = []) => {
+      const config = getBuildConfig();
+
+      // Filter excluded assets
+      let buildAssets = assets.filter(a => !excludedIds.includes(a.id));
+      let htmlAssetsForBuild = buildAssets.filter(a => a.type === 'html');
+      let htmlSource = htmlAssetsForBuild[0];
+
+      if (htmlAssetsForBuild.length > 1 && config.mode !== 'batch') {
+        log(`<span class='text-yellow-500'>Warning:</span> Multiple HTML files detected. Only the first (<span class="font-bold">${htmlSource.name}</span>) will be used as the Bundle entry point.`);
+      }
+
+      if (buildAssets.length === 0) {
+        log("<span class='text-[#FF3366]'>Error:</span> No assets to build.");
+        return;
+      }
+
+      // 1. PREPARATION & FALLBACKS
+      if (config.mode === 'inline' && !htmlSource) {
+        log("<span class='text-yellow-500'>Note:</span> No HTML file found for Inline build. Auto-generating wrapper.");
+        // Create a virtual HTML asset for the pipeline
+        htmlSource = {
+          id: 'virtual-wrapper',
+          type: 'html',
+          name: 'index.generated.html',
+          content: '<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="utf-8">\n  <title>Bundled App</title>\n</head>\n<body>\n  <!-- Injected Content -->\n</body>\n</html>'
+        };
+        // We add it to 'buildAssets' so it goes through the processing pipeline.
+        buildAssets.push(htmlSource);
+      }
+
+      buildStatus.classList.remove('hidden');
+      const overlay = document.getElementById('loadingOverlay');
+      const subtext = document.getElementById('loadingSubtext');
+      const progressContainer = document.getElementById('loadingProgressContainer');
+      const progressBar = document.getElementById('loadingProgressBar');
+      const progressText = document.getElementById('loadingProgressText');
+
+      document.body.classList.add('is-processing');
+      overlay.classList.add('active');
+      progressContainer.classList.remove('hidden');
+      progressBar.style.width = '0%';
+      progressText.innerText = '0%';
+      subtext.classList.remove('hidden');
+
+      if (config.useCDN) {
+        subtext.innerText = "Downloading libraries from CDN...";
+      } else {
+        subtext.innerText = "Initializing build engine...";
+      }
+
+      // UI Yield
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      log("Starting modular build sequence...");
+      showToast("Build Started...");
+
+      // RESOLVE LIBRARIES
+      let Libs = {};
+      const libStart = performance.now();
+      try {
+        Libs = await resolveLibraries();
+      } catch (e) {
+        log(`<span class="text-[#FF3366]">Lib Error:</span> ${e.message}`);
+        overlay.classList.remove('active');
+        return;
+      }
+
+      const _CleanCSS = Libs.CleanCSS;
+      const _minifyHTML = Libs.minifyHTML;
+      const _minifyJS = Libs.minifyJS;
+
+      // RESET STATE
+      batchFiles = [];
+      outputs = { html: "", css: "", js: "" };
+      finals = { html: "", css: "", js: "", bundle: "" };
+      originals = { html: "", css: "", js: "", bundle: "" };
+      precomputedDiffs = { html: null, css: null, js: null, bundle: null };
+
+      try {
+        // --- 2. TRANSFORMATION PHASE (Parallelized Minification) ---
+        // Process all assets in parallel for faster builds
+
+        const cssAssets = buildAssets.filter(a => a.type === 'css');
+        const jsAssets = buildAssets.filter(a => a.type === 'js');
+        const htmlAssets = buildAssets.filter(a => a.type === 'html');
+        const otherAssets = buildAssets.filter(a => !['css', 'js', 'html'].includes(a.type));
+
+        const getBaseUrl = () => {
+          const href = window.location.href;
+          return href.substring(0, href.lastIndexOf('/') + 1);
+        };
+
+        const libsConfig = {
+          useCDN: config.useCDN,
+          cleanCssUrl: getBaseUrl() + 'lib/clean-css.js',
+          htmlMinifierUrl: getBaseUrl() + 'lib/html-minifier.js',
+          terserUrl: getBaseUrl() + 'lib/terser.js'
+        };
+
+        const workerScript = `
+          let libsLoaded = false;
+          self.onmessage = async function(e) {
+            const { action, id, asset, config, libs } = e.data;
+            try {
+              if (action === 'init') {
+                if (!libsLoaded) {
+                  if (libs.useCDN) {
+                    const session = Date.now();
+                    const [cssMod, htmlMod, jsMod] = await Promise.all([
+                      import("https://esm.sh/clean-css?v=" + session),
+                      import("https://esm.sh/html-minifier-terser?v=" + session),
+                      import("https://esm.sh/terser?v=" + session)
+                    ]);
+                    self.CleanCSS = cssMod.default;
+                    self.HTMLMinifier = htmlMod;
+                    self.Terser = jsMod;
+                  } else {
+                    importScripts(libs.cleanCssUrl, libs.htmlMinifierUrl, libs.terserUrl);
+                  }
+                  libsLoaded = true;
+                }
+                self.postMessage({ id, status: 'ready' });
+              } else if (action === 'minifyCSS') {
+                self.postMessage({ id, report: "Minifying CSS: " + asset.name });
+                let content = asset.content;
+                if (config.minifyCSS && self.CleanCSS) {
+                  let cssOpts = { level: 1, rebase: false };
+                  try {
+                    const result = new self.CleanCSS(cssOpts).minify(content);
+                    content = result.styles || content;
+                  } catch (cssErr) {
+                    console.error("CleanCSS error:", cssErr);
+                  }
+                } else if (config.comments) {
+                  content = content.replace(/\\/\\*[\\s\\S]*?\\*\\//g, '');
+                }
+                self.postMessage({ id, content });
+              } else if (action === 'minifyJS') {
+                self.postMessage({ id, report: "Compressing JS: " + asset.name });
+                let content = asset.content;
+                const minifyJS = self.Terser && self.Terser.minify;
+                if (config.minifyJS && minifyJS) {
+                  content = (await minifyJS(content, { compress: { drop_console: config.console } })).code;
+                } else if ((config.comments || config.console) && minifyJS) {
+                  const opts = { compress: { drop_console: config.console, defaults: false }, mangle: false, format: { beautify: true, comments: !config.comments } };
+                  content = (await minifyJS(content, opts)).code;
+                }
+                self.postMessage({ id, content });
+              } else if (action === 'minifyHTML') {
+                self.postMessage({ id, report: "Parsing HTML: " + asset.name });
+                let content = asset.content;
+                const minifyHTML = self.HTMLMinifier && self.HTMLMinifier.minify;
+                const shouldRun = config.minifyHTML || config.minifyCSS || config.minifyJS || config.comments;
+                if (shouldRun && minifyHTML) {
+                  const jsOpts = config.minifyJS ? { compress: { drop_console: config.console } } : false;
+                  const cssOpts = config.minifyCSS ? { level: 1, rebase: false } : false;
+                  try {
+                    content = await minifyHTML(content, {
+                      collapseWhitespace: config.minifyHTML,
+                      removeComments: config.comments,
+                      minifyCSS: cssOpts,
+                      minifyJS: jsOpts,
+                      ignoreCustomFragments: [/<script type="x-shader\\/.*?"[\\s\\S]*?<\\/script>/gi]
+                    });
+                  } catch (htmlErr) {
+                    console.error("HTML Minifier error:", htmlErr);
+                  }
+                }
+                self.postMessage({ id, content });
+              }
+            } catch (err) {
+              self.postMessage({ id, error: err.message });
+            }
+          };
+        `;
+
+        const workerBlob = new Blob([workerScript], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(workerBlob);
+
+        const tasks = [];
+        cssAssets.forEach(asset => tasks.push({ action: 'minifyCSS', asset }));
+        jsAssets.forEach(asset => tasks.push({ action: 'minifyJS', asset }));
+        htmlAssets.forEach(asset => tasks.push({ action: 'minifyHTML', asset }));
+
+        let processedCss = [];
+        let processedJs = [];
+        let processedHtml = [];
+
+        if (tasks.length > 0) {
+          log("Spawning Web Workers for parallel processing...");
+          subtext.innerText = "Spawning worker pool...";
+          if (buildAssets.length === 1 && htmlAssets.length === 1) {
+            log("Single HTML detected: Optimizing embedded resources...");
+          }
+          await new Promise((resolve, reject) => {
+            const maxWorkers = navigator.hardwareConcurrency || 4;
+            const numWorkers = Math.min(maxWorkers, tasks.length);
+            const workers = [];
+            let tasksCompleted = 0;
+            let currentTaskIdx = 0;
+
+            const pushToResult = (assetId, action, content) => {
+              const originalAsset = buildAssets.find(a => a.id === assetId);
+              const processed = { ...originalAsset, content };
+              if (action === 'minifyCSS') processedCss.push(processed);
+              else if (action === 'minifyJS') processedJs.push(processed);
+              else if (action === 'minifyHTML') processedHtml.push(processed);
+            };
+
+            const cleanup = () => {
+              workers.forEach(w => w.terminate());
+              URL.revokeObjectURL(workerUrl);
+            };
+
+            for (let i = 0; i < numWorkers; i++) {
+              const worker = new Worker(workerUrl);
+              workers.push(worker);
+
+              worker.postMessage({ action: 'init', id: 'init', libs: libsConfig });
+
+              worker.onmessage = (e) => {
+                const { id, status, content, error, report } = e.data;
+                if (error) {
+                  cleanup();
+                  reject(new Error(error));
+                  return;
+                }
+
+                if (report) {
+                  subtext.innerText = report;
+                  return;
+                }
+
+                if (id === 'init') {
+                  if (currentTaskIdx < tasks.length) {
+                    const taskId = currentTaskIdx++;
+                    const task = tasks[taskId];
+                    worker.postMessage({
+                      action: task.action,
+                      id: taskId,
+                      asset: task.asset,
+                      config: config
+                    });
+                  }
+                } else if (id !== undefined) {
+                  const task = tasks[id];
+                  pushToResult(task.asset.id, task.action, content);
+                  tasksCompleted++;
+
+                  const pct = Math.round((tasksCompleted / tasks.length) * 60);
+                  progressBar.style.width = pct + '%';
+                  progressText.innerText = pct + '%';
+
+                  if (tasksCompleted === tasks.length) {
+                    cleanup();
+                    resolve();
+                    return;
+                  }
+
+                  if (currentTaskIdx < tasks.length) {
+                    const taskId = currentTaskIdx++;
+                    const nextTask = tasks[taskId];
+                    worker.postMessage({
+                      action: nextTask.action,
+                      id: taskId,
+                      asset: nextTask.asset,
+                      config: config
+                    });
+                  }
+                }
+              };
+              worker.onerror = (err) => {
+                cleanup();
+                reject(err);
+              };
+            }
+          });
+        }
+
+        subtext.innerText = "Sorting back into original order...";
+        progressBar.style.width = "65%";
+        progressText.innerText = "65%";
+        await new Promise(r => setTimeout(r, 10));
+
+        const sortById = (arr, orig) => orig.map(o => arr.find(a => a.id === o.id)).filter(Boolean);
+        processedCss = sortById(processedCss, cssAssets);
+        processedJs = sortById(processedJs, jsAssets);
+        processedHtml = sortById(processedHtml, htmlAssets);
+
+        const processedAssets = [...processedCss, ...processedJs, ...processedHtml, ...otherAssets];
+
+        // --- 3. ASSEMBLY PHASE ---
+
+        if (config.mode === 'batch') {
+          log("Mode: Batch (Passthrough)");
+          batchFiles = processedAssets;
+
+          // Fast-track Batch processing: Avoid string aggregation to save memory.
+          // Diff processing is entirely disabled for batch mode.
+          originals = { html: "", css: "", js: "", bundle: "" };
+          finals = { html: "", css: "", js: "", bundle: "" };
+          outputs = { html: "", css: "", js: "", bundle: "" };
+
+        } else {
+          // Bundle or Inline
+          subtext.innerText = "Aggregating minified CSS and JS variables...";
+          progressBar.style.width = "70%";
+          progressText.innerText = "70%";
+          await new Promise(r => setTimeout(r, 10));
+
+          let combinedCSS = processedAssets.filter(a => a.type === 'css').map(a => a.content).join('\n');
+          let combinedJS = processedAssets.filter(a => a.type === 'js').map(a => a.content).join('\n');
+
+          let processedHtmlAsset = processedAssets.find(a => a.type === 'html');
+          let baseHTML = processedHtmlAsset ? processedHtmlAsset.content : (htmlSource ? htmlSource.content : "");
+
+          // Prepare Originals for Diff (Raw Concatenation of inputs)
+          originals.css = buildAssets.filter(a => a.type === 'css').map(a => a.content).join('\n');
+          originals.js = buildAssets.filter(a => a.type === 'js').map(a => a.content).join('\n');
+          originals.html = buildAssets.find(a => a.type === 'html')?.content || htmlSource.content; // Original HTML content
+
+          // Inline Images Handling (Affects both HTML and CSS content)
+          const mediaAssets = buildAssets.filter(a => a.type === 'media');
+          if (config.mode === 'inline' && mediaAssets.length > 0) {
+            subtext.innerText = `Inlining ${mediaAssets.length} base64 media assets...`;
+            progressBar.style.width = "75%";
+            progressText.innerText = "75%";
+            await new Promise(r => setTimeout(r, 10));
+
+            mediaAssets.forEach(media => {
+              const escapedName = media.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const pathRegex = new RegExp(`(['"\\(])(?:[^'"\\(\\)]*?\\/)?${escapedName}(['"\\)])`, 'g');
+              baseHTML = baseHTML.replace(pathRegex, (m, p1, p2) => `${p1}${media.content}${p2}`);
+              combinedCSS = combinedCSS.replace(pathRegex, (m, p1, p2) => `${p1}${media.content}${p2}`);
+              // For originals.html, we want the *original* HTML content, not with inlined images.
+              // The diff for 'html' tab should show structural changes, not content changes from inlining.
+              // So, we don't modify originals.html here.
+            });
+          }
+
+          // Processing HTML (Minify wrapper if needed)
+          // Note: We already minified the *input* HTML in Transformation Phase.
+          // But if we generated a wrapper or if content changed via injection, we might need a pass?
+          // Ideally, we transformed the source. If wrapper, we transform it now.
+          if (config.minifyHTML && _minifyHTML) {
+            subtext.innerText = "Performing final HTML optimization pass...";
+            await new Promise(r => setTimeout(r, 10));
+
+            const jsOpts = config.minifyJS ? { compress: { drop_console: config.console } } : false;
+            const cssOpts = config.minifyCSS ? { level: 1, rebase: false } : false;
+            try {
+              baseHTML = await _minifyHTML(baseHTML, {
+                collapseWhitespace: config.minifyHTML, // Use config.minifyHTML dynamically instead of true
+                removeComments: config.comments,
+                minifyCSS: cssOpts, // Ensure internal CSS is minified without URL rebasing
+                minifyJS: jsOpts,            // Ensure internal JS is minified
+                ignoreCustomFragments: [/<script type="x-shader\/.*?"[\s\S]*?<\/script>/gi] // Preserve GLSL shaders
+              });
+            } catch (err) {
+              console.error("Final HTML pass error:", err);
+            }
+          }
+
+          let finalHTML = baseHTML;
+
+          if (config.mode === 'inline') {
+            subtext.innerText = "Injecting styles and scripts into master HTML...";
+            await new Promise(r => setTimeout(r, 10));
+
+            log("Mode: Inline Assembly");
+            if (combinedCSS && finalHTML) {
+              if (finalHTML.includes('</head>')) finalHTML = finalHTML.replace('</head>', () => `<style>\n${combinedCSS}\n</style>\n</head>`);
+              else if (finalHTML.includes('<body')) finalHTML = finalHTML.replace(/<body/i, () => `<style>\n${combinedCSS}\n</style>\n<body`);
+              else finalHTML += `<style>\n${combinedCSS}\n</style>`;
+            }
+            if (combinedJS && finalHTML) {
+              if (finalHTML.includes('</body>')) finalHTML = finalHTML.replace('</body>', () => `<script>\n${combinedJS}\n<\/script>\n</body>`);
+              else if (finalHTML.includes('</html>')) finalHTML = finalHTML.replace('</html>', () => `<script>\n${combinedJS}\n<\/script>\n</html>`);
+              else finalHTML += `<script>\n${combinedJS}\n<\/script>`;
+            }
+          } else if (config.mode === 'bundle') {
+            log("Mode: Bundle Assembly");
+            const cssFilename = document.getElementById('outNameC').value || 'styles.min.css';
+            const jsFilename = document.getElementById('outNameJ').value || 'scripts.min.js';
+
+            if (finalHTML) {
+              if (combinedCSS) finalHTML = finalHTML.replace('</head>', () => `<link rel="stylesheet" href="${cssFilename}">\n</head>`);
+              if (combinedJS) finalHTML = finalHTML.replace('</body>', () => `<script src="${jsFilename}"><\/script>\n</body>`);
+            }
+          }
+
+          outputs = { html: finalHTML, css: combinedCSS, js: combinedJS };
+          // DECOUPLED from outputs to allow separate Diff views
+          finals = { ...outputs };
+
+          // Prepare "Bundle" Diff (Full Result)
+          // Original: Base HTML + Raw CSS + Raw JS (concatenated for comparison sake, or just Base HTML?)
+          // User wants "Final File Diff". Usually implies Original Source vs Final Bundle.
+          // To make it useful, we compare:
+          // Original: HTML with <link>/<script> tags (if any)
+          // Final: HTML with INLINED <style>/<script>
+          originals.bundle = originals.html; // The original HTML content
+          finals.bundle = finalHTML; // The fully processed HTML output
+
+          // For "HTML Only" diff, we want to strip the specific inlined blocks from the Final HTML
+          // so we can see if the MARKUP changed (minification).
+          // We'll create a "Cleaned Final" for the HTML tab.
+          if (config.mode === 'inline') {
+            // Use the pre-injection minified state for the HTML tab
+            const minifiedHtmlAsset = processedAssets.find(a => a.type === 'html');
+            if (minifiedHtmlAsset) {
+              finals.html = minifiedHtmlAsset.content;
+            } else {
+              // If no original HTML asset, but a virtual one was created, use its processed content
+              finals.html = processedAssets.find(a => a.id === 'virtual-wrapper')?.content || '';
+            }
+            // originals.html is already the base source.
+          } else { // For bundle mode, finals.html is just the HTML part of the output
+            finals.html = finalHTML;
+          }
+        }
+
+
+        // --- 4. DIFF GENERATION (Preload) ---
+        log("Calculating diffs...");
+        subtext.innerText = "Analyzing code differences (Diff Generator)...";
+        progressBar.style.width = "80%";
+        progressText.innerText = "80%";
+        await new Promise(r => setTimeout(r, 10));
+
+        const diffStartTime = performance.now();
+        const types = ['html', 'css', 'js', 'bundle'];
+        const collapse = document.getElementById("diffCollapseBase64").checked;
+        const b64Regex = /data:image\/[^;]+;base64,[a-zA-Z0-9+/=]+/g;
+        const replaceB64 = '[...BASE64...]';
+
+        let diffCount = 0;
+        for (const t of types) {
+          subtext.innerText = `Analyzing changes in ${t.toUpperCase()} source...`;
+          const diffPct = Math.round(80 + (diffCount / types.length) * 18); // Max 98%
+          progressBar.style.width = diffPct + '%';
+          progressText.innerText = diffPct + '%';
+          await new Promise(r => setTimeout(r, 20));
+
+          let sOrig = originals[t] || "";
+          let sOut = finals[t] || "";
+
+          if (!sOrig && !sOut) {
+            precomputedDiffs[t] = null;
+            continue;
+          }
+
+          // Guard: Skip diff computation if library not loaded
+          if (!Diff || typeof Diff.diffWords !== 'function') {
+            log("<span class='text-yellow-500'>Warning:</span> Diff library not loaded. Showing raw content.");
+            precomputedDiffs[t] = {
+              originalHtml: sOrig.replace(/</g, '&lt;').replace(/>/g, '&gt;'),
+              outputHtml: sOut.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            };
+            continue;
+          }
+
+          if (collapse) {
+            sOrig = sOrig.replace(b64Regex, replaceB64);
+            sOut = sOut.replace(b64Regex, replaceB64);
+          }
+
+          const MAX_DIFF_WORDS = 50000;
+          const MAX_RAW_SIZE = 250000;
+          const totalLength = sOrig.length + sOut.length;
+
+          if (totalLength > MAX_RAW_SIZE) {
+            log(`<span class='text-yellow-500'>Warning:</span> Diff skipped for ${t.toUpperCase()} because files are too large (${formatBytes(totalLength)}). Showing raw output to prevent browser crash.`);
+            precomputedDiffs[t] = {
+              originalHtml: `<span class="text-yellow-600 block mb-4 border-b border-yellow-800 pb-2">File too large to render diff gracefully.</span>\n` + sOrig.substring(0, 10000).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '\n\n... (file truncated in view)',
+              outputHtml: `<span class="text-yellow-600 block mb-4 border-b border-yellow-800 pb-2">Showing full text preview only.</span>\n` + sOut.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            };
+            continue;
+          }
+
+          let d = [];
+          if (totalLength > MAX_DIFF_WORDS) {
+            log(`<span class='text-[#555]'>Note:</span> Using fast line-diff for ${t.toUpperCase()} to maintain performance.`);
+            d = Diff.diffLines(sOrig, sOut);
+          } else {
+            d = Diff.diffWords(sOrig, sOut);
+          }
+
+          subtext.innerText = `Painting ${t.toUpperCase()} diff view...`;
+          await new Promise(r => setTimeout(r, 10));
+
+          let outHtml = '', origHtml = '';
+          d.forEach(part => {
+            const v = part.value.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            if (part.added) outHtml += `<span class="bg-green-200 text-green-900 font-bold">${v}</span>`;
+            else if (part.removed) origHtml += `<span class="bg-red-200 text-red-900 font-bold">${v}</span>`;
+            else {
+              outHtml += `<span class="text-gray-500">${v}</span>`;
+              origHtml += `<span class="text-gray-500">${v}</span>`;
+            }
+          });
+
+          precomputedDiffs[t] = { originalHtml: origHtml, outputHtml: outHtml };
+          diffCount++;
+          // Yield to UI to allow painting if processing multiple large diffs
+          await new Promise(r => setTimeout(r, 10));
+        }
+        log(`Diffs computed in ${(performance.now() - diffStartTime).toFixed(0)}ms`);
+
+        // Final UI Updates
+        progressBar.style.width = '100%';
+        progressText.innerText = '100%';
+        subtext.innerText = "Finalizing build...";
+        await new Promise(r => setTimeout(r, 10));
+
+        // Update UI
+        if (config.mode === 'batch') {
+          document.getElementById("previewFrame").srcdoc = "<html><body><h2 style='font-family:monospace; text-align:center; margin-top:20%'>BATCH MODE PREVIEW UNAVAILABLE<br>Download ZIP to inspect files.</h2></body></html>";
+        } else {
+          document.getElementById("previewFrame").srcdoc = outputs.html;
+        }
+
+        generateDiff();
+
+        // Update Download Buttons
+        if (config.mode === 'batch') {
+          document.getElementById("downH").classList.add('hidden');
+          document.getElementById("downC").classList.add('hidden');
+          document.getElementById("downJ").classList.add('hidden');
+          document.getElementById("optZip").checked = true;
+        } else {
+          document.getElementById("downH").classList.toggle('hidden', !outputs.html);
+          document.getElementById("downC").classList.toggle('hidden', !outputs.css);
+          document.getElementById("downJ").classList.toggle('hidden', !outputs.js);
+        }
+
+        log("<span class='text-[#58CC02] font-bold'>Build Complete.</span>");
+        showToast("Build Success!", "success");
+        document.querySelector('[data-tab="output"]').click();
+
+      } catch (err) {
+        log(`<span class="text-[#FF3366]">Error:</span> ${err.message}`);
+        console.error(err);
+        showToast("Build Failed", "error");
+      } finally {
+        document.body.classList.remove('is-processing');
+        buildStatus.classList.add('hidden');
+        document.getElementById('loadingOverlay').classList.remove('active');
+      }
+    };
+
+    // Utils
+    const dl = (n, c) => {
+      if (!c) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([c], { type: "text/plain" }));
+      a.download = n;
+      a.click();
+    };
+
+    document.getElementById("downH").onclick = () => dl(document.getElementById("outNameH").value || 'index.min.html', outputs.html);
+    document.getElementById("downC").onclick = () => dl(document.getElementById("outNameC").value || 'styles.min.css', outputs.css);
+    document.getElementById("downJ").onclick = () => dl(document.getElementById("outNameJ").value || 'scripts.min.js', outputs.js);
+
+    // ZIP Download Function
+    const downloadAsZip = async () => {
+      if (typeof JSZip === 'undefined') {
+        showToast("JSZip not loaded!", "error");
+        return;
+      }
+
+      const zip = new JSZip();
+      const config = getBuildConfig();
+      const htmlName = document.getElementById("outNameH").value || 'index.min.html';
+      const cssName = document.getElementById("outNameC").value || 'styles.min.css';
+      const jsName = document.getElementById("outNameJ").value || 'scripts.min.js';
+
+      if (outputs.html && config.mode !== 'batch') zip.file(htmlName, outputs.html);
+      if (outputs.css && config.mode !== 'batch') zip.file(cssName, outputs.css);
+      if (outputs.js && config.mode !== 'batch') zip.file(jsName, outputs.js);
+
+      if (config.mode === 'bundle') {
+        const mediaAssets = assets.filter(a => a.type === 'media');
+        mediaAssets.forEach(media => {
+          const base64Data = media.content.split(',')[1];
+          zip.file(media.name, base64Data, { base64: true });
+        });
+
+        // Also include other HTML files that aren't the primary output
+        const htmlFiles = assets.filter(a => a.type === 'html');
+        if (htmlFiles.length > 1) {
+          htmlFiles.slice(1).forEach((html, i) => {
+            zip.file(html.name, html.content);
+          });
+        }
+      }
+
+      if (config.mode === 'batch') {
+        batchFiles.forEach(f => {
+          // Simple renaming strategy for batch: .css -> .min.css
+          let name = f.name;
+          if (f.type !== 'media') {
+            // Granular renaming for batch mode
+            if (f.type === 'css' && document.getElementById("optMinifyCSS").checked) name = name.replace(/\.css/i, '.min.css');
+            if (f.type === 'js' && document.getElementById("optMinifyJS").checked) name = name.replace(/\.js/i, '.min.js');
+            if (f.type === 'html' && document.getElementById("optMinifyHTML").checked) name = name.replace(/\.html/i, '.min.html');
+            zip.file(name, f.content);
+          } else {
+            // Media files must be saved as binary by stripping Data URL prefix
+            const base64Data = f.content.split(',')[1];
+            zip.file(name, base64Data, { base64: true });
+          }
+        });
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(content);
+      a.download = 'bundle.zip';
+      a.click();
+
+      showToast("ZIP Downloaded!", "success");
+    };
+
+    document.getElementById("downA").onclick = () => {
+      const useZip = document.getElementById("optZip").checked;
+
+      if (useZip) {
+        downloadAsZip();
+      } else {
+        // Sequential download
+        dl(document.getElementById("outNameH").value || 'index.min.html', outputs.html);
+        if (outputs.css) dl(document.getElementById("outNameC").value || 'styles.min.css', outputs.css);
+        if (outputs.js) dl(document.getElementById("outNameJ").value || 'scripts.min.js', outputs.js);
+      }
+    };
+
+    // Mode change handler - disable ZIP toggle for inline mode
+    const modeSelector = document.getElementById("mode");
+    const zipCheckbox = document.getElementById("optZip");
+    const zipLabel = document.getElementById("zipToggleLabel");
+
+    const updateZipToggleState = () => {
+      const mode = modeSelector.value;
+
+      if (mode === 'inline') {
+        // Inline: Single file, no Zip needed usually (but optional)
+        zipCheckbox.disabled = true;
+        zipCheckbox.checked = false;
+        zipLabel.classList.add('opacity-50', 'cursor-not-allowed');
+      } else if (mode === 'batch') {
+        // Batch: MUST be Zip
+        zipCheckbox.disabled = true;
+        zipCheckbox.checked = true;
+        zipLabel.classList.add('opacity-50', 'cursor-not-allowed');
+      } else {
+        // Bundle: Choice
+        zipCheckbox.disabled = false;
+        zipLabel.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    };
+
+    modeSelector.addEventListener('change', updateZipToggleState);
+    // Initialize state on load
+    updateZipToggleState();
+
+    document.getElementById("togglePreview").onclick = () => {
+      const box = document.getElementById("previewBox");
+      box.classList.toggle('hidden');
+    };
+
+    // --- EXTRACTOR LOGIC ---
+    const extractorInput = document.getElementById("extractorInput");
+    const extractorUploadBtn = document.getElementById("extractorUploadBtn");
+    const extractorList = document.getElementById("extractorList");
+    const extractorDownloadAll = document.getElementById("extractorDownloadAll");
+    const extractorEmptyState = document.getElementById("extractorEmptyState");
+    const extBase64Dec = document.getElementById("extBase64Dec");
+
+    let extractedAssets = [];
+
+    extractorUploadBtn.onclick = () => extractorInput.click();
+
+    extractorInput.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      log(`[EXTRACTOR] Processing file: <span class="text-[#FF3366]">${file.name}</span>...`);
+
+      const htmlText = await file.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, 'text/html');
+
+      extractedAssets = [];
+      let extractIdCount = 1;
+
+      const addExAsset = (name, content, type) => {
+        extractedAssets.push({ id: extractIdCount++, name, content, type });
+      };
+
+      // 1. Extract CSS
+      const styles = doc.querySelectorAll('style');
+      styles.forEach((styleTag, index) => {
+        let content = styleTag.innerHTML;
+        let name = styles.length === 1 ? 'extracted_style.css' : `extracted_style_${index + 1}.css`;
+        addExAsset(name, content, 'css');
+
+        const link = doc.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = name;
+        styleTag.replaceWith(link);
+      });
+
+      // 2. Extract JS
+      const scripts = doc.querySelectorAll('script');
+      scripts.forEach((scriptTag, index) => {
+        if (scriptTag.hasAttribute('src')) return;
+
+        const typeAttr = scriptTag.getAttribute('type');
+        if (typeAttr && typeAttr.includes('x-shader')) {
+          let ext = typeAttr.includes('fragment') ? 'frag' : (typeAttr.includes('vertex') ? 'vert' : 'glsl');
+          addExAsset(`shader_${index + 1}.${ext}`, scriptTag.innerHTML, 'glsl');
+          return;
+        }
+
+        let name = scripts.length === 1 ? 'extracted_script.js' : `extracted_script_${index + 1}.js`;
+        addExAsset(name, scriptTag.innerHTML, 'js');
+
+        const newScript = doc.createElement('script');
+        newScript.src = name;
+        newScript.defer = true;
+        scriptTag.replaceWith(newScript);
+      });
+
+      // 3. Extract Base64 Images
+      if (extBase64Dec.checked) {
+        const imgs = doc.querySelectorAll('img[src^="data:image"]');
+        imgs.forEach((imgTag, index) => {
+          const src = imgTag.getAttribute('src');
+          const mimeMatch = src.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,/);
+          if (mimeMatch) {
+            const mimeType = mimeMatch[1];
+            let ext = 'png';
+            if (mimeType.includes('jpeg') || mimeType.includes('jpg')) ext = 'jpg';
+            else if (mimeType.includes('gif')) ext = 'gif';
+            else if (mimeType.includes('svg')) ext = 'svg';
+            else if (mimeType.includes('webp')) ext = 'webp';
+
+            const name = `extracted_image_${index + 1}.${ext}`;
+            addExAsset(name, src, 'image');
+            imgTag.setAttribute('src', name);
+          }
+        });
+      }
+
+      const finalHTML = `<!DOCTYPE html>\n${doc.documentElement.lang ? '<html lang="' + doc.documentElement.lang + '">' : '<html>'}\n${doc.documentElement.innerHTML}\n</html>`;
+      addExAsset(`index_extracted.html`, finalHTML, 'html');
+
+      log(`[EXTRACTOR] Extraction complete. Found ${extractedAssets.length} distinct assets.`);
+      showToast("Extraction Complete", "success");
+      renderExtractorList();
+      extractorInput.value = '';
+    };
+
+    const renderExtractorList = () => {
+      extractorList.innerHTML = '';
+      if (extractedAssets.length === 0) {
+        extractorList.appendChild(extractorEmptyState);
+        extractorDownloadAll.disabled = true;
+        extractorDownloadAll.classList.add('hidden');
+        return;
+      }
+      extractorDownloadAll.disabled = false;
+      extractorDownloadAll.classList.remove('hidden');
+
+      const frag = document.createDocumentFragment();
+      extractedAssets.forEach(asset => {
+        let sizeBytes = asset.type === 'image' ? Math.round((asset.content.length - asset.content.indexOf(',')) * 0.75) : new Blob([asset.content]).size;
+
+        let visualColor = '#FF3366';
+        if (asset.type === 'html') visualColor = '#121212';
+        else if (asset.type === 'css') visualColor = '#0055ff';
+        else if (asset.type === 'js') visualColor = '#eebb00';
+        else if (asset.type === 'glsl') visualColor = '#9900ff';
+
+        const row = document.createElement('div');
+        row.className = "flex justify-between items-center p-3 bg-white border border-[#ccc] brutal-shadow mb-2 hover:border-[#121212] transition-colors";
+        row.innerHTML = `
+          <div class="flex items-center gap-3">
+             <div class="w-3 h-3 rounded-full border border-black" style="background:${visualColor}"></div>
+             <div>
+                <div class="font-bold text-sm font-mono text-[#121212]">${asset.name}</div>
+                <div class="text-[10px] text-[#888] font-mono">${formatBytes(sizeBytes)} • ${asset.type.toUpperCase()}</div>
+             </div>
+          </div>
+          <button class="bg-[#121212] flex items-center gap-1 text-white hover:bg-[#FF3366] text-[10px] px-3 py-2 font-bold tracking-wider uppercase" onclick="downloadExtractedAsset(${asset.id})"><span>⬇</span> Save</button>
+        `;
+        frag.appendChild(row);
+      });
+      extractorList.appendChild(frag);
+    };
+
+    window.downloadExtractedAsset = (id) => {
+      const asset = extractedAssets.find(a => a.id === id);
+      if (!asset) return;
+
+      if (asset.type === 'image') {
+        const a = document.createElement('a');
+        a.href = asset.content;
+        a.download = asset.name;
+        a.click();
+      } else {
+        dl(asset.name, asset.content);
+      }
+    };
+
+    extractorDownloadAll.onclick = async () => {
+      if (extractedAssets.length === 0) return;
+
+      if (typeof JSZip === 'undefined') {
+        showToast("JSZip not loaded!", "error");
+        return;
+      }
+
+      const zip = new JSZip();
+
+      extractedAssets.forEach(asset => {
+        if (asset.type === 'image') {
+          const base64Data = asset.content.split(',')[1];
+          zip.file(asset.name, base64Data, { base64: true });
+        } else {
+          zip.file(asset.name, asset.content);
+        }
+      });
+
+      try {
+        const blob = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `extracted_project.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast("Extraction ZIP Downloaded", "success");
+      } catch (err) {
+        console.error(err);
+        showToast("ZIP Generation Failed", "error");
+        log(`<span class="text-[#FF3366]">Extractor ZIP Error: ${err.message}</span>`);
+      }
+    };
+
+    // Custom Cursor Logic - Throttled with RAF for performance
+    const cursor = document.getElementById('cursor');
+
+    if (cursor) {
+      let cursorX = 0, cursorY = 0;
+      let rafScheduled = false;
+
+      document.addEventListener('mousemove', (e) => {
+        cursorX = e.clientX;
+        cursorY = e.clientY;
+        if (!rafScheduled) {
+          rafScheduled = true;
+          requestAnimationFrame(() => {
+            cursor.style.transform = `translate3d(calc(${cursorX}px - 50%), calc(${cursorY}px - 50%), 0)`;
+            rafScheduled = false;
+          });
+        }
+      });
+
+      const interactiveElements = 'a, button, .tab-btn, .asset-item';
+
+      document.addEventListener('mouseover', (e) => {
+        if (e.target.closest(interactiveElements)) {
+          cursor.classList.add('hovered');
+        }
+      });
+
+      document.addEventListener('mouseout', (e) => {
+        if (e.target.closest(interactiveElements)) {
+          cursor.classList.remove('hovered');
+        }
+      });
+    }
+
+    // --- SESSION MANAGEMENT ---
+    const getProjectData = () => {
+      // Sync editor state before grabbing
+      if (activeAssetId) {
+        const current = assets.find(a => a.id === activeAssetId);
+        if (current && current.type !== 'media') current.content = mainEditor.value;
+      }
+      return {
+        assets,
+        activeAssetId,
+        outputs,
+        originals,
+        finals,
+        batchFiles,
+        precomputedDiffs,
+        config: getBuildConfig(),
+        filenames: {
+          h: document.getElementById("outNameH").value,
+          c: document.getElementById("outNameC").value,
+          j: document.getElementById("outNameJ").value
+        }
+      };
+    };
+
+    const restoreUIState = (config) => {
+      if (config.mode === 'batch') {
+        document.getElementById("previewFrame").srcdoc = "<html><body><h2 style='font-family:monospace; text-align:center; margin-top:20%'>BATCH MODE PREVIEW UNAVAILABLE<br>Download ZIP to inspect files.</h2></body></html>";
+      } else if (outputs.html) {
+        document.getElementById("previewFrame").srcdoc = outputs.html;
+      } else {
+        document.getElementById("previewFrame").srcdoc = "";
+      }
+
+      generateDiff();
+
+      if (config.mode === 'batch') {
+        document.getElementById("downH").classList.add('hidden');
+        document.getElementById("downC").classList.add('hidden');
+        document.getElementById("downJ").classList.add('hidden');
+        document.getElementById("optZip").checked = true;
+      } else {
+        document.getElementById("downH").classList.toggle('hidden', !outputs.html);
+        document.getElementById("downC").classList.toggle('hidden', !outputs.css);
+        document.getElementById("downJ").classList.toggle('hidden', !outputs.js);
+      }
+    };
+
+    const loadProjectData = (data) => {
+      if (!data || !data.assets) throw new Error("Invalid project data in session.");
+
+      assets = data.assets;
+      activeAssetId = data.activeAssetId || (assets.length > 0 ? assets[0].id : null);
+
+      if (data.outputs) outputs = data.outputs;
+      if (data.originals) originals = data.originals;
+      if (data.finals) finals = data.finals;
+      if (data.batchFiles) batchFiles = data.batchFiles;
+      if (data.precomputedDiffs) precomputedDiffs = data.precomputedDiffs;
+
+      if (data.filenames) {
+        document.getElementById("outNameH").value = data.filenames.h || 'index.min.html';
+        document.getElementById("outNameC").value = data.filenames.c || 'styles.min.css';
+        document.getElementById("outNameJ").value = data.filenames.j || 'scripts.min.js';
+      }
+
+      if (data.config) {
+        document.getElementById("mode").value = data.config.mode || 'inline';
+        if (data.config.minifyHTML !== undefined) document.getElementById("optMinifyHTML").checked = data.config.minifyHTML;
+        if (data.config.minifyCSS !== undefined) document.getElementById("optMinifyCSS").checked = data.config.minifyCSS;
+        if (data.config.minifyJS !== undefined) document.getElementById("optMinifyJS").checked = data.config.minifyJS;
+        if (data.config.comments !== undefined) document.getElementById("optComments").checked = data.config.comments;
+        if (data.config.console !== undefined) document.getElementById("optConsole").checked = data.config.console;
+        if (data.config.useCDN !== undefined) document.getElementById("optCDN").checked = data.config.useCDN;
+        updateZipToggleState();
+      }
+
+      assetSizeCache.clear();
+      renderAssetList();
+      if (activeAssetId) selectAsset(activeAssetId);
+
+      restoreUIState(data.config || getBuildConfig());
+    };
+
+    // Manual Save/Load Files
+    document.getElementById("exportProjectBtn").onclick = () => {
+      if (assets.length === 0) {
+        showToast("No assets to export!", "error");
+        return;
+      }
+      log("Exporting session data...");
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(getProjectData()));
+      const a = document.createElement('a');
+      a.href = dataStr;
+      a.download = `bundler_session_${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast("Session Exported", "success");
+    };
+
+    const projectInput = document.getElementById("projectInput");
+    document.getElementById("importProjectBtn").onclick = () => projectInput.click();
+
+    projectInput.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      log(`Loading session from <span class="text-[#FF3366]">${file.name}</span>...`);
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        loadProjectData(data);
+        showToast("Session Loaded", "success");
+        log(`Restored session with ${assets.length} assets and preserved computations.`);
+      } catch (err) {
+        showToast("Failed to load session", "error");
+        log(`<span class="text-[#FF3366]">Session Load Error:</span> ${err.message}`);
+      }
+      projectInput.value = '';
+    };
+
+    const cores = navigator.hardwareConcurrency || 4;
+    log(`System initialized. Detected <span class="text-[#58CC02] font-bold">${cores}</span> logical CPU cores available for parallel processing.`);
+    renderAssetList();
+  </script>
+</body>
+
+</html>
