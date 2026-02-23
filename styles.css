@@ -51,6 +51,16 @@ body {
     opacity: 1 !important;
 }
 
+#line-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 15000;
+}
+
 /* 3. Style for when the cursor is hovering over interactive elements */
 #cursor.hovered {
     width: 50px;
@@ -300,14 +310,9 @@ body {
     position: absolute;
     top: 0;
     left: 0;
-    width: 0;
+    width: 100%;
     height: 4px;
     background: #000;
-    transition: width 0.3s ease;
-}
-
-.project-card.reveal-visible::before {
-    width: 100%;
 }
 
 .project-card:hover {
@@ -461,14 +466,9 @@ body {
     position: absolute;
     bottom: -4px;
     right: -4px;
-    width: 0;
+    width: 100%;
     height: 4px;
     background: #000;
-    transition: width 0.5s ease 0.2s;
-}
-
-.bio-text.reveal-visible::after {
-    width: 100%;
 }
 
 .bio-text p {
@@ -497,6 +497,47 @@ a.highlight:hover {
 .download-trigger:hover {
     background-color: #fdf1ca;
     color: #000;
+}
+
+/* Cream Mod Hover Effect */
+.cream-hover-container {
+    position: relative;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    overflow: visible;
+}
+
+.cream-text {
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    display: inline-block;
+}
+
+.muffin-image {
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    opacity: 0;
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: scale(0) rotate(-180deg);
+    object-fit: cover;
+    pointer-events: none;
+}
+
+.cream-hover-container:hover .cream-text {
+    transform: rotate(360deg) scale(0);
+    opacity: 0;
+}
+
+.cream-hover-container:hover .muffin-image {
+    opacity: 1;
+    transform: scale(1.8) rotate(0deg);
+}
+
+.cream-hover-container.bordered:hover {
+    background-color: transparent;
+    color: inherit;
 }
 
 .bordered {
@@ -688,34 +729,7 @@ a.highlight:hover {
     }
 }
 
-/* ============================================
-   SCROLL ANIMATIONS
-   ============================================ */
 
-.reveal-on-scroll {
-    opacity: 0;
-    transform: translateY(40px);
-    transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1), transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
-    will-change: opacity, transform;
-}
-
-.reveal-visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* Stagger delays for grouped elements */
-.reveal-delay-1 {
-    transition-delay: 0.1s;
-}
-
-.reveal-delay-2 {
-    transition-delay: 0.2s;
-}
-
-.reveal-delay-3 {
-    transition-delay: 0.3s;
-}
 
 
 /* ============================================
@@ -759,6 +773,11 @@ a.highlight:hover {
 .popup-overlay.active .popup-content {
     transform: scale(1) translateY(0);
 }
+
+.popup-content.large-popup {
+    max-width: 900px;
+}
+
 
 .popup-close {
     position: absolute;
@@ -852,4 +871,80 @@ a.highlight:hover {
     .link-text {
         font-size: 16px;
     }
+}
+
+/* Mod Popup Styles */
+.mod-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.mod-grid-item {
+    border: 3px solid #000;
+    overflow: hidden;
+    aspect-ratio: 16/9;
+    background-color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.mod-grid-item:hover {
+    transform: scale(1.02);
+}
+
+
+.mod-grid-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.download-main-btn {
+    border: 4px solid #000;
+    padding: 16px 32px;
+    font-size: 20px;
+    font-weight: bold;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 6px 6px 0px 0px #000;
+    transition: all 0.2s ease;
+}
+
+.download-main-btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 8px 8px 0px 0px #000;
+}
+
+.download-main-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px 0px #000;
+}
+
+/* Image Viewer Content */
+.image-viewer-content {
+    position: relative;
+    max-width: 95vw;
+    max-height: 95vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    border: 4px solid #000;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+}
+
+.image-viewer-content img {
+    max-width: 100%;
+    max-height: 90vh;
+    object-fit: contain;
+}
+
+.image-viewer-overlay {
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(8px);
 }

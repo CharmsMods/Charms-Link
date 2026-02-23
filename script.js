@@ -22,21 +22,7 @@ function scrollToBio() {
     bioSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Add loading animation
-document.addEventListener('DOMContentLoaded', () => {
-    const projectCards = document.querySelectorAll('.project-card');
 
-    projectCards.forEach((card, index) => {
-        card.style.opacity = '0';
-        card.style.transform = 'translateY(20px)';
-
-        setTimeout(() => {
-            card.style.transition = 'opacity 0.6s ease, transform 0.6s ease, box-shadow 0.15s ease, transform 0.15s ease';
-            card.style.opacity = '1';
-            card.style.transform = 'translateY(0)';
-        }, 100 * index);
-    });
-});
 // ============================================
 // ARCHITECTURE POPUP LOGIC
 // ============================================
@@ -82,7 +68,7 @@ if (cursor) {
     });
 
     // Handle hover states for interactive elements
-    const interactiveElements = 'a, button, .project-card, .social-icon, .popup-link, .popup-close';
+    const interactiveElements = 'a, button, .project-card, .social-icon, .popup-link, .popup-close, .mod-grid-item';
 
     document.addEventListener('mouseover', (e) => {
         if (e.target.closest(interactiveElements)) {
@@ -132,40 +118,184 @@ document.addEventListener('mousemove', (e) => {
     body.style.backgroundPosition = `calc(50% + ${moveX}px) calc(50% + ${moveY}px)`;
 });
 
+
 // ============================================
-// SCROLL ANIMATION OBSERVER
+// CREAM MOD POPUP LOGIC
 // ============================================
 
-const revealObserver = new IntersectionObserver((entries, observer) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            entry.target.classList.add('reveal-visible');
-        } else {
-            entry.target.classList.remove('reveal-visible');
-        }
-    });
-}, {
-    root: null,
-    threshold: 0.15, // Trigger when 15% visible
-    rootMargin: "0px"
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-    const revealElements = document.querySelectorAll('.reveal-on-scroll');
-    revealElements.forEach(el => revealObserver.observe(el));
-});
-// ============================================
-// DOWNLOAD CONFIRMATION
-// ============================================
+const creamModOverlay = document.getElementById('creamModOverlay');
+const closeCreamPopup = document.getElementById('closeCreamPopup');
 
 function confirmDownload() {
-    const url = "Cream Mod.zip";
-    if (confirm("Would you like to download Cream Mod made by Charm?")) {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = "Cream Mod.zip";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    if (creamModOverlay) {
+        creamModOverlay.classList.add('active');
     }
 }
+
+if (closeCreamPopup && creamModOverlay) {
+    closeCreamPopup.addEventListener('click', () => {
+        creamModOverlay.classList.remove('active');
+    });
+
+    creamModOverlay.addEventListener('click', (e) => {
+        if (e.target === creamModOverlay) {
+            creamModOverlay.classList.remove('active');
+        }
+    });
+
+    // Share escape key logic with Architecture popup
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            creamModOverlay.classList.remove('active');
+        }
+    });
+}
+
+function startDownload() {
+    const url = "Cream Mod.zip";
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = "Cream Mod.zip";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// ============================================
+// IMAGE VIEWER LOGIC
+// ============================================
+
+const imageViewerOverlay = document.getElementById('imageViewerOverlay');
+const fullscreenImage = document.getElementById('fullscreenImage');
+const closeImageViewer = document.getElementById('closeImageViewer');
+
+function openFullscreen(src) {
+    if (imageViewerOverlay && fullscreenImage) {
+        fullscreenImage.src = src;
+        imageViewerOverlay.classList.add('active');
+    }
+}
+
+if (closeImageViewer && imageViewerOverlay) {
+    closeImageViewer.addEventListener('click', () => {
+        imageViewerOverlay.classList.remove('active');
+    });
+
+    imageViewerOverlay.addEventListener('click', () => {
+        imageViewerOverlay.classList.remove('active');
+    });
+
+    // Share escape logic
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            imageViewerOverlay.classList.remove('active');
+        }
+    });
+}
+// ============================================
+// CURSOR CONNECTION LINES
+// ============================================
+
+const canvas = document.getElementById('line-canvas');
+const ctx = canvas.getContext('2d');
+let mouseX = 0;
+let mouseY = 0;
+let targetsCached = [];
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+function updateTargets() {
+    targetsCached = Array.from(document.querySelectorAll('.highlight, .bordered')).filter(el => {
+        const style = window.getComputedStyle(el);
+        const rect = el.getBoundingClientRect();
+
+        // Skip elements that are effectively invisible or have no size
+        if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) <= 0) return false;
+        if (rect.width === 0 || rect.height === 0) return false;
+
+        // Skip elements inside inactive popups/overlays
+        const overlay = el.closest('.popup-overlay');
+        if (overlay && !overlay.classList.contains('active')) return false;
+
+        // Ensure it has a valid position in the DOM (unless fixed)
+        if (el.offsetParent === null && style.position !== 'fixed') return false;
+
+        // Ensure it doesn't contain a large image (muffin-image is okay)
+        const images = Array.from(el.getElementsByTagName('img'));
+        const hasLargeImage = images.some(img => !img.classList.contains('muffin-image'));
+
+        return !hasLargeImage && el.tagName !== 'IMG';
+    });
+}
+
+// Initial setup
+window.addEventListener('resize', () => {
+    resizeCanvas();
+    updateTargets();
+});
+
+window.addEventListener('scroll', () => {
+    updateTargets();
+    // Manual redraw trigger for high-frequency scroll events
+    if (targetsCached.length > 0) {
+        drawLines();
+    }
+}, { passive: true });
+
+document.addEventListener('DOMContentLoaded', updateTargets);
+document.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+});
+
+// Watch for popup changes
+const observer = new MutationObserver(updateTargets);
+observer.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
+
+function drawLines() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Disable lines if any popup overlay is open
+    const anyActivePopup = document.querySelector('.popup-overlay.active');
+    if (anyActivePopup) {
+        requestAnimationFrame(drawLines);
+        return;
+    }
+
+    const threshold = 250;
+
+    targetsCached.forEach(target => {
+        const rect = target.getBoundingClientRect();
+
+        // Skip if the element is completely outside the viewport
+        if (rect.bottom < 0 || rect.top > window.innerHeight || rect.right < 0 || rect.left > window.innerWidth) {
+            return;
+        }
+
+        const targetX = rect.left + rect.width / 2;
+        const targetY = rect.top + rect.height / 2;
+
+        const distance = Math.sqrt(Math.pow(mouseX - targetX, 2) + Math.pow(mouseY - targetY, 2));
+
+        if (distance < threshold) {
+            ctx.beginPath();
+            ctx.moveTo(mouseX, mouseY);
+            ctx.lineTo(targetX, targetY);
+
+            const opacity = 1 - (distance / threshold);
+            ctx.strokeStyle = `rgba(0, 0, 0, ${opacity * 0.9})`;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+    });
+
+    requestAnimationFrame(drawLines);
+}
+
+// Kick off
+resizeCanvas();
+updateTargets();
+drawLines();

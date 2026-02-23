@@ -11,6 +11,7 @@
 
 <body>
     <div id="cursor"></div>
+    <canvas id="line-canvas"></canvas>
 
     <!-- Fixed Social Bar -->
     <div class="social-bar" id="socialBar">
@@ -68,7 +69,7 @@
                 <!-- Project Grid -->
                 <div class="project-grid">
                     <a href="Image Tools Landing/Current/index.html" target="_blank" rel="noopener noreferrer"
-                        class="project-card reveal-on-scroll" style="background-color: #e07a5f;">
+                        class="project-card" style="background-color: #e07a5f;">
                         <div class="project-image">
                             <span class="project-letter">I</span>
                         </div>
@@ -79,7 +80,7 @@
                     </a>
 
                     <a href="Charms Web Tools/image-converter.html" target="_blank" rel="noopener noreferrer"
-                        class="project-card reveal-on-scroll reveal-delay-1" style="background-color: #3d405b;">
+                        class="project-card" style="background-color: #3d405b;">
                         <div class="project-image">
                             <span class="project-letter">C</span>
                         </div>
@@ -90,8 +91,7 @@
                     </a>
 
                     <a href="Charms Web Tools/Site Bundler/Bundler dev/GLM Brutalist Dev for v5/v8.html" target="_blank"
-                        rel="noopener noreferrer" class="project-card reveal-on-scroll reveal-delay-2"
-                        style="background-color: #81b29a;">
+                        rel="noopener noreferrer" class="project-card" style="background-color: #81b29a;">
                         <div class="project-image">
                             <span class="project-letter">H</span>
                         </div>
@@ -102,7 +102,7 @@
                     </a>
 
                     <a href="Charms Web Tools/Charms Web Tools.html" target="_blank" rel="noopener noreferrer"
-                        class="project-card reveal-on-scroll" style="background-color: #f2cc8f;">
+                        class="project-card" style="background-color: #f2cc8f;">
                         <div class="project-image">
                             <span class="project-letter">O</span>
                         </div>
@@ -113,7 +113,7 @@
                     </a>
 
                     <a href="https://charmsmods.github.io/Charms-Main-Site/" target="_blank" rel="noopener noreferrer"
-                        class="project-card reveal-on-scroll reveal-delay-1" style="background-color: #d62828;">
+                        class="project-card" style="background-color: #d62828;">
                         <div class="project-image">
                             <span class="project-letter">V</span>
                         </div>
@@ -123,8 +123,8 @@
                         </div>
                     </a>
 
-                    <a href="#####" id="architectureBtn" target="_blank" rel="noopener noreferrer"
-                        class="project-card reveal-on-scroll reveal-delay-2" style="background-color: #5e548e;">
+                    <a href="#####" id="architectureBtn" target="_blank" rel="noopener noreferrer" class="project-card"
+                        style="background-color: #5e548e;">
                         <div class="project-image">
                             <span class="project-letter">A</span>
                         </div>
@@ -165,6 +165,37 @@
                 </div>
             </div>
 
+            <!-- Cream Mod Popup Overlay -->
+            <div id="creamModOverlay" class="popup-overlay">
+                <div id="creamModPopup" class="popup-content large-popup">
+                    <button id="closeCreamPopup" class="popup-close" aria-label="Close">&times;</button>
+                    <h2 class="popup-title">Cream Mod</h2>
+
+                    <div class="mod-grid">
+                        <div class="mod-grid-item"><img src="2nd Section Images/g1.png" alt="Gallery 1"
+                                onclick="openFullscreen(this.src)"></div>
+                        <div class="mod-grid-item"><img src="2nd Section Images/g2.png" alt="Gallery 2"
+                                onclick="openFullscreen(this.src)"></div>
+                        <div class="mod-grid-item"><img src="2nd Section Images/g3.png" alt="Gallery 3"
+                                onclick="openFullscreen(this.src)"></div>
+                        <div class="mod-grid-item"><img src="2nd Section Images/g4.png" alt="Gallery 4"
+                                onclick="openFullscreen(this.src)"></div>
+                    </div>
+
+                    <div class="popup-actions" style="margin-top: 24px; text-align: center;">
+                        <button class="download-main-btn highlight" onclick="startDownload()">Download .ZIP</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Image Viewer Overlay -->
+            <div id="imageViewerOverlay" class="popup-overlay image-viewer-overlay">
+                <div class="image-viewer-content">
+                    <button id="closeImageViewer" class="popup-close" aria-label="Close">&times;</button>
+                    <img id="fullscreenImage" src="" alt="Fullscreen View">
+                </div>
+            </div>
+
             <!-- Scroll Indicator -->
             <button class="scroll-indicator" onclick="scrollToBio()" aria-label="Scroll to bio">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"
@@ -178,17 +209,15 @@
         <section class="bio-section" id="bio">
             <div class="bio-content">
 
-                <div class="bio-text reveal-on-scroll">
-                    <p class="reveal-on-scroll reveal-delay-1">Hey, I'm <span class="highlight">Darynn</span>, but I go
-                        by <span class="highlight">Charm?</span>
+                <div class="bio-text">
+                    <p>Hey, I'm <span class="highlight">Darynn</span>, but I go
+                        by <a href="https://discord.com/users/1198452446456983605" target="_blank"
+                            rel="noopener noreferrer" class="highlight">Charm?</a>
                         online. You might have seen me on <span class="highlight">YouTube</span> playing some games or
                         making edits of those games.</p>
 
-                    <div class="bio-image-container reveal-on-scroll reveal-delay-2">
-                        <img src="2nd Section Images/vengeio.png" alt="Venge.io Gameplay" class="bio-image">
-                    </div>
 
-                    <p class="reveal-on-scroll reveal-delay-1">My journey started when I discovered
+                    <p>My journey started when I discovered
                         <a href="https://venge.io/" target="_blank" rel="noopener noreferrer"
                             class="bordered">Venge.io</a>, a
                         niche browser shooter game with a <a href="https://discord.gg/xF7e6EzwQT" target="_blank"
@@ -199,17 +228,23 @@
                         love with the community and the game.
                     </p>
 
-                    <p class="reveal-on-scroll reveal-delay-2">I contributed to the community by making the only website
+                    <div class="bio-image-container">
+                        <img src="2nd Section Images/vengeio.png" alt="Venge.io Gameplay" class="bio-image">
+                    </div>
+
+                    <p>I contributed to the community by making the only website
                         for <a href="https://charmsmods.github.io/Modding-Repository-V2-Official-/" target="_blank"
                             rel="noopener noreferrer" class="bordered">automatic
                             modding</a> of the game,
                         where you could upload assets and textures, or make them on the site and export them as a mod,
                         compatible with both browser and client at the same time! I have made several of my own mods,
-                        <span class="highlight download-trigger" onclick="confirmDownload()">"Cream
-                            Mod"</span> has become a community favorite for it's style and performance.
+                        <span class="bordered download-trigger cream-hover-container" onclick="confirmDownload()">
+                            <span class="cream-text">"Cream Mod"</span>
+                            <img src="2nd Section Images/muffin.png" alt="Muffin" class="muffin-image">
+                        </span> has become a community favorite for it's style and performance.
                     </p>
 
-                    <p class="reveal-on-scroll reveal-delay-1">I recently was recognized for my work by way of receiving
+                    <p>I recently was recognized for my work by way of receiving
                         <span class="highlight">Verification</span>, a rarely given out position to recognize great
                         contribution to the game and community.
                         <a href="https://social.venge.io/?profile#Charm?" target="_blank" rel="noopener noreferrer">
@@ -218,31 +253,27 @@
                         </a>
                     </p>
 
-                    <div class="bio-image-container reveal-on-scroll reveal-delay-3">
+                    <div class="bio-image-container">
                         <img src="2nd Section Images/finals.png" alt="The Finals Gameplay" class="bio-image">
                     </div>
 
-                    <p class="reveal-on-scroll reveal-delay-1">After a while, I moved on from consistently playing Venge
+                    <p>After a while, I moved on from consistently playing Venge
                         and keeping up on the modding site and community, to playing other shooter games.
                         I have loved many of these games for different reasons, but a few stand out to me.
                         I have immensely enjoyed playing <a
                             href="https://store.steampowered.com/app/2073850/THE_FINALS/" target="_blank"
                             rel="noopener noreferrer" class="highlight">The FINALS</a> and another extremely
                         niche game called <a href="https://store.steampowered.com/app/1949740/Banana_Shooter/"
-                            target="_blank" rel="noopener noreferrer" class="highlight">Banana Shooter</a>. These games
-                        have kept me busy
-                        over the past few
-                        weeks as I hope to become skilled at a <span class="bordered">competitive level</span> in The
-                        Finals.</p>
+                            target="_blank" rel="noopener noreferrer" class="highlight">Banana Shooter</a>.
 
-                    <p class="reveal-on-scroll reveal-delay-2">Meanwhile, while playing shooter games, I have begun to
+                    <p>Meanwhile, while playing shooter games, I have begun to
                         grow an online community through <span class="highlight">YouTube</span>,
                         <span class="highlight">Instagram</span>, <span class="highlight">Discord</span>, and more
                         recently, <span class="highlight">Twitch</span>. I continue to improve my aim and upgrade my
                         setup.
                     </p>
 
-                    <p class="reveal-on-scroll reveal-delay-1">Over the past year, I have created this entire
+                    <p>Over the past year, I have created this entire
                         complex of websites for you to enjoy as much
                         as you want. I have a strong passion for all things visual, so
                         the tools I create are dedicated
@@ -254,12 +285,12 @@
                     </p>
 
 
-                    <div class="bio-image-container reveal-on-scroll reveal-delay-2">
+                    <div class="bio-image-container">
                         <img src="2nd Section Images/me.png" alt="New Image" class="bio-image">
                     </div>
 
 
-                    <div class="cta-box reveal-on-scroll reveal-delay-3">
+                    <div class="cta-box">
                         <span>Please feel free to explore!</span>
                     </div>
                 </div>
