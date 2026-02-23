@@ -481,11 +481,50 @@ body {
     background-color: #000;
     color: #fdf1ca;
     padding: 2px 8px;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+a.highlight:hover {
+    background-color: #fdf1ca;
+    color: #000;
+}
+
+.download-trigger {
+    cursor: pointer;
+}
+
+.download-trigger:hover {
+    background-color: #fdf1ca;
+    color: #000;
 }
 
 .bordered {
     border: 2px solid #000;
     padding: 2px 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease;
+}
+
+.bordered:hover {
+    background-color: #000;
+    color: #fdf1ca !important;
+}
+
+.verification-badge {
+    height: 40px;
+    width: auto;
+    vertical-align: middle;
+    margin-left: 8px;
+    display: inline-block;
+    filter: drop-shadow(2px 2px 0px #000);
+    transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.verification-badge:hover {
+    transform: scale(1.1) rotate(2deg);
+    filter: drop-shadow(4px 4px 0px #000);
 }
 
 /* Bio Images */

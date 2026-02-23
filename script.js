@@ -154,3 +154,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const revealElements = document.querySelectorAll('.reveal-on-scroll');
     revealElements.forEach(el => revealObserver.observe(el));
 });
+// ============================================
+// DOWNLOAD CONFIRMATION
+// ============================================
+
+function confirmDownload() {
+    const url = "Cream Mod.zip";
+    if (confirm("Would you like to download Cream Mod made by Charm?")) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = "Cream Mod.zip";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
