@@ -7,51 +7,37 @@
     <title>Charm? - World • Color • Passion</title>
     <link rel="icon" type="image/png" href="pfp.png">
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="loader.css">
 </head>
 
 <body>
     <div id="cursor"></div>
-    <!-- Startup Overlay -->
-    <div id="startupOverlay" class="startup-overlay">
-        <div id="startupLoader" class="loader-container">
-            <div class="loader">
-                <span class="loader-text">loading</span>
-                <span class="load"></span>
-            </div>
-        </div>
-        <div class="startup-image-container">
-            <img id="startupImage" class="startup-image" src="" alt="">
-        </div>
-        <div id="startupText" class="startup-text">Welcome to a New World</div>
-    </div>
 
     <!-- Fixed Social Bar -->
     <div class="social-bar" id="socialBar">
         <div class="social-links-vertical">
             <a href="https://discord.com/users/1198452446456983605" target="_blank" rel="noopener noreferrer"
-                class="social-icon" aria-label="Discord">
+                class="social-icon magnetic" aria-label="Discord">
                 <svg viewBox="0 0 127.14 96.36" fill="currentColor">
                     <path
                         d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.86.66,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
                 </svg>
             </a>
-            <a href="https://www.youtube.com/channel/UC6FGVP7ft-zfwfyVVRtbMCA" target="_blank" rel="noopener noreferrer"
-                class="social-icon" aria-label="YouTube">
+            <a href="https://discord.com/users/1198452446456983605" target="_blank" rel="noopener noreferrer"
+                class="social-icon magnetic" aria-label="YouTube">
                 <svg viewBox="0 0 576 512" fill="currentColor">
                     <path
                         d="M549.7 124.1c-6.3-23.7-24.8-42.3-48.3-48.6C458.8 64 288 64 288 64S117.2 64 74.6 75.5c-23.5 6.3-42 24.9-48.3 48.6-11.4 42.9-11.4 132.3-11.4 132.3s0 89.4 11.4 132.3c6.3 23.7 24.8 41.5 48.3 47.8C117.2 448 288 448 288 448s170.8 0 213.4-11.5c23.5-6.3 42-24.2 48.3-47.8 11.4-42.9 11.4-132.3 11.4-132.3s0-89.4-11.4-132.3zm-317.5 213.5V175.2l142.7 81.2-142.7 81.2z" />
                 </svg>
             </a>
-            <a href="https://www.twitch.tv/xxcharmxxx" target="_blank" rel="noopener noreferrer" class="social-icon"
-                aria-label="Twitch">
+            <a href="https://www.twitch.tv/xxcharmxxx" target="_blank" rel="noopener noreferrer"
+                class="social-icon magnetic" aria-label="Twitch">
                 <svg viewBox="0 0 512 512" fill="currentColor">
                     <path
                         d="M391.2,103.5H352.5v109.7h38.6zM285,103H246.2V212.8H285ZM120.8,0,24.8,91.9V420H141.4V512l96.1-92h73.6l155.3-155.1V0ZM449.1,237.2l-40.4,40.5H340.3l-67.2,67.2v-67.2H202.3V37.9H449.1Z" />
                 </svg>
             </a>
             <a href="https://www.instagram.com/itscharmfr?igsh=MTAwMDBobjFxazlkYQ==" target="_blank"
-                rel="noopener noreferrer" class="social-icon" aria-label="Instagram">
+                rel="noopener noreferrer" class="social-icon magnetic" aria-label="Instagram">
                 <svg viewBox="0 0 448 512" fill="currentColor">
                     <path
                         d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7-29.5 9-99.5 9-132.1s2.7 102.7-9 132.1z" />
@@ -70,7 +56,11 @@
                         <img src="pfp.png" alt="Charm? Profile Picture" class="profile-pfp">
                     </div>
                     <div class="profile-text">
-                        <h1 class="main-title">CHARM?</h1>
+                        <h1 class="main-title">
+                            <span class="kinetic-char">C</span><span class="kinetic-char">H</span><span
+                                class="kinetic-char">A</span><span class="kinetic-char">R</span><span
+                                class="kinetic-char">M</span><span class="kinetic-char">?</span>
+                        </h1>
                         <p class="subtitle">World • Color • Passion</p>
                     </div>
                 </div>
@@ -78,7 +68,7 @@
                 <!-- Project Grid -->
                 <div class="project-grid">
                     <a href="Image Tools Landing/Current/index.html" target="_blank" rel="noopener noreferrer"
-                        class="project-card" style="background-color: #e07a5f;">
+                        class="project-card reveal-on-scroll" style="background-color: #e07a5f;">
                         <div class="project-image">
                             <span class="project-letter">I</span>
                         </div>
@@ -89,7 +79,7 @@
                     </a>
 
                     <a href="Charms Web Tools/image-converter.html" target="_blank" rel="noopener noreferrer"
-                        class="project-card" style="background-color: #3d405b;">
+                        class="project-card reveal-on-scroll reveal-delay-1" style="background-color: #3d405b;">
                         <div class="project-image">
                             <span class="project-letter">C</span>
                         </div>
@@ -99,8 +89,13 @@
                         </div>
                     </a>
 
+<<<<<<< Updated upstream
                     <a href="Charms Web Tools/Site Bundler/Bundler dev/GLM Brutalist Dev for v5/v8.html"
                         target="_blank" rel="noopener noreferrer" class="project-card"
+=======
+                    <a href="Charms Web Tools/Site Bundler/Current Bundler/v7.html" target="_blank"
+                        rel="noopener noreferrer" class="project-card reveal-on-scroll reveal-delay-2"
+>>>>>>> Stashed changes
                         style="background-color: #81b29a;">
                         <div class="project-image">
                             <span class="project-letter">H</span>
@@ -112,7 +107,7 @@
                     </a>
 
                     <a href="Charms Web Tools/Charms Web Tools.html" target="_blank" rel="noopener noreferrer"
-                        class="project-card" style="background-color: #f2cc8f;">
+                        class="project-card reveal-on-scroll" style="background-color: #f2cc8f;">
                         <div class="project-image">
                             <span class="project-letter">O</span>
                         </div>
@@ -123,7 +118,7 @@
                     </a>
 
                     <a href="https://charmsmods.github.io/Charms-Main-Site/" target="_blank" rel="noopener noreferrer"
-                        class="project-card" style="background-color: #d62828;">
+                        class="project-card reveal-on-scroll reveal-delay-1" style="background-color: #d62828;">
                         <div class="project-image">
                             <span class="project-letter">V</span>
                         </div>
@@ -133,8 +128,8 @@
                         </div>
                     </a>
 
-                    <a href="#####" id="architectureBtn" target="_blank" rel="noopener noreferrer" class="project-card"
-                        style="background-color: #5e548e;">
+                    <a href="#####" id="architectureBtn" target="_blank" rel="noopener noreferrer"
+                        class="project-card reveal-on-scroll reveal-delay-2" style="background-color: #5e548e;">
                         <div class="project-image">
                             <span class="project-letter">A</span>
                         </div>
@@ -189,7 +184,7 @@
             <div class="bio-content">
                 <h2 class="bio-title reveal-on-scroll">About Me</h2>
 
-                <div class="bio-text">
+                <div class="bio-text reveal-on-scroll">
                     <p class="reveal-on-scroll reveal-delay-1">Hey, I'm <span class="highlight">Darynn</span>, but I go
                         by <span class="highlight">Charm?</span>
                         online. You might have seen me on <span class="highlight">YouTube</span> playing some games or
