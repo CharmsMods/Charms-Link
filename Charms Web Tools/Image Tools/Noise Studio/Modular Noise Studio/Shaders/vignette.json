@@ -1,0 +1,11 @@
+﻿{
+    "name": "Vignette & Focus",
+    "enableId": "vignetteEnable",
+    "enableDefault": false,
+    "controls": [
+        {"type":"range","id":"vignetteIntensity","label":"Intensity","min":0,"max":100,"step":1,"default":50},
+        {"type":"range","id":"vignetteRadius","label":"Radius","min":0,"max":200,"step":1,"default":75},
+        {"type":"range","id":"vignetteSoftness","label":"Softness","min":0,"max":100,"step":1,"default":50},
+        {"type":"color","id":"vignetteColor","label":"Color","default":"#000000","width":"60px"}
+    ]
+}

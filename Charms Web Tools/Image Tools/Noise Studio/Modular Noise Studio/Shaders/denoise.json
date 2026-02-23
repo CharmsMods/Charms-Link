@@ -1,0 +1,32 @@
+﻿{
+    "name": "Denoising",
+    "controls": [
+        {"type":"checkbox","id":"denoiseEnable","label":"Enable","default":false},
+        {"type":"select","id":"denoiseMode","label":"Mode","options":[
+            {"value":"0","label":"Non-Local Means","selected":true},
+            {"value":"1","label":"Median"},
+            {"value":"2","label":"Mean (Box)"}
+        ]},
+        {"type":"range","id":"denoiseSearchRadius","label":"Search Radius","min":1,"max":15,"step":1,"default":5},
+        {"type":"range","id":"denoisePatchRadius","label":"Patch Radius","min":1,"max":5,"step":1,"default":2},
+        {"type":"range","id":"denoiseH","label":"Filter Strength","min":0.01,"max":2.0,"step":0.01,"default":0.50},
+        {"type":"range","id":"denoiseBlend","label":"Blend","min":0,"max":100,"step":1,"default":100}
+    ],
+    "mask": {
+        "colorExclude": {
+            "enableId": "denoiseColorExclude",
+            "colorId": "denoiseExcludeColor",
+            "toleranceId": "denoiseColorTolerance",
+            "fadeId": "denoiseColorFade",
+            "eyedropper": false
+        },
+        "lumaMask": {
+            "enableId": "denoiseLumaMask",
+            "shadowThresholdId": "denoiseShadowThreshold",
+            "shadowFadeId": "denoiseShadowFade",
+            "highlightThresholdId": "denoiseHighlightThreshold",
+            "highlightFadeId": "denoiseHighlightFade"
+        },
+        "invertId": "denoiseInvertMask"
+    }
+}

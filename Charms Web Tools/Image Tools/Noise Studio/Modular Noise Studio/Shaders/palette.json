@@ -1,0 +1,22 @@
+﻿{
+    "name": "Palette Reconstructor",
+    "controls": [
+        {"type":"checkbox","id":"paletteEnable","label":"Enable","default":false},
+        {"type":"range","id":"paletteBlend","label":"Global Blend","min":0,"max":100,"step":1,"default":100},
+        {"type":"button-row","className":"row-buttons","style":"margin-top: 5px;","buttons":[
+            {"id":"addPaletteColor","label":"+ ADD COLOR","className":"small-btn"},
+            {"id":"pickPaletteColorBtn","label":" PICK FROM CANVAS","className":"small-btn eyedropper-btn","dataTarget":"pickPaletteColor","title":"Pick from canvas"},
+            {"id":"randomPalette","label":"RANDOMIZE","className":"small-btn"},
+            {"id":"clearPalette","label":"CLEAR","className":"small-btn"},
+            {"id":"extractPalette","label":"Upload Palette Image","className":"small-btn"},
+            {"type":"file","id":"paletteImageUpload","accept":"image/*"}
+        ]},
+        {"type":"select","id":"paletteSmoothingType","label":"Smoothing Type","options":[
+            {"value":"0","label":"Box"},
+            {"value":"1","label":"Gaussian"}
+        ]},
+        {"type":"range","id":"paletteSmoothing","label":"Palette Smoothing","min":0,"max":100,"step":1,"default":0},
+        {"type":"range","id":"extractCount","label":"Extract Count","min":2,"max":200,"step":1,"default":8},
+        {"type":"container","id":"paletteList","className":"palette-list"}
+    ]
+}

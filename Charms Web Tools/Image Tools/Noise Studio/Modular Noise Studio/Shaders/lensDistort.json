@@ -1,0 +1,9 @@
+﻿{
+    "name": "Lens Distortion (Optics)",
+    "controls": [
+        {"type":"checkbox","id":"lensDistortEnable","label":"Enable","default":false},
+        {"type":"range","id":"lensAmount","label":"Distortion Amount","min":-100,"max":100,"step":1,"default":0},
+        {"type":"hint","text":"&lt; Barrel (Fisheye) &nbsp;&nbsp;|&nbsp;&nbsp; Pincushion &gt;"},
+        {"type":"range","id":"lensScale","label":"Scale Base","min":50,"max":150,"step":1,"default":100}
+    ]
+}

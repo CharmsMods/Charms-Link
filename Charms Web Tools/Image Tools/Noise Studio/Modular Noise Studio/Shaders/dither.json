@@ -1,0 +1,36 @@
+﻿{
+    "name": "Dithering",
+    "controls": [
+        {"type":"checkbox","id":"ditherEnable","label":"Enable","default":false},
+        {"type":"range","id":"ditherBitDepth","label":"Bit Depth","min":1,"max":8,"step":1,"default":4},
+        {"type":"range","id":"ditherPaletteSize","label":"Palette Size","min":2,"max":256,"step":1,"default":8},
+        {"type":"range","id":"ditherStrength","label":"Strength","min":0,"max":100,"step":1,"default":100},
+        {"type":"range","id":"ditherScale","label":"Scale","min":1,"max":8,"step":1,"default":1},
+        {"type":"select","id":"ditherType","label":"Type","options":[
+            {"value":"0","label":"Ordered (Bayer 8x8)","selected":true},
+            {"value":"1","label":"Error Diffusion"},
+            {"value":"2","label":"White Noise"},
+            {"value":"3","label":"Bayer 4x4"},
+            {"value":"4","label":"Bayer 2x2"},
+            {"value":"5","label":"Interleaved Gradient"}
+        ]},
+        {"type":"checkbox","id":"ditherUsePalette","label":"Use Studio Palette","default":false},
+        {"type":"checkbox","id":"ditherGamma","label":"Gamma Correct","default":false}
+    ],
+    "mask": {
+        "colorExclude": {
+            "enableId": "ditherColorExclude",
+            "colorId": "ditherExcludeColor",
+            "toleranceId": "ditherColorTolerance",
+            "fadeId": "ditherColorFade",
+            "eyedropper": false
+        },
+        "lumaMask": {
+            "enableId": "ditherLumaMask",
+            "shadowThresholdId": "ditherShadowThreshold",
+            "shadowFadeId": "ditherShadowFade",
+            "highlightThresholdId": "ditherHighlightThreshold",
+            "highlightFadeId": "ditherHighlightFade"
+        }
+    }
+}

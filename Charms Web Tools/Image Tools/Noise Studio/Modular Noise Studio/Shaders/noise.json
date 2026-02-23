@@ -1,0 +1,231 @@
+﻿{
+    "name": "Noise",
+    "enableId": "noiseEnable",
+    "enableDefault": true,
+    "controls": [
+        {
+            "type": "range",
+            "id": "strength",
+            "label": "Noise Strength",
+            "min": 0,
+            "max": 150,
+            "step": 0.1,
+            "default": 0
+        },
+        {
+            "type": "select",
+            "id": "noiseType",
+            "label": "Noise Type",
+            "options": [
+                {
+                    "value": "1",
+                    "label": "Grayscale",
+                    "selected": true
+                },
+                {
+                    "value": "0",
+                    "label": "Color"
+                },
+                {
+                    "value": "3",
+                    "label": "Blue Noise"
+                },
+                {
+                    "value": "4",
+                    "label": "Blue Noise (Color)"
+                },
+                {
+                    "value": "2",
+                    "label": "Blend (Sat)"
+                },
+                {
+                    "value": "5",
+                    "label": "Perlin (Cloudy)"
+                },
+                {
+                    "value": "6",
+                    "label": "Worley (Cellular)"
+                },
+                {
+                    "value": "7",
+                    "label": "Scanlines"
+                },
+                {
+                    "value": "8",
+                    "label": "Speckle (Dust)"
+                },
+                {
+                    "value": "9",
+                    "label": "Glitch"
+                },
+                {
+                    "value": "10",
+                    "label": "Anisotropic (Fiber)"
+                },
+                {
+                    "value": "11",
+                    "label": "Voronoi Mosaic"
+                },
+                {
+                    "value": "12",
+                    "label": "Crosshatch"
+                }
+            ]
+        },
+        {
+            "type": "range",
+            "id": "satStrength",
+            "label": "Sat Strength",
+            "min": 0,
+            "max": 4,
+            "step": 0.1,
+            "default": 1
+        },
+        {
+            "type": "range",
+            "id": "satPerNoise",
+            "label": "Sat Impact",
+            "min": -100,
+            "max": 100,
+            "step": 1,
+            "default": 0
+        },
+        {
+            "type": "header",
+            "id": "noiseParamsHeader",
+            "text": "Advanced Settings"
+        },
+        {
+            "type": "range",
+            "id": "noiseParamA",
+            "label": "Param A",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 50,
+            "rowId": "noiseParamRowA",
+            "labelId": "noiseLabelA",
+            "hidden": true
+        },
+        {
+            "type": "range",
+            "id": "noiseParamB",
+            "label": "Param B",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 50,
+            "rowId": "noiseParamRowB",
+            "labelId": "noiseLabelB",
+            "hidden": true
+        },
+        {
+            "type": "range",
+            "id": "noiseParamC",
+            "label": "Param C",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 50,
+            "rowId": "noiseParamRowC",
+            "labelId": "noiseLabelC",
+            "hidden": true
+        },
+        {
+            "type": "separator",
+            "dashed": true
+        },
+        {
+            "type": "range",
+            "id": "noiseSize",
+            "label": "Scale (Size)",
+            "min": 0,
+            "max": 10,
+            "step": 1,
+            "default": 0
+        },
+        {
+            "type": "range",
+            "id": "blurriness",
+            "label": "Blurriness",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 2
+        },
+        {
+            "type": "separator",
+            "dashed": true
+        },
+        {
+            "type": "select",
+            "id": "blendMode",
+            "label": "Blend Mode",
+            "options": [
+                {
+                    "value": "0",
+                    "label": "Normal"
+                },
+                {
+                    "value": "1",
+                    "label": "Overlay",
+                    "selected": true
+                },
+                {
+                    "value": "2",
+                    "label": "Screen"
+                },
+                {
+                    "value": "3",
+                    "label": "Multiply"
+                },
+                {
+                    "value": "4",
+                    "label": "Add"
+                },
+                {
+                    "value": "5",
+                    "label": "Difference"
+                }
+            ]
+        },
+        {
+            "type": "range",
+            "id": "opacity",
+            "label": "Opacity",
+            "min": 0,
+            "max": 1,
+            "step": 0.01,
+            "default": 0.5
+        },
+        {
+            "type": "separator",
+            "dashed": true
+        },
+        {
+            "type": "range",
+            "id": "skinProtection",
+            "label": "Skin Protection",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 0
+        }
+    ],
+    "mask": {
+        "lumaMask": {
+            "enableId": "noiseLumaMask",
+            "shadowThresholdId": "shadowThreshold",
+            "shadowFadeId": "shadowFade",
+            "highlightThresholdId": "highlightThreshold",
+            "highlightFadeId": "highlightFade"
+        },
+        "colorExclude": {
+            "enableId": "noiseColorExclude",
+            "colorId": "noiseExcludeColor",
+            "toleranceId": "noiseColorTolerance",
+            "fadeId": "noiseColorFade"
+        },
+        "invertId": "noiseInvertMask"
+    }
+}

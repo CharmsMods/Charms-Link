@@ -1,0 +1,98 @@
+{
+    "vertex": "Shaders/vs-quad.vert",
+    "programs": {
+        "adjust": {
+            "frag": "Shaders/adjust.frag"
+        },
+        "adjustMasked": {
+            "frag": "Shaders/adjustMasked.frag"
+        },
+        "mask": {
+            "frag": "Shaders/mask.frag"
+        },
+        "colorMask": {
+            "frag": "Shaders/colorMask.frag"
+        },
+        "noise": {
+            "frag": "Shaders/noise.frag"
+        },
+        "blur": {
+            "frag": "Shaders/blur.frag"
+        },
+        "maskedBlur": {
+            "frag": "Shaders/maskedBlur.frag"
+        },
+        "composite": {
+            "frag": "Shaders/composite.frag"
+        },
+        "chroma": {
+            "frag": "Shaders/chroma.frag"
+        },
+        "copy": {
+            "frag": "Shaders/copy.frag"
+        },
+        "invert": {
+            "frag": "Shaders/invert.frag"
+        },
+        "radial": {
+            "frag": "Shaders/radial.frag"
+        },
+        "final": {
+            "frag": "Shaders/final.frag"
+        },
+        "dither": {
+            "frag": "Shaders/dither.frag"
+        },
+        "maskedDither": {
+            "frag": "Shaders/maskedDither.frag"
+        },
+        "analog": {
+            "frag": "Shaders/analog.frag"
+        },
+        "corruption": {
+            "frag": "Shaders/corruption.frag"
+        },
+        "palette": {
+            "frag": "Shaders/palette.frag"
+        },
+        "edge": {
+            "frag": "Shaders/edge.frag"
+        },
+        "cell": {
+            "frag": "Shaders/cell.frag"
+        },
+        "halftone": {
+            "frag": "Shaders/halftone.frag"
+        },
+        "bilateral": {
+            "frag": "Shaders/bilateral.frag"
+        },
+        "denoise": {
+            "frag": "Shaders/denoise.frag"
+        },
+        "lens": {
+            "frag": "Shaders/lens.frag"
+        },
+        "heatwave": {
+            "frag": "Shaders/heatwave.frag"
+        },
+        "lightleaks": {
+            "frag": "Shaders/lightLeaks.frag"
+        },
+        "compression": {
+            "frag": "Shaders/compression.frag"
+        },
+        "vignette": {
+            "frag": "Shaders/vignette.frag"
+        },
+        "glareRays": {
+            "frag": "Shaders/glareRays.frag"
+        },
+        "hankelBlur": {
+            "frag": "Shaders/hankelBlur.frag"
+        },
+        "airyBloom": {
+            "frag": "Shaders/airyBloom.frag"
+        }
+    }
+}

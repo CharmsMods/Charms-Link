@@ -1,0 +1,16 @@
+﻿{
+    "name": "Chromatic Aberration",
+    "enableId": "caEnable",
+    "enableDefault": true,
+    "controls": [
+        {"type":"range","id":"aberrationAmount","label":"Amount","min":0,"max":100,"step":0.1,"default":0},
+        {"type":"range","id":"aberrationBlur","label":"Edge Blur","min":0,"max":100,"step":1,"default":0},
+        {"type":"range","id":"aberrationZoomBlur","label":"Zoom Blur","min":0,"max":100,"step":1,"default":0},
+        {"type":"separator","height":10},
+        {"type":"checkbox","id":"caFalloffToBlur","label":"Link Falloff to Blur","default":false},
+        {"type":"checkbox","id":"caPin","label":"Center Pin","default":false},
+        {"type":"range","id":"caRadius","label":"Radius","min":0,"max":100,"step":1,"default":50},
+        {"type":"range","id":"caFalloff","label":"Falloff","min":0,"max":100,"step":1,"default":50}
+    ],
+    "customHTML": "<div class=\"control-row\"><label>Reset Center</label><button id=\"resetCenterBtn\" class=\"small-btn\" style=\"margin-left:auto;\">RESET</button></div>"
+}

@@ -1,0 +1,123 @@
+[
+    {
+        "key": "noise",
+        "name": "Noise",
+        "json": "Shaders/noise.json",
+        "open": true
+    },
+    {
+        "key": "alpha",
+        "name": "Alpha Channel",
+        "json": "Shaders/alpha.json"
+    },
+    {
+        "key": "glareRays",
+        "name": "Glare Rays",
+        "json": "Shaders/glareRays.json"
+    },
+    {
+        "key": "hankelBlur",
+        "name": "Radial Hankel Blur",
+        "json": "Shaders/hankelBlur.json"
+    },
+    {
+        "key": "adjust",
+        "name": "Adjustments",
+        "json": "Shaders/adjust.json"
+    },
+    {
+        "key": "hdr",
+        "name": "HDR Emulation",
+        "json": "Shaders/hdr.json"
+    },
+    {
+        "key": "ca",
+        "name": "Chromatic Aberration",
+        "json": "Shaders/ca.json"
+    },
+    {
+        "key": "blur",
+        "name": "Blur",
+        "json": "Shaders/blur.json"
+    },
+    {
+        "key": "dither",
+        "name": "Dithering",
+        "json": "Shaders/dither.json"
+    },
+    {
+        "key": "corruption",
+        "name": "Corruption",
+        "json": "Shaders/corruption.json"
+    },
+    {
+        "key": "analogVideo",
+        "name": "Analog Video (VHS/CRT)",
+        "json": "Shaders/analogVideo.json",
+        "detailsId": "analogVideoDetails"
+    },
+    {
+        "key": "lensDistort",
+        "name": "Lens Distortion (Optics)",
+        "json": "Shaders/lensDistort.json",
+        "detailsId": "lensDistortDetails"
+    },
+    {
+        "key": "heatwave",
+        "name": "Heatwave & Ripples",
+        "json": "Shaders/heatwave.json",
+        "detailsId": "heatwaveDetails"
+    },
+    {
+        "key": "lightLeaks",
+        "name": "Light Leaks",
+        "json": "Shaders/lightLeaks.json",
+        "detailsId": "lightLeaksDetails"
+    },
+    {
+        "key": "compression",
+        "name": "Compression",
+        "json": "Shaders/compression.json"
+    },
+    {
+        "key": "cell",
+        "name": "Cell Shading",
+        "json": "Shaders/cell.json"
+    },
+    {
+        "key": "halftone",
+        "name": "Halftoning",
+        "json": "Shaders/halftone.json"
+    },
+    {
+        "key": "bilateral",
+        "name": "Bilateral Filter",
+        "json": "Shaders/bilateral.json"
+    },
+    {
+        "key": "denoise",
+        "name": "Denoising",
+        "json": "Shaders/denoise.json"
+    },
+    {
+        "key": "palette",
+        "name": "Palette Reconstructor",
+        "json": "Shaders/palette.json"
+    },
+    {
+        "key": "vignette",
+        "name": "Vignette & Focus",
+        "json": "Shaders/vignette.json",
+        "detailsId": "vignetteDetails"
+    },
+    {
+        "key": "edge",
+        "name": "Edge Effects",
+        "json": "Shaders/edge.json"
+    },
+    {
+        "key": "airyBloom",
+        "name": "Airy Disk Bloom",
+        "json": "Shaders/airyBloom.json"
+    }
+]

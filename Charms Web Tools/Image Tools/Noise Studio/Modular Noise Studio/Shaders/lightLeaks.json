@@ -1,0 +1,9 @@
+﻿{
+    "name": "Light Leaks",
+    "controls": [
+        {"type":"checkbox","id":"lightLeaksEnable","label":"Enable","default":false},
+        {"type":"range","id":"lightLeaksIntensity","label":"Intensity","min":0,"max":100,"step":1,"default":50},
+        {"type":"color","id":"lightLeaksColor1","label":"Color 1","default":"#ff5500"},
+        {"type":"color","id":"lightLeaksColor2","label":"Color 2","default":"#0055ff"}
+    ]
+}

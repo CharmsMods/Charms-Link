@@ -1,0 +1,9 @@
+﻿{
+    "name": "HDR Emulation",
+    "enableId": "hdrEnable",
+    "enableDefault": true,
+    "controls": [
+        {"type":"range","id":"hdrTolerance","label":"Tolerance","min":0,"max":100,"step":1,"default":50},
+        {"type":"range","id":"hdrAmount","label":"Amount","min":0,"max":100,"step":1,"default":0}
+    ]
+}

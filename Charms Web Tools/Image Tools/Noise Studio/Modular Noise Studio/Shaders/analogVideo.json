@@ -1,0 +1,10 @@
+﻿{
+    "name": "Analog Video (VHS/CRT)",
+    "controls": [
+        {"type":"checkbox","id":"analogVideoEnable","label":"Enable","default":false},
+        {"type":"range","id":"analogWobble","label":"Tape Wobble","min":0,"max":100,"step":1,"default":30},
+        {"type":"range","id":"analogBleed","label":"Color Bleed","min":0,"max":100,"step":1,"default":50},
+        {"type":"range","id":"analogCurve","label":"CRT Curve","min":0,"max":100,"step":1,"default":20},
+        {"type":"range","id":"analogNoise","label":"Scanline Noise","min":0,"max":100,"step":1,"default":40}
+    ]
+}

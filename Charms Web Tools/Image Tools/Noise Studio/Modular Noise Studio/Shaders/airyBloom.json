@@ -1,0 +1,27 @@
+﻿{
+    "name": "Airy Disk Bloom",
+    "controls": [
+        {"type":"checkbox","id":"airyBloomEnable","label":"Enable","default":false},
+        {"type":"range","id":"airyBloomIntensity","label":"Intensity","min":0,"max":2,"step":0.01,"default":0.5},
+        {"type":"range","id":"airyBloomAperture","label":"Aperture","min":1,"max":50,"step":0.5,"default":8},
+        {"type":"range","id":"airyBloomThreshold","label":"Threshold","min":0,"max":1,"step":0.01,"default":0.7},
+        {"type":"range","id":"airyBloomThresholdFade","label":"Threshold Fade","min":0,"max":1,"step":0.01,"default":0.1},
+        {"type":"range","id":"airyBloomCutoff","label":"Cutoff","min":0.01,"max":1,"step":0.01,"default":0.1}
+    ],
+    "mask": {
+        "colorExclude": {
+            "enableId": "airyBloomColorExclude",
+            "colorId": "airyBloomExcludeColor",
+            "toleranceId": "airyBloomColorTolerance",
+            "fadeId": "airyBloomColorFade"
+        },
+        "lumaMask": {
+            "enableId": "airyBloomLumaMask",
+            "shadowThresholdId": "airyBloomShadowThreshold",
+            "shadowFadeId": "airyBloomShadowFade",
+            "highlightThresholdId": "airyBloomHighlightThreshold",
+            "highlightFadeId": "airyBloomHighlightFade"
+        },
+        "invertId": "airyBloomInvertMask"
+    }
+}
