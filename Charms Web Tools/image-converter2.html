@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRUTAL CONVERTER</title>
+    <!-- External Libraries (Preserved) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <!-- Fonts for Brutalist Aesthetic -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            /* THEME: DARK CREAM BRUTALIST */
+            --bg-cream: #E8E0D5;
+            --bg-paper: #F4F0EA;
+            --ink: #121212;
+            --accent-red: #FF3333;
+            --accent-yellow: #FFD700;
+            --border-width: 3px;
+            --shadow-offset: 6px;
+        }
+
+        /* --- GLOBAL RESET & BASE --- */
+        body {
+            font-family: 'Space Mono', monospace;
+            background-color: var(--bg-cream);
+            color: var(--ink);
+            /* Thick framing for the viewport */
+            border: 20px solid var(--ink);
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+            transition: background-color 1.0s ease-in-out, color 1.0s ease-in-out, border-color 1.0s ease-in-out;
+        }
+
+        h1,
+        h2,
+        h3,
+        .label-brutal {
+            font-family: 'Space Grotesk', sans-serif;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        /* --- UTILITIES --- */
+        .brutal-border {
+            border: var(--border-width) solid var(--ink);
+        }
+
+        .brutal-shadow {
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0px 0px var(--ink);
+            transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .brutal-shadow:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: calc(var(--shadow-offset) + 2px) calc(var(--shadow-offset) + 2px) 0px 0px var(--ink);
+        }
+
+        .brutal-shadow:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px 0px var(--ink);
+        }
+
+        /* --- TRANSITIONS (Preserved & Styled) --- */
+        body,
+        .container,
+        .drop-zone,
+        .message-box,
+        .file-list-item,
+        .file-format-select,
+        .btn-primary,
+        .btn-secondary,
+        input[type="checkbox"] {
+            transition: background-color 1.0s ease-in-out, color 1.0s ease-in-out, border-color 1.0s ease-in-out, box-shadow 1.0s ease-in-out;
+        }
+
+        /* Interaction speeds (faster) */
+        .drop-zone:hover,
+        .btn-primary:hover,
+        .btn-secondary:hover {
+            transition: transform 0.1s, background-color 0.2s, box-shadow 0.2s;
+        }
+
+        /* --- COMPONENTS --- */
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: var(--bg-cream);
+            padding: 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Header Marquee Effect */
+        .marquee-container {
+            border-bottom: var(--border-width) solid var(--ink);
+            margin-bottom: 2rem;
+            overflow: hidden;
+            white-space: nowrap;
+            padding: 1rem 0;
+            background: var(--ink);
+            color: var(--bg-cream);
+        }
+
+        .marquee-content {
+            display: inline-block;
+            font-family: 'Space Grotesk';
+            font-size: 3rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            animation: scroll 20s linear infinite;
+        }
+
+        @keyframes scroll {
+            0% {
+                transform: translateX(0);
+            }
+
+            100% {
+                transform: translateX(-50%);
+            }
+        }
+
+        /* Checkbox Styling */
+        input[type="checkbox"] {
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border: var(--border-width) solid var(--ink);
+            background: var(--bg-paper);
+            cursor: pointer;
+            position: relative;
+            margin: 0;
+        }
+
+        input[type="checkbox"]:checked {
+            background: var(--ink);
+        }
+
+        input[type="checkbox"]:checked::after {
+            content: '✕';
+            position: absolute;
+            color: var(--bg-cream);
+            font-size: 18px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+        }
+
+        /* Drop Zone */
+        .drop-zone {
+            border: var(--border-width) dashed var(--ink);
+            background-color: var(--bg-paper);
+            padding: 4rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .drop-zone::before {
+            content: "INPUT_ZONE_01";
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            opacity: 0.5;
+        }
+
+        .drop-zone.dragover {
+            background-color: var(--accent-red) !important;
+            color: var(--bg-cream) !important;
+            border-style: solid !important;
+            transform: scale(0.99);
+            box-shadow: -4px -4px 0px var(--ink) inset;
+        }
+
+        /* Buttons */
+        .btn-primary,
+        .btn-secondary {
+            font-family: 'Space Grotesk';
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 1px;
+            padding: 1rem 1.5rem;
+            border: var(--border-width) solid var(--ink);
+            cursor: pointer;
+            text-align: center;
+            display: inline-block;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background-color: var(--ink);
+            color: var(--bg-cream);
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0px 0px #000;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-red);
+            /* Brutalist Red */
+            color: var(--bg-cream);
+        }
+
+        .btn-secondary {
+            background-color: var(--bg-paper);
+            color: var(--ink);
+            box-shadow: 4px 4px 0px 0px var(--ink);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--accent-yellow);
+            color: var(--ink);
+        }
+
+        .btn-primary:disabled,
+        .btn-secondary:disabled,
+        .file-format-select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: translate(2px, 2px);
+        }
+
+        /* File List */
+        .file-list-item {
+            background: var(--bg-paper);
+            border-bottom: var(--border-width) solid var(--ink);
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            /* Adjusted for layout */
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .file-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-format-select {
+            background-color: var(--bg-cream);
+            border: var(--border-width) solid var(--ink);
+            padding: 0.5rem;
+            font-family: 'Space Mono';
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 2px 2px 0px var(--ink);
+        }
+
+        /* Messages */
+        .message-box {
+            padding: 0.75rem;
+            border-left: 6px solid var(--ink);
+            background: var(--bg-paper);
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+        }
+
+        .message-box.error {
+            border-left-color: var(--accent-red);
+            background-color: #fff0f0;
+            color: var(--accent-red);
+        }
+
+        .message-box.success {
+            border-left-color: var(--ink);
+            background-color: var(--bg-cream);
+        }
+
+        /* --- ANIMATIONS --- */
+
+        /* Entrance Animation */
+        #main-content {
+            animation: unfold 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            transform-origin: top center;
+        }
+
+        @keyframes unfold {
+            0% {
+                transform: scaleY(0);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scaleY(1);
+                opacity: 1;
+            }
+        }
+
+        /* List Item Entrance */
+        .file-list-enter {
+            animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+
+        @keyframes slideInRight {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* --- INVERT MODE (The "Void" Toggle) --- */
+        body.void-mode {
+            --bg-cream: #111111;
+            --bg-paper: #1a1a1a;
+            --ink: #E8E0D5;
+            --accent-red: #ff4d4d;
+            --accent-yellow: #ffe600;
+        }
+
+        body.void-mode .marquee-container {
+            background: var(--bg-cream);
+            color: var(--ink);
+        }
+
+        body.void-mode .drop-zone.dragover {
+            background-color: var(--accent-yellow) !important;
+            color: var(--ink) !important;
+        }
+
+        body.void-mode .message-box.error {
+            background-color: #2a0000;
+            color: #ff9999;
+        }
+    </style>
+</head>
+
+<body class="antialiased selection:bg-black selection:text-white">
+
+    <div id="main-content" class="container">
+
+        <!-- Marquee Header -->
+        <div class="marquee-container">
+            <div class="marquee-content">
+                MULTI-FILE CONVERTER /// DRAG & DROP SUPPORT /// FOLDER ARCHIVING /// FORMAT TRANSFORMATION /// NO
+                UPLOADS /// LOCAL PROCESSING ONLY ///
+                MULTI-FILE CONVERTER /// DRAG & DROP SUPPORT /// FOLDER ARCHIVING /// FORMAT TRANSFORMATION /// NO
+                UPLOADS /// LOCAL PROCESSING ONLY ///
+            </div>
+        </div>
+
+        <!-- Top Controls -->
+        <div class="flex justify-between items-center mb-8 border-b-4 border-black pb-4">
+            <div class="text-xs font-bold tracking-widest uppercase opacity-70">
+                System Status: <span id="system-status">READY</span>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <label class="text-sm font-bold uppercase cursor-pointer flex items-center gap-2">
+                    <input type="checkbox" id="mode-toggle-checkbox">
+                    <span class="brutal-border px-2 py-1 shadow-[2px_2px_0_0_#000]">Void Mode</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Drop Zone -->
+        <input type="file" id="hidden-file-input" multiple class="hidden">
+        <div id="drop-zone" class="drop-zone brutal-shadow mb-8 group">
+            <div class="pointer-events-none">
+                <p class="text-2xl md:text-4xl font-bold mb-2 group-hover:text-[var(--accent-red)] transition-colors">
+                    INITIATE UPLOAD</p>
+                <p class="font-mono text-sm border-t-2 border-black inline-block pt-1 mt-2">
+                    DRAG FILES/FOLDERS HERE OR CLICK TO BROWSE
+                </p>
+                <div class="mt-4 text-xs uppercase tracking-widest opacity-60">
+                    [Supported: JPG, PNG, WEBP]
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Actions -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <button id="convert-btn" class="btn-secondary brutal-shadow w-full" disabled>
+                // EXECUTE CONVERSION
+            </button>
+            <button id="export-zip-btn" class="btn-primary brutal-shadow w-full" disabled>
+                // EXPORT ZIP ARCHIVE
+            </button>
+        </div>
+
+        <!-- Global Controls -->
+        <div id="global-controls"
+            class="brutal-border bg-[var(--bg-paper)] p-4 mb-4 relative shadow-[4px_4px_0_0_#000]">
+            <div class="absolute -top-3 left-4 bg-black text-white px-2 text-xs font-bold uppercase tracking-widest">
+                Global Config
+            </div>
+
+            <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="select-all-checkbox" disabled>
+                        <label for="select-all-checkbox" class="font-bold text-sm uppercase">Select All</label>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3 w-full md:w-auto">
+                    <label for="global-format-select" class="text-xs font-bold uppercase whitespace-nowrap">Target
+                        Format:</label>
+                    <select id="global-format-select" class="file-format-select w-full md:w-auto flex-grow" disabled>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-4 pt-4 border-t-2 border-dashed border-black">
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" id="direct-mode-checkbox">
+                    <label for="direct-mode-checkbox" class="font-bold text-sm uppercase cursor-pointer">Direct Folder
+                        Mode (FS API)</label>
+                    <span class="text-[10px] bg-black text-white px-1 font-mono uppercase">Experimental</span>
+                </div>
+                <p class="text-[10px] mt-1 opacity-60 uppercase">Stream results directly to disk. Bypasses ZIP memory
+                    limits. Requires Chromium browser.</p>
+            </div>
+        </div>
+
+        <!-- Direct Folder UI -->
+        <div id="direct-folder-ui" class="hidden brutal-border bg-[var(--bg-paper)] p-6 mb-8 brutal-shadow relative">
+            <div class="absolute -top-3 left-4 bg-black text-white px-2 text-xs font-bold uppercase tracking-widest">
+                Direct I/O Config
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button id="source-folder-btn" class="btn-secondary text-xs p-3">1. SELECT SOURCE FOLDER</button>
+                <button id="dest-folder-btn" class="btn-secondary text-xs p-3">2. SELECT DESTINATION FOLDER</button>
+            </div>
+            <div class="mt-4 text-[10px] font-mono opacity-70 flex flex-col gap-1 overflow-hidden">
+                <div class="truncate">SOURCE: <span id="source-path-display" class="font-bold">[NOT SELECTED]</span>
+                </div>
+                <div class="truncate">DEST: <span id="dest-path-display" class="font-bold">[NOT SELECTED]</span></div>
+            </div>
+        </div>
+
+        <!-- Folder Controls -->
+        <div id="folder-export-controls" class="hidden mb-8">
+            <h3 class="text-lg font-bold uppercase mb-3 flex items-center">
+                <span class="w-2 h-2 bg-black mr-2"></span> Folder Logic
+            </h3>
+            <div class="flex flex-col space-y-3 border-l-4 border-black pl-4 ml-1">
+                <div class="flex items-center space-x-3 bg-[var(--bg-paper)] p-2">
+                    <input type="checkbox" id="include-non-image-files" checked>
+                    <label for="include-non-image-files" class="text-sm cursor-pointer">Attach non-image files (PDF,
+                        TXT, etc.) to archive?</label>
+                </div>
+
+                <div id="preserve-structure-option"
+                    class="hidden flex items-center space-x-3 pl-4 border-l-2 border-dashed border-gray-400 py-1">
+                    <input type="checkbox" id="preserve-non-image-structure">
+                    <label for="preserve-non-image-structure" class="text-xs font-mono opacity-80">Retain directory tree
+                        for excluded assets?</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- File List Header -->
+        <div class="flex justify-between items-end border-b-4 border-black pb-2 mb-2 mt-8">
+            <h2 class="text-2xl">Files Found: <span id="file-count" class="font-mono text-[var(--accent-red)]">0</span>
+            </h2>
+        </div>
+
+        <!-- Messages -->
+        <div id="message-container" class="mb-4"></div>
+
+        <!-- List -->
+        <ul id="file-list" class="brutal-border border-t-0 bg-[var(--bg-paper)] shadow-[4px_4px_0_0_#000]">
+            <!-- Items injected here -->
+            <li id="empty-state" class="p-8 text-center font-mono text-sm opacity-50 uppercase">
+                [ No Data Loaded ]
+            </li>
+        </ul>
+
+        <div class="pt-8 flex justify-center">
+            <button id="clear-all-btn" class="btn-secondary text-sm px-6 py-2 brutal-shadow" disabled>
+                PURGE ALL DATA
+            </button>
+        </div>
+    </div>
+
+    <!-- Logic Script -->
+    <script>
+        // Global variables
+        const filesToProcess = [];
+        let conversionRunning = false;
+        let isFolderUpload = false;
+        let includeNonImageFiles = true;
+        let preserveEmptyNonImageStructure = false;
+
+        // --- FS API State ---
+        let directModeActive = false;
+        let sourceFolderHandle = null;
+        let destFolderHandle = null;
+
+        // --- Web Worker Setup ---
+        const workerScript = `
+            self.onmessage = async function(e) {
+                const { file, targetMimeType, id } = e.data;
+                try {
+                    const bitmap = await createImageBitmap(file);
+                    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(bitmap, 0, 0);
+                    bitmap.close();
+                    
+                    const blob = await canvas.convertToBlob({ type: targetMimeType, quality: 0.92 });
+                    self.postMessage({ id, blob, success: true });
+                } catch (error) {
+                    self.postMessage({ id, error: error.message, success: false });
+                }
+            };
+        `;
+        const workerBlob = new Blob([workerScript], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(workerBlob);
+
+        const MAX_WORKERS = Math.max(1, (navigator.hardwareConcurrency || 4) - 1);
+        const workerPool = [];
+        for (let i = 0; i < MAX_WORKERS; i++) {
+            workerPool.push(new Worker(workerUrl));
+        }
+        let workerIndex = 0;
+
+        // Element references
+        const mainContent = document.getElementById('main-content');
+        const dropZone = document.getElementById('drop-zone');
+        const hiddenFileInput = document.getElementById('hidden-file-input');
+        const fileList = document.getElementById('file-list');
+        const convertBtn = document.getElementById('convert-btn');
+        const exportZipBtn = document.getElementById('export-zip-btn');
+        const fileCountSpan = document.getElementById('file-count');
+        const messageContainer = document.getElementById('message-container');
+        const clearAllBtn = document.getElementById('clear-all-btn');
+        const selectAllCheckbox = document.getElementById('select-all-checkbox');
+        const globalFormatSelect = document.getElementById('global-format-select');
+        const modeToggleCheckbox = document.getElementById('mode-toggle-checkbox');
+        const systemStatus = document.getElementById('system-status');
+
+        // Folder Controls
+        const folderExportControls = document.getElementById('folder-export-controls');
+        const includeNonImageFilesCheckbox = document.getElementById('include-non-image-files');
+        const preserveStructureOptionDiv = document.getElementById('preserve-structure-option');
+        const preserveNonImageStructureCheckbox = document.getElementById('preserve-non-image-structure');
+
+        // FS API Elements
+        const directModeCheckbox = document.getElementById('direct-mode-checkbox');
+        const directFolderUI = document.getElementById('direct-folder-ui');
+        const sourceFolderBtn = document.getElementById('source-folder-btn');
+        const destFolderBtn = document.getElementById('dest-folder-btn');
+        const sourcePathDisplay = document.getElementById('source-path-display');
+        const destPathDisplay = document.getElementById('dest-path-display');
+
+        const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
+        const IMAGE_MIME_MAP = {
+            'image/jpeg': 'jpg',
+            'image/png': 'png',
+            'image/webp': 'webp'
+        };
+
+        // --- Functions ---
+
+        function updateSystemStatus(text, type = 'NORMAL') {
+            systemStatus.textContent = text;
+            if (type === 'ERROR') systemStatus.style.color = 'var(--accent-red)';
+            else systemStatus.style.color = 'inherit';
+        }
+
+        function downloadSingleFile(index) {
+            const item = filesToProcess[index];
+            if (item && item.convertedBlob) {
+                const filename = item.relativePath.split('/').pop();
+                const url = URL.createObjectURL(item.convertedBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+                showGeneralMessage(`Downloaded: ${filename}`, 'success');
+            } else {
+                showGeneralMessage('File not converted or unavailable.', 'error');
+            }
+        }
+
+        function selectAllConversions(checked) {
+            filesToProcess.forEach(item => {
+                if (item.isImage) {
+                    item.shouldConvert = checked;
+                    item.conversionStatus = checked ? 'Pending' : 'Skipped';
+
+                    const index = filesToProcess.indexOf(item);
+                    const checkbox = document.getElementById(`checkbox-${index}`);
+                    const select = document.getElementById(`select-${index}`);
+                    const statusText = document.getElementById(`status-text-${index}`);
+
+                    if (checkbox) {
+                        checkbox.checked = checked;
+                        select.disabled = !checked;
+                    }
+                    if (statusText) {
+                        statusText.textContent = `(${item.conversionStatus})`;
+                    }
+                }
+            });
+            updateControls();
+        }
+
+        function setAllTargetFormats(mimeType) {
+            filesToProcess.forEach(item => {
+                if (item.isImage) {
+                    item.targetMimeType = mimeType;
+                    item.conversionStatus = 'Pending';
+                    item.convertedBlob = null;
+
+                    const index = filesToProcess.indexOf(item);
+                    const select = document.getElementById(`select-${index}`);
+                    const statusText = document.getElementById(`status-text-${index}`);
+
+                    if (select) {
+                        select.value = mimeType;
+                    }
+                    if (statusText) {
+                        statusText.textContent = '(Pending)';
+                    }
+                }
+            });
+            updateControls();
+        }
+
+        function populateGlobalFormatSelector() {
+            Object.keys(IMAGE_MIME_MAP).forEach(mime => {
+                const option = document.createElement('option');
+                option.value = mime;
+                option.textContent = IMAGE_MIME_MAP[mime].toUpperCase();
+                globalFormatSelect.appendChild(option);
+            });
+            globalFormatSelect.value = 'image/png';
+        }
+
+        function updateSelectAllCheckbox() {
+            const imageFiles = filesToProcess.filter(f => f.isImage);
+            const checkedImages = imageFiles.filter(f => f.shouldConvert);
+
+            if (imageFiles.length > 0) {
+                selectAllCheckbox.disabled = false;
+                selectAllCheckbox.checked = (checkedImages.length === imageFiles.length);
+                selectAllCheckbox.indeterminate = (checkedImages.length > 0 && checkedImages.length < imageFiles.length);
+            } else {
+                selectAllCheckbox.disabled = true;
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            }
+        }
+
+        function isConvertableImage(mimeType) {
+            return mimeType.startsWith('image/');
+        }
+
+        function showGeneralMessage(message, type = 'info') {
+            const messageBox = document.createElement('div');
+            messageBox.className = `message-box ${type}`;
+            messageBox.textContent = `> ${message}`;
+
+            if (messageContainer.children.length >= 3) {
+                messageContainer.removeChild(messageContainer.children[0]);
+            }
+            messageContainer.appendChild(messageBox);
+        }
+
+        function updateControls() {
+            const hasFiles = filesToProcess.length > 0;
+            const hasImages = filesToProcess.some(f => f.isImage);
+
+            // Handle Empty State
+            const emptyState = document.getElementById('empty-state');
+            if (emptyState) {
+                emptyState.style.display = hasFiles ? 'none' : 'block';
+            }
+
+            fileCountSpan.textContent = filesToProcess.length;
+
+            const hasImagesToConvert = filesToProcess.some(f => f.isImage && f.shouldConvert);
+            convertBtn.disabled = !hasImagesToConvert || conversionRunning;
+
+            const hasConvertedBlobs = filesToProcess.some(f => f.convertedBlob || (f.file && !f.shouldConvert));
+            exportZipBtn.disabled = conversionRunning || !hasConvertedBlobs;
+
+            clearAllBtn.disabled = !hasFiles;
+
+            globalFormatSelect.disabled = !hasImages;
+            document.getElementById('global-controls').classList.toggle('opacity-50', !hasImages);
+            updateSelectAllCheckbox();
+
+            // Folder Control Visibility
+            if (isFolderUpload) {
+                folderExportControls.classList.remove('hidden');
+            } else {
+                folderExportControls.classList.add('hidden');
+            }
+
+            if (!includeNonImageFiles) {
+                preserveStructureOptionDiv.classList.remove('hidden');
+            } else {
+                preserveStructureOptionDiv.classList.add('hidden');
+            }
+
+            // Direct Mode UI Toggles
+            if (directModeActive) {
+                dropZone.classList.add('opacity-30', 'pointer-events-none');
+                directFolderUI.classList.remove('hidden');
+                exportZipBtn.classList.add('hidden');
+                convertBtn.textContent = "// STREAM CONVERSION TO DISK";
+            } else {
+                dropZone.classList.remove('opacity-30', 'pointer-events-none');
+                directFolderUI.classList.add('hidden');
+                exportZipBtn.classList.remove('hidden');
+                convertBtn.textContent = "// EXECUTE CONVERSION";
+            }
+        }
+
+        function addFileEntry(file, relativePath) {
+            const isDuplicate = filesToProcess.some(f => f.relativePath === relativePath);
+            if (isDuplicate) return;
+
+            const isImage = isConvertableImage(file.type);
+            const initialTargetMime = isImage ? globalFormatSelect.value : 'N/A';
+            const shouldConvertInitially = isImage ? selectAllCheckbox.checked : false;
+
+            filesToProcess.push({
+                file: file,
+                relativePath: relativePath,
+                isImage: isImage,
+                shouldConvert: shouldConvertInitially,
+                targetMimeType: initialTargetMime,
+                convertedBlob: null,
+                conversionStatus: shouldConvertInitially ? 'Pending' : (isImage ? 'Skipped' : 'N/A'),
+                originalName: file.name
+            });
+
+            if (relativePath && relativePath.includes('/')) {
+                isFolderUpload = true;
+            }
+        }
+
+        function processDirectory(entry) {
+            isFolderUpload = true;
+            return new Promise((resolve, reject) => {
+                const reader = entry.createReader();
+                const entries = [];
+
+                function readEntries() {
+                    reader.readEntries(async (results) => {
+                        if (!results.length) {
+                            resolve(entries);
+                        } else {
+                            entries.push(...results);
+                            await processResults(results);
+                            readEntries();
+                        }
+                    }, reject);
+                }
+
+                async function processResults(results) {
+                    for (const item of results) {
+                        if (item.isFile) {
+                            await new Promise((fileResolve) => {
+                                item.file(f => {
+                                    addFileEntry(f, item.fullPath.substring(1));
+                                    fileResolve();
+                                });
+                            });
+                        } else if (item.isDirectory) {
+                            await processDirectory(item);
+                        }
+                    }
+                }
+
+                readEntries();
+            });
+        }
+
+        async function handleFiles(dataTransferItems) {
+            isFolderUpload = false;
+            const items = Array.from(dataTransferItems);
+            let totalFilesFound = 0;
+
+            const scanPromises = items.map(async (item) => {
+                const entry = item.webkitGetAsEntry();
+                if (entry) {
+                    if (entry.isFile) {
+                        return new Promise(resolve => {
+                            item.getAsFile(file => {
+                                if (file) {
+                                    addFileEntry(file, file.name);
+                                    totalFilesFound++;
+                                }
+                                resolve();
+                            });
+                        });
+                    } else if (entry.isDirectory) {
+                        showGeneralMessage(`Scanning Directory: ${entry.name}...`, 'info');
+                        await processDirectory(entry);
+                        showGeneralMessage(`Directory Scan Complete`, 'success');
+                    }
+                } else if (item.kind === 'file') {
+                    return new Promise(resolve => {
+                        item.getAsFile(file => {
+                            if (file) {
+                                const path = file.webkitRelativePath || file.name;
+                                addFileEntry(file, path);
+                                totalFilesFound++;
+                            }
+                            resolve();
+                        });
+                    });
+                }
+            });
+
+            await Promise.all(scanPromises);
+            renderFileList();
+        }
+
+        function renderFileList() {
+            const fragment = document.createDocumentFragment();
+
+            filesToProcess.forEach((item, index) => {
+                if (item.relativePath === 'empty') return;
+
+                const listItem = document.createElement('li');
+                listItem.id = `file-item-${index}`;
+                listItem.setAttribute('data-relative-path', item.relativePath);
+                listItem.className = 'file-list-item border-b border-[var(--ink)] last:border-0';
+
+                // 1. Path
+                const pathDisplay = document.createElement('div');
+                pathDisplay.className = 'font-mono text-xs md:text-sm overflow-hidden whitespace-nowrap text-ellipsis truncate pr-4';
+                pathDisplay.innerHTML = `<span class="opacity-50 mr-2">${index + 1}.</span> ${item.relativePath}`;
+
+                // 2. Controls
+                const formatControl = document.createElement('div');
+                formatControl.className = 'flex items-center justify-end gap-2';
+
+                if (item.isImage) {
+                    const select = document.createElement('select');
+                    select.id = `select-${index}`;
+                    select.className = 'file-format-select text-xs';
+                    Object.keys(IMAGE_MIME_MAP).forEach(mime => {
+                        const option = document.createElement('option');
+                        option.value = mime;
+                        option.textContent = IMAGE_MIME_MAP[mime].toUpperCase();
+                        select.appendChild(option);
+                    });
+                    select.value = item.targetMimeType;
+                    select.disabled = !item.shouldConvert;
+
+                    select.addEventListener('change', (e) => {
+                        item.targetMimeType = e.target.value;
+                        item.conversionStatus = 'Pending';
+                        item.convertedBlob = null;
+                        const st = document.getElementById(`status-text-${index}`);
+                        if (st) st.textContent = '(Pending)';
+                        updateControls();
+                    });
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.checked = item.shouldConvert;
+                    checkbox.id = `checkbox-${index}`;
+                    checkbox.addEventListener('change', (e) => {
+                        item.shouldConvert = e.target.checked;
+                        select.disabled = !item.shouldConvert;
+                        item.conversionStatus = item.shouldConvert ? 'Pending' : 'Skipped';
+                        const st = document.getElementById(`status-text-${index}`);
+                        if (st) {
+                            st.textContent = `(${item.conversionStatus})`;
+                            st.style.color = 'inherit';
+                        }
+                        updateControls();
+                    });
+
+                    formatControl.appendChild(checkbox);
+                    formatControl.appendChild(select);
+                } else {
+                    const div = document.createElement('div');
+                    div.textContent = 'NO ACTION';
+                    div.className = 'text-xs font-bold uppercase tracking-wider opacity-50 px-1';
+                    formatControl.appendChild(div);
+                }
+
+                // 3. Status
+                const statusAndRemove = document.createElement('div');
+                statusAndRemove.className = 'flex items-center justify-end gap-2 min-w-[100px]';
+
+                const statusText = document.createElement('span');
+                statusText.id = `status-text-${index}`;
+                statusText.className = 'text-[10px] font-mono uppercase whitespace-nowrap';
+                statusText.textContent = `(${item.conversionStatus})`;
+                if (item.conversionStatus === 'Success') statusText.style.color = 'green';
+                if (item.conversionStatus === 'Error') statusText.style.color = 'red';
+
+                if (!isFolderUpload && item.conversionStatus === 'Success' && item.isImage) {
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.innerHTML = '↓';
+                    downloadBtn.className = 'w-6 h-6 flex items-center justify-center border border-black font-bold text-xs hover:bg-black hover:text-[var(--bg-cream)] transition-colors';
+                    downloadBtn.onclick = () => downloadSingleFile(index);
+                    statusAndRemove.appendChild(downloadBtn);
+                }
+
+                const removeBtn = document.createElement('button');
+                removeBtn.innerHTML = '✕';
+                removeBtn.className = 'w-6 h-6 flex items-center justify-center border border-black font-bold text-xs hover:bg-[var(--accent-red)] hover:text-white transition-colors';
+                removeBtn.onclick = () => removeFile(index);
+
+                statusAndRemove.appendChild(statusText);
+                statusAndRemove.appendChild(removeBtn);
+
+                listItem.appendChild(pathDisplay);
+                listItem.appendChild(formatControl);
+                listItem.appendChild(statusAndRemove);
+                fragment.appendChild(listItem);
+            });
+
+            fileList.innerHTML = '';
+            fileList.appendChild(fragment);
+            updateControls();
+        }
+
+        function removeFile(index) {
+            const listItem = document.getElementById(`file-item-${index}`);
+            if (listItem) {
+                listItem.style.transform = 'translateX(100%)';
+                listItem.style.opacity = '0';
+
+                setTimeout(() => {
+                    const filePath = filesToProcess[index]?.relativePath || 'file';
+                    filesToProcess.splice(index, 1);
+
+                    isFolderUpload = filesToProcess.some(f => f.relativePath.includes('/'));
+                    showGeneralMessage(`Removed: ${filePath}`, 'info');
+                    renderFileList();
+                }, 300);
+            } else {
+                filesToProcess.splice(index, 1);
+                isFolderUpload = filesToProcess.some(f => f.relativePath.includes('/'));
+                renderFileList();
+            }
+        }
+
+        async function convertFileWithWorker(item, index) {
+            const worker = workerPool[workerIndex];
+            workerIndex = (workerIndex + 1) % MAX_WORKERS;
+
+            return new Promise((resolve, reject) => {
+                const handler = (e) => {
+                    if (e.data.id === index) {
+                        worker.removeEventListener('message', handler);
+                        if (e.data.success) resolve(e.data.blob);
+                        else reject(new Error(e.data.error));
+                    }
+                };
+                worker.addEventListener('message', handler);
+                worker.postMessage({
+                    file: item.file,
+                    targetMimeType: item.targetMimeType,
+                    id: index
+                });
+            });
+        }
+
+        // --- Event Listeners ---
+
+        modeToggleCheckbox.addEventListener('change', (e) => {
+            document.body.classList.toggle('void-mode');
+            const isVoid = document.body.classList.contains('void-mode');
+            const label = document.querySelector('label[for="mode-toggle-checkbox"] span');
+
+            if (isVoid) {
+                label.textContent = "Light Mode";
+                label.style.background = "var(--bg-cream)";
+                label.style.color = "var(--ink)";
+            } else {
+                label.textContent = "Void Mode";
+                label.style.background = "var(--ink)";
+                label.style.color = "var(--bg-cream)";
+            }
+        });
+
+        includeNonImageFilesCheckbox.addEventListener('change', (e) => {
+            includeNonImageFiles = e.target.checked;
+            updateControls();
+        });
+
+        preserveNonImageStructureCheckbox.addEventListener('change', (e) => {
+            preserveEmptyNonImageStructure = e.target.checked;
+        });
+
+        selectAllCheckbox.addEventListener('change', (e) => selectAllConversions(e.target.checked));
+        globalFormatSelect.addEventListener('change', (e) => setAllTargetFormats(e.target.value));
+
+        convertBtn.addEventListener('click', async () => {
+            if (conversionRunning) return;
+
+            conversionRunning = true;
+            updateSystemStatus('PROCESSING...', 'BUSY');
+            updateControls();
+
+            const tasks = filesToProcess.filter(f =>
+                (f.isImage && f.shouldConvert) ||
+                (directModeActive && includeNonImageFiles && !f.isImage)
+            );
+
+            if (tasks.length === 0) {
+                showGeneralMessage('No valid units to process cross-mode.', 'info');
+                conversionRunning = false;
+                updateControls();
+                return;
+            }
+
+            if (directModeActive && !destFolderHandle) {
+                showGeneralMessage('You must select a DESTINATION folder first.', 'error');
+                conversionRunning = false;
+                updateControls();
+                return;
+            }
+
+            const CONCURRENCY_LIMIT = MAX_WORKERS * 2;
+            const taskLabel = directModeActive && includeNonImageFiles ? "Process & Copy" : "Conversion";
+            showGeneralMessage(`${taskLabel} started: ${filesToProcess.length} total units (Limit: ${CONCURRENCY_LIMIT} active).`, 'info');
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            filesToProcess.forEach((item, i) => {
+                const isImageTask = item.isImage && item.shouldConvert;
+                const isCopyTask = directModeActive && includeNonImageFiles && !item.isImage;
+
+                if (isImageTask || isCopyTask) {
+                    const statusElement = document.getElementById(`status-text-${i}`);
+                    item.conversionStatus = isImageTask ? 'Processing...' : 'Copying...';
+                    if (statusElement) {
+                        statusElement.textContent = '(Waiting...)';
+                        statusElement.style.color = 'orange';
+                    }
+                }
+            });
+
+            // Async Pool Implementation
+            const pool = [];
+            for (let i = 0; i < filesToProcess.length; i++) {
+                const item = filesToProcess[i];
+                const isImageTask = item.isImage && item.shouldConvert;
+                const isCopyTask = directModeActive && includeNonImageFiles && !item.isImage;
+
+                if (!isImageTask && !isCopyTask) continue;
+
+                if (pool.length >= CONCURRENCY_LIMIT) {
+                    await Promise.race(pool);
+                }
+
+                const promise = (async (idx) => {
+                    const itm = filesToProcess[idx];
+                    const targetExtension = IMAGE_MIME_MAP[itm.targetMimeType];
+                    const statusElement = document.getElementById(`status-text-${idx}`);
+
+                    try {
+                        if (itm.isImage && itm.shouldConvert) {
+                            if (statusElement) statusElement.textContent = '(Busy...)';
+                            const convertedBlob = await convertFileWithWorker(itm, idx);
+                            itm.convertedBlob = convertedBlob;
+                            itm.relativePath = itm.relativePath.replace(/\.[^/.]+$/, "") + '.' + targetExtension;
+                            itm.conversionStatus = 'Success';
+                            successCount++;
+                            if (statusElement) {
+                                statusElement.textContent = '(Success)';
+                                statusElement.style.color = 'green';
+                            }
+                        } else if (directModeActive && includeNonImageFiles) {
+                            if (statusElement) statusElement.textContent = '(Copying...)';
+                            itm.conversionStatus = 'Success';
+                            successCount++;
+                            if (statusElement) {
+                                statusElement.textContent = '(Copied)';
+                                statusElement.style.color = 'blue';
+                            }
+                        }
+
+                        // --- FS API: Write Result ---
+                        if (directModeActive && itm.conversionStatus === 'Success') {
+                            const blobToWrite = itm.convertedBlob || itm.file;
+                            const pathParts = itm.relativePath.split('/');
+                            const fileName = pathParts.pop();
+
+                            let currentHandle = destFolderHandle;
+                            for (const part of pathParts) {
+                                currentHandle = await currentHandle.getDirectoryHandle(part, { create: true });
+                            }
+
+                            const fileHandle = await currentHandle.getFileHandle(fileName, { create: true });
+                            const writable = await fileHandle.createWritable();
+                            await writable.write(blobToWrite);
+                            await writable.close();
+                        }
+                    } catch (error) {
+                        itm.conversionStatus = 'Error';
+                        itm.convertedBlob = null;
+                        errorCount++;
+                        if (statusElement) {
+                            statusElement.textContent = '(Error)';
+                            statusElement.style.color = 'red';
+                        }
+                        showGeneralMessage(`Fail: ${itm.relativePath} - ${error.message}`, 'error');
+                    }
+                })(i).then(() => {
+                    pool.splice(pool.indexOf(promise), 1);
+                });
+
+                pool.push(promise);
+            }
+
+            await Promise.all(pool);
+
+            conversionRunning = false;
+            updateSystemStatus('READY', 'NORMAL');
+            updateControls();
+            // Final render to update download buttons if applicable
+            renderFileList();
+            showGeneralMessage(`Batch Complete: ${successCount} OK, ${errorCount} ERR.`, 'success');
+        });
+
+        exportZipBtn.addEventListener('click', () => {
+            const zip = new JSZip();
+            const filesToZip = filesToProcess;
+
+            if (filesToZip.length === 0) {
+                showGeneralMessage('No files to export.', 'error');
+                return;
+            }
+
+            showGeneralMessage('Compiling Archive Structure...', 'info');
+
+            let filesAddedCount = 0;
+            const foldersWithContent = new Set();
+            const foldersFromExcludedNonImages = new Set();
+
+            function getParentDirectory(relativePath) {
+                const parts = relativePath.split('/');
+                if (parts.length > 1) return parts.slice(0, -1).join('/');
+                return '';
+            }
+
+            function addParentPaths(relativePath, set) {
+                let currentPath = '';
+                relativePath.split('/').slice(0, -1).forEach(part => {
+                    currentPath = currentPath.length > 0 ? `${currentPath}/${part}` : part;
+                    set.add(currentPath);
+                });
+            }
+
+            filesToZip.forEach(item => {
+                let fileBlob = item.file;
+                let pathInZip = item.relativePath;
+                let shouldIncludeFile = false;
+
+                if (item.isImage) {
+                    fileBlob = item.convertedBlob || item.file;
+                    shouldIncludeFile = true;
+                } else if (!item.isImage && includeNonImageFiles) {
+                    shouldIncludeFile = true;
+                }
+
+                if (shouldIncludeFile) {
+                    if (item.isImage && item.shouldConvert && !item.convertedBlob) {
+                        return;
+                    }
+                    zip.file(pathInZip, fileBlob);
+                    filesAddedCount++;
+                    addParentPaths(pathInZip, foldersWithContent);
+                }
+
+                if (!item.isImage && !shouldIncludeFile) {
+                    addParentPaths(pathInZip, foldersFromExcludedNonImages);
+                }
+            });
+
+            if (isFolderUpload && !includeNonImageFiles && preserveEmptyNonImageStructure) {
+                foldersFromExcludedNonImages.forEach(folderPath => {
+                    if (!foldersWithContent.has(folderPath)) {
+                        zip.folder(folderPath);
+                    }
+                });
+            }
+
+            updateSystemStatus('GENERATING ZIP...', 'BUSY');
+
+            zip.generateAsync({ type: 'blob' })
+                .then(content => {
+                    if (content.size > 0 || filesAddedCount > 0) {
+                        saveAs(content, isFolderUpload ? 'brutal_archive.zip' : 'converted_files.zip');
+                        showGeneralMessage(`Archive Generated: ${filesAddedCount} files.`, 'success');
+                        updateSystemStatus('READY', 'NORMAL');
+                    } else {
+                        showGeneralMessage('Archive Empty.', 'error');
+                    }
+                })
+                .catch(error => {
+                    showGeneralMessage(`Zip Error: ${error.message}`, 'error');
+                    updateSystemStatus('ERROR', 'ERROR');
+                });
+        });
+
+        // --- FS API Logic ---
+
+        directModeCheckbox.addEventListener('change', (e) => {
+            directModeActive = e.target.checked;
+            filesToProcess.length = 0;
+            renderFileList();
+            updateControls();
+            if (directModeActive) {
+                showGeneralMessage('Direct Mode Active. UI Drag-and-Drop Suspended.', 'info');
+            }
+        });
+
+        async function scanDirectoryFS(handle, path = '') {
+            for await (const entry of handle.values()) {
+                const entryPath = path ? `${path}/${entry.name}` : entry.name;
+                if (entry.kind === 'file') {
+                    const file = await entry.getFile();
+                    addFileEntry(file, entryPath);
+                } else if (entry.kind === 'directory') {
+                    await scanDirectoryFS(entry, entryPath);
+                }
+            }
+        }
+
+        sourceFolderBtn.addEventListener('click', async () => {
+            try {
+                sourceFolderHandle = await window.showDirectoryPicker({ mode: 'read' });
+                sourcePathDisplay.textContent = sourceFolderHandle.name;
+                filesToProcess.length = 0;
+                showGeneralMessage(`Scanning Source: ${sourceFolderHandle.name}...`, 'info');
+                await scanDirectoryFS(sourceFolderHandle);
+                showGeneralMessage(`Scan Complete: ${filesToProcess.length} objects found.`, 'success');
+                renderFileList();
+            } catch (err) {
+                if (err.name !== 'AbortError') showGeneralMessage(`Source Error: ${err.message}`, 'error');
+            }
+        });
+
+        destFolderBtn.addEventListener('click', async () => {
+            try {
+                destFolderHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                destPathDisplay.textContent = destFolderHandle.name;
+                showGeneralMessage(`Destination Set: ${destFolderHandle.name}`, 'success');
+            } catch (err) {
+                if (err.name !== 'AbortError') showGeneralMessage(`Dest Error: ${err.message}`, 'error');
+            }
+        });
+
+        clearAllBtn.addEventListener('click', () => {
+            if (conversionRunning) {
+                showGeneralMessage('System Busy. Wait for conversion.', 'error');
+                return;
+            }
+            filesToProcess.length = 0;
+            isFolderUpload = false;
+            includeNonImageFiles = true;
+            includeNonImageFilesCheckbox.checked = true;
+            preserveEmptyNonImageStructure = false;
+            preserveNonImageStructureCheckbox.checked = false;
+
+            messageContainer.innerHTML = '';
+
+            // Visual clear
+            const items = Array.from(fileList.children);
+            items.forEach((li, i) => {
+                setTimeout(() => {
+                    li.style.opacity = '0';
+                    li.style.transform = 'translateX(-20px)';
+                }, i * 50);
+            });
+
+            setTimeout(() => {
+                renderFileList();
+                showGeneralMessage('Memory Purged.', 'info');
+                updateSystemStatus('READY', 'NORMAL');
+            }, 300);
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('dragover');
+            e.dataTransfer.dropEffect = 'copy';
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('dragover');
+
+            if (e.dataTransfer.items.length > 0) {
+                filesToProcess.length = 0;
+                fileList.innerHTML = '';
+                handleFiles(e.dataTransfer.items);
+            }
+        });
+
+        dropZone.addEventListener('click', () => hiddenFileInput.click());
+
+        hiddenFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                filesToProcess.length = 0;
+                fileList.innerHTML = '';
+                isFolderUpload = false;
+
+                Array.from(e.target.files).forEach(file => {
+                    const path = file.webkitRelativePath || file.name;
+                    addFileEntry(file, path);
+                });
+                renderFileList();
+                e.target.value = '';
+            }
+        });
+
+        populateGlobalFormatSelector();
+        updateControls();
+        mainContent.classList.remove('opacity-0');
+    </script>
+</body>
+
+</html>
