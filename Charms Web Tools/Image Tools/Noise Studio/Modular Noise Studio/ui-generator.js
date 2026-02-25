@@ -99,7 +99,7 @@ function destroyLayerInstance(baseType, instanceIndex) {
         `[data-layer-key="${baseType}"][data-instance-index="${instanceIndex}"]`
     );
     if (panel) {
-        panel.remove();
+        panel.parentElement.removeChild(panel);
         console.log(`[UI-Gen] Removed instance panel: ${baseType}__${instanceIndex}`);
     }
 }

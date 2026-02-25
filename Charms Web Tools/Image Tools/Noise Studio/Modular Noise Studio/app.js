@@ -57,6 +57,7 @@ const state = {
  *  [MULTI-INSTANCE] Declared as 'let' to allow Proxy swapping for duplicate layer instances. */
 let UI = {};
 const _UI_BASE = UI; // Keep reference to the real UI object
+let eyedropperTarget = null;
 
 /** 'LAYERS' provides user-facing metadata for each pipeline step. */
 const LAYERS = {
@@ -255,35 +256,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
 
     // [SIDEBAR] Only one section open at a time logic
-    document.querySelectorAll('#tab-controls details').forEach(details => {
-        details.addEventListener('toggle', (e) => {
-            if (details.open) {
-                // [MODIFIED] Removed "close others" logic to allow multiple sections and prevent scroll jumps
-
-                // Update active section logic
-                const input = details.querySelector('input, select');
-                if (input) {
-                    const section = getSectionFromId(input.id);
-                    if (section) {
-                        state.activeSection = section;
-                        requestRender();
-                    }
-                }
-            }
-        });
-    });
-
+    // Now handled by bindDynamicControls
     setupDragLayerList();
 
     // [VALUE BINDING] Sync range sliders with their adjacent text indicators
-    document.querySelectorAll('input[type=range]').forEach(range => {
-        const text = range.nextElementSibling;
-        if (text && text.classList.contains('control-value')) {
-            const update = () => text.value = range.value;
-            range.addEventListener('input', () => { update(); requestRender(); });
-            update();
-        }
-    });
+    // Now handled by bindDynamicControls
 
     // Specific Listener for Zoom to update State
     if (UI.hoverZoomValue) {
@@ -297,18 +274,10 @@ window.addEventListener('DOMContentLoaded', async () => {
             requestRender();
         });
     }
-    document.querySelectorAll('select, input[type=checkbox], input[type=color]').forEach(el => {
-        el.addEventListener('change', () => {
-            if (el.id === 'clampPreviewToggle') {
-                // "High Quality Preview" checked = No Clamping
-                state.clampPreview = !el.checked;
-                // Always respect the current zoom state when flipping resolution limits
-                reallocateBuffers(state.isZooming);
-            }
-            requestRender();
-        });
-        el.addEventListener('input', requestRender);
-    });
+    // Generic input triggers
+    // Now handled by bindDynamicControls
+    bindDynamicControls(document);
+
 
     UI.edgeMode.addEventListener('change', () => {
         UI.edgeSatControls.style.display = UI.edgeMode.value === '1' ? 'block' : 'none';
@@ -783,8 +752,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     // [NOISE PARAM DYNAMICS]
     // Purpose: Dynamically renames and toggles noise parameters based on algorithm.
-    UI.noiseType.addEventListener('change', syncNoiseUI);
-    syncNoiseUI(); // Initial call
+    UI.noiseType.addEventListener('change', () => syncNoiseUI(''));
+    syncNoiseUI(''); // Initial call
 
     // [EYEDROPPER TOOL] Localized Color Selection
     // Purpose: Picks colors directly from the WebGL canvas for palette or exclusion masks.
@@ -798,20 +767,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             `;
     document.head.appendChild(style);
 
-    let eyedropperTarget = null;
-    document.querySelectorAll('.eyedropper-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const targetId = e.target.dataset.target;
-            if (eyedropperTarget === targetId) {
-                eyedropperTarget = null;
-                UI.displayCanvas.classList.remove('eyedropper-active');
-            } else {
-                eyedropperTarget = targetId;
-                UI.displayCanvas.classList.add('eyedropper-active');
-            }
-            e.stopPropagation();
-        });
-    });
+    // Eyedropper buttons handled by bindDynamicControls
 
     UI.displayCanvas.addEventListener('click', (e) => {
         if (!eyedropperTarget) return;
@@ -1003,7 +959,33 @@ function restoreSettings(preset) {
         console.warn(`Version mismatch: Preset is ${preset.metadata.version}, App is ${APP_VERSION}. Attempting to restore anyway.`);
     }
 
-    // Apply values (sliders)
+    // [MULTI-INSTANCE JSON FIX] 1. Rebuild Layer Structure First
+    // Clean up any currently existing duplicate layers
+    state.renderOrder.slice().forEach(id => {
+        const { index } = parseInstanceId(id);
+        if (index > 0) removeLayerInstance(id);
+    });
+
+    // Generate any required duplicate layers from the preset
+    if (preset.renderOrder) {
+        preset.renderOrder.forEach(id => {
+            const { baseType, index } = parseInstanceId(id);
+            if (index > 0) {
+                // Ensure UI elements are created before setting values
+                if (typeof createLayerInstance === 'function') {
+                    const newPanel = createLayerInstance(baseType, index);
+                    if (newPanel) bindDynamicControls(newPanel);
+                }
+            }
+        });
+
+        // Re-collect UI elements after generation
+        document.querySelectorAll('input, select, button, canvas').forEach(el => {
+            if (el.id) _UI_BASE[el.id] = el;
+        });
+    }
+
+    // [MULTI-INSTANCE JSON FIX] 2. Apply values (sliders) after UI is guaranteed to exist
     if (preset.values) {
         Object.keys(preset.values).forEach(id => {
             const el = document.getElementById(id);
@@ -1041,6 +1023,7 @@ function restoreSettings(preset) {
 
     // Apply Core State
     if (preset.renderOrder) {
+        // Now safely inject the entire order back
         state.renderOrder = preset.renderOrder;
         setupDragLayerList();
     }
@@ -1397,7 +1380,10 @@ function addLayerInstance(baseType) {
 
     // Generate UI panel with suffixed IDs
     if (typeof createLayerInstance === 'function') {
-        createLayerInstance(baseType, nextIndex);
+        const newPanel = createLayerInstance(baseType, nextIndex);
+        if (newPanel) {
+            bindDynamicControls(newPanel);
+        }
     }
 
     // Re-collect UI elements (new suffixed elements now in DOM)
@@ -2026,9 +2012,9 @@ function renderSingleLayer(gl, key, inputTex, outputFbo, uniforms, force = false
         gl.uniform2f(gl.getUniformLocation(state.programs.noise, 'u_res'), w, h);
         gl.uniform2f(gl.getUniformLocation(state.programs.noise, 'u_origRes'), state.width * state.upscaleFactor, state.height * state.upscaleFactor);
         gl.uniform1f(gl.getUniformLocation(state.programs.noise, 'u_scale'), parseFloat(UI.noiseSize.value));
-        gl.uniform1f(gl.getUniformLocation(state.programs.noise, 'u_paramA'), parseFloat(document.getElementById('noiseParamA').value) / 100.0);
-        gl.uniform1f(gl.getUniformLocation(state.programs.noise, 'u_paramB'), parseFloat(document.getElementById('noiseParamB').value) / 100.0);
-        gl.uniform1f(gl.getUniformLocation(state.programs.noise, 'u_paramC'), parseFloat(document.getElementById('noiseParamC').value) / 100.0);
+        gl.uniform1f(gl.getUniformLocation(state.programs.noise, 'u_paramA'), parseFloat(UI.noiseParamA?.value || 0) / 100.0);
+        gl.uniform1f(gl.getUniformLocation(state.programs.noise, 'u_paramB'), parseFloat(UI.noiseParamB?.value || 0) / 100.0);
+        gl.uniform1f(gl.getUniformLocation(state.programs.noise, 'u_paramC'), parseFloat(UI.noiseParamC?.value || 0) / 100.0);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
         const blurAmt = parseFloat(UI.blurriness.value) / 100.0;
@@ -2933,35 +2919,45 @@ function updatePaletteUI() {
     });
 }
 
-function syncNoiseUI() {
-    const type = parseInt(UI.noiseType.value);
-    const header = document.getElementById('noiseParamsHeader');
-    const rowA = document.getElementById('noiseParamRowA');
-    const rowB = document.getElementById('noiseParamRowB');
-    const rowC = document.getElementById('noiseParamRowC');
-    const labelA = document.getElementById('noiseLabelA');
-    const labelB = document.getElementById('noiseLabelB');
-    const labelC = document.getElementById('noiseLabelC');
+function syncNoiseUI(suffix = '') {
+    const typeInput = _UI_BASE['noiseType' + suffix] || document.getElementById('noiseType' + suffix);
+    if (!typeInput) return;
+    const type = parseInt(typeInput.value);
+
+    const getEl = (id) => _UI_BASE[id + suffix] || document.getElementById(id + suffix);
+
+    const header = getEl('noiseParamsHeader');
+    const rowA = getEl('noiseParamRowA');
+    const rowB = getEl('noiseParamRowB');
+    const rowC = getEl('noiseParamRowC');
+    const labelA = getEl('noiseLabelA');
+    const labelB = getEl('noiseLabelB');
+    const labelC = getEl('noiseLabelC');
+    const paramA = getEl('noiseParamA');
 
     // Reset
-    [header, rowA, rowB, rowC].forEach(el => el.style.display = 'none');
+    [header, rowA, rowB, rowC].forEach(el => { if (el) el.style.display = 'none'; });
 
     const showSet = (a, b, c) => {
-        header.style.display = 'block';
-        if (a) { rowA.style.display = 'flex'; labelA.textContent = a; }
-        if (b) { rowB.style.display = 'flex'; labelB.textContent = b; }
-        if (c) { rowC.style.display = 'flex'; labelC.textContent = c; }
+        if (header) header.style.display = 'block';
+        if (a && rowA && labelA) { rowA.style.display = 'flex'; labelA.textContent = a; }
+        if (b && rowB && labelB) { rowB.style.display = 'flex'; labelB.textContent = b; }
+        if (c && rowC && labelC) { rowC.style.display = 'flex'; labelC.textContent = c; }
     };
 
     switch (type) {
         case 5: // Perlin
             showSet("Complexity", "Organic Flow", "Octave Mix");
-            UI.noiseParamA.min = 1; UI.noiseParamA.max = 8; UI.noiseParamA.step = 1;
-            if (UI.noiseParamA.value > 8) UI.noiseParamA.value = 4;
+            if (paramA) {
+                paramA.min = 1; paramA.max = 8; paramA.step = 1;
+                if (paramA.value > 8) { paramA.value = 4; paramA.dispatchEvent(new Event('input')); }
+            }
             break;
         case 6: // Worley
             showSet("Cell Jitter", "Density", "Sphericity");
-            UI.noiseParamA.min = 0; UI.noiseParamA.max = 100; UI.noiseParamA.step = 1;
+            if (paramA) {
+                paramA.min = 0; paramA.max = 100; paramA.step = 1;
+            }
             break;
         case 7: // Scanlines
             showSet("Line Thickness", "Vertical Jitter", "Sync Grain");
@@ -3206,41 +3202,24 @@ async function openCompare() {
  * logic: Combines original and processed images into a single vertical or horizontal layout.
  */
 async function exportComparison(mode) {
-    UI.loading.style.display = 'block';
-    await new Promise(r => setTimeout(r, 50));
-
-    renderFrame(true);
-    const processedData = state.canvas.toDataURL();
-    const processedImg = new Image();
-    processedImg.src = processedData;
-    await new Promise(r => processedImg.onload = r);
-
-    const exp = document.createElement('canvas');
-    const w = state.canvas.width;
-    const h = state.canvas.height;
-
+    const o = document.getElementById('compareOriginal');
+    const p = document.getElementById('compareProcessed');
+    const c = document.createElement('canvas');
     if (mode === 'side') {
-        exp.width = w * 2;
-        exp.height = h;
-        const ctx = exp.getContext('2d');
-        ctx.drawImage(state.baseImage, 0, 0, w, h);
-        ctx.drawImage(processedImg, w, 0);
+        c.width = o.width * 2;
+        c.height = o.height;
+        c.getContext('2d').drawImage(o, 0, 0);
+        c.getContext('2d').drawImage(p, o.width, 0);
     } else {
-        exp.width = w;
-        exp.height = h * 2;
-        const ctx = exp.getContext('2d');
-        ctx.drawImage(state.baseImage, 0, 0, w, h);
-        ctx.drawImage(processedImg, 0, h);
+        c.width = o.width;
+        c.height = o.height * 2;
+        c.getContext('2d').drawImage(o, 0, 0);
+        c.getContext('2d').drawImage(p, 0, o.height);
     }
-
     const link = document.createElement('a');
     link.download = `grain-compare-${mode}.png`;
-    link.href = exp.toDataURL('image/png', 0.9);
+    link.href = c.toDataURL('image/png', 1.0);
     link.click();
-
-    reallocateBuffers(false);
-    requestRender();
-    UI.loading.style.display = 'none';
 }
 
 // --- PREVIEW POPOUT ---
@@ -3602,4 +3581,76 @@ function drawToThumbnail(tex, canvasId, channel = 0) {
 
     const ctx = canvas.getContext('2d', { alpha: false });
     ctx.drawImage(state.thumbTempCanvas, 0, 0, tw, th, 0, 0, dw, dh);
+}
+
+function bindDynamicControls(container) {
+    container.querySelectorAll('details').forEach(details => {
+        if (details.dataset.bound) return;
+        details.addEventListener('toggle', (e) => {
+            if (details.open) {
+                const input = details.querySelector('input, select');
+                if (input) {
+                    const section = typeof getSectionFromId === 'function' ? getSectionFromId(input.id) : null;
+                    if (section) {
+                        state.activeSection = section;
+                        requestRender();
+                    }
+                }
+            }
+        });
+        details.dataset.bound = 'true';
+    });
+
+    container.querySelectorAll('input[type=range]').forEach(range => {
+        if (range.dataset.bound) return;
+        const text = range.nextElementSibling;
+        if (text && text.classList.contains('control-value')) {
+            const update = () => text.value = range.value;
+            range.addEventListener('input', () => { update(); requestRender(); });
+            // Sync initial value but don't overwrite if not needed
+            update();
+        } else {
+            range.addEventListener('input', requestRender);
+        }
+        range.dataset.bound = 'true';
+    });
+
+    container.querySelectorAll('select, input[type=checkbox], input[type=color]').forEach(el => {
+        if (el.dataset.bound) return;
+        el.addEventListener('change', () => {
+            if (el.id === 'clampPreviewToggle') {
+                state.clampPreview = !el.checked;
+                reallocateBuffers(state.isZooming);
+            }
+            if (el.id && el.id.startsWith('edgeMode')) {
+                const suffix = el.id.substring(8);
+                const targetId = 'edgeSatControls' + suffix;
+                const target = document.getElementById(targetId) || _UI_BASE[targetId];
+                if (target) target.style.display = el.value === '1' ? 'block' : 'none';
+            }
+            if (el.id && el.id.startsWith('noiseType')) {
+                const suffix = el.id.substring(9);
+                syncNoiseUI(suffix);
+            }
+            requestRender();
+        });
+        el.addEventListener('input', requestRender);
+        el.dataset.bound = 'true';
+    });
+
+    container.querySelectorAll('.eyedropper-btn').forEach(btn => {
+        if (btn.dataset.bound) return;
+        btn.addEventListener('click', (e) => {
+            const targetId = e.target.dataset.target;
+            if (eyedropperTarget === targetId) {
+                eyedropperTarget = null;
+                UI.displayCanvas.classList.remove('eyedropper-active');
+            } else {
+                eyedropperTarget = targetId;
+                UI.displayCanvas.classList.add('eyedropper-active');
+            }
+            e.stopPropagation();
+        });
+        btn.dataset.bound = 'true';
+    });
 }
