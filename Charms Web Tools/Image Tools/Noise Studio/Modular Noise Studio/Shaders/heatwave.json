@@ -1,14 +1,82 @@
 ﻿{
     "name": "Heatwave & Ripples",
+    "enableId": "heatwaveEnable",
+    "animated": true,
     "controls": [
-        {"type":"checkbox","id":"heatwaveEnable","label":"Enable","default":false},
-        {"type":"range","id":"heatwaveIntensity","label":"Intensity","min":0,"max":100,"step":1,"default":30},
-        {"type":"range","id":"heatwaveSpeed","label":"Speed","min":0,"max":200,"step":1,"default":50},
-        {"type":"range","id":"heatwaveScale","label":"Scale","min":1,"max":100,"step":1,"default":20},
-        {"type":"select","id":"heatwaveDirection","label":"Direction","options":[
-            {"value":"0","label":"Vertical (Heat)","selected":true},
-            {"value":"1","label":"Horizontal"},
-            {"value":"2","label":"Radial (Ripple)"}
-        ]}
+        {
+            "type": "checkbox",
+            "id": "heatwaveEnable",
+            "label": "Enable",
+            "default": false
+        },
+        {
+            "type": "range",
+            "id": "heatwaveIntensity",
+            "label": "Intensity",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 30
+        },
+        {
+            "type": "range",
+            "id": "heatwaveSpeed",
+            "label": "Speed",
+            "min": 0,
+            "max": 200,
+            "step": 1,
+            "default": 50
+        },
+        {
+            "type": "range",
+            "id": "heatwaveScale",
+            "label": "Scale",
+            "min": 1,
+            "max": 100,
+            "step": 1,
+            "default": 20
+        },
+        {
+            "type": "select",
+            "id": "heatwaveDirection",
+            "label": "Direction",
+            "options": [
+                {
+                    "value": "0",
+                    "label": "Vertical (Heat)",
+                    "selected": true
+                },
+                {
+                    "value": "1",
+                    "label": "Horizontal"
+                },
+                {
+                    "value": "2",
+                    "label": "Radial (Ripple)"
+                }
+            ]
+        }
+    ],
+    "uniforms": [
+        {
+            "name": "u_intensity",
+            "ui_id": "heatwaveIntensity",
+            "type": "float"
+        },
+        {
+            "name": "u_speed",
+            "ui_id": "heatwaveSpeed",
+            "type": "float"
+        },
+        {
+            "name": "u_scale",
+            "ui_id": "heatwaveScale",
+            "type": "float"
+        },
+        {
+            "name": "u_direction",
+            "ui_id": "heatwaveDirection",
+            "type": "int"
+        }
     ]
 }

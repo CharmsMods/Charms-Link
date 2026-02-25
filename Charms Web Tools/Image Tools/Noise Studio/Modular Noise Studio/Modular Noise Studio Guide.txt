@@ -1,0 +1,111 @@
+MODULAR NOISE STUDIO - DEEP TECHNICAL DOCUMENTATION & AI DEVELOPER GUIDE
+========================================================================
+This document serves as a comprehensive manual for understanding, debugging, and extending the Modular Noise Studio architecture. It is written to be as explicit and detailed as possible to assist AI agents and human developers alike.
+
+1. ARCHITECTURAL OVERVIEW & FILE STRUCTURE
+------------------------------------------
+The suite uses a "Low-Coupling, WebGL2-Accelerated" design.
+- index.html: Defines the skeletal layout (panels, canvas containers, modals). Crucially, the main control area `<div id="dynamic-controls"></div>` is populated at runtime, not hardcoded.
+- engine.js: The low-level WebGL wrapper. Handles context initialization, texture allocation (`createTexture`), FBO (Frame Buffer Object) creation, and basic shader compilation (`compileShaderCode`, `createProgramFromSrc`).
+- ui.js: Handles user-facing DOM events unrelated to the render chain (e.g., drag-and-drop, generic button clicks).
+- ui-generator.js: Reads `Shaders/layers.json` and individual layer `.json` files to build the UI dynamically. It supports cloning structures for "Multi-Instance" layers.
+- app.js: The core orchestrator. Contains the global `state` object, the uniform calculator (`computeUniforms`), the masking logic (`renderMaskForLayer`), the render loop (`renderFrame`), and the preset serializer (`downloadPreset`/`uploadPreset`).
+
+2. STATE MANAGEMENT (The Single Source of Truth)
+------------------------------------------------
+The `state` object in `app.js` controls the entire application. Critical properties include:
+- gl: The WebGL2RenderingContext.
+- programs: Map of compiled shaders (e.g., `state.programs.noise`).
+- textures / fbos: Maps of allocated GPU memory. Includes scratch buffers (`blur1`, `blur2`, `tempNoise`, `maskTotal`) and the primary double buffer (`pingPong[0]`, `pingPong[1]`).
+- renderOrder: Array of strings defining the execution sequence (e.g., `['noise', 'adjust', 'blur']`). Multi-instances append suffixes (e.g., `['noise__1']`).
+- layerVisibility: Map tracking which layers are toggled on/off visually in the stack without modifying the `renderOrder`.
+
+3. RENDER ENGINE MECHANICS (Deep Dive)
+--------------------------------------
+The engine uses a declarative, sequential pipeline.
+
+A. Buffer Allocation (`reallocateBuffers` in `engine.js`):
+Called on init, resize, or export. It manages `state.renderWidth` and `state.renderHeight`.
+- Preview mode: Resolution is clamped (default: 2048px) governed by `state.clampPreview`.
+- Export mode: Resolution scales up to `state.width * state.upscaleFactor`.
+- FBOs recreated: The `pingPong` array, `maskTotal`, and scratch buffers (`tempNoise`, `blur1`, `blur2`) are re-allocated as high-precision (RGBA16F or HALF_FLOAT) textures.
+
+B. The Uniform Map (`computeUniforms` in `app.js`):
+Before a layer renders, this function scrapes the DOM (`UI.elementId.value`) to build a massive object of all possible uniforms. 
+- Example: `u_bright` maps to `UI.brightness.value`, `u_sat` maps to `UI.saturationAdj.value / 100.0`.
+- Time mapping: `u_time` is calculated via `(performance.now() % 100000) / 1000.0`.
+
+C. The Render Loop (`renderFrame` in `app.js`):
+1. Base Pass: The source image `state.baseImage` is drawn into `state.pingPong[0].fbo` using a basic `copy` shader.
+2. Iteration: Loops over `state.renderOrder`.
+    - Skips execution if `state.layerVisibility[id]` is false OR the specific layer's `Enable` checkbox is false.
+    - Proxies the UI: For instances like `noise__1`, `UI` is swapped with a Proxy that redirects generic requests (like `UI.strength`) to the suffixed version (`UI.strength__1`).
+    - Calls `renderSingleLayer(gl, baseType, inputTex, outputFbo, uniforms)`.
+    - Swaps `inputIdx` and `outputIdx`.
+3. Chain Snapshotting: It saves the output of the current layer into `state.layerTextures[instanceId]` for use in the "Layer Breakdown" preview grid.
+4. Final Pass: Uses the `final` shader to dump the last active ping-pong texture onto the screen `displayCanvas`.
+
+D. Unified Masking System (`renderMaskForLayer` in `app.js`):
+Before a layer (like 'blur' or 'dither') executes, it checks for mask configurations.
+- Draws to `state.fbos.maskTotal` using `gl.BLEND` set to `DST_COLOR, ZERO` (multiplicative blending).
+- Luma Masking (`state.programs.mask`): Uses threshold and fade uniforms (`u_sth`, `u_sfa`, `u_hth`, `u_hfa`) to isolate shadows or highlights.
+- Color Exclusion (`state.programs.colorMask`): Isolates specific RGB values based on tolerance (`u_tolerance`).
+- Inversion: If requested, it uses `state.fbos.blur1` as a temporary scratchpad to run an `invert` shader, then copies back to `maskTotal`.
+- The resulting texture is passed as `TEXTURE1` (`u_mask`) to the layer's main shader.
+
+4. EXTENDING THE ENGINE (Adding New Layers - ZERO JS REQUIRED)
+--------------------------------------------------------------
+The render pipeline uses a Generic Data-Driven Dispatcher, meaning you can add entirely new layers without writing a single line of JavaScript. To integrate a new effect, follow this pattern:
+
+Step 1: Create the UI Definition & Uniform Mapping (`Shaders/myEffect.json`)
+The JSON structure dictates both the DOM and the WebGL uniform binding.
+```json
+{
+    "name": "My Custom Effect",
+    "enableId": "myEffectEnable",
+    "controls": [
+        { "type": "checkbox", "id": "myEffectEnable", "label": "Enable", "default": true },
+        { "type": "range", "id": "myEffectStrength", "label": "Strength", "min": 0, "max": 100, "default": 50 }
+    ],
+    "mask": { "lumaMask": { "enableId": "myEffectLumaMask", "shadowThresholdId": "myEffectShadowThreshold" } },
+    "uniforms": [
+        { "name": "u_strength", "ui_id": "myEffectStrength", "type": "float", "divideBy": 100.0 }
+    ]
+}
+```
+*CRITICAL:* 
+- `enableId` MUST be declared at the root of the JSON for the dispatcher to toggle the layer off. If omitted, the `ui-generator` cannot create a master toggle, and the layer will permanently evaluate to TRUE (always on).
+- Do NOT include a duplicate checkbox inside the `controls` array with the exact same ID as `enableId`. The DOM cannot handle identical IDs, and the proxy cache will disconnect.
+- The `uniforms` array links your shader variables (`name`) to the HTML elements (`ui_id`).
+- Supported uniform types: `float` (default), `int`, `rgb`/`color`, `bool`/`boolean`. You can optionally include `"divideBy"` for sliders that represent percentages.
+
+Step 2: Register the Layer
+Add an entry to `Shaders/layers.json`:
+`{ "key": "myEffect", "name": "My Effect", "json": "Shaders/myEffect.json" }`
+
+Step 3: Implement the Shader Logic
+Create `Shaders/myEffect.frag` using GLSL ES 3.0. It MUST define:
+`uniform sampler2D u_tex;`
+`uniform vec2 u_res;` // Auto-injected by engine
+`uniform float u_time;` // Auto-injected by engine
+`in vec2 v_uv;`
+`out vec4 fragColor;`
+
+And that's it! `engine.js` automatically compiles the shader on boot, and `app.js` automatically binds the uniforms and executes the draw call based on your JSON definition.
+
+Advanced/Custom Routing:
+If your shader is highly complex (e.g., multi-pass ping-pong filtering like bilateral or compression), you can add `"customRender": true` to the JSON root. This forces `app.js` to skip the generic dispatcher, requiring you to write a manual `else if (key === 'myEffect')` block in `renderSingleLayer()`.
+
+5. PRESETS & STATE SERIALIZATION
+--------------------------------
+Presets allow full studio state recovery.
+- `downloadPreset()` builds a JSON payload: `values` (sliders), `checks` (toggles), `selects` (dropdowns), `renderOrder`, and optionally Base64 `imageData`.
+- CRITICAL RECONSTRUCTION: `restoreSettings()` in `app.js` does not just blindly apply values. It must first destroy any clone layers, loop through the saved `renderOrder`, call `createLayerInstance()` to regenerate the required input elements in the DOM, rebuild the `UI` element cache map, and THEN inject the values.
+
+6. KNOWN QUIRKS / ARCHITECTURAL NOTES FOR AI
+--------------------------------------------
+- Multi-Pass Effects: Ping-ponging inside `renderSingleLayer` (e.g., for multi-pass blur or compression) requires using available scratch buffers (`state.fbos.blur1` / `state.fbos.blur2`) so the main `inputTex`/`outputFbo` sequence remains unbroken for the outer loop.
+- The `UI` Object caching: It is an object mapping element IDs to DOM nodes. The proxy trick (`createInstanceUIProxy`) is what allows `renderSingleLayer` to just ask for `UI.blurAmount.value` completely ignorant of whether it's rendering instance 0 (`blur`) or instance 3 (`blur__3`).
+- Mask Naming Convention: The unified masking system relies strictly on ID prefixes. If your layer key is `dither`, the enable ID MUST be `ditherEnable` and the luma mask toggle MUST be `ditherLumaMask` for `renderMaskForLayer` to scrape it successfully.
+- Duplicate Control IDs: Legacy JSON files often duplicated the `"id": "layerEnable"` checkbox inside their `controls` array instead of just using the root `enableId`. `ui-generator.js` explicitly deletes these inner duplicates to prevent `document.getElementById` from fetching the wrong object, but intelligently scrapes their `"default"` value first. 
+- Shader Alias Fallback: If a JSON declares a layer that does not have a matching `state.programs[name]` (or explicitly mapped alias) compiled in `manifest.json`, the Dispatcher will forcefully execute a bypass using the `state.programs.copy` shader. If it didn't, the ping-pong FBO chain would freeze and duplicate the previous layer indefinitely.

@@ -1,13 +1,57 @@
 ﻿{
     "name": "Corruption",
+    "enableId": "corruptionEnable",
     "controls": [
-        {"type":"checkbox","id":"corruptionEnable","label":"Enable","default":false},
-        {"type":"select","id":"corruptionAlgorithm","label":"Algorithm","options":[
-            {"value":"0","label":"Pixel Sort","selected":true},
-            {"value":"1","label":"Data Mosh"},
-            {"value":"2","label":"Bit Shift"},
-            {"value":"3","label":"Channel Offset"}
-        ]},
-        {"type":"range","id":"corruptionResScale","label":"Quality","min":0,"max":100,"step":1,"default":50}
+        {
+            "type": "checkbox",
+            "id": "corruptionEnable",
+            "label": "Enable",
+            "default": false
+        },
+        {
+            "type": "select",
+            "id": "corruptionAlgorithm",
+            "label": "Algorithm",
+            "options": [
+                {
+                    "value": "0",
+                    "label": "Pixel Sort",
+                    "selected": true
+                },
+                {
+                    "value": "1",
+                    "label": "Data Mosh"
+                },
+                {
+                    "value": "2",
+                    "label": "Bit Shift"
+                },
+                {
+                    "value": "3",
+                    "label": "Channel Offset"
+                }
+            ]
+        },
+        {
+            "type": "range",
+            "id": "corruptionResScale",
+            "label": "Quality",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 50
+        }
+    ],
+    "uniforms": [
+        {
+            "name": "u_algorithm",
+            "ui_id": "corruptionAlgorithm",
+            "type": "int"
+        },
+        {
+            "name": "u_resScale",
+            "ui_id": "corruptionResScale",
+            "type": "float"
+        }
     ]
 }

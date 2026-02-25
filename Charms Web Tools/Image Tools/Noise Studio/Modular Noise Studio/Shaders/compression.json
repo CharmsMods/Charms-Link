@@ -1,15 +1,69 @@
 ﻿{
     "name": "Compression",
+    "enableId": "compressionEnable",
     "controls": [
-        {"type":"checkbox","id":"compressionEnable","label":"Enable","default":false},
-        {"type":"select","id":"compressionMethod","label":"Method","options":[
-            {"value":"0","label":"DCT Block","selected":true},
-            {"value":"1","label":"Chroma Subsampling"},
-            {"value":"2","label":"Wavelet"}
-        ]},
-        {"type":"range","id":"compressionQuality","label":"Quality","min":1,"max":100,"step":1,"default":50},
-        {"type":"range","id":"compressionBlockSize","label":"Block Size","min":2,"max":32,"step":1,"default":8},
-        {"type":"range","id":"compressionBlend","label":"Blend","min":0,"max":100,"step":1,"default":100},
-        {"type":"range","id":"compressionIterations","label":"Iterations","min":1,"max":20,"step":1,"default":1}
-    ]
+        {
+            "type": "checkbox",
+            "id": "compressionEnable",
+            "label": "Enable",
+            "default": false
+        },
+        {
+            "type": "select",
+            "id": "compressionMethod",
+            "label": "Method",
+            "options": [
+                {
+                    "value": "0",
+                    "label": "DCT Block",
+                    "selected": true
+                },
+                {
+                    "value": "1",
+                    "label": "Chroma Subsampling"
+                },
+                {
+                    "value": "2",
+                    "label": "Wavelet"
+                }
+            ]
+        },
+        {
+            "type": "range",
+            "id": "compressionQuality",
+            "label": "Quality",
+            "min": 1,
+            "max": 100,
+            "step": 1,
+            "default": 50
+        },
+        {
+            "type": "range",
+            "id": "compressionBlockSize",
+            "label": "Block Size",
+            "min": 2,
+            "max": 32,
+            "step": 1,
+            "default": 8
+        },
+        {
+            "type": "range",
+            "id": "compressionBlend",
+            "label": "Blend",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 100
+        },
+        {
+            "type": "range",
+            "id": "compressionIterations",
+            "label": "Iterations",
+            "min": 1,
+            "max": 20,
+            "step": 1,
+            "default": 1
+        }
+    ],
+    "customRender": true
 }

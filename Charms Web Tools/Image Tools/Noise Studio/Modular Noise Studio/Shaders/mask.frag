@@ -29,6 +29,6 @@ void main() {
     }
 
     float combined = max(sMask, hMask);
-    // Output: R=Combined, G=Shadow, B=Highlight
-    outColor = vec4(combined, sMask, hMask, 1.0);
+    float exclusion = 1.0 - combined;
+    outColor = vec4(exclusion, exclusion, exclusion, 1.0);
 }

@@ -3,9 +3,64 @@
     "enableId": "vignetteEnable",
     "enableDefault": false,
     "controls": [
-        {"type":"range","id":"vignetteIntensity","label":"Intensity","min":0,"max":100,"step":1,"default":50},
-        {"type":"range","id":"vignetteRadius","label":"Radius","min":0,"max":200,"step":1,"default":75},
-        {"type":"range","id":"vignetteSoftness","label":"Softness","min":0,"max":100,"step":1,"default":50},
-        {"type":"color","id":"vignetteColor","label":"Color","default":"#000000","width":"60px"}
+        {
+            "type": "range",
+            "id": "vignetteIntensity",
+            "label": "Intensity",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 50
+        },
+        {
+            "type": "range",
+            "id": "vignetteRadius",
+            "label": "Radius",
+            "min": 0,
+            "max": 200,
+            "step": 1,
+            "default": 75
+        },
+        {
+            "type": "range",
+            "id": "vignetteSoftness",
+            "label": "Softness",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 50
+        },
+        {
+            "type": "color",
+            "id": "vignetteColor",
+            "label": "Color",
+            "default": "#000000",
+            "width": "60px"
+        }
+    ],
+    "uniforms": [
+        {
+            "name": "u_intensity",
+            "ui_id": "vignetteIntensity",
+            "type": "float",
+            "divideBy": 100.0
+        },
+        {
+            "name": "u_radius",
+            "ui_id": "vignetteRadius",
+            "type": "float",
+            "divideBy": 100.0
+        },
+        {
+            "name": "u_softness",
+            "ui_id": "vignetteSoftness",
+            "type": "float",
+            "divideBy": 100.0
+        },
+        {
+            "name": "u_color",
+            "ui_id": "vignetteColor",
+            "type": "color"
+        }
     ]
 }

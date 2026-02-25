@@ -1,14 +1,98 @@
 ﻿{
     "name": "Edge Effects",
+    "enableId": "edgeEnable",
     "controls": [
-        {"type":"checkbox","id":"edgeEnable","label":"Enable","default":false},
-        {"type":"range","id":"edgeBlend","label":"Blend","min":0,"max":100,"step":1,"default":100},
-        {"type":"select","id":"edgeMode","label":"Mode","options":[
-            {"value":"0","label":"Edge Overlay","selected":true},
-            {"value":"1","label":"Saturation Mask"}
-        ]},
-        {"type":"range","id":"edgeStrength","label":"Strength","min":0,"max":1000,"step":1,"default":500},
-        {"type":"range","id":"edgeTolerance","label":"Tolerance","min":0,"max":100,"step":1,"default":10}
+        {
+            "type": "checkbox",
+            "id": "edgeEnable",
+            "label": "Enable",
+            "default": false
+        },
+        {
+            "type": "range",
+            "id": "edgeBlend",
+            "label": "Blend",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 100
+        },
+        {
+            "type": "select",
+            "id": "edgeMode",
+            "label": "Mode",
+            "options": [
+                {
+                    "value": "0",
+                    "label": "Edge Overlay",
+                    "selected": true
+                },
+                {
+                    "value": "1",
+                    "label": "Saturation Mask"
+                }
+            ]
+        },
+        {
+            "type": "range",
+            "id": "edgeStrength",
+            "label": "Strength",
+            "min": 0,
+            "max": 1000,
+            "step": 1,
+            "default": 500
+        },
+        {
+            "type": "range",
+            "id": "edgeTolerance",
+            "label": "Tolerance",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 10
+        }
     ],
-    "customHTML": "<div id=\"edgeSatControls\" style=\"display: none; border-top: 1px dashed #333; padding-top: 10px; margin-top: 10px;\"><div class=\"control-row\"><label>Foreground Sat</label><input id=\"edgeFgSat\" type=\"range\" min=\"0\" max=\"200\" step=\"1\" value=\"150\"><input type=\"text\" class=\"control-value\" readonly></div><div class=\"control-row\"><label>Background Sat</label><input id=\"edgeBgSat\" type=\"range\" min=\"0\" max=\"200\" step=\"1\" value=\"0\"><input type=\"text\" class=\"control-value\" readonly></div><div class=\"control-row\"><label>Bloom Spread</label><input id=\"edgeBloom\" type=\"range\" min=\"0\" max=\"50\" step=\"1\" value=\"10\"><input type=\"text\" class=\"control-value\" readonly></div><div class=\"control-row\"><label>Bloom Smoothness</label><input id=\"edgeSmooth\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"50\"><input type=\"text\" class=\"control-value\" readonly></div></div>"
+    "customHTML": "<div id=\"edgeSatControls\" style=\"display: none; border-top: 1px dashed #333; padding-top: 10px; margin-top: 10px;\"><div class=\"control-row\"><label>Foreground Sat</label><input id=\"edgeFgSat\" type=\"range\" min=\"0\" max=\"200\" step=\"1\" value=\"150\"><input type=\"text\" class=\"control-value\" readonly></div><div class=\"control-row\"><label>Background Sat</label><input id=\"edgeBgSat\" type=\"range\" min=\"0\" max=\"200\" step=\"1\" value=\"0\"><input type=\"text\" class=\"control-value\" readonly></div><div class=\"control-row\"><label>Bloom Spread</label><input id=\"edgeBloom\" type=\"range\" min=\"0\" max=\"50\" step=\"1\" value=\"10\"><input type=\"text\" class=\"control-value\" readonly></div><div class=\"control-row\"><label>Bloom Smoothness</label><input id=\"edgeSmooth\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"50\"><input type=\"text\" class=\"control-value\" readonly></div></div>",
+    "uniforms": [
+        {
+            "name": "u_mode",
+            "ui_id": "edgeMode",
+            "type": "int"
+        },
+        {
+            "name": "u_strength",
+            "ui_id": "edgeStrength",
+            "type": "float"
+        },
+        {
+            "name": "u_tolerance",
+            "ui_id": "edgeTolerance",
+            "type": "float"
+        },
+        {
+            "name": "u_bgSat",
+            "ui_id": "edgeBgSat",
+            "type": "float"
+        },
+        {
+            "name": "u_fgSat",
+            "ui_id": "edgeFgSat",
+            "type": "float"
+        },
+        {
+            "name": "u_bloom",
+            "ui_id": "edgeBloom",
+            "type": "float"
+        },
+        {
+            "name": "u_smooth",
+            "ui_id": "edgeSmooth",
+            "type": "float"
+        },
+        {
+            "name": "u_blend",
+            "ui_id": "edgeBlend",
+            "type": "float"
+        }
+    ]
 }

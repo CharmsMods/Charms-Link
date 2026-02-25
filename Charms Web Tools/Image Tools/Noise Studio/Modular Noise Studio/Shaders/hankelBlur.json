@@ -1,10 +1,40 @@
 ﻿{
     "name": "Radial Hankel Blur",
+    "enableId": "hankelBlurEnable",
     "controls": [
-        {"type":"checkbox","id":"hankelBlurEnable","label":"Enable Blur","default":false},
-        {"type":"range","id":"hankelBlurIntensity","label":"Intensity","min":0,"max":1,"step":0.01,"default":0.5},
-        {"type":"range","id":"hankelBlurRadius","label":"Radius","min":1,"max":50,"step":0.5,"default":5.0},
-        {"type":"range","id":"hankelBlurQuality","label":"Quality","min":4,"max":32,"step":1,"default":16}
+        {
+            "type": "checkbox",
+            "id": "hankelBlurEnable",
+            "label": "Enable Blur",
+            "default": false
+        },
+        {
+            "type": "range",
+            "id": "hankelBlurIntensity",
+            "label": "Intensity",
+            "min": 0,
+            "max": 1,
+            "step": 0.01,
+            "default": 0.5
+        },
+        {
+            "type": "range",
+            "id": "hankelBlurRadius",
+            "label": "Radius",
+            "min": 1,
+            "max": 50,
+            "step": 0.5,
+            "default": 5.0
+        },
+        {
+            "type": "range",
+            "id": "hankelBlurQuality",
+            "label": "Quality",
+            "min": 4,
+            "max": 32,
+            "step": 1,
+            "default": 16
+        }
     ],
     "mask": {
         "colorExclude": {
@@ -23,5 +53,22 @@
             "highlightFadeDefault": 0.1
         },
         "invertId": "hankelInvertMask"
-    }
+    },
+    "uniforms": [
+        {
+            "name": "u_intensity",
+            "ui_id": "hankelBlurIntensity",
+            "type": "float"
+        },
+        {
+            "name": "u_radius",
+            "ui_id": "hankelBlurRadius",
+            "type": "float"
+        },
+        {
+            "name": "u_quality",
+            "ui_id": "hankelBlurQuality",
+            "type": "float"
+        }
+    ]
 }

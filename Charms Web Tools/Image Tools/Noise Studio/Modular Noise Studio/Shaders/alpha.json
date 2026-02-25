@@ -1,7 +1,21 @@
 ﻿{
     "name": "Alpha Channel",
+    "enableId": "alphaEnable",
     "controls": [
-        {"type":"checkbox","id":"ignoreAlphaToggle","label":"Ignore Alpha","default":true},
-        {"type":"range","id":"ignoreAlphaStrength","label":"Strength","min":0,"max":100,"step":1,"default":100}
+        {
+            "type": "checkbox",
+            "id": "ignoreAlphaToggle",
+            "label": "Ignore Alpha",
+            "default": true
+        },
+        {
+            "type": "range",
+            "id": "ignoreAlphaStrength",
+            "label": "Strength",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 100
+        }
     ]
 }

@@ -1,9 +1,51 @@
 ﻿{
     "name": "Light Leaks",
+    "enableId": "lightLeaksEnable",
+    "animated": true,
     "controls": [
-        {"type":"checkbox","id":"lightLeaksEnable","label":"Enable","default":false},
-        {"type":"range","id":"lightLeaksIntensity","label":"Intensity","min":0,"max":100,"step":1,"default":50},
-        {"type":"color","id":"lightLeaksColor1","label":"Color 1","default":"#ff5500"},
-        {"type":"color","id":"lightLeaksColor2","label":"Color 2","default":"#0055ff"}
+        {
+            "type": "checkbox",
+            "id": "lightLeaksEnable",
+            "label": "Enable",
+            "default": false
+        },
+        {
+            "type": "range",
+            "id": "lightLeaksIntensity",
+            "label": "Intensity",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 50
+        },
+        {
+            "type": "color",
+            "id": "lightLeaksColor1",
+            "label": "Color 1",
+            "default": "#ff5500"
+        },
+        {
+            "type": "color",
+            "id": "lightLeaksColor2",
+            "label": "Color 2",
+            "default": "#0055ff"
+        }
+    ],
+    "uniforms": [
+        {
+            "name": "u_intensity",
+            "ui_id": "lightLeaksIntensity",
+            "type": "float"
+        },
+        {
+            "name": "u_color1",
+            "ui_id": "lightLeaksColor1",
+            "type": "color"
+        },
+        {
+            "name": "u_color2",
+            "ui_id": "lightLeaksColor2",
+            "type": "color"
+        }
     ]
 }

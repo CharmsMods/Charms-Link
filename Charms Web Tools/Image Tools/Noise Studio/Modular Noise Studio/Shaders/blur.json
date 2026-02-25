@@ -1,13 +1,42 @@
 ﻿{
     "name": "Blur",
+    "enableId": "blurEnable",
     "controls": [
-        {"type":"checkbox","id":"blurEnable","label":"Enable","default":true},
-        {"type":"range","id":"blurAmount","label":"Amount","min":0,"max":1000,"step":1,"default":0},
-        {"type":"select","id":"blurType","label":"Type","options":[
-            {"value":"0","label":"Gaussian","selected":true},
-            {"value":"1","label":"Box"},
-            {"value":"2","label":"Motion"}
-        ]}
+        {
+            "type": "checkbox",
+            "id": "blurEnable",
+            "label": "Enable",
+            "default": true
+        },
+        {
+            "type": "range",
+            "id": "blurAmount",
+            "label": "Amount",
+            "min": 0,
+            "max": 1000,
+            "step": 1,
+            "default": 0
+        },
+        {
+            "type": "select",
+            "id": "blurType",
+            "label": "Type",
+            "options": [
+                {
+                    "value": "0",
+                    "label": "Gaussian",
+                    "selected": true
+                },
+                {
+                    "value": "1",
+                    "label": "Box"
+                },
+                {
+                    "value": "2",
+                    "label": "Motion"
+                }
+            ]
+        }
     ],
     "mask": {
         "colorExclude": {

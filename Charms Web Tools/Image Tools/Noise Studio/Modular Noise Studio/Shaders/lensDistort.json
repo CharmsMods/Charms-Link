@@ -1,9 +1,42 @@
 ﻿{
     "name": "Lens Distortion (Optics)",
+    "enableId": "lensDistortEnable",
     "controls": [
-        {"type":"checkbox","id":"lensDistortEnable","label":"Enable","default":false},
-        {"type":"range","id":"lensAmount","label":"Distortion Amount","min":-100,"max":100,"step":1,"default":0},
-        {"type":"hint","text":"&lt; Barrel (Fisheye) &nbsp;&nbsp;|&nbsp;&nbsp; Pincushion &gt;"},
-        {"type":"range","id":"lensScale","label":"Scale Base","min":50,"max":150,"step":1,"default":100}
+        {
+            "type": "range",
+            "id": "lensAmount",
+            "label": "Distortion Amount",
+            "min": -100,
+            "max": 100,
+            "step": 1,
+            "default": 0
+        },
+        {
+            "type": "hint",
+            "text": "&lt; Barrel (Fisheye) &nbsp;&nbsp;|&nbsp;&nbsp; Pincushion &gt;"
+        },
+        {
+            "type": "range",
+            "id": "lensScale",
+            "label": "Scale Base",
+            "min": 50,
+            "max": 150,
+            "step": 1,
+            "default": 100
+        }
+    ],
+    "uniforms": [
+        {
+            "name": "u_amount",
+            "ui_id": "lensAmount",
+            "type": "float",
+            "divideBy": 100.0
+        },
+        {
+            "name": "u_scale",
+            "ui_id": "lensScale",
+            "type": "float",
+            "divideBy": 100.0
+        }
     ]
 }

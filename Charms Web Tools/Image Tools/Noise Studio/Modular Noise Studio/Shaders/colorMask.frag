@@ -10,6 +10,6 @@ uniform float u_fade;
 void main() {
     vec4 c = texture(u_tex, v_uv);
     float d = distance(c.rgb, u_targetColor);
-    float mask = 1.0 - smoothstep(u_tolerance, u_tolerance + u_fade + 0.001, d);
+    float mask = smoothstep(u_tolerance, u_tolerance + u_fade + 0.001, d);
     outColor = vec4(mask, mask, mask, 1.0);
 }

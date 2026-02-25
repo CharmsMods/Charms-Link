@@ -1,10 +1,70 @@
 ﻿{
     "name": "Glare Rays",
+    "enableId": "glareRaysEnable",
     "controls": [
-        {"type":"checkbox","id":"glareRaysEnable","label":"Enable Rays","default":false},
-        {"type":"range","id":"glareRaysIntensity","label":"Intensity","min":0,"max":1,"step":0.01,"default":0.4},
-        {"type":"range","id":"glareRaysRays","label":"Ray Count","min":1,"max":16,"step":1,"default":6},
-        {"type":"range","id":"glareRaysLength","label":"Ray Length","min":0,"max":1,"step":0.01,"default":0.3},
-        {"type":"range","id":"glareRaysBlur","label":"Ray Blur","min":0,"max":1,"step":0.01,"default":0.2}
+        {
+            "type": "checkbox",
+            "id": "glareRaysEnable",
+            "label": "Enable Rays",
+            "default": false
+        },
+        {
+            "type": "range",
+            "id": "glareRaysIntensity",
+            "label": "Intensity",
+            "min": 0,
+            "max": 1,
+            "step": 0.01,
+            "default": 0.4
+        },
+        {
+            "type": "range",
+            "id": "glareRaysRays",
+            "label": "Ray Count",
+            "min": 1,
+            "max": 16,
+            "step": 1,
+            "default": 6
+        },
+        {
+            "type": "range",
+            "id": "glareRaysLength",
+            "label": "Ray Length",
+            "min": 0,
+            "max": 1,
+            "step": 0.01,
+            "default": 0.3
+        },
+        {
+            "type": "range",
+            "id": "glareRaysBlur",
+            "label": "Ray Blur",
+            "min": 0,
+            "max": 1,
+            "step": 0.01,
+            "default": 0.2
+        }
+    ],
+    "uniforms": [
+        {
+            "name": "u_intensity",
+            "ui_id": "glareRaysIntensity",
+            "type": "float"
+        },
+        {
+            "name": "u_rays",
+            "ui_id": "glareRaysRays",
+            "type": "float"
+        },
+        {
+            "name": "u_length",
+            "ui_id": "glareRaysLength",
+            "type": "float"
+        },
+        {
+            "name": "u_blur",
+            "ui_id": "glareRaysBlur",
+            "type": "float"
+        }
     ]
 }

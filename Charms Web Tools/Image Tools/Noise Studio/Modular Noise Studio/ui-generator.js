@@ -8,8 +8,10 @@
  * so all generated elements are available for UI population.
  */
 
+"use strict";
+
 // [MULTI-INSTANCE] Cache of layer definitions for cloning
-const _layerDefCache = {};
+window._layerDefCache = {};
 
 async function generateLayerUI() {
     const container = document.getElementById('dynamic-controls');
@@ -38,7 +40,7 @@ async function generateLayerUI() {
     // Build UI for each layer and cache definitions
     for (const layer of layerDefs) {
         if (!layer.def) continue;
-        _layerDefCache[layer.key] = { layer, def: layer.def };
+        window._layerDefCache[layer.key] = { layer, def: layer.def };
         const details = buildLayerDetails(layer, layer.def);
         details.dataset.layerKey = layer.key;
         details.dataset.instanceIndex = '0';
@@ -53,7 +55,7 @@ async function generateLayerUI() {
  * Clones the layer definition and suffixes all IDs with __instanceIndex.
  */
 function createLayerInstance(baseType, instanceIndex) {
-    const cached = _layerDefCache[baseType];
+    const cached = window._layerDefCache[baseType];
     if (!cached) {
         console.warn(`[UI-Gen] No cached definition for layer type: ${baseType}`);
         return null;
@@ -154,10 +156,21 @@ function buildLayerDetails(layer, def) {
 
     // If there's an enable control in the summary
     if (def.enableId) {
+        let isDefaultChecked = true;
+
+        if (def.enableDefault !== undefined) {
+            isDefaultChecked = (def.enableDefault !== false);
+        } else if (def.controls) {
+            const innerControl = def.controls.find(c => c.id === def.enableId);
+            if (innerControl && innerControl.default === false) {
+                isDefaultChecked = false;
+            }
+        }
+
         const cb = document.createElement('input');
         cb.id = def.enableId;
         cb.type = 'checkbox';
-        if (def.enableDefault !== false) cb.checked = true;
+        cb.checked = isDefaultChecked;
         cb.style.marginLeft = 'auto';
         summary.appendChild(cb);
     }
@@ -167,6 +180,9 @@ function buildLayerDetails(layer, def) {
     // Build controls
     if (def.controls) {
         for (const ctrl of def.controls) {
+            // [BUGFIX] Prevent generating a duplicate checkbox in the body if it's already in the summary
+            if (def.enableId && ctrl.id === def.enableId) continue;
+
             const el = buildControl(ctrl);
             if (el) details.appendChild(el);
         }

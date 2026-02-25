@@ -1,29 +1,172 @@
 ﻿{
     "name": "Halftoning",
+    "enableId": "halftoneEnable",
     "controls": [
-        {"type":"checkbox","id":"halftoneEnable","label":"Enable","default":false},
-        {"type":"range","id":"halftoneSize","label":"Dot Size","min":1,"max":30,"step":0.5,"default":5},
-        {"type":"range","id":"halftoneIntensity","label":"Intensity","min":0,"max":100,"step":1,"default":100},
-        {"type":"range","id":"halftoneSharpness","label":"Sharpness","min":0,"max":100,"step":1,"default":50},
-        {"type":"select","id":"halftonePattern","label":"Pattern","options":[
-            {"value":"0","label":"Dot Grid","selected":true},
-            {"value":"1","label":"Line"},
-            {"value":"2","label":"Diamond"},
-            {"value":"3","label":"Cross"},
-            {"value":"4","label":"Hex"}
-        ]},
-        {"type":"select","id":"halftoneColorMode","label":"Color Mode","options":[
-            {"value":"0","label":"BW","selected":true},
-            {"value":"1","label":"CMYK"},
-            {"value":"2","label":"RGB"},
-            {"value":"3","label":"Custom"}
-        ]},
-        {"type":"select","id":"halftoneSample","label":"Sampling","options":[
-            {"value":"0","label":"Center","selected":true},
-            {"value":"1","label":"Average"}
-        ]},
-        {"type":"checkbox","id":"halftoneGray","label":"Grayscale Input","default":false},
-        {"type":"checkbox","id":"halftoneScreenLock","label":"Lock Dot Grid","default":false},
-        {"type":"checkbox","id":"halftoneInvert","label":"Invert","default":false}
+        {
+            "type": "checkbox",
+            "id": "halftoneEnable",
+            "label": "Enable",
+            "default": false
+        },
+        {
+            "type": "range",
+            "id": "halftoneSize",
+            "label": "Dot Size",
+            "min": 1,
+            "max": 30,
+            "step": 0.5,
+            "default": 5
+        },
+        {
+            "type": "range",
+            "id": "halftoneIntensity",
+            "label": "Intensity",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 100
+        },
+        {
+            "type": "range",
+            "id": "halftoneSharpness",
+            "label": "Sharpness",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "default": 50
+        },
+        {
+            "type": "select",
+            "id": "halftonePattern",
+            "label": "Pattern",
+            "options": [
+                {
+                    "value": "0",
+                    "label": "Dot Grid",
+                    "selected": true
+                },
+                {
+                    "value": "1",
+                    "label": "Line"
+                },
+                {
+                    "value": "2",
+                    "label": "Diamond"
+                },
+                {
+                    "value": "3",
+                    "label": "Cross"
+                },
+                {
+                    "value": "4",
+                    "label": "Hex"
+                }
+            ]
+        },
+        {
+            "type": "select",
+            "id": "halftoneColorMode",
+            "label": "Color Mode",
+            "options": [
+                {
+                    "value": "0",
+                    "label": "BW",
+                    "selected": true
+                },
+                {
+                    "value": "1",
+                    "label": "CMYK"
+                },
+                {
+                    "value": "2",
+                    "label": "RGB"
+                },
+                {
+                    "value": "3",
+                    "label": "Custom"
+                }
+            ]
+        },
+        {
+            "type": "select",
+            "id": "halftoneSample",
+            "label": "Sampling",
+            "options": [
+                {
+                    "value": "0",
+                    "label": "Center",
+                    "selected": true
+                },
+                {
+                    "value": "1",
+                    "label": "Average"
+                }
+            ]
+        },
+        {
+            "type": "checkbox",
+            "id": "halftoneGray",
+            "label": "Grayscale Input",
+            "default": false
+        },
+        {
+            "type": "checkbox",
+            "id": "halftoneScreenLock",
+            "label": "Lock Dot Grid",
+            "default": false
+        },
+        {
+            "type": "checkbox",
+            "id": "halftoneInvert",
+            "label": "Invert",
+            "default": false
+        }
+    ],
+    "uniforms": [
+        {
+            "name": "u_size",
+            "ui_id": "halftoneSize",
+            "type": "float"
+        },
+        {
+            "name": "u_intensity",
+            "ui_id": "halftoneIntensity",
+            "type": "float"
+        },
+        {
+            "name": "u_sharpness",
+            "ui_id": "halftoneSharpness",
+            "type": "float"
+        },
+        {
+            "name": "u_pattern",
+            "ui_id": "halftonePattern",
+            "type": "int"
+        },
+        {
+            "name": "u_colorMode",
+            "ui_id": "halftoneColorMode",
+            "type": "int"
+        },
+        {
+            "name": "u_sample",
+            "ui_id": "halftoneSample",
+            "type": "int"
+        },
+        {
+            "name": "u_gray",
+            "ui_id": "halftoneGray",
+            "type": "bool"
+        },
+        {
+            "name": "u_lock",
+            "ui_id": "halftoneScreenLock",
+            "type": "bool"
+        },
+        {
+            "name": "u_invert",
+            "ui_id": "halftoneInvert",
+            "type": "bool"
+        }
     ]
 }
