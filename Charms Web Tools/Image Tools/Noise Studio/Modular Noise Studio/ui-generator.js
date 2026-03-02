@@ -230,6 +230,8 @@ function buildControl(ctrl) {
             return buildButtonRow(ctrl);
         case 'container':
             return buildContainer(ctrl);
+        case 'color-wheel-3way':
+            return buildColorWheel3Way(ctrl);
         default:
             console.warn(`[UI-Gen] Unknown control type: ${ctrl.type}`);
             return null;
@@ -425,6 +427,93 @@ function buildContainer(ctrl) {
     div.id = ctrl.id || '';
     div.className = ctrl.className || '';
     return div;
+}
+
+function buildColorWheel3Way(ctrl) {
+    const container = document.createElement('div');
+    container.style.cssText = 'display: flex; flex-direction: column; gap: 10px; align-items: center; margin-top: 10px; width: 100%;';
+
+    const wheels = [
+        { id: ctrl.shadowsId, label: 'Shadows' },
+        { id: ctrl.midtonesId, label: 'Midtones' },
+        { id: ctrl.highlightsId, label: 'Highlights' }
+    ];
+
+    const wheelContainer = document.createElement('div');
+    wheelContainer.style.cssText = 'display: flex; gap: 10px; justify-content: center; width: 100%;';
+
+    wheels.forEach(w => {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; width: 30%;';
+
+        const label = document.createElement('div');
+        label.textContent = w.label;
+        label.style.cssText = 'font-size: 10px; color: var(--muted); text-transform: uppercase;';
+        wrap.appendChild(label);
+
+        // Circular background (Hue/Sat map approximation)
+        const wheel = document.createElement('div');
+        wheel.className = 'color-wheel-interactive';
+        wheel.dataset.target = w.id;
+        wheel.style.cssText = `
+            width: 100%; 
+            aspect-ratio: 1/1; 
+            border-radius: 50%; 
+            background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+            border: 2px solid var(--border);
+            position: relative;
+            cursor: crosshair;
+            box-sizing: border-box;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+        `;
+
+        // The inner white gradient to desaturate the center
+        const innerGlow = document.createElement('div');
+        innerGlow.style.cssText = `
+            position: absolute; inset: 0; border-radius: 50%;
+            background: radial-gradient(circle at center, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 70%);
+            pointer-events: none;
+        `;
+        wheel.appendChild(innerGlow);
+
+        // Draggable handle
+        const handle = document.createElement('div');
+        handle.className = 'color-wheel-handle';
+        handle.style.cssText = `
+            width: 10px; height: 10px; 
+            background: transparent; 
+            border: 2px solid #fff; 
+            border-radius: 50%; 
+            position: absolute; 
+            top: 50%; left: 50%; 
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            box-shadow: 0 0 4px rgba(0,0,0,0.8);
+        `;
+        wheel.appendChild(handle);
+        wrap.appendChild(wheel);
+
+        // Hidden input to store the resulting RGB Color
+        const input = document.createElement('input');
+        input.type = 'color';
+        input.id = w.id;
+        input.value = '#ffffff'; // Default to white (no tint for gain)
+        input.style.display = 'none';
+        wrap.appendChild(input);
+
+        wheelContainer.appendChild(wrap);
+    });
+
+    container.appendChild(wheelContainer);
+
+    // Reset button
+    const btn = document.createElement('button');
+    btn.className = 'small-btn btn-reset-wheels';
+    btn.textContent = 'RESET WHEELS';
+    btn.style.marginTop = '5px';
+    container.appendChild(btn);
+
+    return container;
 }
 
 /**

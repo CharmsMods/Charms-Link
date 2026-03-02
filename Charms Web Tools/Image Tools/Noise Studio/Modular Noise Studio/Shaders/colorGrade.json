@@ -1,0 +1,36 @@
+{
+    "name": "3-Way Color Grading",
+    "enableId": "colorGradeEnable",
+    "enableDefault": true,
+    "controls": [
+        {"type":"range","id":"colorGradeStrength","label":"Strength","min":0,"max":100,"step":1,"default":100},
+        {
+            "type": "color-wheel-3way",
+            "shadowsId": "cgShadows",
+            "midtonesId": "cgMidtones",
+            "highlightsId": "cgHighlights"
+        }
+    ],
+    "mask": {
+        "colorExclude": {
+            "enableId": "cgColorExclude",
+            "colorId": "cgExcludeColor",
+            "toleranceId": "cgColorTolerance",
+            "fadeId": "cgColorFade"
+        },
+        "lumaMask": {
+            "enableId": "cgLumaMask",
+            "shadowThresholdId": "cgShadowThreshold",
+            "shadowFadeId": "cgShadowFade",
+            "highlightThresholdId": "cgHighlightThreshold",
+            "highlightFadeId": "cgHighlightFade"
+        },
+        "invertId": "cgInvertMask"
+    },
+    "uniforms": [
+        {"name":"u_strength","ui_id":"colorGradeStrength","type":"float","divideBy":100.0},
+        {"name":"u_shadows","ui_id":"cgShadows","type":"rgb"},
+        {"name":"u_midtones","ui_id":"cgMidtones","type":"rgb"},
+        {"name":"u_highlights","ui_id":"cgHighlights","type":"rgb"}
+    ]
+}

@@ -34,13 +34,13 @@
         busy: false,          // Mutex to prevent overlapping render calls
         upscaleFactor: 1,     // Multiplier for export-quality rendering (1x-10x)
         // The pipeline order: processed from first to last
-        renderOrder: ['noise', 'adjust', 'hdr', 'ca', 'blur', 'airyBloom', 'glareRays', 'hankelBlur', 'vignette', 'cell', 'halftone', 'bilateral', 'denoise', 'dither', 'palette', 'edge', 'corruption', 'analogVideo', 'lensDistort', 'heatwave', 'lightLeaks', 'compression'],
+        renderOrder: ['scale', 'noise', 'adjust', 'colorGrade', 'hdr', 'ca', 'blur', 'airyBloom', 'glareRays', 'hankelBlur', 'vignette', 'cell', 'halftone', 'bilateral', 'denoise', 'dither', 'palette', 'edge', 'corruption', 'analogVideo', 'lensDistort', 'heatwave', 'lightLeaks', 'compression'],
         activeLayerPreview: null,
         activeSection: 'adjust', // Currently open UI section (used for 'Isolated' previews)
         caCenter: { x: 0.5, y: 0.5 }, // UV coordinates for Chromatic Aberration center
         isDraggingPin: false,
         layerTextures: {},    // Stores the results of each layer for the 'Breakdown' view
-        layerVisibility: { noise: true, adjust: true, hdr: true, ca: true, blur: true, airyBloom: true, glareRays: true, hankelBlur: true, vignette: true, cell: true, halftone: true, bilateral: true, denoise: true, dither: true, palette: true, edge: true, corruption: true, analogVideo: true, lensDistort: true, heatwave: true, lightLeaks: true, compression: true },
+        layerVisibility: { scale: true, noise: true, adjust: true, hdr: true, ca: true, blur: true, airyBloom: true, glareRays: true, hankelBlur: true, vignette: true, cell: true, halftone: true, bilateral: true, denoise: true, dither: true, palette: true, edge: true, corruption: true, analogVideo: true, lensDistort: true, heatwave: true, lightLeaks: true, compression: true },
         palette: [],          // Current list of Hex colors for Palette Reconstructor
         lastExtractionImage: null,
         pinIdleTimer: null,
@@ -63,6 +63,7 @@
 
     /** 'LAYERS' provides user-facing metadata for each pipeline step. */
     const LAYERS = {
+        'scale': { name: 'Resolution Scale', color: '#fff' },
         'noise': { name: 'Noise Group', color: '#fff' },
         'adjust': { name: 'Adjustments', color: '#fff' },
         'hdr': { name: 'HDR Emulation', color: '#fff' },
@@ -227,7 +228,6 @@
         UI.caPin = document.getElementById('caPin');
         UI.previewLock = document.getElementById('previewLock');
         UI.resetCenterBtn = document.getElementById('resetCenterBtn');
-        UI.upscaleInput = document.getElementById('upscaleInput');
         UI.clampPreviewToggle = document.getElementById('clampPreviewToggle');
         UI.gpuMaxRes = document.getElementById('gpuMaxRes');
         UI.exportInfo = document.getElementById('exportInfo');
@@ -384,19 +384,6 @@
             state.isPreviewLocked = e.target.checked;
             if (state.isPreviewLocked) {
                 UI.overlayOriginal.classList.remove('show');
-            }
-        });
-
-        // [UPSCALE] Handles the multiplier for the rendering buffers.
-        UI.upscaleInput.addEventListener('change', (e) => {
-            let val = parseInt(e.target.value);
-            if (isNaN(val) || val < 1) val = 1;
-            if (val > 10) val = 10;
-            e.target.value = val;
-            state.upscaleFactor = val;
-            if (state.baseImage) {
-                reallocateBuffers(false); // Rebuild WebGL textures at new size
-                requestRender();
             }
         });
 
@@ -883,7 +870,6 @@
             selects: {},
             renderOrder: state.renderOrder,
             layerVisibility: state.layerVisibility,
-            upscaleFactor: state.upscaleFactor,
             caCenter: state.caCenter,
             palette: state.palette,
             imageData: null
@@ -1056,10 +1042,33 @@
             state.layerVisibility = preset.layerVisibility;
             setupDragLayerList();
         }
-        if (preset.upscaleFactor) {
-            state.upscaleFactor = preset.upscaleFactor;
-            if (UI.upscaleInput) UI.upscaleInput.value = preset.upscaleFactor;
+
+        // Apply legacy upscaleFactor as a Scale layer
+        if (preset.upscaleFactor && preset.upscaleFactor !== 1) {
+            let scaleLayerId = state.renderOrder.find(id => parseInstanceId(id).baseType === 'scale');
+            if (!scaleLayerId) {
+                // Add scale layer to the end
+                const instances = state.renderOrder.filter(id => parseInstanceId(id).baseType === 'scale');
+                const idx = instances.length;
+                const newId = idx === 0 ? 'scale' : `scale__${idx}`;
+
+                if (idx > 0 && typeof createLayerInstance === 'function') {
+                    createLayerInstance('scale', idx);
+                }
+
+                state.renderOrder.push(newId);
+                state.layerVisibility[newId] = true;
+                scaleLayerId = newId;
+            }
+            // Add to checks so it gets enabled
+            if (!preset.checks) preset.checks = {};
+            preset.checks[scaleLayerId === 'scale' ? 'scaleEnable' : `scaleEnable__${parseInstanceId(scaleLayerId).index}`] = true;
+
+            // Add to values so it gets set
+            if (!preset.values) preset.values = {};
+            preset.values[scaleLayerId === 'scale' ? 'scaleMultiplier' : `scaleMultiplier__${parseInstanceId(scaleLayerId).index}`] = preset.upscaleFactor;
         }
+
         if (preset.caCenter) {
             state.caCenter = preset.caCenter;
             updatePinPosition();
@@ -1324,6 +1333,7 @@
 
             div.querySelector('input').addEventListener('change', (e) => {
                 state.layerVisibility[instanceId] = e.target.checked;
+                if (baseType === 'scale' && state.baseImage) reallocateBuffers(false);
                 requestRender();
             });
 
@@ -1425,6 +1435,7 @@
         // Refresh UI
         setupDragLayerList();
         setupLayerGridDOM();
+        if (baseType === 'scale' && state.baseImage) reallocateBuffers(false);
         requestRender();
         console.log(`[Multi-Instance] Added ${instanceId}`);
     }
@@ -1455,6 +1466,7 @@
         // Refresh UI
         setupDragLayerList();
         setupLayerGridDOM();
+        if (baseType === 'scale' && state.baseImage) reallocateBuffers(false);
         requestRender();
         console.log(`[Multi-Instance] Removed ${instanceId}`);
     }
@@ -1789,93 +1801,132 @@
     }
 
     /** 
-     * Resizes all internal offscreen textures to match current viewport or upscale factor.
-     * Logic: Deletes old FBOs and re-initializes them at the new 'targetW/H'.
-     * Reference: Uses 'state.upscaleFactor' to determine final buffer dimensions.
+     * Resizes internal offscreen textures into Resolution Pools to support mid-pipeline scaling.
+     * Logic: Calculates the required resolution for every layer step, allocating a pool of FBOs
+     * for each unique resolution demand. Deletes stale pools to free VRAM.
      */
     function reallocateBuffers(fullRes = false) {
         const gl = state.gl;
-        // Check browser limits
+        if (!state.fboPools) state.fboPools = {};
+        if (!state.layerResolutions) state.layerResolutions = {};
+
         const maxTexSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
-        let targetW, targetH;
+        const maxDim = (!fullRes && state.clampPreview) ? 2048 : maxTexSize;
 
-        if (fullRes) {
-            let requestW = state.width * state.upscaleFactor;
-            let requestH = state.height * state.upscaleFactor;
-            let scale = 1.0;
-            if (requestW > maxTexSize || requestH > maxTexSize) {
-                scale = Math.min(maxTexSize / requestW, maxTexSize / requestH);
+        let baseScale = 1.0;
+        if (state.width > maxTexSize || state.height > maxTexSize) {
+            baseScale = Math.min(maxTexSize / state.width, maxTexSize / state.height);
+        }
+        if (!fullRes && state.clampPreview) {
+            if (state.width > maxDim || state.height > maxDim) {
+                baseScale = Math.min(maxDim / state.width, maxDim / state.height);
             }
-            targetW = Math.round(state.width * state.upscaleFactor * scale);
-            targetH = Math.round(state.height * state.upscaleFactor * scale);
-            state._exportScale = scale; // Store for use in export
-        } else {
-            // [CLAMPER] Toggleable resolution cap (Default: 2048px)
-            const maxDim = state.clampPreview ? 2048 : maxTexSize;
-            let tempW = state.width * state.upscaleFactor;
-            let tempH = state.height * state.upscaleFactor;
-            let scale = 1.0;
-            if (tempW > maxDim || tempH > maxDim) {
-                scale = Math.min(maxDim / tempW, maxDim / tempH);
-            }
-            targetW = Math.round(tempW * scale);
-            targetH = Math.round(tempH * scale);
-            // Clamp to max texture size for preview as well
-            if (targetW > maxTexSize || targetH > maxTexSize) {
-                const s = Math.min(maxTexSize / targetW, maxTexSize / targetH);
-                targetW = Math.floor(targetW * s);
-                targetH = Math.floor(targetH * s);
-            }
-            state._exportScale = scale;
         }
 
-        state.renderWidth = targetW;
-        state.renderHeight = targetH;
+        let currentW = Math.max(1, Math.round(state.width * baseScale));
+        let currentH = Math.max(1, Math.round(state.height * baseScale));
 
-        if (state.fboWidth === targetW && state.fboHeight === targetH) {
-            return { w: targetW, h: targetH };
+        state.initialRes = { w: currentW, h: currentH };
+
+        const requiredPools = new Set();
+        requiredPools.add(`${currentW}x${currentH}`);
+
+        if (state.renderOrder) {
+            for (let i = 0; i < state.renderOrder.length; i++) {
+                const instanceId = state.renderOrder[i];
+                const { baseType, index } = parseInstanceId(instanceId);
+                const vis = state.layerVisibility[instanceId] ?? state.layerVisibility[baseType] ?? true;
+                const toggleId = (baseType === 'adjust' ? 'adjust' : baseType) + 'Enable';
+                const suffix = index === 0 ? '' : `__${index}`;
+
+                const enableEl = UI[toggleId + suffix];
+                const isEnabled = enableEl ? enableEl.checked : true;
+
+                if (vis && isEnabled && baseType === 'scale') {
+                    const multEl = UI[`scaleMultiplier${suffix}`];
+                    if (multEl && !isNaN(parseFloat(multEl.value))) {
+                        currentW = Math.round(currentW * parseFloat(multEl.value));
+                        currentH = Math.round(currentH * parseFloat(multEl.value));
+
+                        if (currentW > maxDim || currentH > maxDim) {
+                            const clampScale = Math.min(maxDim / currentW, maxDim / currentH);
+                            currentW = Math.floor(currentW * clampScale);
+                            currentH = Math.floor(currentH * clampScale);
+                        }
+                        currentW = Math.max(1, currentW);
+                        currentH = Math.max(1, currentH);
+                    }
+                }
+                state.layerResolutions[instanceId] = { w: currentW, h: currentH };
+                requiredPools.add(`${currentW}x${currentH}`);
+            }
         }
 
-        state.fboWidth = targetW;
-        state.fboHeight = targetH;
+        state.renderWidth = currentW;
+        state.renderHeight = currentH;
+        state._exportScale = baseScale;
 
-        const makeFBO = (highPrec = true) => {
-            const tex = createTexture(gl, null, targetW, targetH, highPrec);
+        // Update UI displays for Scale layers
+        document.querySelectorAll('[id^="scaleResolutionDisplay"]').forEach(el => {
+            const suffix = el.id.substring('scaleResolutionDisplay'.length);
+            const instanceId = suffix === '' ? 'scale' : `scale${suffix}`;
+            const res = state.layerResolutions[instanceId];
+            if (res) {
+                // Display the theoretical un-clamped resolution for accuracy
+                const displayW = Math.round(res.w / baseScale);
+                const displayH = Math.round(res.h / baseScale);
+                el.innerHTML = `${displayW} &times; ${displayH} px`;
+            }
+        });
+
+        // Garbage collection: delete pools that are no longer needed
+        for (const poolKey in state.fboPools) {
+            if (!requiredPools.has(poolKey)) {
+                const p = state.fboPools[poolKey];
+                ['pingPong0', 'pingPong1', 'tempNoise', 'blur1', 'blur2', 'preview', 'chainCapture', 'maskTotal'].forEach(k => {
+                    if (p[k]) {
+                        if (p[k].tex) gl.deleteTexture(p[k].tex);
+                        if (p[k].fbo) gl.deleteFramebuffer(p[k].fbo);
+                    }
+                });
+                delete state.fboPools[poolKey];
+            }
+        }
+
+        // Allocate missing pools
+        const makeFBO = (w, h, highPrec = true) => {
+            const tex = createTexture(gl, null, w, h, highPrec);
             const fbo = gl.createFramebuffer();
             gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
             gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
             return { tex, fbo };
         };
 
-        if (state.pingPong[0]?.tex) { gl.deleteTexture(state.pingPong[0].tex); gl.deleteFramebuffer(state.pingPong[0].fbo); }
-        if (state.pingPong[1]?.tex) { gl.deleteTexture(state.pingPong[1].tex); gl.deleteFramebuffer(state.pingPong[1].fbo); }
+        for (const poolKey of requiredPools) {
+            if (!state.fboPools[poolKey]) {
+                const [pw, ph] = poolKey.split('x').map(Number);
+                const p = {};
+                p.pingPong0 = makeFBO(pw, ph);
+                p.pingPong1 = makeFBO(pw, ph);
+                p.tempNoise = makeFBO(pw, ph);
+                p.blur1 = makeFBO(pw, ph);
+                p.blur2 = makeFBO(pw, ph);
+                p.preview = makeFBO(pw, ph);
+                p.chainCapture = makeFBO(pw, ph);
+                p.maskTotal = makeFBO(pw, ph);
+                state.fboPools[poolKey] = p;
+            }
+        }
 
-        state.pingPong[0] = makeFBO();
-        state.pingPong[1] = makeFBO();
-
-        ['tempNoise', 'blur1', 'blur2', 'preview'].forEach(k => {
-            if (state.textures[k]) gl.deleteTexture(state.textures[k]);
-            if (state.fbos[k]) gl.deleteFramebuffer(state.fbos[k]);
+        // Keep global references pointing to the final output pool so UI elements like eyedropper don't break
+        const finalPool = state.fboPools[`${currentW}x${currentH}`];
+        state.pingPong = [finalPool.pingPong0, finalPool.pingPong1];
+        ['tempNoise', 'blur1', 'blur2', 'preview', 'chainCapture', 'maskTotal'].forEach(k => {
+            state.textures[k] = finalPool[k].tex;
+            state.fbos[k] = finalPool[k].fbo;
         });
 
-        const nse = makeFBO();
-        state.textures.tempNoise = nse.tex; state.fbos.tempNoise = nse.fbo;
-        const b1 = makeFBO();
-        state.textures.blur1 = b1.tex; state.fbos.blur1 = b1.fbo;
-        const b2 = makeFBO();
-        state.textures.blur2 = b2.tex; state.fbos.blur2 = b2.fbo;
-
-        const prev = makeFBO();
-        state.textures.preview = prev.tex; state.fbos.preview = prev.fbo;
-
-        // Reuse analysisFBO (256x256 is static, but let's ensure it's bound correctly if we ever change it)
-        // Currently analysisFBO size is fixed in initWebGL.
-
-        // [CHAIN PREVIEW FIX] Dedicated texture for capturing the active layer's output
-        const cc = makeFBO();
-        state.textures.chainCapture = cc.tex; state.fbos.chainCapture = cc.fbo;
-
-        return { w: targetW, h: targetH };
+        return { w: currentW, h: currentH };
     }
 
     // --- LAYER LOGIC EXTRACTOR ---
@@ -1994,7 +2045,17 @@
         }
         // --- END DATA-DRIVEN PIPELINE ---
 
-        if (key === 'adjust') {
+        if (key === 'scale') {
+            // [TOOL: SCALE] Resolution Multiplier Pass-through
+            // Resizing is handled via reallocateBuffers(). The shader step just passes the texture forward.
+            gl.bindFramebuffer(gl.FRAMEBUFFER, outputFbo);
+            gl.useProgram(state.programs.copy);
+            gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputTex);
+            gl.uniform1i(gl.getUniformLocation(state.programs.copy, 'u_tex'), 0);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            return (outputFbo === state.fbos.temp2) ? state.textures.temp2 : state.textures.temp1;
+        }
+        else if (key === 'adjust') {
             // [TOOL: ADJUSTMENTS] Color, Sharpening, Brightness
             if (!UI.adjustEnable?.checked && !force) {
                 gl.bindFramebuffer(gl.FRAMEBUFFER, outputFbo);
@@ -2484,21 +2545,27 @@
 
         const gl = state.gl;
         const size = reallocateBuffers(isExport);
-        const w = size.w;
-        const h = size.h;
-        gl.viewport(0, 0, w, h);
 
-        let inputIdx = 0;
-        let outputIdx = 1;
+        // Reset pool write indexes
+        for (let key in state.fboPools) {
+            state.fboPools[key].writeIdx = 0;
+        }
+
+        const initialW = state.initialRes.w;
+        const initialH = state.initialRes.h;
+        const initialPoolKey = `${initialW}x${initialH}`;
+        const initialPool = state.fboPools[initialPoolKey];
+
+        gl.viewport(0, 0, initialW, initialH);
 
         // [EXPORT LOGIC] Draw upscaled base image to a temp canvas and upload as high-res texture
         let baseTex = state.textures.base;
-        if (isExport && (w !== state.width || h !== state.height)) {
+        if (isExport && (initialW !== state.width || initialH !== state.height)) {
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = w;
-            tempCanvas.height = h;
+            tempCanvas.width = initialW;
+            tempCanvas.height = initialH;
             const ctx = tempCanvas.getContext('2d');
-            ctx.drawImage(state.baseImage, 0, 0, state.width, state.height, 0, 0, w, h);
+            ctx.drawImage(state.baseImage, 0, 0, state.width, state.height, 0, 0, initialW, initialH);
             // Create a new texture from the upscaled image
             baseTex = gl.createTexture();
             gl.bindTexture(gl.TEXTURE_2D, baseTex);
@@ -2511,7 +2578,7 @@
         }
 
         // Start with Base
-        gl.bindFramebuffer(gl.FRAMEBUFFER, state.pingPong[0].fbo);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, initialPool.pingPong0.fbo);
         gl.useProgram(state.programs.copy);
         gl.uniform1i(gl.getUniformLocation(state.programs.copy, 'u_channel'), 0);
         gl.activeTexture(gl.TEXTURE0);
@@ -2523,6 +2590,8 @@
         if (isExport && baseTex !== state.textures.base) {
             gl.deleteTexture(baseTex);
         }
+
+        let currentTex = initialPool.pingPong0.tex;
 
         // [MULTI-INSTANCE] Render loop with per-instance UI Proxy support
         const debugRender = !isExport && state.frameRenderCount % 60 === 0;
@@ -2538,35 +2607,53 @@
             if (index > 0) UI = createInstanceUIProxy(index);
 
             try {
-                // Optimized: Skip disabled layers entirely. No ping-pong swap needed.
+                // Optimized: Skip disabled layers entirely. No pass-through needed.
                 const vis = state.layerVisibility[instanceId] ?? state.layerVisibility[baseType] ?? true;
                 const isEnabled = UI[toggleId] ? UI[toggleId].checked : true;
 
                 if (debugRender) console.log(`  [${i}] ${instanceId}: visible=${vis}, enabled=${isEnabled}`);
 
                 if (vis && isEnabled) {
+                    const res = state.layerResolutions[instanceId] || { w: initialW, h: initialH };
+                    const targetW = res.w;
+                    const targetH = res.h;
+                    const poolKey = `${targetW}x${targetH}`;
+                    const pool = state.fboPools[poolKey];
+
+                    gl.viewport(0, 0, targetW, targetH);
+                    state.renderWidth = targetW;
+                    state.renderHeight = targetH;
+
+                    // Bind temporary scratch buffers for this specific resolution pool
+                    state.textures.blur1 = pool.blur1.tex; state.fbos.blur1 = pool.blur1.fbo;
+                    state.textures.blur2 = pool.blur2.tex; state.fbos.blur2 = pool.blur2.fbo;
+                    state.textures.tempNoise = pool.tempNoise.tex; state.fbos.tempNoise = pool.tempNoise.fbo;
+                    state.textures.maskTotal = pool.maskTotal.tex; state.fbos.maskTotal = pool.maskTotal.fbo;
+
+                    const outputBuffer = pool.writeIdx === 0 ? pool.pingPong1 : pool.pingPong0;
+
                     // Compute uniforms per-instance (uses current UI, which may be proxied)
-                    const uniforms = computeUniforms(w, h);
+                    const uniforms = computeUniforms(targetW, targetH);
 
                     // Execute layer using baseType for dispatch
-                    renderSingleLayer(gl, baseType, state.pingPong[inputIdx].tex, state.pingPong[outputIdx].fbo, uniforms);
+                    renderSingleLayer(gl, baseType, currentTex, outputBuffer.fbo, uniforms);
+
+                    currentTex = outputBuffer.tex;
+                    pool.writeIdx = 1 - pool.writeIdx;
 
                     // Save output for chain preview
-                    state.layerTextures[instanceId] = state.pingPong[outputIdx].tex;
+                    state.layerTextures[instanceId] = currentTex;
 
                     // [CHAIN PREVIEW FIX] Snapshot the active layer's output
-                    if (state.activeSection && instanceId === state.activeSection && state.fbos.chainCapture) {
-                        gl.bindFramebuffer(gl.FRAMEBUFFER, state.fbos.chainCapture);
+                    if (state.activeSection && instanceId === state.activeSection && pool.chainCapture) {
+                        gl.bindFramebuffer(gl.FRAMEBUFFER, pool.chainCapture.fbo);
                         gl.useProgram(state.programs.copy);
                         gl.activeTexture(gl.TEXTURE0);
-                        gl.bindTexture(gl.TEXTURE_2D, state.pingPong[outputIdx].tex);
+                        gl.bindTexture(gl.TEXTURE_2D, currentTex);
                         gl.uniform1i(gl.getUniformLocation(state.programs.copy, 'u_tex'), 0);
                         gl.uniform1i(gl.getUniformLocation(state.programs.copy, 'u_channel'), 0);
                         gl.drawArrays(gl.TRIANGLES, 0, 6);
                     }
-
-                    // Swap buffers
-                    let temp = inputIdx; inputIdx = outputIdx; outputIdx = temp;
                 }
             } catch (e) {
                 console.error(`[Pipeline] ERROR in layer ${instanceId}:`, e.message);
@@ -2580,16 +2667,19 @@
         // FINAL OUTPUT
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        // Resize canvas DOM element to match render size
-        if (gl.canvas.width !== w || gl.canvas.height !== h) {
-            gl.canvas.width = w;
-            gl.canvas.height = h;
+        const finalW = size.w;
+        const finalH = size.h;
+
+        // Resize canvas DOM element to match final render size
+        if (gl.canvas.width !== finalW || gl.canvas.height !== finalH) {
+            gl.canvas.width = finalW;
+            gl.canvas.height = finalH;
         }
-        gl.viewport(0, 0, w, h);
+        gl.viewport(0, 0, finalW, finalH);
 
         const sourceTex = state.activeLayerPreview && state.layerTextures[state.activeLayerPreview]
             ? state.layerTextures[state.activeLayerPreview]
-            : state.pingPong[inputIdx].tex;
+            : currentTex;
 
         let chan = 0;
         if (state.activeLayerPreview === 'shadows') chan = 2;
@@ -2600,7 +2690,7 @@
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, sourceTex);
             gl.uniform1i(gl.getUniformLocation(state.programs.final, 'u_tex'), 0);
-            gl.uniform2f(gl.getUniformLocation(state.programs.final, 'u_res'), w, h);
+            gl.uniform2f(gl.getUniformLocation(state.programs.final, 'u_res'), finalW, finalH);
         } else {
             gl.useProgram(state.programs.copy);
             gl.activeTexture(gl.TEXTURE0);
@@ -3394,11 +3484,22 @@
             const text = range.nextElementSibling;
             if (text && text.classList.contains('control-value')) {
                 const update = () => text.value = range.value;
-                range.addEventListener('input', () => { update(); requestRender(); });
+                range.addEventListener('input', () => {
+                    update();
+                    if (range.id && range.id.startsWith('scaleMultiplier')) {
+                        if (state.baseImage) reallocateBuffers(false);
+                    }
+                    requestRender();
+                });
                 // Sync initial value but don't overwrite if not needed
                 update();
             } else {
-                range.addEventListener('input', requestRender);
+                range.addEventListener('input', () => {
+                    if (range.id && range.id.startsWith('scaleMultiplier')) {
+                        if (state.baseImage) reallocateBuffers(false);
+                    }
+                    requestRender();
+                });
             }
             range.dataset.bound = 'true';
         });
@@ -3409,6 +3510,9 @@
                 if (el.id === 'clampPreviewToggle') {
                     state.clampPreview = !el.checked;
                     reallocateBuffers(state.isZooming);
+                }
+                if (el.id && el.id.startsWith('scaleEnable')) {
+                    if (state.baseImage) reallocateBuffers(false);
                 }
                 if (el.id && el.id.startsWith('edgeMode')) {
                     const suffix = el.id.substring(8);
@@ -3441,5 +3545,120 @@
             });
             btn.dataset.bound = 'true';
         });
+
+        // 3-Way Color Wheels Logic
+        container.querySelectorAll('.color-wheel-interactive').forEach(wheel => {
+            if (wheel.dataset.bound) return;
+
+            const handle = wheel.querySelector('.color-wheel-handle');
+            const targetId = wheel.dataset.target;
+            const input = document.getElementById(targetId) || _UI_BASE[targetId];
+
+            let isDragging = false;
+
+            const updateWheel = (e) => {
+                const rect = wheel.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const radius = rect.width / 2;
+
+                let dx = e.clientX - cx;
+                let dy = e.clientY - cy;
+
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > radius) {
+                    dx = (dx / dist) * radius;
+                    dy = (dy / dist) * radius;
+                    dist = radius;
+                }
+
+                handle.style.left = `calc(50% + ${dx}px)`;
+                handle.style.top = `calc(50% + ${dy}px)`;
+
+                // Map to HSV
+                const angle = Math.atan2(dy, dx); // -PI to PI
+                let hue = (angle + Math.PI / 2) / (Math.PI * 2);
+                if (hue < 0) hue += 1.0;
+
+                // Exaggerate saturation near center so it's easier to rest at pure white
+                let saturation = dist / radius;
+                if (saturation < 0.05) saturation = 0;
+
+                // Simple HSV to RGB mapping strictly for the color wheel
+                const h = hue * 6;
+                const i = Math.floor(h);
+                const f = h - i;
+                const q = 1 - f;
+                const t = 1 - (1 - f);
+
+                let r, g, b;
+                const v = 1.0;
+                switch (i % 6) {
+                    case 0: r = v, g = t, b = 0; break;
+                    case 1: r = q, g = v, b = 0; break;
+                    case 2: r = 0, g = v, b = t; break;
+                    case 3: r = 0, g = q, b = v; break;
+                    case 4: r = t, g = 0, b = v; break;
+                    case 5: r = v, g = 0, b = q; break;
+                }
+
+                // Mix with white based on saturation
+                r = Math.round((1.0 - saturation + r * saturation) * 255);
+                g = Math.round((1.0 - saturation + g * saturation) * 255);
+                b = Math.round((1.0 - saturation + b * saturation) * 255);
+
+                const hex = "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
+
+                if (input) {
+                    input.value = hex;
+                    input.dispatchEvent(new Event('input'));
+                }
+            };
+
+            wheel.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                updateWheel(e);
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (isDragging) updateWheel(e);
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    if (input) input.dispatchEvent(new Event('change'));
+                }
+            });
+
+            wheel.dataset.bound = 'true';
+        });
+
+        // Reset Wheels Button
+        container.querySelectorAll('.btn-reset-wheels').forEach(btn => {
+            if (btn.dataset.bound) return;
+            btn.addEventListener('click', (e) => {
+                const parent = e.target.parentElement;
+                if (!parent) return;
+
+                parent.querySelectorAll('.color-wheel-interactive').forEach(wheel => {
+                    const handle = wheel.querySelector('.color-wheel-handle');
+                    const targetId = wheel.dataset.target;
+                    const input = document.getElementById(targetId) || _UI_BASE[targetId];
+
+                    if (handle) {
+                        handle.style.left = '50%';
+                        handle.style.top = '50%';
+                    }
+                    if (input) {
+                        input.value = '#ffffff';
+                        input.dispatchEvent(new Event('input'));
+                        input.dispatchEvent(new Event('change'));
+                    }
+                });
+            });
+            btn.dataset.bound = 'true';
+        });
+
     }
 })();

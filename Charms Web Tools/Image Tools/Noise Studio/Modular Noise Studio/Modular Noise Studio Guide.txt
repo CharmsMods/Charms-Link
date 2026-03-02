@@ -6,10 +6,8 @@ This document serves as a comprehensive manual for understanding, debugging, and
 ------------------------------------------
 The suite uses a "Low-Coupling, WebGL2-Accelerated" design.
 - index.html: Defines the skeletal layout (panels, canvas containers, modals). Crucially, the main control area `<div id="dynamic-controls"></div>` is populated at runtime, not hardcoded.
-- engine.js: The low-level WebGL wrapper. Handles context initialization, texture allocation (`createTexture`), FBO (Frame Buffer Object) creation, and basic shader compilation (`compileShaderCode`, `createProgramFromSrc`).
-- ui.js: Handles user-facing DOM events unrelated to the render chain (e.g., drag-and-drop, generic button clicks).
 - ui-generator.js: Reads `Shaders/layers.json` and individual layer `.json` files to build the UI dynamically. It supports cloning structures for "Multi-Instance" layers.
-- app.js: The core orchestrator. Contains the global `state` object, the uniform calculator (`computeUniforms`), the masking logic (`renderMaskForLayer`), the render loop (`renderFrame`), and the preset serializer (`downloadPreset`/`uploadPreset`).
+- app.js: The core orchestrator and WebGL wrapper. Contains the global `state` object, WebGL initialization, texture/FBO allocation (`createTexture`, `reallocateBuffers`), shader compilation (`compileShaderSource`, `createProgramFromSources`), all UI DOM event listeners, the uniform calculator (`computeUniforms`), the masking logic (`renderMaskForLayer`), the render loop (`renderFrame`), and the preset serializer (`downloadPreset`/`uploadPreset`).
 
 2. STATE MANAGEMENT (The Single Source of Truth)
 ------------------------------------------------
@@ -24,7 +22,7 @@ The `state` object in `app.js` controls the entire application. Critical propert
 --------------------------------------
 The engine uses a declarative, sequential pipeline.
 
-A. Buffer Allocation (`reallocateBuffers` in `engine.js`):
+A. Buffer Allocation (`reallocateBuffers` in `app.js`):
 Called on init, resize, or export. It manages `state.renderWidth` and `state.renderHeight`.
 - Preview mode: Resolution is clamped (default: 2048px) governed by `state.clampPreview`.
 - Export mode: Resolution scales up to `state.width * state.upscaleFactor`.
@@ -79,9 +77,12 @@ The JSON structure dictates both the DOM and the WebGL uniform binding.
 - The `uniforms` array links your shader variables (`name`) to the HTML elements (`ui_id`).
 - Supported uniform types: `float` (default), `int`, `rgb`/`color`, `bool`/`boolean`. You can optionally include `"divideBy"` for sliders that represent percentages.
 
-Step 2: Register the Layer
-Add an entry to `Shaders/layers.json`:
+Step 2: Register the Layer in Manifests
+First, add an entry to `Shaders/layers.json`:
 `{ "key": "myEffect", "name": "My Effect", "json": "Shaders/myEffect.json" }`
+
+Second, you MUST add your layer key to the global `LAYERS` object near the top of `app.js`. This is required for the UI generator to populate the "Add Layer" dropdown and validate render order:
+`'myEffect': { name: 'My Effect', color: '#fff' },`
 
 Step 3: Implement the Shader Logic
 Create `Shaders/myEffect.frag` using GLSL ES 3.0. It MUST define:
@@ -91,7 +92,7 @@ Create `Shaders/myEffect.frag` using GLSL ES 3.0. It MUST define:
 `in vec2 v_uv;`
 `out vec4 fragColor;`
 
-And that's it! `engine.js` automatically compiles the shader on boot, and `app.js` automatically binds the uniforms and executes the draw call based on your JSON definition.
+And that's it! `app.js` automatically compiles the shader on boot, binds the uniforms, and executes the draw call based on your JSON definition.
 
 Advanced/Custom Routing:
 If your shader is highly complex (e.g., multi-pass ping-pong filtering like bilateral or compression), you can add `"customRender": true` to the JSON root. This forces `app.js` to skip the generic dispatcher, requiring you to write a manual `else if (key === 'myEffect')` block in `renderSingleLayer()`.
@@ -99,7 +100,7 @@ If your shader is highly complex (e.g., multi-pass ping-pong filtering like bila
 5. PRESETS & STATE SERIALIZATION
 --------------------------------
 Presets allow full studio state recovery.
-- `downloadPreset()` builds a JSON payload: `values` (sliders), `checks` (toggles), `selects` (dropdowns), `renderOrder`, and optionally Base64 `imageData`.
+- `downloadPreset()` builds a JSON payload: `values` (sliders), `checks` (toggles), `selects` (dropdowns), `renderOrder`, `layerVisibility`, `upscaleFactor`, `caCenter`, `palette`, and optionally Base64 `imageData`.
 - CRITICAL RECONSTRUCTION: `restoreSettings()` in `app.js` does not just blindly apply values. It must first destroy any clone layers, loop through the saved `renderOrder`, call `createLayerInstance()` to regenerate the required input elements in the DOM, rebuild the `UI` element cache map, and THEN inject the values.
 
 6. KNOWN QUIRKS / ARCHITECTURAL NOTES FOR AI
@@ -109,3 +110,20 @@ Presets allow full studio state recovery.
 - Mask Naming Convention: The unified masking system relies strictly on ID prefixes. If your layer key is `dither`, the enable ID MUST be `ditherEnable` and the luma mask toggle MUST be `ditherLumaMask` for `renderMaskForLayer` to scrape it successfully.
 - Duplicate Control IDs: Legacy JSON files often duplicated the `"id": "layerEnable"` checkbox inside their `controls` array instead of just using the root `enableId`. `ui-generator.js` explicitly deletes these inner duplicates to prevent `document.getElementById` from fetching the wrong object, but intelligently scrapes their `"default"` value first. 
 - Shader Alias Fallback: If a JSON declares a layer that does not have a matching `state.programs[name]` (or explicitly mapped alias) compiled in `manifest.json`, the Dispatcher will forcefully execute a bypass using the `state.programs.copy` shader. If it didn't, the ping-pong FBO chain would freeze and duplicate the previous layer indefinitely.
+
+7. ADVANCED UI & ANALYSIS TOOLS
+-------------------------------
+The application provides several tools for real-time image analysis and precision editing:
+- Luminance Histogram & Vectorscope: Real-time analysis plotted on dedicated canvases. For performance, they dynamically downsample the final output (`state.canvas`), sampling up to 10,000 pixels. The Histogram uses Rec.709 luminance values; the Vectorscope uses HSV-style mapping.
+- Zoom & Lens Capabilities: Controlled via `applyZoom()`. 
+  - *Full View Mode:* Scales the canvas using CSS transforms originated from the cursor's mapping.
+  - *Lens Mode:* Uses a floating 180px element that renders the source at full resolution using an isolated `reallocateBuffers(true)` context to act as a magnifying glass. 
+- High Quality Preview: Controlled by `clampPreviewToggle`, this bypasses the default 2048px resolution limit for rendering previews.
+- Eyedropper Tool: Activated from color inputs. Reads `gl.readPixels()` by mapping DOM viewport coordinates to the base image's UV space. It uses a temporary 1x1 framebuffer to read directly from `state.textures.base` to bypass any active layer effects.
+
+8. MULTI-IMAGE & FOLDER WORKFLOWS
+---------------------------------
+The studio supports batch processing natively via the File System Access API.
+- Folder Loading: Loading a directory populates `state.imageFiles` and `state.allFiles`, unlocking the image navigation UI (`changeImage()`, `imageScrubber`).
+- Playback Scrubber: `startPlay()` initializes a `setInterval` loop to advance images and trigger `loadImageFromFile()` sequentially at a requested Frames-Per-Second (FPS).
+- Batch Exporting: `downloadAllImages()` iterates through all processable files, rendering and downloading them fully. Native support exists for `keepFolderStructure`, which recursively recreates the original file tree inside the export directory and automatically copies over unmodified non-image files.

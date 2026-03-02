@@ -4,6 +4,9 @@
         "adjust": {
             "frag": "Shaders/adjust.frag"
         },
+        "colorGrade": {
+            "frag": "Shaders/colorGrade.frag"
+        },
         "adjustMasked": {
             "frag": "Shaders/adjustMasked.frag"
         },

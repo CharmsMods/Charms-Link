@@ -1,5 +1,10 @@
 [
     {
+        "key": "scale",
+        "name": "Resolution Scale",
+        "json": "Shaders/scale.json"
+    },
+    {
         "key": "noise",
         "name": "Noise",
         "json": "Shaders/noise.json",
@@ -24,6 +29,11 @@
         "key": "adjust",
         "name": "Adjustments",
         "json": "Shaders/adjust.json"
+    },
+    {
+        "key": "colorGrade",
+        "name": "3-Way Color Grade",
+        "json": "Shaders/colorGrade.json"
     },
     {
         "key": "hdr",
