@@ -34,13 +34,14 @@
         busy: false,          // Mutex to prevent overlapping render calls
         upscaleFactor: 1,     // Multiplier for export-quality rendering (1x-10x)
         // The pipeline order: processed from first to last
-        renderOrder: ['scale', 'noise', 'adjust', 'colorGrade', 'hdr', 'ca', 'blur', 'airyBloom', 'glareRays', 'hankelBlur', 'vignette', 'cell', 'halftone', 'bilateral', 'denoise', 'dither', 'palette', 'edge', 'corruption', 'analogVideo', 'lensDistort', 'heatwave', 'lightLeaks', 'compression'],
+        // Starting with an empty renderOrder allows users to dynamically add layers.
+        renderOrder: [],
         activeLayerPreview: null,
         activeSection: 'adjust', // Currently open UI section (used for 'Isolated' previews)
         caCenter: { x: 0.5, y: 0.5 }, // UV coordinates for Chromatic Aberration center
         isDraggingPin: false,
         layerTextures: {},    // Stores the results of each layer for the 'Breakdown' view
-        layerVisibility: { scale: true, noise: true, adjust: true, hdr: true, ca: true, blur: true, airyBloom: true, glareRays: true, hankelBlur: true, vignette: true, cell: true, halftone: true, bilateral: true, denoise: true, dither: true, palette: true, edge: true, corruption: true, analogVideo: true, lensDistort: true, heatwave: true, lightLeaks: true, compression: true },
+        layerVisibility: {},
         palette: [],          // Current list of Hex colors for Palette Reconstructor
         lastExtractionImage: null,
         pinIdleTimer: null,
@@ -304,19 +305,80 @@
         bindDynamicControls(document);
 
 
-        UI.edgeMode.addEventListener('change', () => {
-            UI.edgeSatControls.style.display = UI.edgeMode.value === '1' ? 'block' : 'none';
+        // [DELEGATED EVENTS] Handle layer-specific inputs without crashing on missing elements
+        document.addEventListener('change', (e) => {
+            if (!e.target.id) return;
+
+            // Edge Mode Saturation Toggle
+            if (e.target.id.startsWith('edgeMode')) {
+                const suffix = e.target.id.substring('edgeMode'.length);
+                const satControls = document.getElementById('edgeSatControls' + suffix);
+                if (satControls) {
+                    satControls.style.display = e.target.value === '1' ? 'block' : 'none';
+                }
+            }
+            // Palette Extraction Upload
+            else if (e.target.id.startsWith('paletteImageUpload')) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        state.lastExtractionImage = img;
+                        const countEl = document.getElementById('extractCount' + e.target.id.substring('paletteImageUpload'.length));
+                        const count = parseInt(countEl?.value || 8);
+                        extractPaletteFromImage(img, count);
+                    };
+                    img.src = evt.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
         });
-        // Initial trigger
-        UI.edgeMode.dispatchEvent(new Event('change'));
+
+        document.addEventListener('input', (e) => {
+            if (!e.target.id) return;
+            if (e.target.id.startsWith('extractCount')) {
+                if (state.lastExtractionImage) {
+                    const count = parseInt(e.target.value);
+                    extractPaletteFromImage(state.lastExtractionImage, count);
+                }
+            }
+        });
 
         // Palette buttons
         const getRandomHex = () => '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
 
-        UI.addPaletteColor.addEventListener('click', () => {
-            state.palette.push(getRandomHex());
-            updatePaletteUI();
-            requestRender();
+        document.addEventListener('click', (e) => {
+            if (!e.target.id) return;
+
+            if (e.target.id.startsWith('addPaletteColor')) {
+                state.palette.push(getRandomHex());
+                updatePaletteUI();
+                requestRender();
+            } else if (e.target.id.startsWith('clearPalette')) {
+                state.palette = [];
+                updatePaletteUI();
+                requestRender();
+            } else if (e.target.id.startsWith('randomPalette')) {
+                const len = state.palette.length;
+                if (len === 0) {
+                    const count = Math.floor(Math.random() * 5) + 3;
+                    const newPalette = new Set();
+                    while (newPalette.size < count) newPalette.add(getRandomHex());
+                    state.palette = Array.from(newPalette);
+                } else {
+                    for (let i = 0; i < len; i++) {
+                        state.palette[i] = getRandomHex();
+                    }
+                }
+                updatePaletteUI();
+                requestRender();
+            } else if (e.target.id.startsWith('extractPalette')) {
+                const suffix = e.target.id.substring('extractPalette'.length);
+                const uploadInput = document.getElementById('paletteImageUpload' + suffix);
+                if (uploadInput) uploadInput.click();
+            }
         });
 
         // Palette Canvas Picker Logic
@@ -334,51 +396,6 @@
             requestRender();
         });
 
-        UI.clearPalette.addEventListener('click', () => {
-            state.palette = [];
-            updatePaletteUI();
-            requestRender();
-        });
-        UI.randomPalette.addEventListener('click', () => {
-            const len = state.palette.length;
-            if (len === 0) {
-                const count = Math.floor(Math.random() * 5) + 3;
-                const newPalette = new Set();
-                while (newPalette.size < count) newPalette.add(getRandomHex());
-                state.palette = Array.from(newPalette);
-            } else {
-                for (let i = 0; i < len; i++) {
-                    state.palette[i] = getRandomHex();
-                }
-            }
-            updatePaletteUI();
-            requestRender();
-        });
-
-        UI.extractPalette.addEventListener('click', () => UI.paletteImageUpload.click());
-        UI.paletteImageUpload.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-                const img = new Image();
-                img.onload = () => {
-                    state.lastExtractionImage = img;
-                    const count = parseInt(UI.extractCount?.value || 8);
-                    extractPaletteFromImage(img, count);
-                };
-                img.src = evt.target.result;
-            };
-            reader.readAsDataURL(file);
-        });
-
-        UI.extractCount.addEventListener('input', () => {
-            if (state.lastExtractionImage) {
-                const count = parseInt(UI.extractCount.value);
-                extractPaletteFromImage(state.lastExtractionImage, count);
-            }
-        });
-
         // Lock Toggle Logic
         UI.previewLock.addEventListener('change', (e) => {
             state.isPreviewLocked = e.target.checked;
@@ -390,10 +407,12 @@
         // [PIN INTERACTIONS] Chromatic Aberration Center Control
         // Purpose: Allows users to drag the center of the CA effect on the preview.
         // Logic: Maps DOM mouse coordinates to normalized 0.0-1.0 UV space for the shader.
-        UI.resetCenterBtn.addEventListener('click', () => {
-            state.caCenter = { x: 0.5, y: 0.5 };
-            updatePinPosition();
-            requestRender();
+        document.addEventListener('click', (e) => {
+            if (e.target.id && e.target.id.startsWith('resetCenterBtn')) {
+                state.caCenter = { x: 0.5, y: 0.5 };
+                updatePinPosition();
+                requestRender();
+            }
         });
 
         UI.caPin.addEventListener('mousedown', (e) => {
@@ -762,10 +781,15 @@
         UI.exportSideBySide.addEventListener('click', () => exportComparison('side'));
         UI.exportStacked.addEventListener('click', () => exportComparison('stack'));
 
-        // [NOISE PARAM DYNAMICS]
-        // Purpose: Dynamically renames and toggles noise parameters based on algorithm.
-        UI.noiseType.addEventListener('change', () => syncNoiseUI(''));
-        syncNoiseUI(''); // Initial call
+        UI.manualBtn = document.getElementById('manualBtn');
+        if (UI.manualBtn) {
+            UI.manualBtn.addEventListener('click', () => {
+                document.getElementById('manualModal').classList.add('show');
+            });
+            document.getElementById('closeManualBtn').addEventListener('click', () => {
+                document.getElementById('manualModal').classList.remove('show');
+            });
+        }
 
         // [EYEDROPPER TOOL] Localized Color Selection
         // Purpose: Picks colors directly from the WebGL canvas for palette or exclusion masks.
@@ -977,13 +1001,15 @@
             if (index > 0) removeLayerInstance(id);
         });
 
-        // Generate any required duplicate layers from the preset
+        // Generate any required layers from the preset
         if (preset.renderOrder) {
             preset.renderOrder.forEach(id => {
                 const { baseType, index } = parseInstanceId(id);
-                if (index > 0) {
-                    // Ensure UI elements are created before setting values
-                    if (typeof createLayerInstance === 'function') {
+                // Ensure UI elements are created before setting values
+                if (typeof createLayerInstance === 'function') {
+                    // Make sure we only add it if it doesn't already exist in the DOM
+                    const existingPanel = document.querySelector(`[data-layer-key="${baseType}"][data-instance-index="${index}"]`);
+                    if (!existingPanel) {
                         const newPanel = createLayerInstance(baseType, index);
                         if (newPanel) bindDynamicControls(newPanel);
                     }
@@ -1294,23 +1320,6 @@
         const list = document.getElementById('layer-drag-list');
         list.innerHTML = '';
 
-        // [SYNC] Ensure all valid base layers from LAYERS are in renderOrder
-        const validBaseTypes = Object.keys(LAYERS).filter(k => k !== 'shadows' && k !== 'highlights');
-        validBaseTypes.forEach(key => {
-            // Only add if no instance of this base type exists yet
-            const hasInstance = state.renderOrder.some(id => parseInstanceId(id).baseType === key);
-            if (!hasInstance) {
-                state.renderOrder.push(key);
-                if (state.layerVisibility[key] === undefined) state.layerVisibility[key] = true;
-            }
-        });
-
-        // Remove stale keys (base type must exist in LAYERS)
-        state.renderOrder = state.renderOrder.filter(id => {
-            const { baseType } = parseInstanceId(id);
-            return validBaseTypes.includes(baseType);
-        });
-
         state.renderOrder.forEach((instanceId, index) => {
             const { baseType, index: instIdx } = parseInstanceId(instanceId);
             const div = document.createElement('div');
@@ -1320,7 +1329,7 @@
 
             const isChecked = (state.layerVisibility[instanceId] ?? state.layerVisibility[baseType] ?? true) ? 'checked' : '';
             const displayName = LAYERS[baseType]?.name || baseType;
-            const instanceLabel = instIdx > 0 ? ` (${instIdx + 1})` : '';
+            const instanceLabel = instIdx > 1 ? ` (${instIdx})` : '';
 
             div.innerHTML = `
             <div style="display:flex; align-items:center;">
@@ -1328,7 +1337,7 @@
                 <input type="checkbox" class="drag-toggle" data-key="${instanceId}" ${isChecked}>
             </div>
             <span>${displayName}${instanceLabel}</span>
-            ${instIdx > 0 ? `<button class="remove-instance-btn" data-instance="${instanceId}" title="Remove this duplicate" style="margin-left:auto; background:none; border:none; color:#ff5555; cursor:pointer; font-size:14px; padding:2px 6px;">✕</button>` : ''}
+            <button class="remove-instance-btn" data-instance="${instanceId}" title="Remove this layer" style="margin-left:auto; background:none; border:none; color:#ff5555; cursor:pointer; font-size:14px; padding:2px 6px;">✕</button>
         `;
 
             div.querySelector('input').addEventListener('change', (e) => {
@@ -1379,7 +1388,7 @@
         const select = document.createElement('select');
         select.style.cssText = 'flex:1; background:var(--bg-secondary); color:var(--text); border:1px solid var(--border); padding:4px; font-size:11px;';
         select.innerHTML = '<option value="">— Select Layer to Add —</option>';
-        validBaseTypes.forEach(key => {
+        Object.keys(LAYERS).filter(k => k !== 'shadows' && k !== 'highlights').forEach(key => {
             const opt = document.createElement('option');
             opt.value = key;
             opt.textContent = LAYERS[key]?.name || key;
@@ -1439,13 +1448,13 @@
         requestRender();
         console.log(`[Multi-Instance] Added ${instanceId}`);
     }
+    window.addLayerInstance = addLayerInstance;
 
     /**
      * [MULTI-INSTANCE] Removes a layer instance and its UI controls.
      */
     function removeLayerInstance(instanceId) {
         const { baseType, index } = parseInstanceId(instanceId);
-        if (index === 0) return; // Cannot remove default instance
 
         // Remove UI panel
         if (typeof destroyLayerInstance === 'function') {
@@ -1470,6 +1479,7 @@
         requestRender();
         console.log(`[Multi-Instance] Removed ${instanceId}`);
     }
+    window.removeLayerInstance = removeLayerInstance;
 
     // --- RENDER LOOP MANAGER ---
     /** 
@@ -1796,7 +1806,7 @@
 
         UI.caPin.classList.add('active');
 
-        setupLayerGridDOM();
+        setupDragLayerList();
         requestRender();
     }
 
@@ -1807,6 +1817,8 @@
      */
     function reallocateBuffers(fullRes = false) {
         const gl = state.gl;
+        if (!gl) return; // Wait for initialization
+
         if (!state.fboPools) state.fboPools = {};
         if (!state.layerResolutions) state.layerResolutions = {};
 
@@ -2179,7 +2191,7 @@
             }
             gl.useProgram(state.programs.noise);
             gl.bindFramebuffer(gl.FRAMEBUFFER, state.fbos.tempNoise);
-            gl.uniform1i(gl.getUniformLocation(state.programs.noise, 'u_type'), parseInt(UI.noiseType.value));
+            gl.uniform1i(gl.getUniformLocation(state.programs.noise, 'u_type'), parseInt(UI.noiseType?.value || 0));
             gl.uniform1f(gl.getUniformLocation(state.programs.noise, 'u_seed'), Math.random() * 100.0);
             gl.uniform2f(gl.getUniformLocation(state.programs.noise, 'u_res'), w, h);
             gl.uniform2f(gl.getUniformLocation(state.programs.noise, 'u_origRes'), state.width * state.upscaleFactor, state.height * state.upscaleFactor);
@@ -2189,7 +2201,7 @@
             gl.uniform1f(gl.getUniformLocation(state.programs.noise, 'u_paramC'), parseFloat(UI.noiseParamC?.value || 0) / 100.0);
             gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-            const blurAmt = parseFloat(UI.blurriness.value) / 100.0;
+            const blurAmt = parseFloat(UI.blurriness?.value || 0) / 100.0;
             let noiseTex = state.textures.tempNoise;
             if (blurAmt > 0) {
                 gl.useProgram(state.programs.blur);
@@ -2217,15 +2229,15 @@
             gl.uniform1i(gl.getUniformLocation(state.programs.composite, 'u_base'), 0);
             gl.uniform1i(gl.getUniformLocation(state.programs.composite, 'u_noise'), 1);
             gl.uniform1i(gl.getUniformLocation(state.programs.composite, 'u_mask'), 2);
-            gl.uniform1i(gl.getUniformLocation(state.programs.composite, 'u_mode'), parseInt(UI.blendMode.value));
-            gl.uniform1f(gl.getUniformLocation(state.programs.composite, 'u_opacity'), parseFloat(UI.opacity.value));
-            gl.uniform1f(gl.getUniformLocation(state.programs.composite, 'u_str'), parseFloat(UI.strength.value));
-            gl.uniform1i(gl.getUniformLocation(state.programs.composite, 'u_nType'), parseInt(UI.noiseType.value));
-            gl.uniform1f(gl.getUniformLocation(state.programs.composite, 'u_satStr'), parseFloat(UI.satStrength.value));
-            gl.uniform1f(gl.getUniformLocation(state.programs.composite, 'u_satImp'), parseFloat(UI.satPerNoise.value));
-            gl.uniform1f(gl.getUniformLocation(state.programs.composite, 'u_skinProt'), parseFloat(UI.skinProtection.value));
-            gl.uniform1i(gl.getUniformLocation(state.programs.composite, 'u_ignA'), UI.ignoreAlphaToggle.checked ? 1 : 0);
-            gl.uniform1f(gl.getUniformLocation(state.programs.composite, 'u_ignAstr'), parseFloat(UI.ignoreAlphaStrength.value));
+            gl.uniform1i(gl.getUniformLocation(state.programs.composite, 'u_mode'), parseInt(UI.blendMode?.value || 0));
+            gl.uniform1f(gl.getUniformLocation(state.programs.composite, 'u_opacity'), parseFloat(UI.opacity?.value || 0));
+            gl.uniform1f(gl.getUniformLocation(state.programs.composite, 'u_str'), parseFloat(UI.strength?.value || 0));
+            gl.uniform1i(gl.getUniformLocation(state.programs.composite, 'u_nType'), parseInt(UI.noiseType?.value || 0));
+            gl.uniform1f(gl.getUniformLocation(state.programs.composite, 'u_satStr'), parseFloat(UI.satStrength?.value || 0));
+            gl.uniform1f(gl.getUniformLocation(state.programs.composite, 'u_satImp'), parseFloat(UI.satPerNoise?.value || 0));
+            gl.uniform1f(gl.getUniformLocation(state.programs.composite, 'u_skinProt'), parseFloat(UI.skinProtection?.value || 0));
+            gl.uniform1i(gl.getUniformLocation(state.programs.composite, 'u_ignA'), UI.ignoreAlphaToggle?.checked ? 1 : 0);
+            gl.uniform1f(gl.getUniformLocation(state.programs.composite, 'u_ignAstr'), parseFloat(UI.ignoreAlphaStrength?.value || 0));
 
             gl.drawArrays(gl.TRIANGLES, 0, 6);
         }
@@ -2331,9 +2343,9 @@
             gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputTex);
             gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
             gl.uniform1i(gl.getUniformLocation(prog, 'u_type'), parseInt(UI.ditherType?.value || 0));
-            gl.uniform1f(gl.getUniformLocation(prog, 'u_bitDepth'), parseFloat(UI.ditherBitDepth.value));
-            gl.uniform1f(gl.getUniformLocation(prog, 'u_strength'), parseFloat(UI.ditherStrength.value) / 100.0);
-            gl.uniform1f(gl.getUniformLocation(prog, 'u_scale'), parseFloat(UI.ditherScale.value));
+            gl.uniform1f(gl.getUniformLocation(prog, 'u_bitDepth'), parseFloat(UI.ditherBitDepth?.value || 4));
+            gl.uniform1f(gl.getUniformLocation(prog, 'u_strength'), parseFloat(UI.ditherStrength?.value || 100) / 100.0);
+            gl.uniform1f(gl.getUniformLocation(prog, 'u_scale'), parseFloat(UI.ditherScale?.value || 1));
             gl.uniform2f(gl.getUniformLocation(prog, 'u_res'), w, h);
             gl.uniform1f(gl.getUniformLocation(prog, 'u_seed'), Math.random() * 100.0);
             gl.uniform1i(gl.getUniformLocation(prog, 'u_gamma'), UI.ditherGamma?.checked ? 1 : 0);
@@ -2352,7 +2364,7 @@
                 gl.uniform3fv(gl.getUniformLocation(prog, 'u_customPalette'), flatPalette);
                 gl.uniform1f(gl.getUniformLocation(prog, 'u_paletteSize'), paletteRgb.length);
             } else {
-                gl.uniform1f(gl.getUniformLocation(prog, 'u_paletteSize'), parseFloat(UI.ditherPaletteSize.value));
+                gl.uniform1f(gl.getUniformLocation(prog, 'u_paletteSize'), parseFloat(UI.ditherPaletteSize?.value || 4));
             }
 
             if (maskTex) {
@@ -2653,6 +2665,7 @@
                         gl.uniform1i(gl.getUniformLocation(state.programs.copy, 'u_tex'), 0);
                         gl.uniform1i(gl.getUniformLocation(state.programs.copy, 'u_channel'), 0);
                         gl.drawArrays(gl.TRIANGLES, 0, 6);
+                        state.textures.chainCapture = pool.chainCapture.tex;
                     }
                 }
             } catch (e) {
@@ -3468,12 +3481,26 @@
                 if (details.open) {
                     const input = details.querySelector('input, select');
                     if (input) {
-                        const section = typeof getSectionFromId === 'function' ? getSectionFromId(input.id) : null;
+                        let section = typeof getSectionFromId === 'function' ? getSectionFromId(input.id) : null;
                         if (section) {
-                            state.activeSection = section;
+                            const suffixMatch = input.id.match(/__(\d+)$/);
+                            if (suffixMatch && suffixMatch[1] !== '0') {
+                                section += '__' + suffixMatch[1];
+                            }
+                            if (state.activeSection !== section) {
+                                state.textures.chainCapture = null; // Clear stale capture
+                                state.activeSection = section;
+                            }
                             requestRender();
                         }
                     }
+                } else {
+                    // Reset to adjust if the active section is closed
+                    if (state.activeSection === (details.dataset.layerKey + (details.dataset.instanceIndex !== '0' ? '__' + details.dataset.instanceIndex : ''))) {
+                        state.textures.chainCapture = null;
+                        state.activeSection = 'adjust';
+                    }
+                    requestRender();
                 }
             });
             details.dataset.bound = 'true';

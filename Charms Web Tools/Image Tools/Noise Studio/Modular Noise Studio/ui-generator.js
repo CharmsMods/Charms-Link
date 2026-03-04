@@ -37,17 +37,37 @@ async function generateLayerUI() {
         })
     );
 
+    const selectDropdown = document.getElementById('addLayerSelect');
+    const addLayerBtn = document.getElementById('addLayerBtn');
+
     // Build UI for each layer and cache definitions
     for (const layer of layerDefs) {
         if (!layer.def) continue;
         window._layerDefCache[layer.key] = { layer, def: layer.def };
-        const details = buildLayerDetails(layer, layer.def);
-        details.dataset.layerKey = layer.key;
-        details.dataset.instanceIndex = '0';
-        container.appendChild(details);
+
+        // Populate the Add Layer dropdown instead of rendering directly to DOM
+        if (selectDropdown) {
+            const opt = document.createElement('option');
+            opt.value = layer.key;
+            opt.textContent = layer.name || layer.key;
+            selectDropdown.appendChild(opt);
+        }
     }
 
-    console.log(`[UI-Gen] ${layerDefs.filter(l => l.def).length} layer panels generated`);
+    if (selectDropdown && addLayerBtn) {
+        selectDropdown.addEventListener('change', (e) => {
+            addLayerBtn.disabled = !e.target.value;
+        });
+        addLayerBtn.addEventListener('click', () => {
+            if (selectDropdown.value && typeof window.addLayerInstance === 'function') {
+                window.addLayerInstance(selectDropdown.value);
+                selectDropdown.value = '';
+                addLayerBtn.disabled = true;
+            }
+        });
+    }
+
+    console.log(`[UI-Gen] ${layerDefs.filter(l => l.def).length} layer definitions cached`);
 }
 
 /**
@@ -71,8 +91,8 @@ function createLayerInstance(baseType, instanceIndex) {
     const clonedLayer = { ...cached.layer };
     if (clonedLayer.detailsId) clonedLayer.detailsId = clonedLayer.detailsId + suffix;
 
-    // Override the name to show instance number
-    clonedDef.name = (clonedDef.name || cached.layer.name) + ` (${instanceIndex + 1})`;
+    // Override the name to show instance number only for duplicates
+    clonedDef.name = (clonedDef.name || cached.layer.name) + (instanceIndex > 1 ? ` (${instanceIndex})` : '');
 
     const details = buildLayerDetails(clonedLayer, clonedDef);
     details.dataset.layerKey = baseType;
@@ -152,7 +172,33 @@ function buildLayerDetails(layer, def) {
 
     // Build summary with optional enable checkbox
     const summary = document.createElement('summary');
-    summary.textContent = def.name || layer.name;
+
+    // Create a flex container for the summary contents to hold title + delete button
+    const summaryFlex = document.createElement('div');
+    summaryFlex.style.cssText = 'display:flex; justify-content:space-between; align-items:center; width:100%;';
+
+    const titleSpan = document.createElement('span');
+    titleSpan.textContent = def.name || layer.name;
+    summaryFlex.appendChild(titleSpan);
+
+    // Add a delete button to the summary header
+    const deleteBtn = document.createElement('button');
+    deleteBtn.innerHTML = '🗑️';
+    deleteBtn.title = 'Remove Layer';
+    deleteBtn.style.cssText = 'background:none; border:none; cursor:pointer; font-size:12px; opacity:0.6; padding:0 4px;';
+    deleteBtn.addEventListener('click', (e) => {
+        e.preventDefault(); // Prevent details from toggling
+        const instanceId = layer.key + '__' + (details.dataset.instanceIndex || '0');
+        if (typeof window.removeLayerInstance === 'function') {
+            window.removeLayerInstance(instanceId);
+        }
+    });
+
+    // Hover effect for delete button
+    deleteBtn.addEventListener('mouseenter', () => deleteBtn.style.opacity = '1');
+    deleteBtn.addEventListener('mouseleave', () => deleteBtn.style.opacity = '0.6');
+
+    summaryFlex.appendChild(deleteBtn);
 
     // If there's an enable control in the summary
     if (def.enableId) {
@@ -171,10 +217,11 @@ function buildLayerDetails(layer, def) {
         cb.id = def.enableId;
         cb.type = 'checkbox';
         cb.checked = isDefaultChecked;
-        cb.style.marginLeft = 'auto';
-        summary.appendChild(cb);
+        cb.style.marginLeft = '10px';
+        summaryFlex.insertBefore(cb, deleteBtn);
     }
 
+    summary.appendChild(summaryFlex);
     details.appendChild(summary);
 
     // Build controls
