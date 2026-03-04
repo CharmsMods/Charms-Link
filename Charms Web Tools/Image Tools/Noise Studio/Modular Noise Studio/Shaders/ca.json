@@ -86,12 +86,14 @@
         {
             "name": "u_radius",
             "ui_id": "caRadius",
-            "type": "float"
+            "type": "float",
+            "divideBy": 1000.0
         },
         {
             "name": "u_falloff",
             "ui_id": "caFalloff",
-            "type": "float"
+            "type": "float",
+            "divideBy": 1000.0
         },
         {
             "name": "u_falloffToBlur",

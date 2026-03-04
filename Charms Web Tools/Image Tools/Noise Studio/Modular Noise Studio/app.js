@@ -1948,6 +1948,16 @@
      * Pass-through: Takes 'inputTex' and writes result to 'outputFbo'.
      * @param {string} key - The ID of the layer (e.g. 'noise', 'blur').
      */
+
+    /** Checks if a layer is enabled, respecting enableDefault in JSON when no checkbox exists. */
+    function isLayerEnabled(key, enableId) {
+        const el = UI[enableId];
+        if (el) return el.checked;
+        // No checkbox element — check JSON enableDefault
+        const def = window._layerDefCache && window._layerDefCache[key] ? window._layerDefCache[key].def : null;
+        return def ? def.enableDefault !== false : true;
+    }
+
     function renderSingleLayer(gl, key, inputTex, outputFbo, uniforms, force = false) {
         const w = state.renderWidth;
         const h = state.renderHeight;
@@ -2012,6 +2022,8 @@
             if (gl.getUniformLocation(prog, 'u_time')) gl.uniform1f(gl.getUniformLocation(prog, 'u_time'), uniforms.u_time);
 
             // Dynamic JSON bindings
+            const _debugUniforms = state.frameRenderCount % 60 === 0;
+            if (_debugUniforms) console.log(`[Data-Driven] Layer '${key}' using program '${progName}' — binding ${layerDef.uniforms.length} uniforms:`);
             for (const u of layerDef.uniforms) {
                 const el = UI[u.ui_id];
 
@@ -2021,9 +2033,11 @@
                 }
 
                 let val = el ? parseFloat(el.value || 0) : 0;
+                const rawVal = val;
                 if (u.divideBy) val /= u.divideBy;
 
                 const loc = gl.getUniformLocation(prog, u.name);
+                if (_debugUniforms) console.log(`  ${u.name} (${u.type}): ui_id='${u.ui_id}' el=${el ? 'FOUND(tag=' + el.tagName + ',id=' + el.id + ')' : 'NULL'} raw=${rawVal} final=${val} loc=${loc ? 'OK' : 'NOT_IN_SHADER'}`);
                 if (!loc) continue;
 
                 if (u.type === 'int') {
@@ -2046,6 +2060,12 @@
                 if (gl.getUniformLocation(prog, 'u_useMask')) gl.uniform1i(gl.getUniformLocation(prog, 'u_useMask'), 0);
             }
 
+            // [POST-BIND] Layer-specific uniforms not expressible in JSON
+            if (key === 'ca') {
+                const centerLoc = gl.getUniformLocation(prog, 'u_center');
+                if (centerLoc) gl.uniform2f(centerLoc, state.caCenter.x, state.caCenter.y);
+            }
+
             gl.drawArrays(gl.TRIANGLES, 0, 6);
 
             // Keep rendering if animated parameters are active
@@ -2057,9 +2077,9 @@
         }
         // --- END DATA-DRIVEN PIPELINE ---
 
-        if (key === 'scale') {
-            // [TOOL: SCALE] Resolution Multiplier Pass-through
-            // Resizing is handled via reallocateBuffers(). The shader step just passes the texture forward.
+        if (key === 'scale' || key === 'alpha') {
+            // [TOOL: SCALE / ALPHA] Pass-through layers.
+            // Scale: Resizing is handled via reallocateBuffers(). Alpha: Controls consumed by composite shader.
             gl.bindFramebuffer(gl.FRAMEBUFFER, outputFbo);
             gl.useProgram(state.programs.copy);
             gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputTex);
@@ -2069,7 +2089,7 @@
         }
         else if (key === 'adjust') {
             // [TOOL: ADJUSTMENTS] Color, Sharpening, Brightness
-            if (!UI.adjustEnable?.checked && !force) {
+            if (!isLayerEnabled(key, 'adjustEnable') && !force) {
                 gl.bindFramebuffer(gl.FRAMEBUFFER, outputFbo);
                 gl.useProgram(state.programs.copy);
                 gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputTex);
@@ -2157,7 +2177,7 @@
         }
         else if (key === 'hdr') {
             // [TOOL: HDR EMULATION] Luminance Compression
-            if (!UI.hdrEnable?.checked && !force) {
+            if (!isLayerEnabled(key, 'hdrEnable') && !force) {
                 gl.bindFramebuffer(gl.FRAMEBUFFER, outputFbo);
                 gl.useProgram(state.programs.copy);
                 gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputTex);
@@ -2181,7 +2201,7 @@
         }
         else if (key === 'noise') {
             // [TOOL: NOISE GROUP] Procedural Grain & Compositing
-            if (!UI.noiseEnable?.checked && !force) {
+            if (!isLayerEnabled(key, 'noiseEnable') && !force) {
                 gl.bindFramebuffer(gl.FRAMEBUFFER, outputFbo);
                 gl.useProgram(state.programs.copy);
                 gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputTex);
@@ -2452,8 +2472,15 @@
             gl.drawArrays(gl.TRIANGLES, 0, 6);
         }
 
-
-
+        // [SAFETY NET] Unknown or unhandled layer — copy input to output to prevent chain corruption
+        else {
+            console.warn(`[Pipeline] No handler for layer '${key}'. Performing pass-through copy.`);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, outputFbo);
+            gl.useProgram(state.programs.copy);
+            gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputTex);
+            gl.uniform1i(gl.getUniformLocation(state.programs.copy, 'u_tex'), 0);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+        }
 
         return (outputFbo === state.fbos.temp2) ? state.textures.temp2 : state.textures.temp1;
     }

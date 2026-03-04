@@ -50,22 +50,26 @@
         {
             "name": "u_wobble",
             "ui_id": "analogWobble",
-            "type": "float"
+            "type": "float",
+            "divideBy": 100.0
         },
         {
             "name": "u_bleed",
             "ui_id": "analogBleed",
-            "type": "float"
+            "type": "float",
+            "divideBy": 100.0
         },
         {
             "name": "u_curve",
             "ui_id": "analogCurve",
-            "type": "float"
+            "type": "float",
+            "divideBy": 100.0
         },
         {
             "name": "u_noise",
             "ui_id": "analogNoise",
-            "type": "float"
+            "type": "float",
+            "divideBy": 100.0
         }
     ]
 }

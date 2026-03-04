@@ -35,7 +35,8 @@
         {
             "name": "u_intensity",
             "ui_id": "lightLeaksIntensity",
-            "type": "float"
+            "type": "float",
+            "divideBy": 100.0
         },
         {
             "name": "u_color1",
