@@ -1095,3 +1095,8 @@ canvas {
     color: var(--muted);
     text-align: center;
 }
+
+.hide-cursor,
+.hide-cursor * {
+    cursor: none !important;
+}

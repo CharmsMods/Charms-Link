@@ -900,7 +900,9 @@
         };
 
         // Collect inputs
-        document.querySelectorAll('input[type=range]').forEach(el => preset.values[el.id] = el.value);
+        document.querySelectorAll('input[type=range], input[type=color], input[type=number]').forEach(el => {
+            if (el.id) preset.values[el.id] = el.value;
+        });
         document.querySelectorAll('input[type=checkbox]').forEach(el => {
             if (!el.id.startsWith('drag-') && el.id !== 'jsonIncludeImage' && el.id !== 'previewLock') { // Skip non-setting toggles
                 preset.checks[el.id] = el.checked;
@@ -995,10 +997,9 @@
         }
 
         // [MULTI-INSTANCE JSON FIX] 1. Rebuild Layer Structure First
-        // Clean up any currently existing duplicate layers
+        // Clean up ALL currently existing layers
         state.renderOrder.slice().forEach(id => {
-            const { index } = parseInstanceId(id);
-            if (index > 0) removeLayerInstance(id);
+            removeLayerInstance(id);
         });
 
         // Generate any required layers from the preset
@@ -1022,10 +1023,11 @@
             });
         }
 
-        // [MULTI-INSTANCE JSON FIX] 2. Apply values (sliders) after UI is guaranteed to exist
+        // [MULTI-INSTANCE JSON FIX] 2. Apply values (sliders/colors) after UI is guaranteed to exist
         if (preset.values) {
             Object.keys(preset.values).forEach(id => {
-                const el = document.getElementById(id);
+                let el = document.getElementById(id);
+                if (!el) el = document.getElementById(id + '__0'); // Legacy compat
                 if (el) {
                     el.value = preset.values[id];
                     // Sync adjacent text indicator
@@ -1040,7 +1042,8 @@
         // Apply checkboxes
         if (preset.checks) {
             Object.keys(preset.checks).forEach(id => {
-                const el = document.getElementById(id);
+                let el = document.getElementById(id);
+                if (!el) el = document.getElementById(id + '__0'); // Legacy compat
                 if (el) {
                     el.checked = preset.checks[id];
                     el.dispatchEvent(new Event('change'));
@@ -1050,7 +1053,8 @@
         // Apply selects
         if (preset.selects) {
             Object.keys(preset.selects).forEach(id => {
-                const el = document.getElementById(id);
+                let el = document.getElementById(id);
+                if (!el) el = document.getElementById(id + '__0'); // Legacy compat
                 if (el) {
                     el.value = preset.selects[id];
                     el.dispatchEvent(new Event('change'));
@@ -1456,16 +1460,21 @@
     function removeLayerInstance(instanceId) {
         const { baseType, index } = parseInstanceId(instanceId);
 
+        // Clean up UI entries specific to this panel
+        const container = document.getElementById('dynamic-controls');
+        if (container) {
+            const panel = container.querySelector(`[data-layer-key="${baseType}"][data-instance-index="${index}"]`);
+            if (panel) {
+                panel.querySelectorAll('input, select, button, canvas').forEach(el => {
+                    if (el.id) delete _UI_BASE[el.id];
+                });
+            }
+        }
+
         // Remove UI panel
         if (typeof destroyLayerInstance === 'function') {
             destroyLayerInstance(baseType, index);
         }
-
-        // Clean up suffixed UI entries
-        const suffix = '__' + index;
-        Object.keys(_UI_BASE).forEach(key => {
-            if (key.endsWith(suffix)) delete _UI_BASE[key];
-        });
 
         // Remove from render order
         state.renderOrder = state.renderOrder.filter(id => id !== instanceId);
@@ -2614,6 +2623,7 @@
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8_ALPHA8, gl.RGBA, gl.UNSIGNED_BYTE, tempCanvas);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
         }
 
         // Start with Base
@@ -2785,9 +2795,9 @@
                     const destCanvas = state.previewWindow.document.getElementById('fs-canvas');
                     if (destCanvas) {
                         // Only update dimensions if changed (avoids flickering/resetting)
-                        if (destCanvas.width !== w || destCanvas.height !== h) {
-                            destCanvas.width = w;
-                            destCanvas.height = h;
+                        if (destCanvas.width !== finalW || destCanvas.height !== finalH) {
+                            destCanvas.width = finalW;
+                            destCanvas.height = finalH;
                         }
                         const ctx = destCanvas.getContext('2d');
                         ctx.drawImage(gl.canvas, 0, 0);
@@ -3026,10 +3036,14 @@
         const type = highPrec ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE;
 
         if (img && (img instanceof HTMLImageElement || img instanceof HTMLCanvasElement || img instanceof ImageBitmap)) {
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
             gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, format, type, img);
         } else {
             // TypedArray or Null
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+            gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
             gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, w, h, 0, format, type, img || null);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); // Restore global state
         }
         return tex;
     }
@@ -3610,14 +3624,41 @@
 
             let isDragging = false;
 
-            const updateWheel = (e) => {
-                const rect = wheel.getBoundingClientRect();
-                const cx = rect.left + rect.width / 2;
-                const cy = rect.top + rect.height / 2;
-                const radius = rect.width / 2;
+            if (input) {
+                input.addEventListener('change', () => {
+                    if (isDragging) return; // Prevent loop triggered by manual mouse actions
+                    const hex = input.value;
+                    if (!hex) return;
+                    const r = parseInt(hex.slice(1, 3), 16) / 255;
+                    const g = parseInt(hex.slice(3, 5), 16) / 255;
+                    const b = parseInt(hex.slice(5, 7), 16) / 255;
+                    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+                    const d = max - min;
+                    let hStr = 0, s = max === 0 ? 0 : d / max;
+                    if (max === min) hStr = 0;
+                    else {
+                        switch (max) {
+                            case r: hStr = (g - b) / d + (g < b ? 6 : 0); break;
+                            case g: hStr = (b - r) / d + 2; break;
+                            case b: hStr = (r - g) / d + 4; break;
+                        }
+                        hStr /= 6;
+                    }
+                    const angle = hStr * Math.PI * 2 - Math.PI / 2;
+                    const dx = Math.cos(angle) * s * 50;
+                    const dy = Math.sin(angle) * s * 50;
+                    if (handle) {
+                        handle.style.left = `calc(50% + ${dx}%)`;
+                        handle.style.top = `calc(50% + ${dy}%)`;
+                    }
+                });
+            }
 
-                let dx = e.clientX - cx;
-                let dy = e.clientY - cy;
+            let currentDx = 0;
+            let currentDy = 0;
+
+            const updateWheelFromDelta = (dx, dy, rect) => {
+                const radius = rect.width / 2;
 
                 let dist = Math.sqrt(dx * dx + dy * dy);
                 if (dist > radius) {
@@ -3625,6 +3666,9 @@
                     dy = (dy / dist) * radius;
                     dist = radius;
                 }
+
+                currentDx = dx;
+                currentDy = dy;
 
                 handle.style.left = `calc(50% + ${dx}px)`;
                 handle.style.top = `calc(50% + ${dy}px)`;
@@ -3671,16 +3715,30 @@
 
             wheel.addEventListener('mousedown', (e) => {
                 isDragging = true;
-                updateWheel(e);
+                document.body.classList.add('hide-cursor');
+
+                const rect = wheel.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+
+                let dx = e.clientX - cx;
+                let dy = e.clientY - cy;
+                updateWheelFromDelta(dx, dy, rect);
             });
 
             window.addEventListener('mousemove', (e) => {
-                if (isDragging) updateWheel(e);
+                if (isDragging) {
+                    currentDx += e.movementX / 2.0;
+                    currentDy += e.movementY / 2.0;
+                    const rect = wheel.getBoundingClientRect();
+                    updateWheelFromDelta(currentDx, currentDy, rect);
+                }
             });
 
             window.addEventListener('mouseup', () => {
                 if (isDragging) {
                     isDragging = false;
+                    document.body.classList.remove('hide-cursor');
                     if (input) input.dispatchEvent(new Event('change'));
                 }
             });

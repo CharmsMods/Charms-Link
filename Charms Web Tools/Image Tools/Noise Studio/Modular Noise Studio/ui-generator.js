@@ -140,7 +140,7 @@ function suffixAllIds(obj, suffix) {
     const idFields = ['id', 'enableId', 'rowId', 'labelId',
         'enableId', 'colorId', 'toleranceId', 'fadeId',
         'shadowThresholdId', 'shadowFadeId', 'highlightThresholdId', 'highlightFadeId',
-        'invertId'];
+        'invertId', 'shadowsId', 'midtonesId', 'highlightsId'];
 
     for (const field of idFields) {
         if (obj[field] && typeof obj[field] === 'string') {

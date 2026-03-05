@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Text Tool</title>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #121212;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #eaeaea;
+        }
+
+        /* Fullscreen canvas container */
+        #canvas-container {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* UI Overlay */
+        #ui-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            width: 320px;
+            background: rgba(30, 30, 30, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        #ui-container.faded {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-10px);
+        }
+
+        h1 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin: 0 0 20px 0;
+            letter-spacing: 0.5px;
+            color: #ffffff;
+        }
+
+        .control-group {
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #aaaaaa;
+        }
+
+        input,
+        select,
+        button {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #4facfe;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        button {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: #000;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 172, 254, 0.4);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        textarea {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            outline: none;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        textarea:focus {
+            border-color: #4facfe;
+            background: rgba(0, 0, 0, 0.5);
+        }
+    </style>
+
+    <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "three/examples/jsm/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "three-mesh-bvh": "https://unpkg.com/three-mesh-bvh@0.7.0/build/index.module.js",
+        "three-gpu-pathtracer": "https://unpkg.com/three-gpu-pathtracer@0.0.18/build/index.module.js"
+      }
+    }
+    </script>
+</head>
+
+<body>
+    <div id="error-log"
+        style="position:fixed;top:0;left:0;z-index:9999;color:red;background:black;font-family:monospace;white-space:pre-wrap;">
+    </div>
+    <script>
+        window.addEventListener('error', function (e) {
+            document.getElementById('error-log').innerHTML += e.message + '\n';
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+            document.getElementById('error-log').innerHTML += e.reason + '\n';
+        });
+    </script>
+    <div id="canvas-container"></div>
+
+    <div id="ui-container">
+        <h1>3D Text Studio</h1>
+
+        <div class="control-group">
+            <label for="text-input">Text</label>
+            <textarea id="text-input">STUDIO</textarea>
+        </div>
+
+        <div class="control-row">
+            <div class="control-group" style="flex: 1;">
+                <label for="extrude-slider">Depth</label>
+                <input type="range" id="extrude-slider" min="1" max="50" value="10">
+            </div>
+            <div class="control-group" style="flex: 1;">
+                <label for="bevel-slider">Bevel</label>
+                <input type="range" id="bevel-slider" min="0" max="2" step="0.1" value="0.5">
+            </div>
+        </div>
+
+        <div class="control-row">
+            <div class="control-group" style="flex: 1;">
+                <label for="camera-mode">Camera</label>
+                <select id="camera-mode">
+                    <option value="perspective" selected>Perspective</option>
+                    <option value="orthographic">Orthographic</option>
+                </select>
+            </div>
+
+            <div class="control-group" style="flex: 1;">
+                <label for="material-mode">Material</label>
+                <select id="material-mode">
+                    <option value="sketch" selected>Sketch</option>
+                    <option value="standard">Standard</option>
+                    <option value="raytraced">Ray Traced</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="control-row">
+            <div class="control-group" style="flex: 1;">
+                <label for="export-width">Width</label>
+                <input type="number" id="export-width" value="1920">
+            </div>
+            <div class="control-group" style="flex: 1;">
+                <label for="export-height">Height</label>
+                <input type="number" id="export-height" value="1080">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label for="export-dpi">DPI Multiplier</label>
+            <select id="export-dpi">
+                <option value="1">1x</option>
+                <option value="2" selected>2x</option>
+                <option value="3">3x</option>
+                <option value="4">4x</option>
+            </select>
+        </div>
+
+        <button id="export-btn" style="width: 100%;">Export PNG</button>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+</body>
+
+</html>

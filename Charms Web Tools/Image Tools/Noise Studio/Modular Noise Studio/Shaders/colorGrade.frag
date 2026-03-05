@@ -28,18 +28,24 @@ void main() {
     float highlightMask = smoothstep(0.6, 1.0, luma);
     float midtoneMask = 1.0 - max(shadowMask, highlightMask);
 
-    // Convert picker colors from [0, 1] range to [-1, 1] offsets. 
-    // If picker is at perfectly white (1.0), it will be mapped to a 0.0 offset.
-    // If perfectly black (0.0), mapped to -1.0 offset
-    vec3 shadowOffset = (u_shadows - 1.0);
-    vec3 midtoneOffset = (u_midtones - 1.0);
-    vec3 highlightOffset = (u_highlights - 1.0);
+    // Convert picker colors to chromatic offsets. 
+    // If picker is at perfectly white (1.0), it evaluates to 0.0.
+    // Subtracting the luma creates a balanced vector that ADDS the hue and subtracts complements.
+    vec3 shadowOffset = (u_shadows - getLuma(u_shadows)) * 1.5;
+    vec3 midtoneOffset = (u_midtones - getLuma(u_midtones)) * 1.5;
+    vec3 highlightOffset = (u_highlights - getLuma(u_highlights)) * 1.5;
 
     // Apply multiplicative / additive coloring based on standard Lift/Gamma/Gain math principles
     vec3 graded = rgb;
-    graded += shadowOffset * shadowMask * 0.5;       // Lift
-    graded += midtoneOffset * midtoneMask * 0.5;     // Gamma shift
-    graded += highlightOffset * highlightMask * 0.5; // Gain
+    
+    // Lift (Shadows): Additive offset that fades out in brighter areas
+    graded += shadowOffset * shadowMask;
+    
+    // Gamma (Midtones): Power/Gamma adjustment approximated using an additive shift proportional to midtones
+    graded += midtoneOffset * midtoneMask;
+    
+    // Gain (Highlights): Multiplicative gain to tint bright areas without washing out blacks
+    graded += (graded * highlightOffset * 1.0) * highlightMask;
 
     // Mix back based on global strength
     rgb = mix(rgb, graded, u_strength);
