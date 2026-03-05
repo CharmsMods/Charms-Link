@@ -243,6 +243,7 @@
 
         // Vectorscope elements
         UI.vectorscopeCanvas = document.getElementById('vectorscopeCanvas');
+        UI.paradeCanvas = document.getElementById('paradeCanvas');
         UI.avgSaturationVal = document.getElementById('avgSaturationVal');
 
         // Explicitly collect Blur/Dither controls to ensure no initialization race conditions
@@ -657,6 +658,11 @@
                 val += dir * 0.5;
                 val = Math.max(1, Math.min(8, val));
                 UI.hoverZoomSlider.value = val;
+
+                if (val > 1) {
+                    UI.overlayOriginal.classList.remove('show');
+                }
+
                 // Trigger input event manually to update text and state
                 UI.hoverZoomSlider.dispatchEvent(new Event('input'));
                 applyZoom(e);
@@ -668,6 +674,8 @@
             const zVal = parseFloat(UI.hoverZoomSlider.value);
             if (!state.isPreviewLocked && !state.activeLayerPreview && zVal <= 1) {
                 UI.overlayOriginal.classList.add('show');
+            } else {
+                UI.overlayOriginal.classList.remove('show');
             }
             applyZoom(e);
         });
@@ -1651,6 +1659,66 @@
         // Update saturation stat
         const avgSat = sampleCount > 0 ? (totalSat / sampleCount) * 100 : 0;
         if (UI.avgSaturationVal) UI.avgSaturationVal.textContent = avgSat.toFixed(1) + '%';
+    }
+
+    /**
+     * RGB Parade Calculation
+     * logic: Maps red, green, and blue histograms spatially separated left-to-right.
+     */
+    function updateParade(pixels, w, h) {
+        if (!state.gl || !state.baseImage || !UI.paradeCanvas || !pixels) return;
+
+        const ctx = UI.paradeCanvas.getContext('2d');
+        const cw = UI.paradeCanvas.width;
+        const ch = UI.paradeCanvas.height;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, cw, ch);
+
+        // We divide the canvas into 3 horizontal sections: Red, Green, Blue
+        const sectionWidth = cw / 3;
+        // Padding purely for aesthetics between the channels
+        const padding = 2;
+        const actualWidth = sectionWidth - padding;
+
+        // Draw Reference Grid Lines
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, ch / 2); ctx.lineTo(cw, ch / 2); // 50%
+        ctx.moveTo(0, ch * 0.25); ctx.lineTo(cw, ch * 0.25); // 75%
+        ctx.moveTo(0, ch * 0.75); ctx.lineTo(cw, ch * 0.75); // 25%
+        ctx.stroke();
+
+        ctx.globalCompositeOperation = 'screen';
+
+        const maxSamples = 20000;
+        const totalPixels = w * h;
+        const sampleRate = Math.max(1, Math.floor(totalPixels / maxSamples));
+        // Ensure stride is a multiple of 4 (one full RGBA pixel)
+        const stride = sampleRate * 4;
+
+        ctx.fillStyle = 'rgba(255, 50, 50, 0.1)';
+        for (let i = 0; i < pixels.length; i += stride) {
+            const x = (i / 4) % w;
+            ctx.fillRect((x / w) * actualWidth, ch - (pixels[i] / 255) * ch, 1.5, 1.5);
+        }
+
+        ctx.fillStyle = 'rgba(50, 255, 50, 0.1)';
+        const offsetXG = sectionWidth;
+        for (let i = 0; i < pixels.length; i += stride) {
+            const x = (i / 4) % w;
+            ctx.fillRect(offsetXG + (x / w) * actualWidth, ch - (pixels[i + 1] / 255) * ch, 1.5, 1.5);
+        }
+
+        ctx.fillStyle = 'rgba(50, 100, 255, 0.1)';
+        const offsetXB = sectionWidth * 2;
+        for (let i = 0; i < pixels.length; i += stride) {
+            const x = (i / 4) % w;
+            ctx.fillRect(offsetXB + (x / w) * actualWidth, ch - (pixels[i + 2] / 255) * ch, 1.5, 1.5);
+        }
+
+        ctx.globalCompositeOperation = 'source-over';
     }
 
     // --- WEBGL CORE ---
@@ -2787,6 +2855,7 @@
 
                 updateHistogram(state.analysisPixelBuffer, aw, ah);
                 updateVectorscope(state.analysisPixelBuffer, aw, ah);
+                updateParade(state.analysisPixelBuffer, aw, ah);
             }
 
             // [NEW] Sync to external preview
@@ -3189,6 +3258,47 @@
         d.body.appendChild(cvs);
 
         state.previewWindow = win;
+
+        // Apply UI expansion state
+        document.body.classList.add('popout-active');
+
+        // Resize Analysis Canvases for the expanded view
+        if (UI.vectorscopeCanvas) {
+            UI.vectorscopeCanvas.width = 600;
+            UI.vectorscopeCanvas.height = 600;
+        }
+        if (UI.histogramCanvas) {
+            UI.histogramCanvas.width = 1024;
+            UI.histogramCanvas.height = 300;
+        }
+        if (UI.paradeCanvas) {
+            UI.paradeCanvas.width = 1024;
+            UI.paradeCanvas.height = 300;
+        }
+
+        // Monitor window close state
+        const monitorInterval = setInterval(() => {
+            if (win.closed) {
+                clearInterval(monitorInterval);
+                state.previewWindow = null;
+                document.body.classList.remove('popout-active');
+
+                // Restore Analysis Canvas original sizes
+                if (UI.vectorscopeCanvas) {
+                    UI.vectorscopeCanvas.width = 400;
+                    UI.vectorscopeCanvas.height = 400;
+                }
+                if (UI.histogramCanvas) {
+                    UI.histogramCanvas.width = 512;
+                    UI.histogramCanvas.height = 300;
+                }
+                if (UI.paradeCanvas) {
+                    UI.paradeCanvas.width = 600;
+                    UI.paradeCanvas.height = 200;
+                }
+                setTimeout(() => requestRender(), 50); // Final render to update sizes
+            }
+        }, 500);
 
         // Initial sync
         setTimeout(() => requestRender(), 100);
